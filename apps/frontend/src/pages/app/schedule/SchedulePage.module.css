@@ -1,0 +1,95 @@
+.schedule-page {
+  padding: 24px;
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.schedule-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+/* Стили для календаря */
+:global(.rbc-calendar) {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+}
+
+:global(.rbc-toolbar) {
+  margin-bottom: 16px;
+}
+
+:global(.rbc-toolbar button) {
+  color: #1890ff;
+}
+
+:global(.rbc-toolbar button.rbc-active) {
+  background-color: #1890ff;
+  color: white;
+}
+
+:global(.rbc-event) {
+  background-color: #1890ff;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+:global(.rbc-event.rbc-selected) {
+  background-color: #096dd9;
+}
+
+:global(.rbc-today) {
+  background-color: #e6f7ff;
+}
+
+/* Стили для модального окна */
+:global(.ant-modal-content) {
+  border-radius: 8px;
+}
+
+:global(.ant-form-item) {
+  margin-bottom: 16px;
+}
+
+/* Стили для разных типов занятий */
+:global(.rbc-event.lecture) {
+  background-color: #1890ff;
+}
+
+:global(.rbc-event.practice) {
+  background-color: #52c41a;
+}
+
+:global(.rbc-event.lab) {
+  background-color: #722ed1;
+}
+
+/* Адаптивные стили */
+@media (max-width: 768px) {
+  .schedule-page {
+    padding: 16px;
+  }
+
+  .schedule-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  :global(.rbc-toolbar) {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  :global(.rbc-toolbar-label) {
+    margin: 8px 0;
+  }
+} 

@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .shadow-notion {
+    box-shadow: rgba(15, 15, 15, 0.1) 0px 0px 0px 1px,
+                rgba(15, 15, 15, 0.1) 0px 2px 4px;
+  }
+  
+  .widget-dragging {
+    @apply opacity-50 cursor-grabbing;
+  }
+  
+  .widget-drop-target {
+    @apply ring-2 ring-corporate-primary ring-opacity-50;
+  }
+}
+
+@layer utilities {
+  .grid-auto-fit {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  
+  .grid-auto-fill {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+/* Анимации для drag-and-drop */
+@keyframes wiggle {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(1deg); }
+  75% { transform: rotate(-1deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.widget-dragging {
+  animation: wiggle 0.3s ease-in-out infinite;
+} 

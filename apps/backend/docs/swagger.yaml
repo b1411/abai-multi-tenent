@@ -1,0 +1,2461 @@
+openapi: 3.0.0
+paths:
+  /:
+    get:
+      operationId: AppController_getHello
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - App
+  /study-plans:
+    get:
+      operationId: StudyPlansController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: &ref_0
+        - bearer: []
+      tags: &ref_1
+        - StudyPlans
+    post:
+      operationId: StudyPlansController_create
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      security: *ref_0
+      tags: *ref_1
+  /study-plans/{id}:
+    get:
+      operationId: StudyPlansController_findOne
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: *ref_0
+      tags: *ref_1
+    patch:
+      operationId: StudyPlansController_update
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: *ref_0
+      tags: *ref_1
+    delete:
+      operationId: StudyPlansController_remove
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: *ref_0
+      tags: *ref_1
+  /auth/login:
+    post:
+      description: |-
+
+        Аутентификация пользователя в системе.
+
+        **Доступные роли:**
+        - ADMIN - администратор системы
+        - TEACHER - преподаватель  
+        - STUDENT - студент
+        - PARENT - родитель
+        - HR - HR менеджер
+        - FINANCIST - финансист
+
+        **Пример использования:**
+        ```json
+        {
+          "email": "teacher@abai.edu.kz",
+          "password": "securePassword123"
+        }
+        ```
+            
+      operationId: AuthController_login
+      parameters: []
+      requestBody:
+        required: true
+        description: Данные для входа в систему
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+            examples:
+              teacher:
+                summary: Вход преподавателя
+                description: Пример входа для преподавателя
+                value:
+                  email: teacher@abai.edu.kz
+                  password: password123
+              admin:
+                summary: Вход администратора
+                description: Пример входа для администратора
+                value:
+                  email: admin@abai.edu.kz
+                  password: admin123
+              student:
+                summary: Вход студента
+                description: Пример входа для студента
+                value:
+                  email: student@abai.edu.kz
+                  password: student123
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT токен для авторизации
+                    example: >-
+                      eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoidGVhY2hlckBhYmFpLmVkdS5reiIsInJvbGUiOiJURUFDSEVSIiwiaWF0IjoxNjQwOTk1MjAwLCJleHAiOjE2NDA5OTg4MDB9.example
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: number
+                        example: 1
+                      email:
+                        type: string
+                        example: teacher@abai.edu.kz
+                      name:
+                        type: string
+                        example: Иван
+                      surname:
+                        type: string
+                        example: Петров
+                      middlename:
+                        type: string
+                        example: Сергеевич
+                      role:
+                        type: string
+                        example: TEACHER
+                        enum:
+                          - ADMIN
+                          - TEACHER
+                          - STUDENT
+                          - PARENT
+                          - HR
+                          - FINANCIST
+                      phone:
+                        type: string
+                        example: +7 700 123 45 67
+                      avatar:
+                        type: string
+                        example: https://example.com/avatar.jpg
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                    example: 400
+                  message:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - email must be an email
+                      - password should not be empty
+                  error:
+                    type: string
+                    example: Bad Request
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                    example: 401
+                  message:
+                    type: string
+                    example: Invalid credentials
+                  error:
+                    type: string
+                    example: Unauthorized
+      summary: Вход в систему
+      tags:
+        - Auth
+  /lessons:
+    post:
+      operationId: LessonsController_create
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      security: &ref_2
+        - bearer: []
+      tags: &ref_3
+        - Lessons
+    get:
+      operationId: LessonsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: *ref_2
+      tags: *ref_3
+  /lessons/{id}:
+    get:
+      operationId: LessonsController_findOne
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: *ref_2
+      tags: *ref_3
+    patch:
+      operationId: LessonsController_update
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: *ref_2
+      tags: *ref_3
+    delete:
+      operationId: LessonsController_remove
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security: *ref_2
+      tags: *ref_3
+  /materials:
+    post:
+      operationId: MaterialsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Материал успешно создан
+        '400':
+          description: Некорректные данные
+      security: &ref_4
+        - bearer: []
+      summary: Создать новый материал
+      tags: &ref_5
+        - Materials
+    get:
+      operationId: MaterialsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех материалов
+      security: *ref_4
+      summary: Получить все материалы
+      tags: *ref_5
+  /materials/{id}:
+    get:
+      operationId: MaterialsController_findOne
+      parameters: []
+      responses:
+        '200':
+          description: Данные материала
+        '404':
+          description: Материал не найден
+      security: *ref_4
+      summary: Получить материал по ID
+      tags: *ref_5
+    patch:
+      operationId: MaterialsController_update
+      parameters: []
+      responses:
+        '200':
+          description: Материал успешно обновлен
+        '404':
+          description: Материал не найден
+      security: *ref_4
+      summary: Обновить материал
+      tags: *ref_5
+    delete:
+      operationId: MaterialsController_remove
+      parameters: []
+      responses:
+        '200':
+          description: Материал успешно удален
+        '404':
+          description: Материал не найден
+      security: *ref_4
+      summary: Удалить материал
+      tags: *ref_5
+  /materials/lesson/{lessonId}:
+    get:
+      operationId: MaterialsController_findByLesson
+      parameters: []
+      responses:
+        '200':
+          description: Материалы урока
+        '404':
+          description: Урок не найден
+      security: *ref_4
+      summary: Получить материалы урока
+      tags: *ref_5
+  /materials/lesson/{lessonId}/create-full-materials:
+    post:
+      operationId: MaterialsController_createLessonMaterials
+      parameters: []
+      responses:
+        '201':
+          description: Материалы урока успешно созданы
+        '400':
+          description: Некорректные данные
+        '404':
+          description: Урок не найден
+      security: *ref_4
+      summary: >-
+        Создать полные материалы для урока (лекция, видео, презентация, тест,
+        ДЗ)
+      tags: *ref_5
+  /materials/{materialId}/attach-to-lesson/{lessonId}:
+    post:
+      operationId: MaterialsController_attachToLesson
+      parameters: []
+      responses:
+        '200':
+          description: Материал успешно прикреплен к уроку
+        '404':
+          description: Материал или урок не найден
+      security: *ref_4
+      summary: Прикрепить материал к уроку
+      tags: *ref_5
+  /users:
+    post:
+      operationId: UsersController_create
+      parameters: []
+      responses:
+        '201':
+          description: Пользователь успешно создан
+        '400':
+          description: Некорректные данные
+        '409':
+          description: Пользователь с таким email уже существует
+      security: &ref_6
+        - bearer: []
+      summary: Создать нового пользователя (регистрация)
+      tags: &ref_7
+        - Users
+    get:
+      operationId: UsersController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех пользователей
+      security: *ref_6
+      summary: Получить всех пользователей
+      tags: *ref_7
+  /users/role/{role}:
+    get:
+      operationId: UsersController_findByRole
+      parameters:
+        - name: role
+          required: true
+          in: path
+          description: Роль пользователя
+          schema:
+            enum:
+              - STUDENT
+              - TEACHER
+              - PARENT
+              - ADMIN
+              - FINANCIST
+              - HR
+            type: string
+      responses:
+        '200':
+          description: Пользователи с указанной ролью
+      security: *ref_6
+      summary: Получить пользователей по роли
+      tags: *ref_7
+  /users/search:
+    get:
+      operationId: UsersController_searchUsers
+      parameters:
+        - name: q
+          required: true
+          in: query
+          description: Поисковый запрос (имя, фамилия, email, телефон)
+          schema: {}
+      responses:
+        '200':
+          description: Результаты поиска пользователей
+      security: *ref_6
+      summary: Поиск пользователей
+      tags: *ref_7
+  /users/statistics:
+    get:
+      operationId: UsersController_getStatistics
+      parameters: []
+      responses:
+        '200':
+          description: Статистика пользователей по ролям
+      security: *ref_6
+      summary: Получить статистику пользователей
+      tags: *ref_7
+  /users/{id}:
+    get:
+      operationId: UsersController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Полная информация о пользователе
+        '404':
+          description: Пользователь не найден
+      security: *ref_6
+      summary: Получить пользователя по ID
+      tags: *ref_7
+    patch:
+      operationId: UsersController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Пользователь успешно обновлен
+        '404':
+          description: Пользователь не найден
+        '409':
+          description: Email уже используется
+      security: *ref_6
+      summary: Обновить пользователя
+      tags: *ref_7
+    delete:
+      operationId: UsersController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Пользователь успешно удален
+        '404':
+          description: Пользователь не найден
+      security: *ref_6
+      summary: Удалить пользователя
+      tags: *ref_7
+  /users/{id}/change-password:
+    post:
+      operationId: UsersController_changePassword
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Пароль успешно изменен
+        '404':
+          description: Пользователь не найден
+        '409':
+          description: Неверный старый пароль
+      security: *ref_6
+      summary: Изменить пароль пользователя
+      tags: *ref_7
+  /groups:
+    post:
+      operationId: GroupsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Группа успешно создана
+        '400':
+          description: Некорректные данные
+      security: &ref_8
+        - bearer: []
+      summary: Создать новую группу
+      tags: &ref_9
+        - Groups
+    get:
+      operationId: GroupsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех групп с количеством студентов
+      security: *ref_8
+      summary: Получить все группы
+      tags: *ref_9
+  /groups/course/{courseNumber}:
+    get:
+      operationId: GroupsController_findByCourse
+      parameters:
+        - name: courseNumber
+          required: true
+          in: path
+          description: Номер курса
+          schema: {}
+      responses:
+        '200':
+          description: Группы указанного курса
+      security: *ref_8
+      summary: Получить группы по номеру курса
+      tags: *ref_9
+  /groups/statistics:
+    get:
+      operationId: GroupsController_getStatistics
+      parameters: []
+      responses:
+        '200':
+          description: Статистика групп и студентов
+      security: *ref_8
+      summary: Получить статистику по группам
+      tags: *ref_9
+  /groups/{id}:
+    get:
+      operationId: GroupsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Полная информация о группе
+        '404':
+          description: Группа не найдена
+      security: *ref_8
+      summary: Получить группу по ID
+      tags: *ref_9
+    patch:
+      operationId: GroupsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Группа успешно обновлена
+        '404':
+          description: Группа не найдена
+      security: *ref_8
+      summary: Обновить группу
+      tags: *ref_9
+    delete:
+      operationId: GroupsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Группа успешно удалена
+        '404':
+          description: Группа не найдена
+      security: *ref_8
+      summary: Удалить группу
+      tags: *ref_9
+  /groups/{id}/schedule:
+    get:
+      operationId: GroupsController_getGroupSchedule
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Расписание группы
+        '404':
+          description: Группа не найдена
+      security: *ref_8
+      summary: Получить расписание группы
+      tags: *ref_9
+  /groups/{id}/study-plans:
+    get:
+      operationId: GroupsController_getGroupStudyPlans
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Учебные планы группы
+        '404':
+          description: Группа не найдена
+      security: *ref_8
+      summary: Получить учебные планы группы
+      tags: *ref_9
+  /groups/{groupId}/students/{studentId}:
+    post:
+      operationId: GroupsController_addStudentToGroup
+      parameters:
+        - name: studentId
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+        - name: groupId
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Студент успешно добавлен в группу
+        '404':
+          description: Группа или студент не найден
+      security: *ref_8
+      summary: Добавить студента в группу
+      tags: *ref_9
+  /groups/students/{studentId}:
+    delete:
+      operationId: GroupsController_removeStudentFromGroup
+      parameters:
+        - name: studentId
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Студент исключен из группы
+        '404':
+          description: Студент не найден
+      security: *ref_8
+      summary: Исключить студента из группы
+      tags: *ref_9
+  /homework:
+    post:
+      operationId: HomeworkController_create
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      tags: &ref_10
+        - Homework
+    get:
+      operationId: HomeworkController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_10
+  /homework/{id}:
+    get:
+      operationId: HomeworkController_findOne
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_10
+    patch:
+      operationId: HomeworkController_update
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_10
+    delete:
+      operationId: HomeworkController_remove
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_10
+  /quiz:
+    post:
+      operationId: QuizController_create
+      parameters: []
+      responses:
+        '201':
+          description: Тест успешно создан
+        '400':
+          description: Некорректные данные
+      security: &ref_11
+        - bearer: []
+      summary: Создать новый тест
+      tags: &ref_12
+        - Quizzes
+    get:
+      operationId: QuizController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список тестов
+      security: *ref_11
+      summary: Получить все тесты с пагинацией
+      tags: *ref_12
+  /quiz/active:
+    get:
+      operationId: QuizController_findActive
+      parameters: []
+      responses:
+        '200':
+          description: Список активных тестов
+      security: *ref_11
+      summary: Получить активные тесты
+      tags: *ref_12
+  /quiz/my-submissions:
+    get:
+      operationId: QuizController_getMySubmissions
+      parameters: []
+      responses:
+        '200':
+          description: Результаты студента
+      security: *ref_11
+      summary: Получить мои результаты тестов (для студентов)
+      tags: *ref_12
+  /quiz/{id}:
+    get:
+      operationId: QuizController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '200':
+          description: Информация о тесте
+        '404':
+          description: Тест не найден
+      security: *ref_11
+      summary: Получить тест по ID
+      tags: *ref_12
+    patch:
+      operationId: QuizController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '200':
+          description: Тест обновлен
+        '404':
+          description: Тест не найден
+      security: *ref_11
+      summary: Обновить тест
+      tags: *ref_12
+    delete:
+      operationId: QuizController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '200':
+          description: Тест удален
+        '404':
+          description: Тест не найден
+      security: *ref_11
+      summary: Удалить тест
+      tags: *ref_12
+  /quiz/{id}/questions:
+    get:
+      operationId: QuizController_getQuestions
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '200':
+          description: Список вопросов теста
+      security: *ref_11
+      summary: Получить вопросы теста
+      tags: *ref_12
+    post:
+      operationId: QuizController_addQuestion
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '201':
+          description: Вопрос добавлен
+      security: *ref_11
+      summary: Добавить вопрос к тесту
+      tags: *ref_12
+  /quiz/{id}/submissions:
+    get:
+      operationId: QuizController_getSubmissions
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '200':
+          description: Результаты теста
+      security: *ref_11
+      summary: Получить все результаты теста
+      tags: *ref_12
+  /quiz/{id}/submit:
+    post:
+      operationId: QuizController_submitQuiz
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '201':
+          description: Ответы отправлены
+        '400':
+          description: Некорректные данные или тест неактивен
+      security: *ref_11
+      summary: Отправить ответы на тест
+      tags: *ref_12
+  /quiz/{id}/statistics:
+    get:
+      operationId: QuizController_getStatistics
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '200':
+          description: Статистика теста
+      security: *ref_11
+      summary: Получить статистику по тесту
+      tags: *ref_12
+  /quiz/{id}/activate:
+    patch:
+      operationId: QuizController_toggleActive
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID теста
+          schema: {}
+      responses:
+        '200':
+          description: Статус теста изменен
+      security: *ref_11
+      summary: Активировать/деактивировать тест
+      tags: *ref_12
+  /quiz/questions/{questionId}:
+    delete:
+      operationId: QuizController_removeQuestion
+      parameters:
+        - name: questionId
+          required: true
+          in: path
+          description: ID вопроса
+          schema: {}
+      responses:
+        '200':
+          description: Вопрос удален
+      security: *ref_11
+      summary: Удалить вопрос
+      tags: *ref_12
+  /classrooms:
+    post:
+      operationId: ClassroomsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Аудитория успешно создана
+        '400':
+          description: Некорректные данные
+      security: &ref_13
+        - bearer: []
+      summary: Создать новую аудиторию
+      tags: &ref_14
+        - Classrooms
+    get:
+      operationId: ClassroomsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех аудиторий
+      security: *ref_13
+      summary: Получить все аудитории
+      tags: *ref_14
+  /classrooms/building/{building}:
+    get:
+      operationId: ClassroomsController_findByBuilding
+      parameters:
+        - name: building
+          required: true
+          in: path
+          description: Название здания
+          schema: {}
+      responses:
+        '200':
+          description: Аудитории в указанном здании
+      security: *ref_13
+      summary: Получить аудитории по зданию
+      tags: *ref_14
+  /classrooms/type/{type}:
+    get:
+      operationId: ClassroomsController_findByType
+      parameters:
+        - name: type
+          required: true
+          in: path
+          description: Тип аудитории
+          schema:
+            enum:
+              - LECTURE
+              - PRACTICE
+              - COMPUTER
+              - LABORATORY
+              - OTHER
+            type: string
+      responses:
+        '200':
+          description: Аудитории указанного типа
+      security: *ref_13
+      summary: Получить аудитории по типу
+      tags: *ref_14
+  /classrooms/capacity/{minCapacity}:
+    get:
+      operationId: ClassroomsController_findByCapacity
+      parameters:
+        - name: maxCapacity
+          required: false
+          in: query
+          description: Максимальная вместимость
+          schema: {}
+        - name: minCapacity
+          required: true
+          in: path
+          description: Минимальная вместимость
+          schema: {}
+      responses:
+        '200':
+          description: Аудитории с подходящей вместимостью
+      security: *ref_13
+      summary: Найти аудитории по вместимости
+      tags: *ref_14
+  /classrooms/available/{dayOfWeek}/{startTime}/{endTime}:
+    get:
+      operationId: ClassroomsController_findAvailableClassrooms
+      parameters:
+        - name: endTime
+          required: true
+          in: path
+          description: Время окончания (HH:MM)
+          schema: {}
+        - name: startTime
+          required: true
+          in: path
+          description: Время начала (HH:MM)
+          schema: {}
+        - name: dayOfWeek
+          required: true
+          in: path
+          description: День недели (1-7)
+          schema: {}
+      responses:
+        '200':
+          description: Список свободных аудиторий
+      security: *ref_13
+      summary: Найти свободные аудитории на указанное время
+      tags: *ref_14
+  /classrooms/by-equipment:
+    post:
+      operationId: ClassroomsController_findByEquipment
+      parameters: []
+      responses:
+        '200':
+          description: Аудитории с указанным оборудованием
+      security: *ref_13
+      summary: Найти аудитории по оборудованию
+      tags: *ref_14
+  /classrooms/statistics:
+    get:
+      operationId: ClassroomsController_getStatistics
+      parameters: []
+      responses:
+        '200':
+          description: Статистика аудиторий
+      security: *ref_13
+      summary: Получить статистику по аудиториям
+      tags: *ref_14
+  /classrooms/{id}:
+    get:
+      operationId: ClassroomsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID аудитории
+          schema: {}
+      responses:
+        '200':
+          description: Данные аудитории с расписанием
+        '404':
+          description: Аудитория не найдена
+      security: *ref_13
+      summary: Получить аудиторию по ID
+      tags: *ref_14
+    patch:
+      operationId: ClassroomsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID аудитории
+          schema: {}
+      responses:
+        '200':
+          description: Аудитория успешно обновлена
+        '404':
+          description: Аудитория не найдена
+      security: *ref_13
+      summary: Обновить аудиторию
+      tags: *ref_14
+    delete:
+      operationId: ClassroomsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID аудитории
+          schema: {}
+      responses:
+        '200':
+          description: Аудитория успешно удалена
+        '404':
+          description: Аудитория не найдена
+      security: *ref_13
+      summary: Удалить аудиторию
+      tags: *ref_14
+  /schedule:
+    post:
+      operationId: ScheduleController_create
+      parameters: []
+      responses:
+        '201':
+          description: Расписание успешно создано
+        '400':
+          description: Некорректные данные или конфликт расписания
+        '404':
+          description: Связанная сущность не найдена
+      security: &ref_15
+        - bearer: []
+      summary: Создать новое расписание
+      tags: &ref_16
+        - Schedule
+    get:
+      operationId: ScheduleController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех расписаний
+      security: *ref_15
+      summary: Получить все расписания
+      tags: *ref_16
+  /schedule/group/{groupId}:
+    get:
+      operationId: ScheduleController_findByGroup
+      parameters:
+        - name: groupId
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Расписание группы
+      security: *ref_15
+      summary: Получить расписание группы
+      tags: *ref_16
+  /schedule/teacher/{teacherId}:
+    get:
+      operationId: ScheduleController_findByTeacher
+      parameters:
+        - name: teacherId
+          required: true
+          in: path
+          description: ID преподавателя
+          schema: {}
+      responses:
+        '200':
+          description: Расписание преподавателя
+      security: *ref_15
+      summary: Получить расписание преподавателя
+      tags: *ref_16
+  /schedule/classroom/{classroomId}:
+    get:
+      operationId: ScheduleController_findByClassroom
+      parameters:
+        - name: classroomId
+          required: true
+          in: path
+          description: ID аудитории
+          schema: {}
+      responses:
+        '200':
+          description: Расписание аудитории
+      security: *ref_15
+      summary: Получить расписание аудитории
+      tags: *ref_16
+  /schedule/day/{dayOfWeek}:
+    get:
+      operationId: ScheduleController_findByDayOfWeek
+      parameters:
+        - name: dayOfWeek
+          required: true
+          in: path
+          description: 'День недели (1-7: понедельник-воскресенье)'
+          schema:
+            example: 1
+      responses:
+        '200':
+          description: Расписание на день
+      security: *ref_15
+      summary: Получить расписание на день недели
+      tags: *ref_16
+  /schedule/{id}:
+    get:
+      operationId: ScheduleController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID расписания
+          schema: {}
+      responses:
+        '200':
+          description: Данные расписания
+        '404':
+          description: Расписание не найдено
+      security: *ref_15
+      summary: Получить расписание по ID
+      tags: *ref_16
+    patch:
+      operationId: ScheduleController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID расписания
+          schema: {}
+      responses:
+        '200':
+          description: Расписание успешно обновлено
+        '400':
+          description: Некорректные данные или конфликт расписания
+        '404':
+          description: Расписание не найдено
+      security: *ref_15
+      summary: Обновить расписание
+      tags: *ref_16
+    delete:
+      operationId: ScheduleController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID расписания
+          schema: {}
+      responses:
+        '200':
+          description: Расписание успешно удалено
+        '404':
+          description: Расписание не найдено
+      security: *ref_15
+      summary: Удалить расписание
+      tags: *ref_16
+  /students:
+    post:
+      description: >-
+
+        Создает запись студента, связывая пользователя с ролью STUDENT с
+        группой.
+
+
+        **Требования:**
+
+        - Пользователь должен существовать и иметь роль STUDENT
+
+        - Группа должна существовать
+
+        - Пользователь не должен быть уже зачислен как студент
+            
+      operationId: StudentsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Студент успешно зачислен
+        '400':
+          description: Некорректные данные
+        '404':
+          description: Пользователь или группа не найдены
+        '409':
+          description: Пользователь уже является студентом
+      security: &ref_17
+        - bearer: []
+      summary: Зачислить пользователя как студента
+      tags: &ref_18
+        - Students
+    get:
+      operationId: StudentsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех студентов с информацией о пользователях и группах
+      security: *ref_17
+      summary: Получить всех студентов
+      tags: *ref_18
+  /students/group/{groupId}:
+    get:
+      operationId: StudentsController_findByGroup
+      parameters:
+        - name: groupId
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Список студентов указанной группы
+        '404':
+          description: Группа не найдена
+      security: *ref_17
+      summary: Получить студентов группы
+      tags: *ref_18
+  /students/user/{userId}:
+    get:
+      operationId: StudentsController_findByUser
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Информация о студенте
+        '404':
+          description: Студент не найден
+      security: *ref_17
+      summary: Получить запись студента по ID пользователя
+      tags: *ref_18
+  /students/{id}/grades:
+    get:
+      operationId: StudentsController_getStudentGrades
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Оценки студента сгруппированные по предметам со статистикой
+        '404':
+          description: Студент не найден
+      security: *ref_17
+      summary: Получить все оценки студента по предметам
+      tags: *ref_18
+  /students/statistics:
+    get:
+      operationId: StudentsController_getStatistics
+      parameters: []
+      responses:
+        '200':
+          description: Статистика студентов по группам
+      security: *ref_17
+      summary: Получить статистику студентов
+      tags: *ref_18
+  /students/{id}:
+    get:
+      operationId: StudentsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Полная информация о студенте
+        '404':
+          description: Студент не найден
+      security: *ref_17
+      summary: Получить студента по ID
+      tags: *ref_18
+    patch:
+      operationId: StudentsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Данные студента успешно обновлены
+        '404':
+          description: Студент не найден
+      security: *ref_17
+      summary: Обновить данные студента
+      tags: *ref_18
+    delete:
+      operationId: StudentsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Студент успешно отчислен
+        '404':
+          description: Студент не найден
+      security: *ref_17
+      summary: Отчислить студента
+      tags: *ref_18
+  /students/{id}/change-group/{newGroupId}:
+    patch:
+      operationId: StudentsController_changeGroup
+      parameters:
+        - name: newGroupId
+          required: true
+          in: path
+          description: ID новой группы
+          schema: {}
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Студент успешно переведен в новую группу
+        '404':
+          description: Студент или группа не найдены
+      security: *ref_17
+      summary: Перевести студента в другую группу
+      tags: *ref_18
+  /students/{id}/parents/{parentId}:
+    post:
+      operationId: StudentsController_addParentToStudent
+      parameters:
+        - name: parentId
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '201':
+          description: Родитель успешно привязан к студенту
+        '404':
+          description: Студент или родитель не найден
+        '409':
+          description: Родитель уже привязан к этому студенту
+      security: *ref_17
+      summary: Привязать родителя к студенту
+      tags: *ref_18
+    delete:
+      operationId: StudentsController_removeParentFromStudent
+      parameters:
+        - name: parentId
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Родитель успешно отвязан от студента
+        '404':
+          description: Студент, родитель не найден или связь не существует
+      security: *ref_17
+      summary: Отвязать родителя от студента
+      tags: *ref_18
+  /students/{id}/parents:
+    get:
+      operationId: StudentsController_getStudentParents
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Список родителей студента
+        '404':
+          description: Студент не найден
+      security: *ref_17
+      summary: Получить всех родителей студента
+      tags: *ref_18
+  /teachers:
+    post:
+      operationId: TeachersController_create
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      tags: &ref_19
+        - Teachers
+    get:
+      operationId: TeachersController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_19
+  /teachers/{id}:
+    get:
+      operationId: TeachersController_findOne
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_19
+    patch:
+      operationId: TeachersController_update
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_19
+    delete:
+      operationId: TeachersController_remove
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_19
+  /parents:
+    post:
+      operationId: ParentsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Родитель успешно зарегистрирован
+        '409':
+          description: Пользователь уже является родителем
+      security: &ref_20
+        - bearer: []
+      summary: Зарегистрировать пользователя как родителя
+      tags: &ref_21
+        - Parents
+    get:
+      operationId: ParentsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех родителей с информацией о пользователях
+      security: *ref_20
+      summary: Получить всех родителей
+      tags: *ref_21
+  /parents/user/{userId}:
+    get:
+      operationId: ParentsController_findByUser
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Информация о родителе
+      security: *ref_20
+      summary: Получить запись родителя по ID пользователя
+      tags: *ref_21
+  /parents/search:
+    get:
+      operationId: ParentsController_search
+      parameters:
+        - name: q
+          required: true
+          in: query
+          description: Поисковый запрос
+          schema: {}
+      responses:
+        '200':
+          description: Результаты поиска родителей
+      security: *ref_20
+      summary: Поиск родителей
+      tags: *ref_21
+  /parents/statistics:
+    get:
+      operationId: ParentsController_getStatistics
+      parameters: []
+      responses:
+        '200':
+          description: Статистика родителей
+      security: *ref_20
+      summary: Получить статистику родителей
+      tags: *ref_21
+  /parents/{id}:
+    get:
+      operationId: ParentsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+      responses:
+        '200':
+          description: Полная информация о родителе
+        '404':
+          description: Родитель не найден
+      security: *ref_20
+      summary: Получить родителя по ID
+      tags: *ref_21
+    patch:
+      operationId: ParentsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+      responses:
+        '200':
+          description: Данные родителя успешно обновлены
+        '404':
+          description: Родитель не найден
+      security: *ref_20
+      summary: Обновить данные родителя
+      tags: *ref_21
+    delete:
+      operationId: ParentsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+      responses:
+        '200':
+          description: Родитель успешно удален
+        '404':
+          description: Родитель не найден
+      security: *ref_20
+      summary: Удалить родителя
+      tags: *ref_21
+  /payments:
+    post:
+      operationId: PaymentsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Платеж успешно создан
+        '404':
+          description: Студент не найден
+      security: &ref_22
+        - bearer: []
+      summary: Создать новый платеж
+      tags: &ref_23
+        - Payments
+    get:
+      operationId: PaymentsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех платежей
+      security: *ref_22
+      summary: Получить все платежи
+      tags: *ref_23
+  /payments/student/{studentId}:
+    get:
+      operationId: PaymentsController_findByStudent
+      parameters:
+        - name: studentId
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Платежи указанного студента
+        '404':
+          description: Студент не найден
+      security: *ref_22
+      summary: Получить платежи студента
+      tags: *ref_23
+  /payments/student/{studentId}/summary:
+    get:
+      operationId: PaymentsController_getStudentSummary
+      parameters:
+        - name: studentId
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Сводка платежей студента
+      security: *ref_22
+      summary: Получить сводку платежей студента
+      tags: *ref_23
+  /payments/status/{status}:
+    get:
+      operationId: PaymentsController_findByStatus
+      parameters:
+        - name: status
+          required: true
+          in: path
+          description: Статус платежей (PENDING, COMPLETED, etc.)
+          schema: {}
+      responses:
+        '200':
+          description: Платежи с указанным статусом
+      security: *ref_22
+      summary: Получить платежи по статусу
+      tags: *ref_23
+  /payments/search:
+    get:
+      operationId: PaymentsController_search
+      parameters:
+        - name: q
+          required: true
+          in: query
+          description: Поисковый запрос
+          schema: {}
+      responses:
+        '200':
+          description: Результаты поиска платежей
+      security: *ref_22
+      summary: Поиск платежей
+      tags: *ref_23
+  /payments/statistics:
+    get:
+      operationId: PaymentsController_getStatistics
+      parameters: []
+      responses:
+        '200':
+          description: Статистика платежей
+      security: *ref_22
+      summary: Получить статистику платежей
+      tags: *ref_23
+  /payments/{id}:
+    get:
+      operationId: PaymentsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Информация о платеже
+        '404':
+          description: Платеж не найден
+      security: *ref_22
+      summary: Получить платеж по ID
+      tags: *ref_23
+    patch:
+      operationId: PaymentsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Платеж успешно обновлен
+        '404':
+          description: Платеж не найден
+      security: *ref_22
+      summary: Обновить платеж
+      tags: *ref_23
+    delete:
+      operationId: PaymentsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Платеж успешно удален
+        '404':
+          description: Платеж не найден
+      security: *ref_22
+      summary: Удалить платеж
+      tags: *ref_23
+  /payments/{id}/process:
+    patch:
+      operationId: PaymentsController_process
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Платеж переведен в статус обработки
+        '400':
+          description: Платеж не может быть обработан
+      security: *ref_22
+      summary: Обработать платеж
+      tags: *ref_23
+  /payments/{id}/complete:
+    patch:
+      operationId: PaymentsController_complete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Платеж успешно завершен
+        '400':
+          description: Платеж не может быть завершен
+      security: *ref_22
+      summary: Завершить платеж
+      tags: *ref_23
+  /payments/{id}/fail:
+    patch:
+      operationId: PaymentsController_fail
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Платеж отмечен как неуспешный
+        '400':
+          description: Платеж не может быть отмечен как неуспешный
+      security: *ref_22
+      summary: Отметить платеж как неуспешный
+      tags: *ref_23
+  /payments/{id}/assign-parent/{parentId}:
+    patch:
+      operationId: PaymentsController_assignToParent
+      parameters:
+        - name: parentId
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Платеж успешно назначен родителю
+        '400':
+          description: Родитель не связан с этим студентом
+        '404':
+          description: Платеж или родитель не найден
+      security: *ref_22
+      summary: Назначить платеж родителю
+      tags: *ref_23
+  /payments/parent/{parentId}:
+    get:
+      operationId: PaymentsController_getParentPayments
+      parameters:
+        - name: parentId
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+      responses:
+        '200':
+          description: Платежи родителя с детальной информацией
+        '404':
+          description: Родитель не найден
+      security: *ref_22
+      summary: Получить все платежи родителя (за всех детей)
+      tags: *ref_23
+  /payments/parent/{parentId}/student/{studentId}:
+    post:
+      operationId: PaymentsController_createPaymentByParent
+      parameters:
+        - name: studentId
+          required: true
+          in: path
+          description: ID студента (ребенка)
+          schema: {}
+        - name: parentId
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+      responses:
+        '201':
+          description: Платеж успешно создан родителем
+        '400':
+          description: Студент не связан с этим родителем
+        '404':
+          description: Родитель или студент не найден
+      security: *ref_22
+      summary: Создать платеж родителем за своего ребенка
+      tags: *ref_23
+  /payments/{id}/pay-by-parent/{parentId}:
+    patch:
+      operationId: PaymentsController_payByParent
+      parameters:
+        - name: method
+          required: false
+          in: query
+          description: Метод оплаты
+          schema: {}
+        - name: parentId
+          required: true
+          in: path
+          description: ID родителя
+          schema: {}
+        - name: id
+          required: true
+          in: path
+          description: ID платежа
+          schema: {}
+      responses:
+        '200':
+          description: Платеж успешно оплачен родителем
+        '400':
+          description: Платеж не может быть оплачен или родитель не имеет прав
+        '404':
+          description: Платеж не найден
+      security: *ref_22
+      summary: Оплатить платеж родителем
+      tags: *ref_23
+  /notifications:
+    post:
+      operationId: NotificationsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Уведомление создано
+      security: &ref_24
+        - bearer: []
+      summary: Создать уведомление
+      tags: &ref_25
+        - Notifications
+    get:
+      operationId: NotificationsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список уведомлений
+      security: *ref_24
+      summary: Получить все уведомления с пагинацией
+      tags: *ref_25
+  /notifications/add:
+    post:
+      operationId: NotificationsController_addNotifications
+      parameters: []
+      responses:
+        '201':
+          description: Уведомления добавлены
+      security: *ref_24
+      summary: Добавить уведомления для пользователей
+      tags: *ref_25
+  /notifications/my:
+    get:
+      operationId: NotificationsController_getMyNotifications
+      parameters: []
+      responses:
+        '200':
+          description: Уведомления пользователя
+      security: *ref_24
+      summary: Получить мои уведомления
+      tags: *ref_25
+  /notifications/unread-count/{userId}:
+    get:
+      operationId: NotificationsController_getUnreadCount
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Количество непрочитанных уведомлений
+      security: *ref_24
+      summary: Получить количество непрочитанных уведомлений
+      tags: *ref_25
+  /notifications/stream:
+    get:
+      operationId: NotificationsController_streamNotifications
+      parameters: []
+      responses:
+        '200':
+          description: Поток событий Server-Sent Events
+      security: *ref_24
+      summary: SSE поток уведомлений (без авторизации)
+      tags: *ref_25
+  /notifications/{id}:
+    get:
+      operationId: NotificationsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID уведомления
+          schema: {}
+      responses:
+        '200':
+          description: Информация об уведомлении
+        '404':
+          description: Уведомление не найдено
+      security: *ref_24
+      summary: Получить уведомление по ID
+      tags: *ref_25
+    patch:
+      operationId: NotificationsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID уведомления
+          schema: {}
+      responses:
+        '200':
+          description: Уведомление обновлено
+        '404':
+          description: Уведомление не найдено
+      security: *ref_24
+      summary: Обновить уведомление
+      tags: *ref_25
+    delete:
+      operationId: NotificationsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID уведомления
+          schema: {}
+      responses:
+        '200':
+          description: Уведомление удалено
+        '404':
+          description: Уведомление не найдено
+      security: *ref_24
+      summary: Удалить уведомление
+      tags: *ref_25
+  /notifications/{id}/read:
+    patch:
+      operationId: NotificationsController_markAsRead
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID уведомления
+          schema: {}
+      responses:
+        '200':
+          description: Уведомление отмечено как прочитанное
+      security: *ref_24
+      summary: Отметить уведомление как прочитанное
+      tags: *ref_25
+  /notifications/read-all/{userId}:
+    patch:
+      operationId: NotificationsController_markAllAsRead
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          description: ID пользователя
+          schema: {}
+      responses:
+        '200':
+          description: Все уведомления отмечены как прочитанные
+      security: *ref_24
+      summary: Отметить все уведомления как прочитанные
+      tags: *ref_25
+  /files:
+    post:
+      operationId: FilesController_create
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      tags: &ref_26
+        - Files
+    get:
+      operationId: FilesController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_26
+  /files/{id}:
+    get:
+      operationId: FilesController_findOne
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_26
+    patch:
+      operationId: FilesController_update
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_26
+    delete:
+      operationId: FilesController_remove
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags: *ref_26
+  /lesson-results:
+    post:
+      operationId: LessonResultsController_create
+      parameters: []
+      responses:
+        '201':
+          description: Результат урока успешно создан
+        '400':
+          description: Некорректные данные
+        '409':
+          description: Результат для этого студента и урока уже существует
+      security: &ref_27
+        - bearer: []
+      summary: Выставить оценку или отметить посещаемость
+      tags: &ref_28
+        - Electronic Journal
+    get:
+      operationId: LessonResultsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Список всех результатов уроков
+      security: *ref_27
+      summary: Получить все результаты уроков
+      tags: *ref_28
+  /lesson-results/lesson/{lessonId}/journal:
+    get:
+      operationId: LessonResultsController_getJournalByLesson
+      parameters:
+        - name: lessonId
+          required: true
+          in: path
+          description: ID урока
+          schema: {}
+      responses:
+        '200':
+          description: Журнал урока со всеми студентами
+        '404':
+          description: Урок не найден
+      security: *ref_27
+      summary: Получить журнал по уроку (все студенты и их оценки)
+      tags: *ref_28
+  /lesson-results/student/{studentId}/subject/{studyPlanId}/grades:
+    get:
+      operationId: LessonResultsController_getStudentGradesBySubject
+      parameters:
+        - name: studyPlanId
+          required: true
+          in: path
+          description: ID учебного плана (предмета)
+          schema: {}
+        - name: studentId
+          required: true
+          in: path
+          description: ID студента
+          schema: {}
+      responses:
+        '200':
+          description: Оценки студента по предмету со статистикой
+        '404':
+          description: Студент или предмет не найден
+      security: *ref_27
+      summary: Получить все оценки студента по предмету
+      tags: *ref_28
+  /lesson-results/group/{groupId}/journal:
+    get:
+      operationId: LessonResultsController_getGroupJournalByPeriod
+      parameters:
+        - name: endDate
+          required: true
+          in: query
+          description: Дата окончания периода (YYYY-MM-DD)
+          schema: {}
+        - name: startDate
+          required: true
+          in: query
+          description: Дата начала периода (YYYY-MM-DD)
+          schema: {}
+        - name: groupId
+          required: true
+          in: path
+          description: ID группы
+          schema: {}
+      responses:
+        '200':
+          description: Журнал группы за указанный период
+        '404':
+          description: Группа не найдена
+      security: *ref_27
+      summary: Получить журнал группы за период
+      tags: *ref_28
+  /lesson-results/lesson/{lessonId}/bulk-attendance:
+    post:
+      operationId: LessonResultsController_bulkMarkAttendance
+      parameters:
+        - name: lessonId
+          required: true
+          in: path
+          description: ID урока
+          schema: {}
+      requestBody:
+        required: true
+        description: Данные о посещаемости студентов
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attendanceData:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      studentId:
+                        type: number
+                        description: ID студента
+                      attendance:
+                        type: boolean
+                        description: Присутствовал ли студент
+                      absentReason:
+                        type: string
+                        enum:
+                          - SICK
+                          - FAMILY
+                          - OTHER
+                        description: Причина отсутствия
+                      absentComment:
+                        type: string
+                        description: Комментарий к отсутствию
+                    required:
+                      - studentId
+                      - attendance
+              required:
+                - attendanceData
+      responses:
+        '201':
+          description: Посещаемость успешно отмечена
+        '404':
+          description: Урок не найден
+      security: *ref_27
+      summary: Массово отметить посещаемость урока
+      tags: *ref_28
+  /lesson-results/attendance/statistics:
+    get:
+      operationId: LessonResultsController_getAttendanceStatistics
+      parameters:
+        - name: endDate
+          required: false
+          in: query
+          description: Дата окончания периода (YYYY-MM-DD, опционально)
+          schema: {}
+        - name: startDate
+          required: false
+          in: query
+          description: Дата начала периода (YYYY-MM-DD, опционально)
+          schema: {}
+        - name: studyPlanId
+          required: false
+          in: query
+          description: ID учебного плана (опционально)
+          schema: {}
+        - name: groupId
+          required: false
+          in: query
+          description: ID группы (опционально)
+          schema: {}
+      responses:
+        '200':
+          description: Статистика посещаемости
+      security: *ref_27
+      summary: Получить статистику посещаемости
+      tags: *ref_28
+  /lesson-results/{id}:
+    get:
+      operationId: LessonResultsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID результата урока
+          schema: {}
+      responses:
+        '200':
+          description: Подробная информация о результате урока
+        '404':
+          description: Результат урока не найден
+      security: *ref_27
+      summary: Получить результат урока по ID
+      tags: *ref_28
+    patch:
+      operationId: LessonResultsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID результата урока
+          schema: {}
+      responses:
+        '200':
+          description: Результат урока успешно обновлен
+        '404':
+          description: Результат урока не найден
+      security: *ref_27
+      summary: Обновить результат урока (изменить оценку или посещаемость)
+      tags: *ref_28
+    delete:
+      operationId: LessonResultsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID результата урока
+          schema: {}
+      responses:
+        '200':
+          description: Результат урока успешно удален
+        '404':
+          description: Результат урока не найден
+      security: *ref_27
+      summary: Удалить результат урока
+      tags: *ref_28
+  /ai-assistant/session:
+    post:
+      operationId: AiAssistantController_createSession
+      parameters: []
+      responses:
+        '201':
+          description: Ephemeral token создан успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_secret:
+                    type: object
+                    properties:
+                      value:
+                        type: string
+                        description: Ephemeral token
+                      expires_at:
+                        type: number
+                        description: Время истечения токена (Unix timestamp)
+      security:
+        - bearer: []
+      summary: Создать ephemeral token для OpenAI Realtime API
+      tags:
+        - AI Assistant
+info:
+  title: Multi-Tenant ABAI API
+  description: >-
+
+    # 🎓 Multi-Tenant ABAI - Система управления образовательным процессом
+
+
+    ## 📋 Описание
+
+    Комплексная система для управления образовательным процессом с поддержкой
+    множественной аренды.
+
+
+    ## 🚀 Основные возможности
+
+    - 🔐 JWT аутентификация и авторизация
+
+    - 👥 Управление пользователями с ролями (ADMIN, TEACHER, STUDENT, PARENT,
+    HR)
+
+    - 🏫 Управление группами и аудиториями
+
+    - 📖 Учебные планы и уроки
+
+    - 📝 Материалы уроков (лекции, видео, тесты, домашние задания)
+
+    - 📅 Расписание с автоматической проверкой конфликтов
+
+    - 📊 Электронный журнал с оценками и посещаемостью
+
+    - 💰 Система платежей с интеграцией родителей
+
+    - 🤖 AI ассистент с голосовым интерфейсом
+
+    - 📈 Статистика и аналитика
+
+
+    ## 🔑 Аутентификация
+
+    Для доступа к защищенным эндпоинтам используйте JWT токен в заголовке
+    Authorization:
+
+    ```
+
+    Authorization: Bearer <your-jwt-token>
+
+    ```
+
+
+    ## 👤 Роли пользователей
+
+    - **ADMIN** - полный доступ ко всем функциям системы
+
+    - **HR** - управление пользователями и отчетами
+
+    - **TEACHER** - управление уроками, оценками, просмотр журналов
+
+    - **STUDENT** - просмотр своих оценок, материалов и расписания
+
+    - **PARENT** - просмотр данных своих детей, оплата обучения
+
+
+    ## 📱 Модули системы
+
+    - **Auth** - Аутентификация и авторизация
+
+    - **Users** - Управление пользователями
+
+    - **Groups** - Управление группами студентов
+
+    - **Classrooms** - Управление аудиториями
+
+    - **Study Plans** - Учебные планы
+
+    - **Schedule** - Расписание занятий
+
+    - **Lessons** - Уроки
+
+    - **Materials** - Материалы уроков
+
+    - **Lesson Results** - Электронный журнал
+
+    - **Students** - Управление студентами
+
+    - **Teachers** - Управление преподавателями
+
+    - **Parents** - Управление родителями
+
+    - **Payments** - Система платежей
+
+    - **AI Assistant** - AI ассистент с голосовым интерфейсом
+          
+  version: 1.0.0
+  contact:
+    name: ABAI Support Team
+    url: https://abai.edu.kz
+    email: support@abai.edu.kz
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+tags:
+  - name: Auth
+    description: Аутентификация и авторизация
+  - name: Users
+    description: Управление пользователями
+  - name: Groups
+    description: Управление группами студентов
+  - name: Classrooms
+    description: Управление аудиториями
+  - name: Study Plans
+    description: Учебные планы
+  - name: Schedule
+    description: Расписание занятий
+  - name: Lessons
+    description: Уроки
+  - name: Materials
+    description: Материалы уроков
+  - name: Lesson Results
+    description: Электронный журнал с оценками и посещаемостью
+  - name: Students
+    description: Управление студентами
+  - name: Teachers
+    description: Управление преподавателями
+  - name: Parents
+    description: Управление родителями
+  - name: Payments
+    description: Система платежей
+  - name: AI Assistant
+    description: AI ассистент с голосовым интерфейсом
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.abai.edu.kz
+    description: Production server
+components:
+  securitySchemes:
+    JWT-auth:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+      name: JWT
+      description: Введите JWT токен
+      in: header
+  schemas:
+    LoginDto:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email адрес пользователя
+          example: teacher@abai.edu.kz
+          format: email
+        password:
+          type: string
+          description: Пароль пользователя
+          example: securePassword123
+          minLength: 6
+        rememberMe:
+          type: boolean
+          description: Запомнить меня (увеличивает время жизни токена)
+          example: true
+          default: false
+      required:
+        - email
+        - password

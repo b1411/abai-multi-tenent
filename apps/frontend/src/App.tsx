@@ -1,144 +1,108 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import DashboardLayout from './components/DashboardLayout';
-import Dashboard from './pages/Dashboard';
-import AcademicJournalPage from './pages/AcademicJournalPage';
-import SchedulePage from './pages/SchedulePage';
-import ClassroomsPage from './pages/ClassroomsPage';
-import BookingRequestsPage from './pages/BookingRequestsPage';
-import StudyPlansPage from './pages/StudyPlansPage';
-import StudyPlanDetailPage from './pages/StudyPlanDetailPage';
-import LessonDetailPage from './pages/LessonDetailPage';
-import { LanguageProvider } from './providers/LanguageProvider';
-import StudentsPage from './pages/StudentsPage';
-import StudentDetailPage from './pages/StudentDetailPage';
-import LessonsManagePage from './pages/LessonsManagePage';
-import LessonMaterialsPage from './pages/LessonMaterialsPage';
-import QuizStatisticsPage from './pages/QuizStatisticsPage';
-import ChatPage from './pages/app/ChatPage';
-import AIChatPage from './pages/app/AIChatPage';
-import CalendarPage from './pages/app/CalendarPage';
-import TodoPage from './pages/app/TodoPage';
-import NeuroAbaiPage from './pages/app/NeuroAbaiPage';
-import SettingsPage from './pages/app/SettingsPage';
-import ProfilePage from './pages/app/ProfilePage';
-import PerformancePage from './pages/PerformancePage';
-import EmployeesPage from './pages/hr/EmployeesPage';
-import WorkloadPage from './pages/hr/WorkloadPage';
-import KpiPage from './pages/hr/KpiPage';
-import VacationPage from './pages/hr/VacationPage';
-import FakePositionsPage from './pages/hr/FakePositionsPage';
-import PaymentsPage from './pages/finance/PaymentsPage';
-import ReportsPage from './pages/finance/ReportsPage';
-import BudgetPage from './pages/finance/BudgetPage';
-import PayrollPage from './pages/finance/PayrollPage';
-import SalariesPage from './pages/finance/SalariesPage';
-import AntiFraudPage from './pages/finance/AntiFraudPage';
-import ACLPage from './pages/finance/ACLPage';
-import Login from './pages/Login';
 import { AuthProvider } from './providers/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
-import TestRealtimeApi from './pages/TestRealtimeApi';
-
-import InventoryPage from './pages/erp/InventoryPage';
-import SupplyPage from './pages/erp/SupplyPage';
-import UsersPage from './pages/settings/UsersPage';
-import PermissionsPage from './pages/settings/PermissionsPage';
-import IntegrationsPage from './pages/settings/IntegrationsPage';
-import BrandingPage from './pages/settings/BrandingPage';
-import SystemPage from './pages/settings/SystemPage';
-import HomeworkPage from './pages/HomeworkPage';
+import DashboardLayout from './components/DashboardLayout';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import StudyPlansPage from './pages/StudyPlans';
+import LessonsPage from './pages/Lessons';
+import LessonDetailPage from './pages/LessonDetail';
+import LessonMaterialsPage from './pages/LessonMaterials';
 
 const App: React.FC = () => {
   return (
-    <LanguageProvider>
-      <Router>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>
-            }>
-              <Route index element={<Dashboard />} />
-              
-              {/* Academic routes */}
-              <Route path="academic/academic-journal" element={<AcademicJournalPage />} />
-              <Route path="academic/schedule" element={<SchedulePage />} />
-              <Route path="academic/classrooms" element={<ClassroomsPage />} />
-              <Route path="academic/requests" element={<BookingRequestsPage />} />
-              <Route path="academic/requests/new" element={<BookingRequestsPage />} />
-              <Route path="academic/study-plans" element={<StudyPlansPage />} />
-              <Route path="academic/study-plans/:id" element={<StudyPlanDetailPage />} />
-              <Route path="academic/study-plans/:id/lessons/:lessonId" element={<LessonDetailPage />} />
-              <Route path="academic/homework" element={<HomeworkPage />} />
+            }
+          >
+            <Route index element={<Dashboard />} />
 
-              {/* Students routes */}
-              <Route path="students" element={<StudentsPage />} />
-              <Route path="students/:id" element={<StudentDetailPage />} />
-              <Route path="performance" element={<PerformancePage />} />
+            {/* Study Plans routes */}
+            <Route path="study-plans" element={<StudyPlansPage />} />
 
-              {/* Applications routes */}
-              <Route path="app/chat" element={<ChatPage />} />
-              <Route path="app/ai-chat" element={<AIChatPage />} />
-              <Route path="app/calendar" element={<CalendarPage />} />
-              <Route path="app/tasks" element={<TodoPage />} />
-              <Route path="app/profile" element={<ProfilePage />} />
-              <Route path="app/erp/inventory" element={<InventoryPage />} />
-              <Route path="app/erp/supply" element={<SupplyPage />} />
-              <Route path="app/neuro-abai" element={<NeuroAbaiPage />} />
+            {/* Lessons routes */}
+            <Route path="lessons" element={<LessonsPage />} />
+            <Route path="lessons/:id" element={<LessonDetailPage />} />
+            <Route path="lessons/:id/materials" element={<LessonMaterialsPage />} />
 
-              {/* HR routes */}
-              <Route path="hr/employees" element={<EmployeesPage />} />
-              <Route path="hr/workload" element={<WorkloadPage />} />
-              <Route path="hr/kpi" element={<KpiPage />} />
-              <Route path="hr/vacation" element={<VacationPage />} />
-              <Route path="hr/fake-positions" element={<FakePositionsPage />} />
-
-              {/* Finance routes */}
-              <Route path="finance/payments" element={<PaymentsPage />} />
-              <Route path="finance/reports" element={<ReportsPage />} />
-              <Route path="finance/budget" element={<BudgetPage />} />
-              <Route path="finance/acl" element={<ACLPage />} />
-              <Route path="finance/payroll" element={<PayrollPage />} />
-              <Route path="finance/salaries" element={<SalariesPage />} />
-              <Route path="finance/antifraud" element={<AntiFraudPage />} />
-
-              {/* Settings routes */}
-              <Route path="settings/users" element={<UsersPage />} />
-              <Route path="settings/permissions" element={<PermissionsPage />} />
-              <Route path="settings/integrations" element={<IntegrationsPage />} />
-              <Route path="settings/branding" element={<BrandingPage />} />
-              <Route path="settings/system" element={<SystemPage />} />
-
-              {/* Study Plans routes */}
-              <Route path="study-plans" element={<StudyPlansPage />} />
-              <Route path="study-plans/:id" element={<StudyPlanDetailPage />} />
-              <Route path="study-plans/:studyPlanId/lessons" element={<LessonsManagePage />} />
-              <Route path="study-plans/:id/lessons/:lessonId" element={<LessonDetailPage />} />
-              
-              {/* Lessons routes */}
-              <Route path="lessons/:lessonId/materials" element={<LessonMaterialsPage />} />
-              
-              {/* Quiz routes */}
-              <Route path="quiz/:quizId/statistics" element={<QuizStatisticsPage />} />
-
-              <Route path='/test/realtime-api' element={<TestRealtimeApi />} />
+            {/* Academic routes */}
+            <Route path="academic">
+              <Route path="academic-journal" element={<div>Academic Journal Page</div>} />
+              <Route path="schedule" element={<div>Schedule Page</div>} />
+              <Route path="classrooms" element={<div>Classrooms Page</div>} />
+              <Route path="requests" element={<div>Booking Requests Page</div>} />
+              <Route path="requests/new" element={<div>New Booking Request Page</div>} />
+              <Route path="homework" element={<div>Homework Page</div>} />
             </Route>
-            
-            {/* Добавляем отдельный маршрут для /dashboard */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Dashboard />} />
+
+            {/* Students routes */}
+            <Route path="students" element={<div>Students Page</div>} />
+            <Route path="students/:id" element={<div>Student Detail Page</div>} />
+            <Route path="performance" element={<div>Performance Page</div>} />
+
+            {/* Quiz routes */}
+            <Route path="quiz/:quizId/statistics" element={<div>Quiz Statistics Page</div>} />
+
+            {/* HR routes */}
+            <Route path="hr">
+              <Route path="employees" element={<div>Employees Page</div>} />
+              <Route path="workload" element={<div>Workload Page</div>} />
+              <Route path="kpi" element={<div>KPI Page</div>} />
+              <Route path="vacation" element={<div>Vacation Page</div>} />
+              <Route path="fake-positions" element={<div>Fake Positions Page</div>} />
             </Route>
-          </Routes>
-        </AuthProvider>
-      </Router>
-    </LanguageProvider>
+
+            {/* Finance routes */}
+            <Route path="finance">
+              <Route path="payments" element={<div>Payments Page</div>} />
+              <Route path="reports" element={<div>Reports Page</div>} />
+              <Route path="budget" element={<div>Budget Page</div>} />
+              <Route path="acl" element={<div>ACL Page</div>} />
+              <Route path="payroll" element={<div>Payroll Page</div>} />
+              <Route path="salaries" element={<div>Salaries Page</div>} />
+              <Route path="antifraud" element={<div>Anti-Fraud Page</div>} />
+            </Route>
+
+            {/* Applications routes */}
+            <Route path="app">
+              <Route path="chat" element={<div>Chat Page</div>} />
+              <Route path="ai-chat" element={<div>AI Chat Page</div>} />
+              <Route path="calendar" element={<div>Calendar Page</div>} />
+              <Route path="tasks" element={<div>Tasks Page</div>} />
+              <Route path="neuro-abai" element={<div>Neuro Abai Page</div>} />
+              <Route path="profile" element={<div>Profile Page</div>} />
+
+              {/* ERP routes */}
+              <Route path="erp">
+                <Route path="inventory" element={<div>Inventory Page</div>} />
+                <Route path="supply" element={<div>Supply Page</div>} />
+              </Route>
+            </Route>
+
+            {/* Settings routes */}
+            <Route path="settings">
+              <Route path="users" element={<div>Users Page</div>} />
+              <Route path="permissions" element={<div>Permissions Page</div>} />
+              <Route path="integrations" element={<div>Integrations Page</div>} />
+              <Route path="branding" element={<div>Branding Page</div>} />
+              <Route path="system" element={<div>System Page</div>} />
+            </Route>
+
+            {/* Test routes */}
+            <Route path="test/realtime-api" element={<div>Test Realtime API Page</div>} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 };
 

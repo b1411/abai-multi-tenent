@@ -1,0 +1,533 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Users,
+  FileText,
+  Download,
+  Edit,
+  Trash2
+} from 'lucide-react';
+import { Button, Loading, Modal } from '../components/ui';
+import { useAuth } from '../hooks/useAuth';
+import { formatDate, formatDateTime } from '../utils';
+import { Lesson, Materials, StudyPlan } from '../types/lesson';
+import { lessonService } from '../services/lessonService';
+import { studyPlanService } from '../services/studyPlanService';
+
+const LessonDetailPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
+  
+  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [materials, setMaterials] = useState<Materials[]>([]);
+  const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      loadLesson();
+      loadStudyPlans();
+    }
+  }, [id]);
+
+  const loadLesson = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const lessonData = await lessonService.getLesson(parseInt(id!));
+      setLesson(lessonData);
+      
+      // Если есть материалы, устанавливаем их
+      if (lessonData.materials) {
+        setMaterials([lessonData.materials]);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки урока:', error);
+      setError('Не удалось загрузить данные урока');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStudyPlans = async () => {
+    try {
+      const response = await studyPlanService.getStudyPlans();
+      const convertedPlans: StudyPlan[] = response.data.map(plan => ({
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        teacherId: plan.teacherId,
+        createdAt: plan.createdAt,
+        updatedAt: plan.updatedAt,
+        teacher: plan.teacher,
+        group: plan.group,
+        lessons: plan.lessons?.map(lesson => ({
+          id: lesson.id,
+          name: lesson.name,
+          date: lesson.date,
+          studyPlanId: lesson.studyPlanId || 0,
+          createdAt: lesson.createdAt || '',
+          updatedAt: lesson.updatedAt || '',
+          description: lesson.description
+        })),
+        _count: plan._count
+      }));
+      setStudyPlans(convertedPlans);
+    } catch (error) {
+      console.error('Ошибка загрузки учебных планов:', error);
+    }
+  };
+
+  const handleEdit = () => {
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (formData: any) => {
+    if (!lesson) return;
+    
+    try {
+      setSaving(true);
+      await lessonService.updateLesson(lesson.id, formData);
+      setEditModalOpen(false);
+      await loadLesson(); // Перезагружаем данные урока
+    } catch (error) {
+      console.error('Ошибка при сохранении:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!lesson) return;
+    
+    try {
+      await lessonService.deleteLesson(lesson.id);
+      navigate('/lessons');
+    } catch (error) {
+      console.error('Ошибка при удалении урока:', error);
+    }
+  };
+
+  const handleDownloadMaterial = (material: Materials) => {
+    if (material.fileUrl) {
+      window.open(material.fileUrl, '_blank');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loading text="Загрузка урока..." />
+      </div>
+    );
+  }
+
+  if (error || !lesson) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">{error || 'Урок не найден'}</p>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/lessons')}
+            className="mt-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Вернуться к урокам
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const canEdit = hasRole('ADMIN') || (hasRole('TEACHER') && lesson.studyPlan?.teacher?.user?.id === user?.id);
+  const canDelete = hasRole('ADMIN');
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/lessons')}
+            className="mr-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Назад
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{lesson.name}</h1>
+            <p className="text-gray-500 mt-1">
+              Детали урока
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          {canEdit && (
+            <Button
+              variant="outline"
+              onClick={handleEdit}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Редактировать
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="danger"
+              onClick={() => setDeleteModalOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Удалить
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Basic Information */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Основная информация
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center">
+                <Calendar className="h-5 w-5 text-gray-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Дата</p>
+                  <p className="text-gray-900">{formatDate(lesson.date)}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <Clock className="h-5 w-5 text-gray-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Время</p>
+                  <p className="text-gray-900">{formatDateTime(lesson.date)}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <Users className="h-5 w-5 text-gray-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Учебный план</p>
+                  <p className="text-gray-900">{lesson.studyPlan?.name || 'Не указан'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <FileText className="h-5 w-5 text-gray-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Результаты</p>
+                  <p className="text-gray-900">{lesson._count?.LessonResult || 0} студентов</p>
+                </div>
+              </div>
+            </div>
+
+            {lesson.description && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Описание</h3>
+                <p className="text-gray-900 leading-relaxed">{lesson.description}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Materials */}
+          {materials.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Материалы урока
+              </h2>
+              
+              <div className="space-y-3">
+                {materials.map((material) => (
+                  <div
+                    key={material.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                  >
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 text-blue-500 mr-3" />
+                      <div>
+                        <p className="font-medium text-gray-900">{material.name}</p>
+                        <p className="text-sm text-gray-500">{material.type}</p>
+                      </div>
+                    </div>
+                    
+                    {material.fileUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadMaterial(material)}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Скачать
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Homework */}
+          {lesson.homework && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Домашнее задание
+              </h2>
+              
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-medium text-blue-900">{lesson.homework.name}</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Создано: {formatDate(lesson.homework.createdAt)}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Study Plan Info */}
+          {lesson.studyPlan && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Учебный план
+              </h3>
+              
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Название</p>
+                  <p className="text-gray-900">{lesson.studyPlan.name}</p>
+                </div>
+                
+                {lesson.studyPlan.description && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Описание</p>
+                    <p className="text-gray-900 text-sm">{lesson.studyPlan.description}</p>
+                  </div>
+                )}
+                
+                {lesson.studyPlan.teacher?.user && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Преподаватель</p>
+                    <p className="text-gray-900">
+                      {lesson.studyPlan.teacher.user.name} {lesson.studyPlan.teacher.user.surname}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Быстрые действия
+            </h3>
+            
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => navigate(`/lessons/${id}/results`)}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Результаты студентов
+              </Button>
+              
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate(`/lessons/${id}/materials`)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Управление материалами
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      {editModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">
+                Редактировать урок
+              </h3>
+              
+              <LessonEditForm
+                lesson={lesson}
+                studyPlans={studyPlans}
+                onSave={handleSaveEdit}
+                onClose={() => setEditModalOpen(false)}
+                loading={saving}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Подтверждение удаления"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Вы уверены, что хотите удалить урок "{lesson.name}"?
+          </p>
+          <p className="text-sm text-gray-500">
+            Это действие нельзя отменить. Все связанные данные также будут удалены.
+          </p>
+          
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteModalOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+            >
+              Удалить
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// Edit Form Component
+const LessonEditForm: React.FC<{
+  lesson: Lesson;
+  studyPlans: StudyPlan[];
+  onSave: (data: any) => void;
+  onClose: () => void;
+  loading: boolean;
+}> = ({ lesson, studyPlans, onSave, onClose, loading }) => {
+  const [formData, setFormData] = useState({
+    name: lesson.name || '',
+    date: lesson.date ? new Date(lesson.date).toISOString().slice(0, 16) : '',
+    studyPlanId: lesson.studyPlanId?.toString() || '',
+    description: lesson.description || ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.date || !formData.studyPlanId) return;
+
+    onSave({
+      name: formData.name,
+      date: new Date(formData.date).toISOString(),
+      studyPlanId: parseInt(formData.studyPlanId),
+      description: formData.description
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Название *
+        </label>
+        <input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="Введите название урока"
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Дата и время *
+        </label>
+        <input
+          type="datetime-local"
+          value={formData.date}
+          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Учебный план *
+        </label>
+        <select
+          value={formData.studyPlanId}
+          onChange={(e) => setFormData({ ...formData, studyPlanId: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        >
+          <option value="">Выберите учебный план</option>
+          {studyPlans.map(plan => (
+            <option key={plan.id} value={plan.id.toString()}>
+              {plan.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Описание
+        </label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Введите описание урока"
+          rows={3}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+          className="px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
+        >
+          Отмена
+        </button>
+        <button
+          type="submit"
+          disabled={!formData.name || !formData.date || !formData.studyPlanId || loading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+        >
+          {loading ? 'Сохранение...' : 'Сохранить'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default LessonDetailPage;

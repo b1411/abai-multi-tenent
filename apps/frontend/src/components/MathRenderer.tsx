@@ -1,114 +1,43 @@
 import React from 'react';
-import { InlineMath, BlockMath } from 'react-katex';
-import DOMPurify from 'isomorphic-dompurify';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 interface MathRendererProps {
   content: string;
 }
 
-/**
- * Компонент для рендеринга контента с LaTeX формулами
- * Ищет все LaTeX формулы в тексте и заменяет их на отрендеренные математические выражения
- */
 const MathRenderer: React.FC<MathRendererProps> = ({ content }) => {
-  if (!content) return null;
+  const [processedContent, setProcessedContent] = React.useState('');
 
-  // Очищаем HTML от потенциально вредоносного кода
-  const sanitizedContent = DOMPurify.sanitize(content);
-  
-  // Регулярные выражения для поиска LaTeX формул
-  const inlineRegex = /\$((?!\$)[\s\S]*?)\$/g;
-  const blockRegex = /\$\$([\s\S]*?)\$\$/g;
-  
-  // Разбиваем контент на части: обычный текст и LaTeX формулы
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
+  React.useEffect(() => {
+    const processContent = async () => {
+      // Простой рендеринг математики для демонстрации
+      // В реальном проекте здесь был бы MathJax или KaTeX
+      const renderMath = (text: string) => {
+        return text
+          .replace(/\$\$([^$]+)\$\$/g, '<div class="math-block">$1</div>')
+          .replace(/\$([^$]+)\$/g, '<span class="math-inline">$1</span>')
+          .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '<span class="math-fraction">$1/$2</span>');
+      };
 
-  // Находим все блочные LaTeX формулы
-  while ((match = blockRegex.exec(sanitizedContent)) !== null) {
-    // Добавляем текст до формулы (включая разметку HTML)
-    if (match.index > lastIndex) {
-      parts.push(
-        <span 
-          key={`text-${lastIndex}`} 
-          dangerouslySetInnerHTML={{ __html: sanitizedContent.substring(lastIndex, match.index) }} 
-        />
-      );
-    }
-    
-    // Добавляем блочную LaTeX формулу
-    try {
-      parts.push(
-        <BlockMath key={`block-${match.index}`} math={match[1]} />
-      );
-    } catch (error) {
-      console.error('Error rendering block formula:', error);
-      parts.push(<span key={`block-error-${match.index}`}>{match[0]}</span>);
-    }
-    
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Добавляем оставшийся текст
-  if (lastIndex < sanitizedContent.length) {
-    const remainingContent = sanitizedContent.substring(lastIndex);
-    
-    // Теперь обрабатываем инлайновые формулы в оставшемся тексте
-    const inlineParts: React.ReactNode[] = [];
-    let inlineLastIndex = 0;
-    let inlineMatch;
-    
-    while ((inlineMatch = inlineRegex.exec(remainingContent)) !== null) {
-      // Добавляем текст до формулы
-      if (inlineMatch.index > inlineLastIndex) {
-        inlineParts.push(
-          <span 
-            key={`text-inline-${inlineLastIndex}`} 
-            dangerouslySetInnerHTML={{ __html: remainingContent.substring(inlineLastIndex, inlineMatch.index) }} 
-          />
-        );
-      }
+      const mathProcessed = renderMath(content);
       
-      // Добавляем инлайновую LaTeX формулу
-      try {
-        inlineParts.push(
-          <InlineMath key={`inline-${inlineMatch.index}`} math={inlineMatch[1]} />
-        );
-      } catch (error) {
-        console.error('Error rendering inline formula:', error);
-        inlineParts.push(<span key={`inline-error-${inlineMatch.index}`}>{inlineMatch[0]}</span>);
-      }
+      // Обрабатываем markdown
+      const htmlContent = await marked.parse(mathProcessed);
+      const sanitizedContent = DOMPurify.sanitize(htmlContent);
       
-      inlineLastIndex = inlineMatch.index + inlineMatch[0].length;
-    }
-    
-    // Добавляем оставшийся текст
-    if (inlineLastIndex < remainingContent.length) {
-      inlineParts.push(
-        <span 
-          key={`text-inline-end`} 
-          dangerouslySetInnerHTML={{ __html: remainingContent.substring(inlineLastIndex) }} 
-        />
-      );
-    }
-    
-    // Добавляем обработанные инлайновые части в общий массив
-    if (inlineParts.length > 0) {
-      parts.push(...inlineParts);
-    } else {
-      parts.push(
-        <span 
-          key="remaining" 
-          dangerouslySetInnerHTML={{ __html: remainingContent }} 
-        />
-      );
-    }
-  }
+      setProcessedContent(sanitizedContent);
+    };
 
-  return <div className="math-renderer">{parts}</div>;
+    processContent();
+  }, [content]);
+
+  return (
+    <div 
+      className="math-content prose max-w-none"
+      dangerouslySetInnerHTML={{ __html: processedContent }}
+    />
+  );
 };
-
-// Удаляем неиспользуемую функцию processContentWithLatex
 
 export default MathRenderer;

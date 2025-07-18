@@ -11,15 +11,64 @@ import { Prisma } from 'generated/prisma';
 export class StudyPlansService {
     constructor(private readonly prisma: PrismaService) { }
 
+    // Общий include для всех методов
+    private getStudyPlanInclude() {
+        return {
+            teacher: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            surname: true,
+                            middlename: true,
+                            email: true,
+                            phone: true,
+                        }
+                    }
+                }
+            },
+            group: {
+                select: {
+                    id: true,
+                    name: true,
+                    courseNumber: true,
+                }
+            },
+            lessons: {
+                select: {
+                    id: true,
+                    name: true,
+                    date: true,
+                },
+                where: {
+                    deletedAt: null,
+                },
+                orderBy: {
+                    date: 'asc' as Prisma.SortOrder
+                }
+            },
+            _count: {
+                select: {
+                    lessons: {
+                        where: {
+                            deletedAt: null,
+                        }
+                    }
+                }
+            }
+        };
+    }
+
     async findAll(filter: StudyPlanFilterDto): Promise<PaginateResponseDto<StudyPlan>> {
-        const { 
-            page = 1, 
-            limit = 10, 
-            sortBy = 'name', 
-            order = 'asc', 
-            search, 
-            teacherId, 
-            groupId 
+        const {
+            page = 1,
+            limit = 10,
+            sortBy = 'name',
+            order = 'asc',
+            search,
+            teacherId,
+            groupId
         } = filter;
 
         const where: Prisma.StudyPlanWhereInput = {
@@ -56,49 +105,7 @@ export class StudyPlansService {
                 take: limit,
                 orderBy: { [sortBy]: order },
                 where,
-                include: {
-                    teacher: {
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    surname: true,
-                                    email: true,
-                                }
-                            }
-                        }
-                    },
-                    group: {
-                        select: {
-                            id: true,
-                            name: true,
-                            courseNumber: true,
-                        }
-                    },
-                    lessons: {
-                        select: {
-                            id: true,
-                            name: true,
-                            date: true,
-                        },
-                        where: {
-                            deletedAt: null,
-                        },
-                        orderBy: {
-                            date: 'asc'
-                        }
-                    },
-                    _count: {
-                        select: {
-                            lessons: {
-                                where: {
-                                    deletedAt: null,
-                                }
-                            }
-                        }
-                    }
-                },
+                include: this.getStudyPlanInclude(),
             }),
             this.prisma.studyPlan.count({
                 where,
@@ -119,7 +126,7 @@ export class StudyPlansService {
 
     async findOne(id: number): Promise<StudyPlan> {
         const studyPlan = await this.prisma.studyPlan.findUnique({
-            where: { 
+            where: {
                 id,
                 deletedAt: null,
             },
@@ -216,12 +223,58 @@ export class StudyPlansService {
     }
 
     async create(createStudyPlanDto: CreateStudyPlanDto): Promise<StudyPlan> {
-        return this.prisma.studyPlan.create({
+        const createdPlan = await this.prisma.studyPlan.create({
             data: {
                 ...createStudyPlanDto,
-
+            },
+            include: {
+                teacher: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                surname: true,
+                                middlename: true,
+                                email: true,
+                                phone: true,
+                            }
+                        }
+                    }
+                },
+                group: {
+                    select: {
+                        id: true,
+                        name: true,
+                        courseNumber: true,
+                    }
+                },
+                lessons: {
+                    select: {
+                        id: true,
+                        name: true,
+                        date: true,
+                    },
+                    where: {
+                        deletedAt: null,
+                    },
+                    orderBy: {
+                        date: 'asc'
+                    }
+                },
+                _count: {
+                    select: {
+                        lessons: {
+                            where: {
+                                deletedAt: null,
+                            }
+                        }
+                    }
+                }
             },
         });
+
+        return createdPlan;
     }
 
     async update(id: number, updateStudyPlanDto: UpdateStudyPlanDto): Promise<StudyPlan> {
@@ -233,10 +286,57 @@ export class StudyPlansService {
             throw new Error(`Study Plan with ID ${id} not found`);
         }
 
-        return this.prisma.studyPlan.update({
+        const updatedPlan = await this.prisma.studyPlan.update({
             where: { id },
             data: updateStudyPlanDto,
+            include: {
+                teacher: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                surname: true,
+                                middlename: true,
+                                email: true,
+                                phone: true,
+                            }
+                        }
+                    }
+                },
+                group: {
+                    select: {
+                        id: true,
+                        name: true,
+                        courseNumber: true,
+                    }
+                },
+                lessons: {
+                    select: {
+                        id: true,
+                        name: true,
+                        date: true,
+                    },
+                    where: {
+                        deletedAt: null,
+                    },
+                    orderBy: {
+                        date: 'asc'
+                    }
+                },
+                _count: {
+                    select: {
+                        lessons: {
+                            where: {
+                                deletedAt: null,
+                            }
+                        }
+                    }
+                }
+            },
         });
+
+        return updatedPlan;
     }
 
     async softRemove(id: number): Promise<StudyPlan> {
@@ -248,9 +348,56 @@ export class StudyPlansService {
             throw new Error(`Study Plan with ID ${id} not found`);
         }
 
-        return this.prisma.studyPlan.update({
+        const deletedPlan = await this.prisma.studyPlan.update({
             where: { id },
-            data: { deletedAt: new Date() }, // Assuming 'deletedAt' is a field for soft deletion
+            data: { deletedAt: new Date() },
+            include: {
+                teacher: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                surname: true,
+                                middlename: true,
+                                email: true,
+                                phone: true,
+                            }
+                        }
+                    }
+                },
+                group: {
+                    select: {
+                        id: true,
+                        name: true,
+                        courseNumber: true,
+                    }
+                },
+                lessons: {
+                    select: {
+                        id: true,
+                        name: true,
+                        date: true,
+                    },
+                    where: {
+                        deletedAt: null,
+                    },
+                    orderBy: {
+                        date: 'asc'
+                    }
+                },
+                _count: {
+                    select: {
+                        lessons: {
+                            where: {
+                                deletedAt: null,
+                            }
+                        }
+                    }
+                }
+            },
         });
+
+        return deletedPlan;
     }
 }

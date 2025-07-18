@@ -1,17 +1,18 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Delete, 
-  UseInterceptors, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseInterceptors,
   UploadedFile,
   UploadedFiles,
   Req,
   Res,
-  StreamableFile
+  StreamableFile,
+  Header
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -19,14 +20,23 @@ import { FilesService } from './files.service';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FileUploadInterceptor } from '../common/interceptors/file-upload.interceptor';
-import { Express, Request, Response } from 'express';
+import { Express } from 'express';
+import { Response as ExpressResponse } from 'express';
+
+type RequestWithUser = Express.Request & {
+  user?: {
+    id: string;
+    email: string;
+    roles: string[];
+  };
+};
 import { createReadStream } from 'fs';
 import { join } from 'path';
 
 @ApiTags('files')
 @Controller('files')
 export class FilesController {
-  constructor(private readonly filesService: FilesService) {}
+  constructor(private readonly filesService: FilesService) { }
 
   @Post('upload')
   @ApiOperation({ summary: 'Загрузить один файл' })
@@ -50,7 +60,7 @@ export class FilesController {
   uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('category') category: string,
-    @Req() req: Request,
+    @Req() req: RequestWithUser,
   ) {
     return this.filesService.uploadFile(file, category, req.user);
   }
@@ -80,23 +90,21 @@ export class FilesController {
   uploadFiles(
     @UploadedFiles() files: Express.Multer.File[],
     @Body('category') category: string,
-    @Req() req: Request,
+    @Req() req: RequestWithUser,
   ) {
     return this.filesService.uploadFiles(files, category, req.user);
   }
 
   @Get('download/:id')
   @ApiOperation({ summary: 'Скачать файл по ID' })
-  async downloadFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+  async downloadFile(@Param('id') id: string) {
     const file = await this.filesService.findOne(+id);
     const stream = createReadStream(join(process.cwd(), file.url));
-    
-    res.set({
-      'Content-Type': file.type,
-      'Content-Disposition': `attachment; filename="${file.name}"`,
+
+    return new StreamableFile(stream, {
+      type: file.type,
+      disposition: `attachment; filename="${file.name}"`,
     });
-    
-    return new StreamableFile(stream);
   }
 
   @Post()

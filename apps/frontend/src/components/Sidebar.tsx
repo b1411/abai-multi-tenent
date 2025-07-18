@@ -1,257 +1,48 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  FaHome,
-  FaBook,
-  FaUsers,
-  FaUserTie,
-  FaChartBar,
-  FaCog,
-  FaSearch,
-  FaUserGraduate,
-  FaChartLine,
-  FaCalendarAlt,
-  FaBuilding,
-  FaChevronDown,
-  FaSmile,
-  FaMoneyBillWave,
-  FaFileAlt,
-  FaBookOpen,
-  FaThLarge,
-  FaComments,
-  FaRobot,
-  FaCalendar,
-  FaEnvelope,
-  FaListUl,
-  FaFolder,
-  FaLock,
-  FaPlug,
-  FaPalette,
-  FaCogs,
-  FaWarehouse,
-  FaBarcode,
-  FaShoppingCart,
-  FaShieldAlt,
-  FaBrain,
-  FaClipboardList,
-  FaUmbrellaBeach,
-  FaUserSecret
-} from 'react-icons/fa';
-import { SidebarLink } from './SidebarLink';
+import { NavLink } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { User } from '../types/api';
+import { 
+  Home, 
+  Users, 
+  BookOpen, 
+  Settings, 
+  LogOut,
+  GraduationCap,
+  ClipboardList,
+  CreditCard,
+  BarChart3,
+  ChevronDown,
+  TrendingUp,
+  Calendar,
+  Building,
+  MessageSquare,
+  Bot,
+  List,
+  Brain,
+  FileText,
+  DollarSign,
+  Briefcase,
+  Umbrella,
+  UserX,
+  Package,
+  ShoppingCart,
+  Lock,
+  Palette,
+  Cog
+} from 'lucide-react';
 
-// Объект со всеми ссылками и секциями
-const sidebarLinks = {
-  main: [
-    {
-      to: '/',
-      icon: <FaHome size={16} />,
-      label: 'Главная',
-      type: 'SidebarLink'
-    }
-  ],
-  app: [
-    {
-      to: '/app/chat',
-      icon: <FaComments size={16} />,
-      label: 'Чат',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/app/ai-chat',
-      icon: <FaRobot size={16} />,
-      label: 'AI чат',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/app/calendar',
-      icon: <FaCalendar size={16} />,
-      label: 'Календарь',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/app/tasks',
-      icon: <FaListUl size={16} />,
-      label: 'Список дел',
-      type: 'SidebarLink'
-    },
-    {
-      to: "/app/neuro-abai",
-      icon: <FaBrain />,
-      label: 'Fizmat AI Ala',
-      type: 'SidebarLink'
-    }
-  ],
-  study: [
-    {
-      to: '/academic/academic-journal',
-      icon: <FaBook size={16} className="w-4 h-4 mr-3" />,
-      label: 'Учебный журнал',
-      type: 'Link'
-    },
-    {
-      to: '/academic/schedule',
-      icon: <FaCalendarAlt size={16} className="w-4 h-4 mr-3" />,
-      label: 'Расписание',
-      type: 'Link'
-    },
-    {
-      to: '/academic/homework',
-      icon: <FaBookOpen size={16} className="w-4 h-4 mr-3" />,
-      label: 'Домашние задания',
-      type: 'Link'
-    },
-    {
-      to: '/academic/classrooms',
-      icon: <FaBuilding size={16} className="w-4 h-4 mr-3" />,
-      label: 'Аудитории и секции',
-      type: 'Link'
-    },
-    {
-      to: '/study-plans',
-      icon: <FaBook size={16} className="w-4 h-4 mr-3" />,
-      label: 'Учебные планы',
-      type: 'Link'
-    }
-  ],
-  students: [
-    {
-      to: '/students',
-      icon: <FaUserGraduate size={16} className="w-4 h-4 mr-3" />,
-      label: 'Списки учащихся',
-      type: 'Link'
-    },
-    {
-      to: '/performance',
-      icon: <FaChartLine size={16} className="w-4 h-4 mr-3" />,
-      label: 'Успеваемость',
-      type: 'Link'
-    }
-  ],
-  hr: [
-    {
-      to: '/hr/employees',
-      icon: <FaUserTie size={16} className="w-4 h-4 mr-3" />,
-      label: 'Сотрудники и преподаватели',
-      type: 'Link'
-    },
-    {
-      to: '/hr/workload',
-      icon: <FaClipboardList size={16} className="w-4 h-4 mr-3" />,
-      label: 'Нагрузки и расписание ставок',
-      type: 'Link',
-    },
-    {
-      to: '/hr/kpi',
-      icon: <FaChartLine size={16} className="w-4 h-4 mr-3" />,
-      label: 'KPI и эффективность',
-      type: 'Link',
-    },
-    {
-      to: '/hr/vacation',
-      icon: <FaUmbrellaBeach size={16} className="w-4 h-4 mr-3" />,
-      label: 'Отпуска и замены',
-      type: 'Link',
-    },
-    {
-      to: '/hr/fake-positions',
-      icon: <FaUserSecret size={16} className="w-4 h-4 mr-3" />,
-      label: 'Контроль фиктивных ставок (AI)',
-      type: 'Link',
-    }
-  ],
-  finance: [
-    {
-      to: '/finance/payments',
-      icon: <FaMoneyBillWave size={16} />,
-      label: 'Оплаты и задолженности',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/finance/reports',
-      icon: <FaFileAlt size={16} />,
-      label: 'Финансовые отчеты',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/finance/budget',
-      icon: <FaChartBar size={16} />,
-      label: 'Бюджет и прогноз',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/finance/acl',
-      icon: <FaChartLine size={16} />,
-      label: 'Анализ лояльности',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/finance/payroll',
-      icon: <FaUserTie size={16} />,
-      label: 'Управление зарплатой',
-      type: 'SidebarLink'
-    }
-  ],
-  erp: [
-    {
-      to: '/app/erp/inventory',
-      icon: <FaBarcode size={16} />,
-      label: 'Digital инвентаризация',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/app/erp/supply',
-      icon: <FaShoppingCart size={16} />,
-      label: 'Запросы на снабжение',
-      type: 'SidebarLink'
-    }
-  ],
-  settings: [
-    {
-      to: '/settings/users',
-      icon: <FaUsers size={16} />,
-      label: 'Пользователи',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/settings/permissions',
-      icon: <FaLock size={16} />,
-      label: 'Права доступа',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/settings/integrations',
-      icon: <FaPlug size={16} />,
-      label: 'Интеграции',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/settings/branding',
-      icon: <FaPalette size={16} />,
-      label: 'Брендинг',
-      type: 'SidebarLink'
-    },
-    {
-      to: '/settings/system',
-      icon: <FaCogs size={16} />,
-      label: 'Система',
-      type: 'SidebarLink'
-    }
-  ]
-};
-
-export const Sidebar: React.FC = () => {
+const Sidebar: React.FC = () => {
+  const { user, logout, hasAnyRole } = useAuth();
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({
     study: false,
     students: false,
     hr: false,
     finance: false,
-    analytics: false,
-    settings: false,
-    erp: false
+    app: false,
+    erp: false,
+    settings: false
   });
-
-  const [isAppOpen, setIsAppOpen] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const toggleExpand = (key: string) => {
     setExpandedItems(prev => ({
@@ -260,235 +51,203 @@ export const Sidebar: React.FC = () => {
     }));
   };
 
-  // Hamburger button for mobile
+  const navigationItems = [
+    {
+      name: 'Главная',
+      href: '/',
+      icon: Home,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
+    },
+    {
+      name: 'Приложение',
+      icon: ClipboardList,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'],
+      key: 'app',
+      children: [
+        { name: 'Чат', href: '/app/chat', icon: MessageSquare },
+        { name: 'AI чат', href: '/app/ai-chat', icon: Bot },
+        { name: 'Календарь', href: '/app/calendar', icon: Calendar },
+        { name: 'Список дел', href: '/app/tasks', icon: List },
+        { name: 'Fizmat AI Ala', href: '/app/neuro-abai', icon: Brain },
+      ]
+    },
+    {
+      name: 'Учебный процесс',
+      icon: BookOpen,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+      key: 'study',
+      children: [
+        { name: 'Учебные планы', href: '/study-plans', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen },
+        { name: 'Расписание', href: '/academic/schedule', icon: Calendar },
+        { name: 'Аудитории и секции', href: '/academic/classrooms', icon: Building },
+        { name: 'Домашние задания', href: '/academic/homework', icon: BookOpen },
+      ]
+    },
+    {
+      name: 'Студенты',
+      icon: Users,
+      roles: ['ADMIN', 'TEACHER', 'HR'],
+      key: 'students',
+      children: [
+        { name: 'Списки учащихся', href: '/students', icon: GraduationCap },
+        { name: 'Успеваемость', href: '/performance', icon: TrendingUp },
+      ]
+    },
+    {
+      name: 'HR (Персонал)',
+      icon: Users,
+      roles: ['ADMIN', 'HR'],
+      key: 'hr',
+      children: [
+        { name: 'Сотрудники и преподаватели', href: '/hr/employees', icon: Users },
+        { name: 'Нагрузки и расписание ставок', href: '/hr/workload', icon: ClipboardList },
+        { name: 'KPI и эффективность', href: '/hr/kpi', icon: BarChart3 },
+        { name: 'Отпуска и замены', href: '/hr/vacation', icon: Umbrella },
+        { name: 'Контроль фиктивных ставок (AI)', href: '/hr/fake-positions', icon: UserX },
+      ]
+    },
+    {
+      name: 'Финансы',
+      icon: DollarSign,
+      roles: ['ADMIN', 'FINANCIST', 'PARENT'],
+      key: 'finance',
+      children: [
+        { name: 'Оплаты и задолженности', href: '/finance/payments', icon: CreditCard },
+        { name: 'Финансовые отчеты', href: '/finance/reports', icon: FileText },
+        { name: 'Бюджет и прогноз', href: '/finance/budget', icon: BarChart3 },
+        { name: 'Анализ лояльности', href: '/finance/acl', icon: TrendingUp },
+        { name: 'Управление зарплатой', href: '/finance/payroll', icon: Briefcase },
+        { name: 'Зарплаты', href: '/finance/salaries', icon: DollarSign },
+        { name: 'Антифрод', href: '/finance/antifraud', icon: UserX },
+      ]
+    },
+    {
+      name: 'ERP система',
+      icon: Package,
+      roles: ['ADMIN', 'HR'],
+      key: 'erp',
+      children: [
+        { name: 'Digital инвентаризация', href: '/app/erp/inventory', icon: Package },
+        { name: 'Запросы на снабжение', href: '/app/erp/supply', icon: ShoppingCart },
+      ]
+    },
+    {
+      name: 'Настройки',
+      icon: Settings,
+      roles: ['ADMIN'],
+      key: 'settings',
+      children: [
+        { name: 'Пользователи', href: '/settings/users', icon: Users },
+        { name: 'Права доступа', href: '/settings/permissions', icon: Lock },
+        { name: 'Интеграции', href: '/settings/integrations', icon: Cog },
+        { name: 'Брендинг', href: '/settings/branding', icon: Palette },
+        { name: 'Система', href: '/settings/system', icon: Settings },
+      ]
+    },
+  ];
+
+  const filteredItems = navigationItems.filter(item => 
+    hasAnyRole(item.roles as User['role'][])
+  );
+
   return (
-    <>
-      <button
-        className="fixed top-4 left-4 z-50 md:hidden bg-white rounded-full p-2 shadow-lg"
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        aria-label="Открыть меню"
-      >
-        <FaThLarge className="w-6 h-6 text-[#ca181f]" />
-      </button>
-      <div className={`w-64 h-screen bg-white shadow-lg fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} md:block`}>
-        <div className="p-4">
-        <div className="flex items-center mb-8">
-          <Link to="/" className="flex items-center">
-            <span className="text-2xl font-bold text-corporate-primary">FIZMAT.AI</span>
-          </Link>
+    <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
+      <div className="flex h-full flex-col">
+        {/* Logo */}
+        <div className="flex h-16 items-center justify-center border-b border-gray-200">
+          <h1 className="text-xl font-bold text-primary">ABAI LMS</h1>
         </div>
 
-        <div className="mb-6">
-          <div className="flex items-center px-4 py-2.5 bg-gray-50 rounded-xl">
-            <FaSearch className="text-gray-400 mr-3" />
-            <input
-              type="text"
-              placeholder="Поиск..."
-              className="bg-transparent w-full text-sm focus:outline-none text-gray-600"
-            />
-          </div>
-        </div>
-
-        <nav className="space-y-2">
-          {/* Главная */}
-          {sidebarLinks.main.map(link => (
-            <SidebarLink key={link.to} to={link.to} icon={link.icon} label={link.label} />
-          ))}
-
-          {/* Приложение с выпадающим списком */}
-          <div className="sidebar-item">
-            <button
-              onClick={() => setIsAppOpen(!isAppOpen)}
-              className="sidebar-button flex items-center w-full px-4 py-2 text-gray-600 hover:bg-gray-100"
-            >
-              <FaThLarge className="mr-3" />
-              <span>Приложение</span>
-              <FaChevronDown className={`ml-auto transform ${isAppOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isAppOpen && (
-              <div className="pl-4">
-                {sidebarLinks.app.map(link => (
-                  <SidebarLink key={link.to} to={link.to} icon={link.icon} label={link.label} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Учебный процесс */}
-          <div className="group">
-            <div
-              className={`flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-xl cursor-pointer transition-all duration-150 ${expandedItems.study ? 'bg-[#ca181f]/10 text-[#ca181f]' : ''}`}
-              onClick={() => toggleExpand('study')}
-            >
-              <div className="flex items-center">
-                <FaBook className="w-5 h-5 mr-3" />
-                <span className="font-medium">Учебный процесс</span>
-              </div>
-              <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedItems.study ? 'transform rotate-180' : ''}`} />
-            </div>
-
-            {expandedItems.study && (
-              <div className="mt-2 ml-4 space-y-1">
-                {sidebarLinks.study.map(link => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-lg transition-all duration-150"
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-4">
+          <ul className="space-y-2">
+            {filteredItems.map((item) => (
+              <li key={item.name}>
+                {item.href ? (
+                  <NavLink
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        isActive
+                          ? 'bg-primary text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`
+                    }
                   >
-                    {link.icon}
-                    <span>{link.label}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Студенты */}
-          <div className="group">
-            <div
-              className={`flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-xl cursor-pointer transition-all duration-150 ${expandedItems.students ? 'bg-[#ca181f]/10 text-[#ca181f]' : ''}`}
-              onClick={() => toggleExpand('students')}
-            >
-              <div className="flex items-center">
-                <FaUsers className="w-5 h-5 mr-3" />
-                <span className="font-medium">Студенты</span>
-              </div>
-              <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedItems.students ? 'transform rotate-180' : ''}`} />
-            </div>
-
-            {expandedItems.students && (
-              <div className="mt-2 ml-4 space-y-1">
-                {sidebarLinks.students.map(link => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-lg transition-all duration-150"
-                  >
-                    {link.icon}
-                    <span>{link.label}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* HR (Персонал) */}
-          <div className="group">
-            <div
-              className={`flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-xl cursor-pointer transition-all duration-150 ${expandedItems.hr ? 'bg-[#ca181f]/10 text-[#ca181f]' : ''}`}
-              onClick={() => toggleExpand('hr')}
-            >
-              <div className="flex items-center">
-                <FaUserTie className="w-5 h-5 mr-3" />
-                <span className="font-medium">HR (Персонал)</span>
-              </div>
-              <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedItems.hr ? 'transform rotate-180' : ''}`} />
-            </div>
-
-            {expandedItems.hr && (
-              <div className="mt-2 ml-4 space-y-1">
-                {sidebarLinks.hr.map(link => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-lg transition-all duration-150"
-                  >
-                    {link.icon}
-                    <span>{link.label}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Финансы */}
-          <div className="group">
-            <div
-              className={`flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-xl cursor-pointer transition-all duration-150 ${expandedItems.finance ? 'bg-[#ca181f]/10 text-[#ca181f]' : ''}`}
-              onClick={() => toggleExpand('finance')}
-            >
-              <div className="flex items-center">
-                <FaMoneyBillWave className="w-5 h-5 mr-3" />
-                <span className="font-medium">Финансы</span>
-              </div>
-              <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedItems.finance ? 'transform rotate-180' : ''}`} />
-            </div>
-
-            {expandedItems.finance && (
-              <div className="mt-2 ml-4 space-y-1">
-                {sidebarLinks.finance.map(link => (
-                  <SidebarLink
-                    key={link.to}
-                    to={link.to}
-                    icon={link.icon}
-                    label={link.label}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ERP секция */}
-          <div className="mb-4">
-            <button
-              onClick={() => toggleExpand('erp')}
-              className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-lg transition-all duration-150"
-            >
-              <div className="flex items-center">
-                <FaWarehouse className="w-4 h-4 mr-3" />
-                <span>ERP система</span>
-              </div>
-              <FaChevronDown
-                className={`w-4 h-4 transition-transform duration-200 ${expandedItems.erp ? 'transform rotate-180' : ''
-                  }`}
-              />
-            </button>
-
-            {expandedItems.erp && (
-              <div className="pl-4 space-y-2">
-                {sidebarLinks.erp.map(link => (
-                  <SidebarLink
-                    key={link.to}
-                    to={link.to}
-                    icon={link.icon}
-                    label={link.label}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Настройки */}
-          <div className="group">
-            <div
-              className={`flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:bg-[#ca181f]/10 hover:text-[#ca181f] rounded-xl cursor-pointer transition-all duration-150 ${expandedItems.settings ? 'bg-[#ca181f]/10 text-[#ca181f]' : ''}`}
-              onClick={() => toggleExpand('settings')}
-            >
-              <div className="flex items-center">
-                <FaCog className="w-5 h-5 mr-3" />
-                <span className="font-medium">Настройки</span>
-              </div>
-              <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedItems.settings ? 'transform rotate-180' : ''}`} />
-            </div>
-
-            {expandedItems.settings && (
-              <div className="mt-2 ml-4 space-y-1">
-                {sidebarLinks.settings.map(link => (
-                  <SidebarLink
-                    key={link.to}
-                    to={link.to}
-                    icon={link.icon}
-                    label={link.label}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+                    <item.icon className="mr-3 h-5 w-5" />
+                    {item.name}
+                  </NavLink>
+                ) : (
+                  <div>
+                    <button
+                      onClick={() => item.key && toggleExpand(item.key)}
+                      className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <item.icon className="mr-3 h-5 w-5" />
+                        {item.name}
+                      </div>
+                      {item.key && (
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${
+                            expandedItems[item.key] ? 'rotate-180' : ''
+                          }`}
+                        />
+                      )}
+                    </button>
+                    {item.children && item.key && expandedItems[item.key] && (
+                      <ul className="ml-8 mt-1 space-y-1">
+                        {item.children.map((child) => (
+                          <li key={child.name}>
+                            <NavLink
+                              to={child.href}
+                              className={({ isActive }) =>
+                                `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+                                  isActive
+                                    ? 'bg-primary text-white'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                                }`
+                              }
+                            >
+                              <child.icon className="mr-3 h-4 w-4" />
+                              {child.name}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
         </nav>
+
+        {/* User section */}
+        <div className="border-t border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="mr-3 h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+              <span className="text-white text-sm font-medium">
+                {user?.name?.[0]}{user?.surname?.[0]}
+              </span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                {user?.name} {user?.surname}
+              </p>
+              <p className="text-xs text-gray-500">{user?.role}</p>
+            </div>
+            <button
+              onClick={logout}
+              className="ml-2 p-1 text-gray-400 hover:text-gray-600"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-    </>
   );
 };
 

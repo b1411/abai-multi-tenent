@@ -1,6 +1,6 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { Request } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 
 const storage = multer.diskStorage({
@@ -20,19 +20,20 @@ export class FileUploadInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const ctx = context.switchToHttp();
     const req = ctx.getRequest<Request>();
+    const res = ctx.getResponse<Response>();
 
     return new Observable(observer => {
-      const res = ctx.getResponse();
       if (!res) {
         observer.error(new Error('Response object is undefined'));
         return;
       }
-      upload.single('file')(req, res, err => {
+      
+      const uploadMiddleware = upload.single('file');
+      (uploadMiddleware as any)(req, res, (err: any) => {
         if (err) {
           observer.error(err);
         } else {
-          observer.next(next.handle());
-          observer.complete();
+          next.handle().subscribe(observer);
         }
       });
     });

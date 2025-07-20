@@ -56,16 +56,23 @@ export class LessonsService {
   }
 
   async findAll(filters: LessonFilterDto): Promise<PaginateResponseDto<Lesson>> {
-    const { 
-      page = 1, 
-      limit = 10, 
-      sortBy = 'date', 
-      order = 'asc', 
-      search, 
-      studyPlanId, 
-      dateFrom, 
-      dateTo 
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'date',
+      order = 'asc',
+      search,
+      studyPlanId,
+      groupId,
+      startDate,
+      endDate,
+      dateFrom, // обратная совместимость
+      dateTo   // обратная совместимость
     } = filters;
+
+    // Используем новые поля, но fallback на старые для обратной совместимости
+    const finalStartDate = startDate || dateFrom;
+    const finalEndDate = endDate || dateTo;
 
     const where: Prisma.LessonWhereInput = {
       deletedAt: null,
@@ -86,21 +93,31 @@ export class LessonsService {
         ]
       }),
       ...(studyPlanId && { studyPlanId }),
-      ...(dateFrom && {
-        date: {
-          gte: new Date(dateFrom),
+      ...(groupId && { 
+        studyPlan: {
+          group: {
+            some: {
+              id: groupId
+            }
+          }
         }
       }),
-      ...(dateTo && {
+      ...(finalStartDate && finalEndDate && {
         date: {
-          lte: new Date(dateTo),
+          gte: new Date(finalStartDate),
+          lte: new Date(finalEndDate),
         }
       }),
-      // Если указаны обе даты
-      ...(dateFrom && dateTo && {
+      // Если указана только дата начала
+      ...(finalStartDate && !finalEndDate && {
         date: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo),
+          gte: new Date(finalStartDate),
+        }
+      }),
+      // Если указана только дата окончания
+      ...(!finalStartDate && finalEndDate && {
+        date: {
+          lte: new Date(finalEndDate),
         }
       }),
     };
@@ -166,40 +183,27 @@ export class LessonsService {
   }
 
   async findByStudyPlan(studyPlanId: number): Promise<Lesson[]> {
-    return this.prisma.lesson.findMany({
+    const lessons = await this.prisma.lesson.findMany({
       where: {
         studyPlanId,
         deletedAt: null,
       },
+      include: {
+        studyPlan: true,
+        materials: true,
+        homework: true,
+      },
       orderBy: {
         date: 'asc',
       },
-      include: {
-        materials: {
-          include: {
-            quiz: {
-              select: {
-                id: true,
-                name: true,
-                isActive: true,
-              }
-            }
-          }
-        },
-        homework: {
-          select: {
-            id: true,
-            name: true,
-            deadline: true,
-          }
-        }
-      },
     });
+
+    return lessons;
   }
 
   async findOne(id: number): Promise<Lesson> {
     const lesson = await this.prisma.lesson.findUnique({
-      where: { 
+      where: {
         id,
         deletedAt: null,
       },

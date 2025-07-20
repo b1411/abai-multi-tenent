@@ -78,10 +78,11 @@ const Sidebar: React.FC = () => {
       key: 'study',
       children: [
         { name: 'Учебные планы', href: '/study-plans', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { name: 'Уроки', href: '/lessons', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { name: 'Домашние задания', href: '/homework', icon: ClipboardList, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen },
         { name: 'Расписание', href: '/academic/schedule', icon: Calendar },
         { name: 'Аудитории и секции', href: '/academic/classrooms', icon: Building },
-        { name: 'Домашние задания', href: '/academic/homework', icon: BookOpen },
       ]
     },
     {

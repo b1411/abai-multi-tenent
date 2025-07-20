@@ -68,6 +68,7 @@ export interface Group {
 export interface Homework {
   id: number;
   name: string;
+  deadline: string;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;

@@ -2,8 +2,8 @@ import { LoginDto, LoginResponse, User } from '../types/api';
 import apiClient from './apiClient';
 
 class AuthService {
-  private tokenKey = 'auth_token';
-  private userKey = 'auth_user';
+  private tokenKey = 'token';
+  private userKey = 'user';
 
   async login(credentials: LoginDto): Promise<LoginResponse> {
     try {
@@ -27,8 +27,17 @@ class AuthService {
   }
 
   logout(): void {
+    this.clearAuthData();
+  }
+
+  private clearAuthData(): void {
+    // Clear all auth-related data from localStorage
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.userKey);
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpiry');
+    
+    // Clear token in API client
     apiClient.setToken(null);
   }
 
@@ -38,6 +47,8 @@ class AuthService {
 
   setToken(token: string): void {
     localStorage.setItem(this.tokenKey, token);
+    // Also set in API client
+    apiClient.setToken(token);
   }
 
   getUser(): User | null {

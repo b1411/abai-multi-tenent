@@ -8,7 +8,8 @@ import {
   FileText,
   Download,
   Edit,
-  Trash2
+  Trash2,
+  BookOpen
 } from 'lucide-react';
 import { Button, Loading, Modal } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
@@ -291,10 +292,26 @@ const LessonDetailPage: React.FC = () => {
               </h2>
               
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="font-medium text-blue-900">{lesson.homework.name}</h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  Создано: {formatDate(lesson.homework.createdAt)}
-                </p>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-blue-900">{lesson.homework.name}</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Срок сдачи: {formatDateTime(lesson.homework.deadline)}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Создано: {formatDate(lesson.homework.createdAt)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/homework?id=${lesson.homework.id}`)}
+                    className="ml-4"
+                  >
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Открыть
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -348,6 +365,15 @@ const LessonDetailPage: React.FC = () => {
               >
                 <Users className="h-4 w-4 mr-2" />
                 Результаты студентов
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => navigate(`/homework?lessonId=${id}`)}
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Домашние задания
               </Button>
               
               {canEdit && (

@@ -20,8 +20,8 @@ export class LessonsController {
 
   @Post()
   @ApiOperation({ summary: 'Создать новый урок' })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'Урок успешно создан',
     type: Lesson
   })
@@ -32,20 +32,31 @@ export class LessonsController {
 
   @Get()
   @ApiOperation({ summary: 'Получить все уроки' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Список уроков с пагинацией',
+  @ApiResponse({
+    status: 200,
+    description: 'Список уроков с пагинацией или без (если указан параметр noPagination)',
     type: PaginateResponseDto<Lesson>
   })
-  findAll(@Query() filters: LessonFilterDto): Promise<PaginateResponseDto<Lesson>> {
+  async findAll(@Query() filters: LessonFilterDto): Promise<PaginateResponseDto<Lesson> | Lesson[]> {
+    // Если указан параметр noPagination, возвращаем простой массив для журнала
+    if (filters.noPagination === 'true') {
+      const result = await this.lessonsService.findAll({
+        ...filters,
+        page: 1,
+        limit: 1000, // Большой лимит для получения всех уроков
+        noPagination: undefined // убираем этот параметр для сервиса
+      });
+      return result.data;
+    }
+
     return this.lessonsService.findAll(filters);
   }
 
   @Get('by-study-plan/:studyPlanId')
   @ApiOperation({ summary: 'Получить уроки по учебному плану' })
   @ApiParam({ name: 'studyPlanId', description: 'ID учебного плана' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Список уроков учебного плана',
     type: [Lesson]
   })
@@ -56,8 +67,8 @@ export class LessonsController {
   @Get(':id')
   @ApiOperation({ summary: 'Получить урок по ID' })
   @ApiParam({ name: 'id', description: 'ID урока' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Данные урока',
     type: Lesson
   })
@@ -69,8 +80,8 @@ export class LessonsController {
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить урок' })
   @ApiParam({ name: 'id', description: 'ID урока' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Урок успешно обновлен',
     type: Lesson
   })
@@ -82,8 +93,8 @@ export class LessonsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить урок (мягкое удаление)' })
   @ApiParam({ name: 'id', description: 'ID урока' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Урок успешно удален',
     type: Lesson
   })

@@ -9,6 +9,10 @@ import StudyPlansPage from './pages/StudyPlans';
 import LessonsPage from './pages/Lessons';
 import LessonDetailPage from './pages/LessonDetail';
 import LessonMaterialsPage from './pages/LessonMaterials';
+import HomeworkPage from './pages/Homework';
+import HomeworkSubmissionsPage from './pages/HomeworkSubmissions';
+import SchedulePage from './pages/Schedule';
+import AcademicJournal from './pages/AcademicJournal';
 
 const App: React.FC = () => {
   return (
@@ -34,10 +38,18 @@ const App: React.FC = () => {
             <Route path="lessons/:id" element={<LessonDetailPage />} />
             <Route path="lessons/:id/materials" element={<LessonMaterialsPage />} />
 
+            {/* Homework routes */}
+            <Route path="homework" element={<HomeworkPage />} />
+            <Route path="homework/:id" element={<div>Homework Detail Page</div>} />
+            <Route path="homework/:id/submissions" element={<HomeworkSubmissionsPage />} />
+
+            {/* Schedule routes */}
+            <Route path="schedule" element={<SchedulePage />} />
+
             {/* Academic routes */}
             <Route path="academic">
-              <Route path="academic-journal" element={<div>Academic Journal Page</div>} />
-              <Route path="schedule" element={<div>Schedule Page</div>} />
+              <Route path="academic-journal" element={<AcademicJournal />} />
+              <Route path="schedule" element={<SchedulePage />} />
               <Route path="classrooms" element={<div>Classrooms Page</div>} />
               <Route path="requests" element={<div>Booking Requests Page</div>} />
               <Route path="requests/new" element={<div>New Booking Request Page</div>} />
@@ -96,9 +108,6 @@ const App: React.FC = () => {
               <Route path="branding" element={<div>Branding Page</div>} />
               <Route path="system" element={<div>System Page</div>} />
             </Route>
-
-            {/* Test routes */}
-            <Route path="test/realtime-api" element={<div>Test Realtime API Page</div>} />
           </Route>
         </Routes>
       </AuthProvider>

@@ -16,13 +16,24 @@ export class LessonFilterDto extends PaginateQueryDto {
     readonly studyPlanId?: number;
 
     @ApiPropertyOptional({ 
+        description: 'Фильтр по группе', 
+        type: Number, 
+        example: 1 
+    })
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    @IsPositive()
+    readonly groupId?: number;
+
+    @ApiPropertyOptional({ 
         description: 'Фильтр по дате начала', 
         type: String, 
         example: '2024-01-01' 
     })
     @IsOptional()
     @IsDateString()
-    readonly dateFrom?: string;
+    readonly startDate?: string;
 
     @ApiPropertyOptional({ 
         description: 'Фильтр по дате окончания', 
@@ -31,5 +42,34 @@ export class LessonFilterDto extends PaginateQueryDto {
     })
     @IsOptional()
     @IsDateString()
+    readonly endDate?: string;
+
+    // Обратная совместимость со старыми названиями полей
+    @ApiPropertyOptional({ 
+        description: 'Фильтр по дате начала (устарело, используйте startDate)', 
+        type: String, 
+        example: '2024-01-01',
+        deprecated: true
+    })
+    @IsOptional()
+    @IsDateString()
+    readonly dateFrom?: string;
+
+    @ApiPropertyOptional({ 
+        description: 'Фильтр по дате окончания (устарело, используйте endDate)', 
+        type: String, 
+        example: '2024-12-31',
+        deprecated: true
+    })
+    @IsOptional()
+    @IsDateString()
     readonly dateTo?: string;
+
+    @ApiPropertyOptional({ 
+        description: 'Отключить пагинацию и вернуть простой массив', 
+        type: String, 
+        example: 'true'
+    })
+    @IsOptional()
+    readonly noPagination?: string;
 }

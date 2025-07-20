@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { HomeworkService } from './homework.service';
-import { HomeworkController } from './homework.controller';
+import { HomeworkController, LessonHomeworkController } from './homework.controller';
+import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from 'src/jwt/jwt.service';
 
 @Module({
-  controllers: [HomeworkController],
-  providers: [HomeworkService],
+  controllers: [HomeworkController, LessonHomeworkController],
+  providers: [HomeworkService, PrismaService, JwtService],
+  exports: [HomeworkService],
 })
 export class HomeworkModule {}

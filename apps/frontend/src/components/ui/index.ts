@@ -4,3 +4,4 @@ export { Modal } from './Modal';
 export { Table } from './Table';
 export { Loading } from './Loading';
 export { Select } from './Select';
+export { Autocomplete } from './Autocomplete';

@@ -244,8 +244,8 @@ export class LessonResultsService {
     });
 
     // Вычисляем статистику
-    const lessonScores = results.filter(r => r.lessonScore !== null).map(r => r.lessonScore!);
-    const homeworkScores = results.filter(r => r.homeworkScore !== null).map(r => r.homeworkScore!);
+    const lessonScores = results.filter(r => r.lessonScore !== null).map(r => r.lessonScore);
+    const homeworkScores = results.filter(r => r.homeworkScore !== null).map(r => r.homeworkScore);
     const attendanceRate = results.length > 0 ? results.filter(r => r.attendance === true).length / results.length : 0;
 
     return {

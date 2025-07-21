@@ -1,0 +1,4160 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/study-plans": {
+      "get": {
+        "operationId": "StudyPlansController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "StudyPlans"
+        ]
+      },
+      "post": {
+        "operationId": "StudyPlansController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "StudyPlans"
+        ]
+      }
+    },
+    "/study-plans/{id}": {
+      "get": {
+        "operationId": "StudyPlansController_findOne",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "StudyPlans"
+        ]
+      },
+      "patch": {
+        "operationId": "StudyPlansController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "StudyPlans"
+        ]
+      },
+      "delete": {
+        "operationId": "StudyPlansController_remove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "StudyPlans"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "\nАутентификация пользователя в системе.\n\n**Доступные роли:**\n- ADMIN - администратор системы\n- TEACHER - преподаватель  \n- STUDENT - студент\n- PARENT - родитель\n- HR - HR менеджер\n- FINANCIST - финансист\n\n**Пример использования:**\n```json\n{\n  \"email\": \"teacher@abai.edu.kz\",\n  \"password\": \"securePassword123\"\n}\n```\n    ",
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Данные для входа в систему",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              },
+              "examples": {
+                "teacher": {
+                  "summary": "Вход преподавателя",
+                  "description": "Пример входа для преподавателя",
+                  "value": {
+                    "email": "teacher@abai.edu.kz",
+                    "password": "password123"
+                  }
+                },
+                "admin": {
+                  "summary": "Вход администратора",
+                  "description": "Пример входа для администратора",
+                  "value": {
+                    "email": "admin@abai.edu.kz",
+                    "password": "admin123"
+                  }
+                },
+                "student": {
+                  "summary": "Вход студента",
+                  "description": "Пример входа для студента",
+                  "value": {
+                    "email": "student@abai.edu.kz",
+                    "password": "student123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Успешная аутентификация",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string",
+                      "description": "JWT токен для авторизации",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoidGVhY2hlckBhYmFpLmVkdS5reiIsInJvbGUiOiJURUFDSEVSIiwiaWF0IjoxNjQwOTk1MjAwLCJleHAiOjE2NDA5OTg4MDB9.example"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "email": {
+                          "type": "string",
+                          "example": "teacher@abai.edu.kz"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Иван"
+                        },
+                        "surname": {
+                          "type": "string",
+                          "example": "Петров"
+                        },
+                        "middlename": {
+                          "type": "string",
+                          "example": "Сергеевич"
+                        },
+                        "role": {
+                          "type": "string",
+                          "example": "TEACHER",
+                          "enum": [
+                            "ADMIN",
+                            "TEACHER",
+                            "STUDENT",
+                            "PARENT",
+                            "HR",
+                            "FINANCIST"
+                          ]
+                        },
+                        "phone": {
+                          "type": "string",
+                          "example": "+7 700 123 45 67"
+                        },
+                        "avatar": {
+                          "type": "string",
+                          "example": "https://example.com/avatar.jpg"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректные данные запроса",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 400
+                    },
+                    "message": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "example": [
+                        "email must be an email",
+                        "password should not be empty"
+                      ]
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Bad Request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверные учетные данные",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 401
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid credentials"
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Вход в систему",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/lessons": {
+      "post": {
+        "operationId": "LessonsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Lessons"
+        ]
+      },
+      "get": {
+        "operationId": "LessonsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Lessons"
+        ]
+      }
+    },
+    "/lessons/{id}": {
+      "get": {
+        "operationId": "LessonsController_findOne",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Lessons"
+        ]
+      },
+      "patch": {
+        "operationId": "LessonsController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Lessons"
+        ]
+      },
+      "delete": {
+        "operationId": "LessonsController_remove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Lessons"
+        ]
+      }
+    },
+    "/materials": {
+      "post": {
+        "operationId": "MaterialsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Материал успешно создан"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать новый материал",
+        "tags": [
+          "Materials"
+        ]
+      },
+      "get": {
+        "operationId": "MaterialsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех материалов"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все материалы",
+        "tags": [
+          "Materials"
+        ]
+      }
+    },
+    "/materials/{id}": {
+      "get": {
+        "operationId": "MaterialsController_findOne",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Данные материала"
+          },
+          "404": {
+            "description": "Материал не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить материал по ID",
+        "tags": [
+          "Materials"
+        ]
+      },
+      "patch": {
+        "operationId": "MaterialsController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Материал успешно обновлен"
+          },
+          "404": {
+            "description": "Материал не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить материал",
+        "tags": [
+          "Materials"
+        ]
+      },
+      "delete": {
+        "operationId": "MaterialsController_remove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Материал успешно удален"
+          },
+          "404": {
+            "description": "Материал не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить материал",
+        "tags": [
+          "Materials"
+        ]
+      }
+    },
+    "/materials/lesson/{lessonId}": {
+      "get": {
+        "operationId": "MaterialsController_findByLesson",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Материалы урока"
+          },
+          "404": {
+            "description": "Урок не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить материалы урока",
+        "tags": [
+          "Materials"
+        ]
+      }
+    },
+    "/materials/lesson/{lessonId}/create-full-materials": {
+      "post": {
+        "operationId": "MaterialsController_createLessonMaterials",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Материалы урока успешно созданы"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          },
+          "404": {
+            "description": "Урок не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать полные материалы для урока (лекция, видео, презентация, тест, ДЗ)",
+        "tags": [
+          "Materials"
+        ]
+      }
+    },
+    "/materials/{materialId}/attach-to-lesson/{lessonId}": {
+      "post": {
+        "operationId": "MaterialsController_attachToLesson",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Материал успешно прикреплен к уроку"
+          },
+          "404": {
+            "description": "Материал или урок не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Прикрепить материал к уроку",
+        "tags": [
+          "Materials"
+        ]
+      }
+    },
+    "/users": {
+      "post": {
+        "operationId": "UsersController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Пользователь успешно создан"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          },
+          "409": {
+            "description": "Пользователь с таким email уже существует"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать нового пользователя (регистрация)",
+        "tags": [
+          "Users"
+        ]
+      },
+      "get": {
+        "operationId": "UsersController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех пользователей"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить всех пользователей",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/role/{role}": {
+      "get": {
+        "operationId": "UsersController_findByRole",
+        "parameters": [
+          {
+            "name": "role",
+            "required": true,
+            "in": "path",
+            "description": "Роль пользователя",
+            "schema": {
+              "enum": [
+                "STUDENT",
+                "TEACHER",
+                "PARENT",
+                "ADMIN",
+                "FINANCIST",
+                "HR"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Пользователи с указанной ролью"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить пользователей по роли",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/search": {
+      "get": {
+        "operationId": "UsersController_searchUsers",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Поисковый запрос (имя, фамилия, email, телефон)",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результаты поиска пользователей"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Поиск пользователей",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/statistics": {
+      "get": {
+        "operationId": "UsersController_getStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Статистика пользователей по ролям"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику пользователей",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UsersController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Полная информация о пользователе"
+          },
+          "404": {
+            "description": "Пользователь не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить пользователя по ID",
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "operationId": "UsersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Пользователь успешно обновлен"
+          },
+          "404": {
+            "description": "Пользователь не найден"
+          },
+          "409": {
+            "description": "Email уже используется"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить пользователя",
+        "tags": [
+          "Users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Пользователь успешно удален"
+          },
+          "404": {
+            "description": "Пользователь не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить пользователя",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/{id}/change-password": {
+      "post": {
+        "operationId": "UsersController_changePassword",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Пароль успешно изменен"
+          },
+          "404": {
+            "description": "Пользователь не найден"
+          },
+          "409": {
+            "description": "Неверный старый пароль"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Изменить пароль пользователя",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/groups": {
+      "post": {
+        "operationId": "GroupsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Группа успешно создана"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать новую группу",
+        "tags": [
+          "Groups"
+        ]
+      },
+      "get": {
+        "operationId": "GroupsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех групп с количеством студентов"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все группы",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/groups/course/{courseNumber}": {
+      "get": {
+        "operationId": "GroupsController_findByCourse",
+        "parameters": [
+          {
+            "name": "courseNumber",
+            "required": true,
+            "in": "path",
+            "description": "Номер курса",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Группы указанного курса"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить группы по номеру курса",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/groups/statistics": {
+      "get": {
+        "operationId": "GroupsController_getStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Статистика групп и студентов"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику по группам",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/groups/{id}": {
+      "get": {
+        "operationId": "GroupsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Полная информация о группе"
+          },
+          "404": {
+            "description": "Группа не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить группу по ID",
+        "tags": [
+          "Groups"
+        ]
+      },
+      "patch": {
+        "operationId": "GroupsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Группа успешно обновлена"
+          },
+          "404": {
+            "description": "Группа не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить группу",
+        "tags": [
+          "Groups"
+        ]
+      },
+      "delete": {
+        "operationId": "GroupsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Группа успешно удалена"
+          },
+          "404": {
+            "description": "Группа не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить группу",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/groups/{id}/schedule": {
+      "get": {
+        "operationId": "GroupsController_getGroupSchedule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Расписание группы"
+          },
+          "404": {
+            "description": "Группа не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить расписание группы",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/groups/{id}/study-plans": {
+      "get": {
+        "operationId": "GroupsController_getGroupStudyPlans",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Учебные планы группы"
+          },
+          "404": {
+            "description": "Группа не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить учебные планы группы",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/groups/{groupId}/students/{studentId}": {
+      "post": {
+        "operationId": "GroupsController_addStudentToGroup",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Студент успешно добавлен в группу"
+          },
+          "404": {
+            "description": "Группа или студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Добавить студента в группу",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/groups/students/{studentId}": {
+      "delete": {
+        "operationId": "GroupsController_removeStudentFromGroup",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Студент исключен из группы"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Исключить студента из группы",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/homework": {
+      "post": {
+        "operationId": "HomeworkController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Homework"
+        ]
+      },
+      "get": {
+        "operationId": "HomeworkController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Homework"
+        ]
+      }
+    },
+    "/homework/{id}": {
+      "get": {
+        "operationId": "HomeworkController_findOne",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Homework"
+        ]
+      },
+      "patch": {
+        "operationId": "HomeworkController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Homework"
+        ]
+      },
+      "delete": {
+        "operationId": "HomeworkController_remove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Homework"
+        ]
+      }
+    },
+    "/quiz": {
+      "post": {
+        "operationId": "QuizController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Тест успешно создан"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать новый тест",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "get": {
+        "operationId": "QuizController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список тестов"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все тесты с пагинацией",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/active": {
+      "get": {
+        "operationId": "QuizController_findActive",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список активных тестов"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить активные тесты",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/my-submissions": {
+      "get": {
+        "operationId": "QuizController_getMySubmissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Результаты студента"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить мои результаты тестов (для студентов)",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/{id}": {
+      "get": {
+        "operationId": "QuizController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Информация о тесте"
+          },
+          "404": {
+            "description": "Тест не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить тест по ID",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "patch": {
+        "operationId": "QuizController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Тест обновлен"
+          },
+          "404": {
+            "description": "Тест не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить тест",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "delete": {
+        "operationId": "QuizController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Тест удален"
+          },
+          "404": {
+            "description": "Тест не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить тест",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/{id}/questions": {
+      "get": {
+        "operationId": "QuizController_getQuestions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список вопросов теста"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить вопросы теста",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "post": {
+        "operationId": "QuizController_addQuestion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Вопрос добавлен"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Добавить вопрос к тесту",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/{id}/submissions": {
+      "get": {
+        "operationId": "QuizController_getSubmissions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результаты теста"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все результаты теста",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/{id}/submit": {
+      "post": {
+        "operationId": "QuizController_submitQuiz",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Ответы отправлены"
+          },
+          "400": {
+            "description": "Некорректные данные или тест неактивен"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Отправить ответы на тест",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/{id}/statistics": {
+      "get": {
+        "operationId": "QuizController_getStatistics",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Статистика теста"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику по тесту",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/{id}/activate": {
+      "patch": {
+        "operationId": "QuizController_toggleActive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID теста",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Статус теста изменен"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Активировать/деактивировать тест",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/quiz/questions/{questionId}": {
+      "delete": {
+        "operationId": "QuizController_removeQuestion",
+        "parameters": [
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "description": "ID вопроса",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Вопрос удален"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить вопрос",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/classrooms": {
+      "post": {
+        "operationId": "ClassroomsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Аудитория успешно создана"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать новую аудиторию",
+        "tags": [
+          "Classrooms"
+        ]
+      },
+      "get": {
+        "operationId": "ClassroomsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех аудиторий"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все аудитории",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/classrooms/building/{building}": {
+      "get": {
+        "operationId": "ClassroomsController_findByBuilding",
+        "parameters": [
+          {
+            "name": "building",
+            "required": true,
+            "in": "path",
+            "description": "Название здания",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Аудитории в указанном здании"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить аудитории по зданию",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/classrooms/type/{type}": {
+      "get": {
+        "operationId": "ClassroomsController_findByType",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "description": "Тип аудитории",
+            "schema": {
+              "enum": [
+                "LECTURE",
+                "PRACTICE",
+                "COMPUTER",
+                "LABORATORY",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Аудитории указанного типа"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить аудитории по типу",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/classrooms/capacity/{minCapacity}": {
+      "get": {
+        "operationId": "ClassroomsController_findByCapacity",
+        "parameters": [
+          {
+            "name": "maxCapacity",
+            "required": false,
+            "in": "query",
+            "description": "Максимальная вместимость",
+            "schema": {}
+          },
+          {
+            "name": "minCapacity",
+            "required": true,
+            "in": "path",
+            "description": "Минимальная вместимость",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Аудитории с подходящей вместимостью"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Найти аудитории по вместимости",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/classrooms/available/{dayOfWeek}/{startTime}/{endTime}": {
+      "get": {
+        "operationId": "ClassroomsController_findAvailableClassrooms",
+        "parameters": [
+          {
+            "name": "endTime",
+            "required": true,
+            "in": "path",
+            "description": "Время окончания (HH:MM)",
+            "schema": {}
+          },
+          {
+            "name": "startTime",
+            "required": true,
+            "in": "path",
+            "description": "Время начала (HH:MM)",
+            "schema": {}
+          },
+          {
+            "name": "dayOfWeek",
+            "required": true,
+            "in": "path",
+            "description": "День недели (1-7)",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список свободных аудиторий"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Найти свободные аудитории на указанное время",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/classrooms/by-equipment": {
+      "post": {
+        "operationId": "ClassroomsController_findByEquipment",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Аудитории с указанным оборудованием"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Найти аудитории по оборудованию",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/classrooms/statistics": {
+      "get": {
+        "operationId": "ClassroomsController_getStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Статистика аудиторий"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику по аудиториям",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/classrooms/{id}": {
+      "get": {
+        "operationId": "ClassroomsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID аудитории",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Данные аудитории с расписанием"
+          },
+          "404": {
+            "description": "Аудитория не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить аудиторию по ID",
+        "tags": [
+          "Classrooms"
+        ]
+      },
+      "patch": {
+        "operationId": "ClassroomsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID аудитории",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Аудитория успешно обновлена"
+          },
+          "404": {
+            "description": "Аудитория не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить аудиторию",
+        "tags": [
+          "Classrooms"
+        ]
+      },
+      "delete": {
+        "operationId": "ClassroomsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID аудитории",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Аудитория успешно удалена"
+          },
+          "404": {
+            "description": "Аудитория не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить аудиторию",
+        "tags": [
+          "Classrooms"
+        ]
+      }
+    },
+    "/schedule": {
+      "post": {
+        "operationId": "ScheduleController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Расписание успешно создано"
+          },
+          "400": {
+            "description": "Некорректные данные или конфликт расписания"
+          },
+          "404": {
+            "description": "Связанная сущность не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать новое расписание",
+        "tags": [
+          "Schedule"
+        ]
+      },
+      "get": {
+        "operationId": "ScheduleController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех расписаний"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все расписания",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/schedule/group/{groupId}": {
+      "get": {
+        "operationId": "ScheduleController_findByGroup",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Расписание группы"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить расписание группы",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/schedule/teacher/{teacherId}": {
+      "get": {
+        "operationId": "ScheduleController_findByTeacher",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "required": true,
+            "in": "path",
+            "description": "ID преподавателя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Расписание преподавателя"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить расписание преподавателя",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/schedule/classroom/{classroomId}": {
+      "get": {
+        "operationId": "ScheduleController_findByClassroom",
+        "parameters": [
+          {
+            "name": "classroomId",
+            "required": true,
+            "in": "path",
+            "description": "ID аудитории",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Расписание аудитории"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить расписание аудитории",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/schedule/day/{dayOfWeek}": {
+      "get": {
+        "operationId": "ScheduleController_findByDayOfWeek",
+        "parameters": [
+          {
+            "name": "dayOfWeek",
+            "required": true,
+            "in": "path",
+            "description": "День недели (1-7: понедельник-воскресенье)",
+            "schema": {
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Расписание на день"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить расписание на день недели",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/schedule/{id}": {
+      "get": {
+        "operationId": "ScheduleController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID расписания",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Данные расписания"
+          },
+          "404": {
+            "description": "Расписание не найдено"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить расписание по ID",
+        "tags": [
+          "Schedule"
+        ]
+      },
+      "patch": {
+        "operationId": "ScheduleController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID расписания",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Расписание успешно обновлено"
+          },
+          "400": {
+            "description": "Некорректные данные или конфликт расписания"
+          },
+          "404": {
+            "description": "Расписание не найдено"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить расписание",
+        "tags": [
+          "Schedule"
+        ]
+      },
+      "delete": {
+        "operationId": "ScheduleController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID расписания",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Расписание успешно удалено"
+          },
+          "404": {
+            "description": "Расписание не найдено"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить расписание",
+        "tags": [
+          "Schedule"
+        ]
+      }
+    },
+    "/students": {
+      "post": {
+        "description": "\nСоздает запись студента, связывая пользователя с ролью STUDENT с группой.\n\n**Требования:**\n- Пользователь должен существовать и иметь роль STUDENT\n- Группа должна существовать\n- Пользователь не должен быть уже зачислен как студент\n    ",
+        "operationId": "StudentsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Студент успешно зачислен"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          },
+          "404": {
+            "description": "Пользователь или группа не найдены"
+          },
+          "409": {
+            "description": "Пользователь уже является студентом"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Зачислить пользователя как студента",
+        "tags": [
+          "Students"
+        ]
+      },
+      "get": {
+        "operationId": "StudentsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех студентов с информацией о пользователях и группах"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить всех студентов",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/group/{groupId}": {
+      "get": {
+        "operationId": "StudentsController_findByGroup",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список студентов указанной группы"
+          },
+          "404": {
+            "description": "Группа не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить студентов группы",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/user/{userId}": {
+      "get": {
+        "operationId": "StudentsController_findByUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Информация о студенте"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить запись студента по ID пользователя",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/{id}/grades": {
+      "get": {
+        "operationId": "StudentsController_getStudentGrades",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Оценки студента сгруппированные по предметам со статистикой"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все оценки студента по предметам",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/statistics": {
+      "get": {
+        "operationId": "StudentsController_getStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Статистика студентов по группам"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику студентов",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/{id}": {
+      "get": {
+        "operationId": "StudentsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Полная информация о студенте"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить студента по ID",
+        "tags": [
+          "Students"
+        ]
+      },
+      "patch": {
+        "operationId": "StudentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Данные студента успешно обновлены"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить данные студента",
+        "tags": [
+          "Students"
+        ]
+      },
+      "delete": {
+        "operationId": "StudentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Студент успешно отчислен"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Отчислить студента",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/{id}/change-group/{newGroupId}": {
+      "patch": {
+        "operationId": "StudentsController_changeGroup",
+        "parameters": [
+          {
+            "name": "newGroupId",
+            "required": true,
+            "in": "path",
+            "description": "ID новой группы",
+            "schema": {}
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Студент успешно переведен в новую группу"
+          },
+          "404": {
+            "description": "Студент или группа не найдены"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Перевести студента в другую группу",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/{id}/parents/{parentId}": {
+      "post": {
+        "operationId": "StudentsController_addParentToStudent",
+        "parameters": [
+          {
+            "name": "parentId",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Родитель успешно привязан к студенту"
+          },
+          "404": {
+            "description": "Студент или родитель не найден"
+          },
+          "409": {
+            "description": "Родитель уже привязан к этому студенту"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Привязать родителя к студенту",
+        "tags": [
+          "Students"
+        ]
+      },
+      "delete": {
+        "operationId": "StudentsController_removeParentFromStudent",
+        "parameters": [
+          {
+            "name": "parentId",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Родитель успешно отвязан от студента"
+          },
+          "404": {
+            "description": "Студент, родитель не найден или связь не существует"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Отвязать родителя от студента",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/{id}/parents": {
+      "get": {
+        "operationId": "StudentsController_getStudentParents",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список родителей студента"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить всех родителей студента",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/teachers": {
+      "post": {
+        "operationId": "TeachersController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teachers"
+        ]
+      },
+      "get": {
+        "operationId": "TeachersController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teachers"
+        ]
+      }
+    },
+    "/teachers/{id}": {
+      "get": {
+        "operationId": "TeachersController_findOne",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teachers"
+        ]
+      },
+      "patch": {
+        "operationId": "TeachersController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teachers"
+        ]
+      },
+      "delete": {
+        "operationId": "TeachersController_remove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teachers"
+        ]
+      }
+    },
+    "/parents": {
+      "post": {
+        "operationId": "ParentsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Родитель успешно зарегистрирован"
+          },
+          "409": {
+            "description": "Пользователь уже является родителем"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Зарегистрировать пользователя как родителя",
+        "tags": [
+          "Parents"
+        ]
+      },
+      "get": {
+        "operationId": "ParentsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех родителей с информацией о пользователях"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить всех родителей",
+        "tags": [
+          "Parents"
+        ]
+      }
+    },
+    "/parents/user/{userId}": {
+      "get": {
+        "operationId": "ParentsController_findByUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Информация о родителе"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить запись родителя по ID пользователя",
+        "tags": [
+          "Parents"
+        ]
+      }
+    },
+    "/parents/search": {
+      "get": {
+        "operationId": "ParentsController_search",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Поисковый запрос",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результаты поиска родителей"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Поиск родителей",
+        "tags": [
+          "Parents"
+        ]
+      }
+    },
+    "/parents/statistics": {
+      "get": {
+        "operationId": "ParentsController_getStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Статистика родителей"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику родителей",
+        "tags": [
+          "Parents"
+        ]
+      }
+    },
+    "/parents/{id}": {
+      "get": {
+        "operationId": "ParentsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Полная информация о родителе"
+          },
+          "404": {
+            "description": "Родитель не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить родителя по ID",
+        "tags": [
+          "Parents"
+        ]
+      },
+      "patch": {
+        "operationId": "ParentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Данные родителя успешно обновлены"
+          },
+          "404": {
+            "description": "Родитель не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить данные родителя",
+        "tags": [
+          "Parents"
+        ]
+      },
+      "delete": {
+        "operationId": "ParentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Родитель успешно удален"
+          },
+          "404": {
+            "description": "Родитель не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить родителя",
+        "tags": [
+          "Parents"
+        ]
+      }
+    },
+    "/payments": {
+      "post": {
+        "operationId": "PaymentsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Платеж успешно создан"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать новый платеж",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "get": {
+        "operationId": "PaymentsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех платежей"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все платежи",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/student/{studentId}": {
+      "get": {
+        "operationId": "PaymentsController_findByStudent",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платежи указанного студента"
+          },
+          "404": {
+            "description": "Студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить платежи студента",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/student/{studentId}/summary": {
+      "get": {
+        "operationId": "PaymentsController_getStudentSummary",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Сводка платежей студента"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить сводку платежей студента",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/status/{status}": {
+      "get": {
+        "operationId": "PaymentsController_findByStatus",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "path",
+            "description": "Статус платежей (PENDING, COMPLETED, etc.)",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платежи с указанным статусом"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить платежи по статусу",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/search": {
+      "get": {
+        "operationId": "PaymentsController_search",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Поисковый запрос",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результаты поиска платежей"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Поиск платежей",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/statistics": {
+      "get": {
+        "operationId": "PaymentsController_getStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Статистика платежей"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику платежей",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "operationId": "PaymentsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Информация о платеже"
+          },
+          "404": {
+            "description": "Платеж не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить платеж по ID",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "patch": {
+        "operationId": "PaymentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платеж успешно обновлен"
+          },
+          "404": {
+            "description": "Платеж не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить платеж",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "delete": {
+        "operationId": "PaymentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платеж успешно удален"
+          },
+          "404": {
+            "description": "Платеж не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить платеж",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/process": {
+      "patch": {
+        "operationId": "PaymentsController_process",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платеж переведен в статус обработки"
+          },
+          "400": {
+            "description": "Платеж не может быть обработан"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обработать платеж",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/complete": {
+      "patch": {
+        "operationId": "PaymentsController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платеж успешно завершен"
+          },
+          "400": {
+            "description": "Платеж не может быть завершен"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Завершить платеж",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/fail": {
+      "patch": {
+        "operationId": "PaymentsController_fail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платеж отмечен как неуспешный"
+          },
+          "400": {
+            "description": "Платеж не может быть отмечен как неуспешный"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Отметить платеж как неуспешный",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/assign-parent/{parentId}": {
+      "patch": {
+        "operationId": "PaymentsController_assignToParent",
+        "parameters": [
+          {
+            "name": "parentId",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платеж успешно назначен родителю"
+          },
+          "400": {
+            "description": "Родитель не связан с этим студентом"
+          },
+          "404": {
+            "description": "Платеж или родитель не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Назначить платеж родителю",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/parent/{parentId}": {
+      "get": {
+        "operationId": "PaymentsController_getParentPayments",
+        "parameters": [
+          {
+            "name": "parentId",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платежи родителя с детальной информацией"
+          },
+          "404": {
+            "description": "Родитель не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все платежи родителя (за всех детей)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/parent/{parentId}/student/{studentId}": {
+      "post": {
+        "operationId": "PaymentsController_createPaymentByParent",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "ID студента (ребенка)",
+            "schema": {}
+          },
+          {
+            "name": "parentId",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Платеж успешно создан родителем"
+          },
+          "400": {
+            "description": "Студент не связан с этим родителем"
+          },
+          "404": {
+            "description": "Родитель или студент не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать платеж родителем за своего ребенка",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/pay-by-parent/{parentId}": {
+      "patch": {
+        "operationId": "PaymentsController_payByParent",
+        "parameters": [
+          {
+            "name": "method",
+            "required": false,
+            "in": "query",
+            "description": "Метод оплаты",
+            "schema": {}
+          },
+          {
+            "name": "parentId",
+            "required": true,
+            "in": "path",
+            "description": "ID родителя",
+            "schema": {}
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID платежа",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Платеж успешно оплачен родителем"
+          },
+          "400": {
+            "description": "Платеж не может быть оплачен или родитель не имеет прав"
+          },
+          "404": {
+            "description": "Платеж не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Оплатить платеж родителем",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/notifications": {
+      "post": {
+        "operationId": "NotificationsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Уведомление создано"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать уведомление",
+        "tags": [
+          "Notifications"
+        ]
+      },
+      "get": {
+        "operationId": "NotificationsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список уведомлений"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все уведомления с пагинацией",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/add": {
+      "post": {
+        "operationId": "NotificationsController_addNotifications",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Уведомления добавлены"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Добавить уведомления для пользователей",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/my": {
+      "get": {
+        "operationId": "NotificationsController_getMyNotifications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Уведомления пользователя"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить мои уведомления",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/unread-count/{userId}": {
+      "get": {
+        "operationId": "NotificationsController_getUnreadCount",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Количество непрочитанных уведомлений"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить количество непрочитанных уведомлений",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/stream": {
+      "get": {
+        "operationId": "NotificationsController_streamNotifications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Поток событий Server-Sent Events"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "SSE поток уведомлений (без авторизации)",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/{id}": {
+      "get": {
+        "operationId": "NotificationsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID уведомления",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Информация об уведомлении"
+          },
+          "404": {
+            "description": "Уведомление не найдено"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить уведомление по ID",
+        "tags": [
+          "Notifications"
+        ]
+      },
+      "patch": {
+        "operationId": "NotificationsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID уведомления",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Уведомление обновлено"
+          },
+          "404": {
+            "description": "Уведомление не найдено"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить уведомление",
+        "tags": [
+          "Notifications"
+        ]
+      },
+      "delete": {
+        "operationId": "NotificationsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID уведомления",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Уведомление удалено"
+          },
+          "404": {
+            "description": "Уведомление не найдено"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить уведомление",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "operationId": "NotificationsController_markAsRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID уведомления",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Уведомление отмечено как прочитанное"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Отметить уведомление как прочитанное",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/read-all/{userId}": {
+      "patch": {
+        "operationId": "NotificationsController_markAllAsRead",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "ID пользователя",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Все уведомления отмечены как прочитанные"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Отметить все уведомления как прочитанные",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/files": {
+      "post": {
+        "operationId": "FilesController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Files"
+        ]
+      },
+      "get": {
+        "operationId": "FilesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Files"
+        ]
+      }
+    },
+    "/files/{id}": {
+      "get": {
+        "operationId": "FilesController_findOne",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Files"
+        ]
+      },
+      "patch": {
+        "operationId": "FilesController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Files"
+        ]
+      },
+      "delete": {
+        "operationId": "FilesController_remove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Files"
+        ]
+      }
+    },
+    "/lesson-results": {
+      "post": {
+        "operationId": "LessonResultsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Результат урока успешно создан"
+          },
+          "400": {
+            "description": "Некорректные данные"
+          },
+          "409": {
+            "description": "Результат для этого студента и урока уже существует"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Выставить оценку или отметить посещаемость",
+        "tags": [
+          "Electronic Journal"
+        ]
+      },
+      "get": {
+        "operationId": "LessonResultsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Список всех результатов уроков"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все результаты уроков",
+        "tags": [
+          "Electronic Journal"
+        ]
+      }
+    },
+    "/lesson-results/lesson/{lessonId}/journal": {
+      "get": {
+        "operationId": "LessonResultsController_getJournalByLesson",
+        "parameters": [
+          {
+            "name": "lessonId",
+            "required": true,
+            "in": "path",
+            "description": "ID урока",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Журнал урока со всеми студентами"
+          },
+          "404": {
+            "description": "Урок не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить журнал по уроку (все студенты и их оценки)",
+        "tags": [
+          "Electronic Journal"
+        ]
+      }
+    },
+    "/lesson-results/student/{studentId}/subject/{studyPlanId}/grades": {
+      "get": {
+        "operationId": "LessonResultsController_getStudentGradesBySubject",
+        "parameters": [
+          {
+            "name": "studyPlanId",
+            "required": true,
+            "in": "path",
+            "description": "ID учебного плана (предмета)",
+            "schema": {}
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "ID студента",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Оценки студента по предмету со статистикой"
+          },
+          "404": {
+            "description": "Студент или предмет не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить все оценки студента по предмету",
+        "tags": [
+          "Electronic Journal"
+        ]
+      }
+    },
+    "/lesson-results/group/{groupId}/journal": {
+      "get": {
+        "operationId": "LessonResultsController_getGroupJournalByPeriod",
+        "parameters": [
+          {
+            "name": "endDate",
+            "required": true,
+            "in": "query",
+            "description": "Дата окончания периода (YYYY-MM-DD)",
+            "schema": {}
+          },
+          {
+            "name": "startDate",
+            "required": true,
+            "in": "query",
+            "description": "Дата начала периода (YYYY-MM-DD)",
+            "schema": {}
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "ID группы",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Журнал группы за указанный период"
+          },
+          "404": {
+            "description": "Группа не найдена"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить журнал группы за период",
+        "tags": [
+          "Electronic Journal"
+        ]
+      }
+    },
+    "/lesson-results/lesson/{lessonId}/bulk-attendance": {
+      "post": {
+        "operationId": "LessonResultsController_bulkMarkAttendance",
+        "parameters": [
+          {
+            "name": "lessonId",
+            "required": true,
+            "in": "path",
+            "description": "ID урока",
+            "schema": {}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Данные о посещаемости студентов",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attendanceData": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "studentId": {
+                          "type": "number",
+                          "description": "ID студента"
+                        },
+                        "attendance": {
+                          "type": "boolean",
+                          "description": "Присутствовал ли студент"
+                        },
+                        "absentReason": {
+                          "type": "string",
+                          "enum": [
+                            "SICK",
+                            "FAMILY",
+                            "OTHER"
+                          ],
+                          "description": "Причина отсутствия"
+                        },
+                        "absentComment": {
+                          "type": "string",
+                          "description": "Комментарий к отсутствию"
+                        }
+                      },
+                      "required": [
+                        "studentId",
+                        "attendance"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "attendanceData"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Посещаемость успешно отмечена"
+          },
+          "404": {
+            "description": "Урок не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Массово отметить посещаемость урока",
+        "tags": [
+          "Electronic Journal"
+        ]
+      }
+    },
+    "/lesson-results/attendance/statistics": {
+      "get": {
+        "operationId": "LessonResultsController_getAttendanceStatistics",
+        "parameters": [
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Дата окончания периода (YYYY-MM-DD, опционально)",
+            "schema": {}
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Дата начала периода (YYYY-MM-DD, опционально)",
+            "schema": {}
+          },
+          {
+            "name": "studyPlanId",
+            "required": false,
+            "in": "query",
+            "description": "ID учебного плана (опционально)",
+            "schema": {}
+          },
+          {
+            "name": "groupId",
+            "required": false,
+            "in": "query",
+            "description": "ID группы (опционально)",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Статистика посещаемости"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить статистику посещаемости",
+        "tags": [
+          "Electronic Journal"
+        ]
+      }
+    },
+    "/lesson-results/{id}": {
+      "get": {
+        "operationId": "LessonResultsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID результата урока",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Подробная информация о результате урока"
+          },
+          "404": {
+            "description": "Результат урока не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Получить результат урока по ID",
+        "tags": [
+          "Electronic Journal"
+        ]
+      },
+      "patch": {
+        "operationId": "LessonResultsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID результата урока",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результат урока успешно обновлен"
+          },
+          "404": {
+            "description": "Результат урока не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Обновить результат урока (изменить оценку или посещаемость)",
+        "tags": [
+          "Electronic Journal"
+        ]
+      },
+      "delete": {
+        "operationId": "LessonResultsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID результата урока",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результат урока успешно удален"
+          },
+          "404": {
+            "description": "Результат урока не найден"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Удалить результат урока",
+        "tags": [
+          "Electronic Journal"
+        ]
+      }
+    },
+    "/ai-assistant/session": {
+      "post": {
+        "operationId": "AiAssistantController_createSession",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Ephemeral token создан успешно",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "client_secret": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "description": "Ephemeral token"
+                        },
+                        "expires_at": {
+                          "type": "number",
+                          "description": "Время истечения токена (Unix timestamp)"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать ephemeral token для OpenAI Realtime API",
+        "tags": [
+          "AI Assistant"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Multi-Tenant ABAI API",
+    "description": "\n# 🎓 Multi-Tenant ABAI - Система управления образовательным процессом\n\n## 📋 Описание\nКомплексная система для управления образовательным процессом с поддержкой множественной аренды.\n\n## 🚀 Основные возможности\n- 🔐 JWT аутентификация и авторизация\n- 👥 Управление пользователями с ролями (ADMIN, TEACHER, STUDENT, PARENT, HR)\n- 🏫 Управление группами и аудиториями\n- 📖 Учебные планы и уроки\n- 📝 Материалы уроков (лекции, видео, тесты, домашние задания)\n- 📅 Расписание с автоматической проверкой конфликтов\n- 📊 Электронный журнал с оценками и посещаемостью\n- 💰 Система платежей с интеграцией родителей\n- 🤖 AI ассистент с голосовым интерфейсом\n- 📈 Статистика и аналитика\n\n## 🔑 Аутентификация\nДля доступа к защищенным эндпоинтам используйте JWT токен в заголовке Authorization:\n```\nAuthorization: Bearer <your-jwt-token>\n```\n\n## 👤 Роли пользователей\n- **ADMIN** - полный доступ ко всем функциям системы\n- **HR** - управление пользователями и отчетами\n- **TEACHER** - управление уроками, оценками, просмотр журналов\n- **STUDENT** - просмотр своих оценок, материалов и расписания\n- **PARENT** - просмотр данных своих детей, оплата обучения\n\n## 📱 Модули системы\n- **Auth** - Аутентификация и авторизация\n- **Users** - Управление пользователями\n- **Groups** - Управление группами студентов\n- **Classrooms** - Управление аудиториями\n- **Study Plans** - Учебные планы\n- **Schedule** - Расписание занятий\n- **Lessons** - Уроки\n- **Materials** - Материалы уроков\n- **Lesson Results** - Электронный журнал\n- **Students** - Управление студентами\n- **Teachers** - Управление преподавателями\n- **Parents** - Управление родителями\n- **Payments** - Система платежей\n- **AI Assistant** - AI ассистент с голосовым интерфейсом\n      ",
+    "version": "1.0.0",
+    "contact": {
+      "name": "ABAI Support Team",
+      "url": "https://abai.edu.kz",
+      "email": "support@abai.edu.kz"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Аутентификация и авторизация"
+    },
+    {
+      "name": "Users",
+      "description": "Управление пользователями"
+    },
+    {
+      "name": "Groups",
+      "description": "Управление группами студентов"
+    },
+    {
+      "name": "Classrooms",
+      "description": "Управление аудиториями"
+    },
+    {
+      "name": "Study Plans",
+      "description": "Учебные планы"
+    },
+    {
+      "name": "Schedule",
+      "description": "Расписание занятий"
+    },
+    {
+      "name": "Lessons",
+      "description": "Уроки"
+    },
+    {
+      "name": "Materials",
+      "description": "Материалы уроков"
+    },
+    {
+      "name": "Lesson Results",
+      "description": "Электронный журнал с оценками и посещаемостью"
+    },
+    {
+      "name": "Students",
+      "description": "Управление студентами"
+    },
+    {
+      "name": "Teachers",
+      "description": "Управление преподавателями"
+    },
+    {
+      "name": "Parents",
+      "description": "Управление родителями"
+    },
+    {
+      "name": "Payments",
+      "description": "Система платежей"
+    },
+    {
+      "name": "AI Assistant",
+      "description": "AI ассистент с голосовым интерфейсом"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.abai.edu.kz",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "JWT-auth": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "JWT",
+        "description": "Введите JWT токен",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email адрес пользователя",
+            "example": "teacher@abai.edu.kz",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Пароль пользователя",
+            "example": "securePassword123",
+            "minLength": 6
+          },
+          "rememberMe": {
+            "type": "boolean",
+            "description": "Запомнить меня (увеличивает время жизни токена)",
+            "example": true,
+            "default": false
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,425 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  PARENT
+  ADMIN
+  FINANCIST
+  HR
+}
+
+enum AbsentReason {
+  SICK
+  FAMILY
+  OTHER
+}
+
+enum EmploymentType {
+  STAFF
+  PART_TIME
+}
+
+enum HomeworkSubmissionStatus {
+  PENDING
+  CHECKED
+}
+
+model User {
+  id             Int            @id @default(autoincrement())
+  email          String         @unique
+  name           String
+  surname        String
+  phone          String?
+  middlename     String?
+  avatar         String? // URL или путь к аватарке
+  role           UserRole       @default(STUDENT)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+  student        Student?
+  teacher        Teacher?
+  hashedPassword String
+  parent         Parent?
+  Notification   Notification[]
+}
+
+model Student {
+  id                 Int                  @id @default(autoincrement())
+  userId             Int                  @unique
+  classId            Int?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  deletedAt          DateTime?
+  user               User                 @relation(fields: [userId], references: [id])
+  group              Group                @relation(fields: [groupId], references: [id])
+  groupId            Int
+  Parents            Parent[]
+  lessonsResults     LessonResult[]
+  HomeworkSubmission HomeworkSubmission[]
+  QuizSubmission     QuizSubmission[]
+  EmotionalState     EmotionalState?
+  Payment            Payment[]
+}
+
+model LessonResult {
+  id                   Int                 @id @default(autoincrement())
+  Student              Student?            @relation(fields: [studentId], references: [id])
+  studentId            Int
+  Lesson               Lesson?             @relation(fields: [lessonId], references: [id])
+  lessonId             Int
+  Homework             HomeworkSubmission? @relation(fields: [homeworkId], references: [id])
+  homeworkId           Int?                @unique
+  lessonScore          Int?
+  lessonScorecomment   String?
+  homeworkScore        Int?
+  homeworkScoreComment String?
+  attendance           Boolean?
+  absentReason         AbsentReason?
+  absentComment        String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  deletedAt            DateTime?
+
+  @@unique([studentId, lessonId])
+}
+
+model Teacher {
+  id             Int            @id @default(autoincrement())
+  userId         Int            @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+  user           User           @relation(fields: [userId], references: [id])
+  studyPlans     StudyPlan[]
+  schedules      Schedule[]
+  employmentType EmploymentType @default(STAFF)
+
+  vacations     Vacation[]
+  substituteFor Vacation[] @relation("VacationSubstitute")
+}
+
+model Parent {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+  relation  String?
+  students  Student[]
+}
+
+model Group {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  courseNumber Int         @default(1)
+  students     Student[]
+  studyPlans   StudyPlan[]
+  schedules    Schedule[]
+}
+
+model StudyPlan {
+  id                Int        @id @default(autoincrement())
+  name              String
+  description       String?    @db.Text
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  deletedAt         DateTime?
+  teacherId         Int
+  teacher           Teacher    @relation(fields: [teacherId], references: [id])
+  group             Group[]
+  lessons           Lesson[]
+  schedules         Schedule[]
+  normativeWorkload Int? // нормативная нагрузка (часы в год)
+}
+
+model Lesson {
+  id           Int            @id @default(autoincrement())
+  name         String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  date         DateTime
+  studyPlanId  Int
+  description  String?        @db.Text
+  studyPlan    StudyPlan      @relation(fields: [studyPlanId], references: [id])
+  homework     Homework?      @relation(fields: [homeworkId], references: [id])
+  homeworkId   Int?           @unique
+  materials    Materials?     @relation(fields: [materialsId], references: [id])
+  materialsId  Int?           @unique
+  LessonResult LessonResult[]
+}
+
+model Homework {
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  description         String?              @db.Text
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
+  lesson              Lesson?
+  deadline            DateTime             @default(now())
+  additionalFiles     File[]
+  studentsSubmissions HomeworkSubmission[]
+  materials           Materials?           @relation(fields: [materialsId], references: [id])
+  materialsId         Int?                 @unique
+}
+
+model Materials {
+  id              Int       @id @default(autoincrement())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  lesson          Lesson?
+  homework        Homework?
+  lecture         String?   @db.Text
+  videoUrl        String?
+  presentationUrl String?
+  additionalFiles File[]
+  quiz            Quiz?     @relation(fields: [quizId], references: [id])
+  quizId          Int?      @unique
+  homeworkId      Int?
+}
+
+model File {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  materialsId        Int?
+  materials          Materials?          @relation(fields: [materialsId], references: [id])
+  url                String
+  type               String
+  size               Int
+  mime               String
+  HomeworkSubmission HomeworkSubmission?
+  Homework           Homework?           @relation(fields: [homeworkId], references: [id])
+  homeworkId         Int?
+  VacationDocument   VacationDocument[]
+}
+
+model Quiz {
+  id          Int              @id @default(autoincrement())
+  name        String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+  duration    Int? // in minutes
+  maxScore    Int?
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean?         @default(false)
+  materials   Materials?
+  questions   Question[]
+  submissions QuizSubmission[]
+}
+
+model Question {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  quizId    Int
+  quiz      Quiz       @relation(fields: [quizId], references: [id])
+  type      AnswerType
+  answers   Answer[]
+}
+
+enum AnswerType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TEXT
+}
+
+model Answer {
+  id         Int       @id @default(autoincrement())
+  name       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+  questionId Int
+  question   Question  @relation(fields: [questionId], references: [id])
+  isCorrect  Boolean
+}
+
+model HomeworkSubmission {
+  id           Int                      @id @default(autoincrement())
+  student      Student                  @relation(fields: [studentId], references: [id])
+  studentId    Int
+  homework     Homework                 @relation(fields: [homeworkId], references: [id])
+  homeworkId   Int
+  fileUrl      File                     @relation(fields: [fileId], references: [id])
+  fileId       Int                      @unique
+  comment      String?
+  status       HomeworkSubmissionStatus @default(PENDING)
+  submittedAt  DateTime                 @default(now())
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  deletedAt    DateTime?
+  LessonResult LessonResult?
+}
+
+model QuizSubmission {
+  id          Int       @id @default(autoincrement())
+  student     Student   @relation(fields: [studentId], references: [id])
+  studentId   Int
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  quizId      Int
+  answers     String? // JSON-строка с ответами
+  submittedAt DateTime  @default(now())
+  score       Int?
+  feedback    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+}
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+  type      String
+  message   String
+  read      Boolean   @default(false)
+  createdBy Int?
+  updatedBy Int?
+  url       String?
+}
+
+model Classroom {
+  id          Int        @id @default(autoincrement())
+  name        String
+  building    String
+  floor       Int
+  capacity    Int
+  type        String // LECTURE, PRACTICE, COMPUTER, LABORATORY, OTHER
+  equipment   String[] // Оборудование (проектор, интерактивная доска и т.д.)
+  description String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  schedules   Schedule[]
+}
+
+model Schedule {
+  id          String     @id @default(uuid())
+  studyPlanId Int
+  studyPlan   StudyPlan  @relation(fields: [studyPlanId], references: [id])
+  groupId     Int
+  group       Group      @relation(fields: [groupId], references: [id])
+  teacherId   Int
+  teacher     Teacher    @relation(fields: [teacherId], references: [id])
+  classroomId Int?
+  classroom   Classroom? @relation(fields: [classroomId], references: [id])
+  dayOfWeek   Int // 1-7: понедельник-воскресенье
+  startTime   String // HH:MM
+  endTime     String // HH:MM
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+}
+
+model EmotionalState {
+  id                 Int      @id @default(autoincrement())
+  student            Student  @relation(fields: [studentId], references: [id])
+  studentId          Int      @unique
+  mood               Int // 0-100
+  moodDesc           String
+  moodTrend          String // up, down, neutral
+  concentration      Int // 0-100
+  concentrationDesc  String
+  concentrationTrend String
+  socialization      Int // 0-100
+  socializationDesc  String
+  socializationTrend String
+  motivation         Int // 0-100
+  motivationDesc     String
+  motivationTrend    String
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+}
+
+// --- Vacation management ---
+
+enum VacationType {
+  vacation
+  sick_leave
+  maternity_leave
+  unpaid_leave
+  business_trip
+}
+
+enum VacationStatus {
+  pending
+  approved
+  rejected
+  completed
+}
+
+model Vacation {
+  id           Int                @id @default(autoincrement())
+  teacher      Teacher            @relation(fields: [teacherId], references: [id])
+  teacherId    Int
+  type         VacationType
+  startDate    DateTime
+  endDate      DateTime
+  days         Int
+  status       VacationStatus     @default(pending)
+  substitute   Teacher?           @relation("VacationSubstitute", fields: [substituteId], references: [id])
+  substituteId Int?
+  comment      String?
+  documents    VacationDocument[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  deletedAt    DateTime?
+}
+
+model VacationDocument {
+  id         Int      @id @default(autoincrement())
+  vacation   Vacation @relation(fields: [vacationId], references: [id])
+  vacationId Int
+  file       File     @relation(fields: [fileId], references: [id])
+  fileId     Int
+  uploadedAt DateTime @default(now())
+}
+
+model Payment {
+  id          Int       @id @default(autoincrement())
+  studentId   Int
+  student     Student   @relation(fields: [studentId], references: [id])
+  serviceType String // tuition, extra, meals, transportation
+  serviceName String
+  amount      Int
+  currency    String
+  dueDate     DateTime
+  status      String // paid, unpaid, partial, overdue
+  paymentDate DateTime?
+  paidAmount  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+}

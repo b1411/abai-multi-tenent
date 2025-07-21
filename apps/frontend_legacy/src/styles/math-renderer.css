@@ -1,0 +1,20 @@
+/* Стили для MathRenderer */
+.math-renderer .katex {
+  font-size: 1.1em;
+}
+
+.math-renderer .katex-display {
+  margin: 1.5em 0;
+}
+
+.math-renderer .block-math {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.math-renderer .inline-math {
+  display: inline-block;
+  vertical-align: middle;
+}

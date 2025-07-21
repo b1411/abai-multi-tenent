@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Run Frontend",
+			"type": "shell",
+			"command": "cd /Users/rakhmatkenzhebayev/Documents/programming/abai-multi-tenent && pnpm -F @abai/frontend dev",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

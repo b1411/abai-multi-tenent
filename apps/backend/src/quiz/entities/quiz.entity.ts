@@ -31,10 +31,10 @@ export class Quiz {
   @ApiPropertyOptional({ description: 'Дата удаления' })
   deletedAt?: Date;
 
-  @ApiPropertyOptional({ description: 'Вопросы теста' })
+  @ApiPropertyOptional({ description: 'Вопросы теста', type: () => [Question] })
   questions?: Question[];
 
-  @ApiPropertyOptional({ description: 'Результаты студентов' })
+  @ApiPropertyOptional({ description: 'Результаты студентов', type: () => [QuizSubmission] })
   submissions?: QuizSubmission[];
 
   @ApiPropertyOptional({ description: 'Связанные материалы' })
@@ -63,7 +63,7 @@ export class Question {
   @ApiPropertyOptional({ description: 'Дата удаления' })
   deletedAt?: Date;
 
-  @ApiPropertyOptional({ description: 'Варианты ответов' })
+  @ApiPropertyOptional({ description: 'Варианты ответов', type: () => [Answer] })
   answers?: Answer[];
 }
 
@@ -124,6 +124,6 @@ export class QuizSubmission {
   @ApiPropertyOptional({ description: 'Информация о студенте' })
   student?: any;
 
-  @ApiPropertyOptional({ description: 'Информация о тесте' })
-  quiz?: any;
+  @ApiPropertyOptional({ description: 'Информация о тесте', type: () => Quiz })
+  quiz?: Quiz;
 }

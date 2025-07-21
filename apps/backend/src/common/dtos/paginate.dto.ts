@@ -33,26 +33,29 @@ export class PaginateQueryDto {
 }
 
 export class PaginateMetaDto {
-    @ApiProperty({ example: 100, description: 'Total number of items' })
+    @ApiProperty({ example: 100, description: 'Total number of items', type: Number })
     readonly totalItems: number;
 
-    @ApiProperty({ example: 10, description: 'Number of items on current page' })
+    @ApiProperty({ example: 10, description: 'Number of items on current page', type: Number })
     readonly itemCount: number;
 
-    @ApiProperty({ example: 10, description: 'Number of items per page' })
+    @ApiProperty({ example: 10, description: 'Number of items per page', type: Number })
     readonly itemsPerPage: number;
 
-    @ApiProperty({ example: 10, description: 'Total number of pages' })
+    @ApiProperty({ example: 10, description: 'Total number of pages', type: Number })
     readonly totalPages: number;
 
-    @ApiProperty({ example: 1, description: 'Current page number' })
+    @ApiProperty({ example: 1, description: 'Current page number', type: Number })
     readonly currentPage: number;
 }
 
 export class PaginateResponseDto<T> {
-    @ApiProperty({ isArray: true })
+    @ApiProperty({ 
+        type: 'array',
+        description: 'Array of data items'
+    })
     readonly data: T[];
 
-    @ApiProperty({ type: PaginateMetaDto })
+    @ApiProperty({ type: () => PaginateMetaDto })
     readonly meta: PaginateMetaDto;
 }

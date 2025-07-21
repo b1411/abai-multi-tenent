@@ -100,8 +100,13 @@ Authorization: Bearer <your-jwt-token>
             .setLicense('MIT', 'https://opensource.org/licenses/MIT')
             .build();
 
-        // Создаем документ
-        const document = SwaggerModule.createDocument(app, config);
+        // Создаем документ с настройками для предотвращения циклических зависимостей
+        const document = SwaggerModule.createDocument(app, config, {
+            ignoreGlobalPrefix: false,
+            operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
+            extraModels: [], // Пустой массив чтобы избежать автоматического включения проблемных моделей
+            deepScanRoutes: false, // Отключаем глубокое сканирование маршрутов
+        });
 
         // Определяем пути для сохранения
         const outputDir = path.resolve(process.cwd(), 'docs');

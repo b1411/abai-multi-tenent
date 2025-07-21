@@ -1,11 +1,10 @@
-import { Lesson as LessonPrisma } from "generated/prisma";
 import { ApiProperty, ApiSchema } from "@nestjs/swagger";
 
 @ApiSchema({
     name: 'Lesson',
     description: 'Represents a lesson in the system, including its details such as name, date, and associated study plan.'
 })
-export class Lesson implements LessonPrisma {
+export class Lesson {
     @ApiProperty()
     name: string;
 

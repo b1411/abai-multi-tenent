@@ -26,14 +26,10 @@
     "db:push": "npx prisma db push --force-reset",
     "db:seed": "tsx scripts/seed.ts",
     "db:version": "npx prisma -v",
-    "swagger:export": "npm run build && tsx scripts/export-swagger.ts",
+    "swagger:export": "npm run build && tsx scripts/export-swagger-minimal.ts",
     "swagger:export:yaml": "npm run swagger:export",
     "docs:generate": "npm run swagger:export && echo '📚 Документация обновлена в папке docs/'",
-    "api-client:generate": "npx swagger-typescript-api generate --path ./docs/swagger.json",
-    "api-client:copy": "npm run api-client:copy:cross-platform",
-    "api-client:copy:cross-platform": "node -e \"const fs = require('fs'); const path = require('path'); const source = path.join(__dirname, 'Api.ts'); const target = path.join(__dirname, '..', 'frontend', 'api', 'Api.ts'); if (fs.existsSync(source)) { fs.copyFileSync(source, target); console.log('✅ API client copied to frontend'); } else { console.log('❌ API file not found'); }\"",
-    "postinstall": "npx npm-run-all db:generate docs:generate api-client:generate",
-    "build:all": "npx npm-run-all db:generate docs:generate api-client:generate api-client:copy"
+    "postinstall": "npx npm-run-all db:generate docs:generate"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

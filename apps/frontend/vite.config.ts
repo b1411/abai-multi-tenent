@@ -14,6 +14,7 @@ export default defineConfig({
     allowedHosts: [
       "localhost",
       "*.abai.live"
-    ]
+    ],
+    host: "::"
   },
 })

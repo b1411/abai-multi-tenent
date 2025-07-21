@@ -13,7 +13,7 @@ export default defineConfig({
   preview: {
     allowedHosts: [
       "localhost",
-      "*.abai.live"
+      ".abai.live",
     ],
     host: "::"
   },

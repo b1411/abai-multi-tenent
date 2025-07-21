@@ -8,10 +8,9 @@ export default defineConfig({
     "allowedHosts": [
       "localhost",
       "*.abai.live"
-    ], port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
+    ]
   },
   preview: {
-    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     allowedHosts: [
       "localhost",
       "*.abai.live"

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FaBarcode,
   FaQrcode,
@@ -15,80 +15,22 @@ import {
   FaExchangeAlt
 } from 'react-icons/fa';
 import { ItemModal, FilterModal, ScannerModal, ViewModal } from '../../components/erp/inventory/InventoryModals';
-
-export interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  status: 'active' | 'repair' | 'written-off' | 'lost';
-  purchaseDate: string;
-  lastInventory: string;
-  cost: number;
-  currentValue: number;
-  responsible: string;
-  qrCode?: string;
-  barcode?: string;
-  serialNumber?: string;
-  manufacturer?: string;
-  model?: string;
-  photos?: string[];
-  warranty?: {
-    start: string;
-    end: string;
-    provider: string;
-  };
-  maintenanceSchedule?: {
-    lastMaintenance: string;
-    nextMaintenance: string;
-    provider: string;
-  };
-  movements?: Array<{
-    date: string;
-    fromLocation: string;
-    toLocation: string;
-    responsible: string;
-    reason: string;
-  }>;
-}
+import { inventoryService, InventoryItem, InventoryFilters, CreateInventoryItem } from '../../api/inventoryService';
 
 const InventoryPage: React.FC = () => {
   // Состояния
-  const [items, setItems] = useState<InventoryItem[]>([
-    {
-      id: '1',
-      name: 'Интерактивная доска Samsung Flip 3',
-      category: 'Техника',
-      location: 'Кабинет 204',
-      status: 'active',
-      purchaseDate: '2024-01-15',
-      lastInventory: '2024-03-01',
-      cost: 850000,
-      currentValue: 807500,
-      responsible: 'Иванов А.П.',
-      serialNumber: 'SF3-2024-001',
-      manufacturer: 'Samsung',
-      model: 'Flip 3',
-      warranty: {
-        start: '2024-01-15',
-        end: '2027-01-15',
-        provider: 'Samsung Kazakhstan'
-      },
-      maintenanceSchedule: {
-        lastMaintenance: '2024-02-15',
-        nextMaintenance: '2024-05-15',
-        provider: 'TechService Ltd'
-      }
-    },
-    // Добавьте больше примеров...
-  ]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<InventoryFilters>({
     category: '',
-    status: '',
-    location: ''
+    status: undefined,
+    location: '',
+    responsible: ''
   });
   const [showScanner, setShowScanner] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -97,53 +39,86 @@ const InventoryPage: React.FC = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
 
-  // Фильтрация элементов
-  const filteredItems = useMemo(() => {
-    return items.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesCategory = !filters.category || item.category === filters.category;
-      const matchesStatus = !filters.status || item.status === filters.status;
-      const matchesLocation = !filters.location || item.location === filters.location;
-
-      return matchesSearch && matchesCategory && matchesStatus && matchesLocation;
-    });
-  }, [items, searchQuery, filters]);
-
-  // Обработчики
-  const handleScan = (result: string) => {
-    // Здесь будет логика обработки результатов сканирования
-    console.log('Scan result:', result);
-    setShowScannerModal(false);
-  };
-
-  const handleAddItem = (item: Omit<InventoryItem, 'id'>) => {
-    const newItem: InventoryItem = {
-      ...item,
-      id: Date.now().toString(),
-    };
-    setItems([...items, newItem]);
-  };
-
-  const handleEditItem = (id: string, updates: Partial<InventoryItem>) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, ...updates } : item
-    ));
-  };
-
-  const handleDeleteItem = (id: string) => {
-    if (window.confirm('Вы уверены, что хотите удалить этот элемент?')) {
-      setItems(items.filter(item => item.id !== id));
+  // Загрузка данных
+  const loadItems = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const currentFilters = {
+        ...filters,
+        search: searchQuery || undefined
+      };
+      const response = await inventoryService.getItems(currentFilters);
+      setItems(response.items);
+      setTotal(response.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки данных');
+      console.error('Error loading inventory:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleExport = () => {
-    // Экспорт данных
+  useEffect(() => {
+    loadItems();
+  }, [searchQuery, filters]);
+
+  // Обработчики
+  const handleScan = async (result: string) => {
+    try {
+      const item = await inventoryService.getItemByCode(result);
+      setSelectedItem(item);
+      setShowViewModal(true);
+    } catch (err) {
+      console.error('Error scanning code:', err);
+      alert('Элемент с таким кодом не найден');
+    }
+    setShowScannerModal(false);
   };
 
-  const handleApplyFilters = (newFilters: { category: string; status: string; location: string }) => {
+  const handleAddItem = async (itemData: CreateInventoryItem) => {
+    try {
+      await inventoryService.createItem(itemData);
+      await loadItems();
+    } catch (err) {
+      console.error('Error creating item:', err);
+      alert('Ошибка при создании элемента');
+    }
+  };
+
+  const handleEditItem = async (id: string, updates: Partial<CreateInventoryItem>) => {
+    try {
+      await inventoryService.updateItem(id, updates);
+      await loadItems();
+    } catch (err) {
+      console.error('Error updating item:', err);
+      alert('Ошибка при обновлении элемента');
+    }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (window.confirm('Вы уверены, что хотите удалить этот элемент?')) {
+      try {
+        await inventoryService.deleteItem(id);
+        await loadItems();
+      } catch (err) {
+        console.error('Error deleting item:', err);
+        alert('Ошибка при удалении элемента');
+      }
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await inventoryService.exportData(filters, 'xlsx');
+      alert('Экспорт успешно подготовлен');
+    } catch (err) {
+      console.error('Error exporting data:', err);
+      alert('Ошибка при экспорте данных');
+    }
+  };
+
+  const handleApplyFilters = (newFilters: InventoryFilters) => {
     setFilters(newFilters);
   };
 
@@ -233,7 +208,26 @@ const InventoryPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredItems.map((item) => (
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                  Загрузка...
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-4 text-center text-red-500">
+                  {error}
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                  Данные не найдены
+                </td>
+              </tr>
+            ) : null}
+            {!loading && !error && items.map((item: InventoryItem) => (
               <tr
                 key={item.id}
                 className="hover:bg-gray-50 transition-colors cursor-pointer"

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FaTimes, FaQrcode, FaBarcode, FaHistory, FaCamera, FaMapMarkerAlt, FaCalendarAlt, FaUserCog, FaTools, FaMoneyBillWave, FaInfoCircle } from 'react-icons/fa';
-import { InventoryItem } from '../../../pages/erp/InventoryPage';
+import { InventoryItem, CreateInventoryItem, InventoryFilters } from '../../../api/inventoryService';
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,17 +8,13 @@ interface ModalProps {
 }
 
 interface ItemModalProps extends ModalProps {
-  item?: Omit<InventoryItem, 'id'>;
-  onSave: (item: Omit<InventoryItem, 'id'>) => void;
+  item?: CreateInventoryItem;
+  onSave: (item: CreateInventoryItem) => void;
 }
 
 interface FilterModalProps extends ModalProps {
-  filters: {
-    category: string;
-    status: string;
-    location: string;
-  };
-  onApply: (filters: { category: string; status: string; location: string }) => void;
+  filters: InventoryFilters;
+  onApply: (filters: InventoryFilters) => void;
 }
 
 interface ScannerModalProps extends ModalProps {
@@ -164,8 +160,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, filte
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700">Статус</label>
           <select
-            value={localFilters.status}
-            onChange={(e) => setLocalFilters({ ...localFilters, status: e.target.value })}
+            value={localFilters.status || ''}
+            onChange={(e) => setLocalFilters({ ...localFilters, status: e.target.value as any })}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
           >
             <option value="">Все статусы</option>
@@ -448,4 +444,4 @@ export const ViewModal: React.FC<ViewModalProps> = ({ isOpen, onClose, item }) =
       </div>
     </Modal>
   );
-}; 
+};

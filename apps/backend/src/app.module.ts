@@ -21,29 +21,56 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FilesModule } from './files/files.module';
 import { LessonResultsModule } from './lesson-results/lesson-results.module';
 import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
+import { BudgetModule } from './budget/budget.module';
+import { ReportsModule } from './reports/reports.module';
+import { WorkloadModule } from './workload/workload.module';
+import { SalariesModule } from './salaries/salaries.module';
+import { PerformanceModule } from './performance/performance.module';
+import { KpiModule } from './kpi/kpi.module';
+import { VacationsModule } from './vacations/vacations.module';
+import { LoyaltyModule } from './loyalty/loyalty.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { SupplyModule } from './supply/supply.module';
+import { DevtoolsModule } from '@nestjs/devtools-integration';
 
 @Module({
   imports: [
-    StudyPlansModule, 
-    AuthModule, 
-    LessonsModule, 
-    MaterialsModule, 
-    UsersModule, 
-    GroupsModule, 
-    HomeworkModule, 
-    QuizModule, 
-    ClassroomsModule, 
-    ScheduleModule, 
-    StudentsModule, 
-    TeachersModule, 
-    ParentsModule, 
-    PaymentsModule, 
-    NotificationsModule, 
-    FilesModule, 
+    StudyPlansModule,
+    AuthModule,
+    LessonsModule,
+    MaterialsModule,
+    UsersModule,
+    GroupsModule,
+    HomeworkModule,
+    QuizModule,
+    ClassroomsModule,
+    ScheduleModule,
+    StudentsModule,
+    TeachersModule,
+    ParentsModule,
+    PaymentsModule,
+    BudgetModule,
+    ReportsModule,
+    WorkloadModule,
+    SalariesModule,
+    PerformanceModule,
+    KpiModule,
+    VacationsModule,
+    LoyaltyModule,
+    FeedbackModule,
+    InventoryModule,
+    SupplyModule,
+    NotificationsModule,
+    FilesModule,
     LessonResultsModule,
-    AiAssistantModule
+    AiAssistantModule,
+    DevtoolsModule.register({
+      http: process.env.NODE_ENV !== 'production',
+      port: 3001, // Port for devtools
+    })
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, JwtService],
 })
-export class AppModule {}
+export class AppModule { }

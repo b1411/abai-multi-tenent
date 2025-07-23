@@ -40,6 +40,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import TestRealtimeApi from './pages/TestRealtimeApi';
 
 import InventoryPage from './pages/erp/InventoryPage';
+import InventoryAnalyticsPage from './pages/erp/InventoryAnalyticsPage';
 import SupplyPage from './pages/erp/SupplyPage';
 import UsersPage from './pages/settings/UsersPage';
 import PermissionsPage from './pages/settings/PermissionsPage';
@@ -61,7 +62,7 @@ const App: React.FC = () => {
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
-              
+
               {/* Academic routes */}
               <Route path="academic/academic-journal" element={<AcademicJournalPage />} />
               <Route path="academic/schedule" element={<SchedulePage />} />
@@ -85,6 +86,7 @@ const App: React.FC = () => {
               <Route path="app/tasks" element={<TodoPage />} />
               <Route path="app/profile" element={<ProfilePage />} />
               <Route path="app/erp/inventory" element={<InventoryPage />} />
+              <Route path="app/erp/inventory-analytics" element={<InventoryAnalyticsPage />} />
               <Route path="app/erp/supply" element={<SupplyPage />} />
               <Route path="app/neuro-abai" element={<NeuroAbaiPage />} />
 
@@ -116,16 +118,16 @@ const App: React.FC = () => {
               <Route path="study-plans/:id" element={<StudyPlanDetailPage />} />
               <Route path="study-plans/:studyPlanId/lessons" element={<LessonsManagePage />} />
               <Route path="study-plans/:id/lessons/:lessonId" element={<LessonDetailPage />} />
-              
+
               {/* Lessons routes */}
               <Route path="lessons/:lessonId/materials" element={<LessonMaterialsPage />} />
-              
+
               {/* Quiz routes */}
               <Route path="quiz/:quizId/statistics" element={<QuizStatisticsPage />} />
 
               <Route path='/test/realtime-api' element={<TestRealtimeApi />} />
             </Route>
-            
+
             {/* Добавляем отдельный маршрут для /dashboard */}
             <Route path="/dashboard" element={
               <ProtectedRoute>

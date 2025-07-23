@@ -1,0 +1,620 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Calendar,
+  Clock,
+  Users,
+  Plus,
+  Filter,
+  Search,
+  FileText,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Edit,
+  Trash2,
+  User,
+  CalendarDays
+} from 'lucide-react';
+import { useVacations } from '../hooks/useVacations';
+import { useAuth } from '../hooks/useAuth';
+import { useTeachers } from '../hooks/useTeachers';
+import { vacationService } from '../services/vacationService';
+import {
+  Vacation,
+  VacationType,
+  VacationStatus,
+  CreateVacationRequest,
+  UpdateVacationStatusRequest,
+  VACATION_TYPE_LABELS,
+  VACATION_STATUS_LABELS,
+  VACATION_STATUS_COLORS
+} from '../types/vacation';
+import { Spinner } from '../components/ui/Spinner';
+import { Alert } from '../components/ui/Alert';
+
+const VacationCard: React.FC<{ 
+  vacation: Vacation; 
+  currentUserId: number;
+  userRole: string;
+  onEdit: (vacation: Vacation) => void;
+  onDelete: (id: number) => void;
+  onStatusChange: (id: number, status: VacationStatus) => void;
+}> = ({ vacation, currentUserId, userRole, onEdit, onDelete, onStatusChange }) => {
+  const canEdit = vacationService.canEdit(vacation, currentUserId, userRole);
+  const canChangeStatus = vacationService.canChangeStatus(userRole);
+  
+  return (
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Calendar className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {vacation.teacher.user.name} {vacation.teacher.user.surname}
+            </h3>
+            <p className="text-sm text-gray-600">{vacation.teacher.user.email}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${vacationService.getTypeColor(vacation.type)}`}>
+            {VACATION_TYPE_LABELS[vacation.type]}
+          </span>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${VACATION_STATUS_COLORS[vacation.status]}`}>
+            {VACATION_STATUS_LABELS[vacation.status]}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="flex items-center space-x-2">
+          <CalendarDays className="w-4 h-4 text-gray-500" />
+          <span className="text-sm text-gray-600">
+            {vacationService.formatPeriod(vacation.startDate, vacation.endDate)}
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Clock className="w-4 h-4 text-gray-500" />
+          <span className="text-sm text-gray-600">{vacation.days} дней</span>
+        </div>
+      </div>
+
+      {vacation.substitute && (
+        <div className="flex items-center space-x-2 mb-4">
+          <User className="w-4 h-4 text-gray-500" />
+          <span className="text-sm text-gray-600">
+            Замещение: {vacation.substitute.user.name} {vacation.substitute.user.surname}
+          </span>
+        </div>
+      )}
+
+      {vacation.comment && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+            {vacation.comment}
+          </p>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+        <div className="flex space-x-2">
+          {canEdit && (
+            <button
+              onClick={() => onEdit(vacation)}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Редактировать</span>
+            </button>
+          )}
+          {canEdit && vacation.status === 'pending' && (
+            <button
+              onClick={() => onDelete(vacation.id)}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Удалить</span>
+            </button>
+          )}
+        </div>
+
+        {canChangeStatus && vacation.status === 'pending' && (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onStatusChange(vacation.id, VacationStatus.approved)}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span>Одобрить</span>
+            </button>
+            <button
+              onClick={() => onStatusChange(vacation.id, VacationStatus.rejected)}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+            >
+              <XCircle className="w-4 h-4" />
+              <span>Отклонить</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const VacationForm: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  vacation?: Vacation | null;
+  onSubmit: (data: CreateVacationRequest) => void;
+}> = ({ isOpen, onClose, vacation, onSubmit }) => {
+  const { teachers } = useTeachers();
+  const [formData, setFormData] = useState<CreateVacationRequest>({
+    type: VacationType.vacation,
+    startDate: '',
+    endDate: '',
+    days: 0,
+    substituteId: undefined,
+    comment: '',
+    lectureTopics: ''
+  });
+
+  const [errors, setErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (vacation) {
+      setFormData({
+        type: vacation.type,
+        startDate: vacation.startDate.split('T')[0],
+        endDate: vacation.endDate.split('T')[0],
+        days: vacation.days,
+        substituteId: vacation.substituteId || undefined,
+        comment: vacation.comment || '',
+        lectureTopics: vacation.lectureTopics || ''
+      });
+    }
+  }, [vacation]);
+
+  useEffect(() => {
+    if (formData.startDate && formData.endDate) {
+      const days = vacationService.calculateDays(formData.startDate, formData.endDate);
+      setFormData(prev => ({ ...prev, days }));
+    }
+  }, [formData.startDate, formData.endDate]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const validationErrors = vacationService.validateDates(formData.startDate, formData.endDate);
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setErrors([]);
+    onSubmit({
+      ...formData,
+      startDate: new Date(formData.startDate).toISOString(),
+      endDate: new Date(formData.endDate).toISOString()
+    });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {vacation ? 'Редактировать отпуск' : 'Новая заявка на отпуск'}
+          </h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {errors.length > 0 && (
+            <Alert variant="error" title="Ошибки валидации">
+              <ul className="list-disc list-inside space-y-1">
+                {errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Тип отпуска
+              </label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as VacationType }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                {Object.values(VacationType).map(type => (
+                  <option key={type} value={type}>
+                    {VACATION_TYPE_LABELS[type]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Замещающий преподаватель
+              </label>
+              <select
+                value={formData.substituteId || ''}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  substituteId: e.target.value ? parseInt(e.target.value) : undefined 
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Выберите преподавателя</option>
+                {teachers.map(teacher => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.user.name} {teacher.user.surname}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Дата начала
+              </label>
+              <input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Дата окончания
+              </label>
+              <input
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Количество дней
+              </label>
+              <input
+                type="number"
+                value={formData.days}
+                onChange={(e) => setFormData(prev => ({ ...prev, days: parseInt(e.target.value) }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Комментарий
+            </label>
+            <textarea
+              value={formData.comment}
+              onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              placeholder="Дополнительная информация..."
+            />
+          </div>
+
+          {formData.substituteId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Темы лекций для замещения
+              </label>
+              <textarea
+                value={formData.lectureTopics}
+                onChange={(e) => setFormData(prev => ({ ...prev, lectureTopics: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+                placeholder="Укажите темы, которые должен изучить замещающий преподаватель..."
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              {vacation ? 'Сохранить' : 'Создать заявку'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const Vacations: React.FC = () => {
+  const { user } = useAuth();
+  const {
+    vacations,
+    summary,
+    total,
+    loading,
+    error,
+    createVacation,
+    updateVacation,
+    updateVacationStatus,
+    deleteVacation,
+    loadVacations
+  } = useVacations();
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingVacation, setEditingVacation] = useState<Vacation | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<VacationStatus | ''>('');
+  const [typeFilter, setTypeFilter] = useState<VacationType | ''>('');
+
+  const handleCreateVacation = async (data: CreateVacationRequest) => {
+    try {
+      if (editingVacation) {
+        await updateVacation(editingVacation.id, data);
+      } else {
+        await createVacation(data);
+      }
+      setIsFormOpen(false);
+      setEditingVacation(null);
+    } catch (error) {
+      console.error('Ошибка при сохранении отпуска:', error);
+    }
+  };
+
+  const handleEditVacation = (vacation: Vacation) => {
+    setEditingVacation(vacation);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteVacation = async (id: number) => {
+    if (window.confirm('Вы уверены, что хотите удалить эту заявку?')) {
+      try {
+        await deleteVacation(id);
+      } catch (error) {
+        console.error('Ошибка при удалении отпуска:', error);
+      }
+    }
+  };
+
+  const handleStatusChange = async (id: number, status: VacationStatus) => {
+    try {
+      const statusUpdate: UpdateVacationStatusRequest = {
+        status,
+        notifyEmployee: true
+      };
+      await updateVacationStatus(id, statusUpdate);
+    } catch (error) {
+      console.error('Ошибка при изменении статуса:', error);
+    }
+  };
+
+  const handleSearch = () => {
+    loadVacations({
+      search: searchTerm || undefined,
+      status: statusFilter || undefined,
+      type: typeFilter || undefined
+    });
+  };
+
+  const filteredVacations = vacations.filter(vacation => {
+    if (searchTerm && !vacation.teacher.user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !vacation.teacher.user.surname.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+    if (statusFilter && vacation.status !== statusFilter) {
+      return false;
+    }
+    if (typeFilter && vacation.type !== typeFilter) {
+      return false;
+    }
+    return true;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Управление отпусками</h1>
+          <p className="text-gray-600">Заявки на отпуск и больничные листы</p>
+        </div>
+        <button
+          onClick={() => {
+            setEditingVacation(null);
+            setIsFormOpen(true);
+          }}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Новая заявка</span>
+        </button>
+      </div>
+
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Сейчас в отпуске</p>
+                <p className="text-2xl font-bold text-gray-900">{summary.currentMonth.onVacation}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">На больничном</p>
+                <p className="text-2xl font-bold text-gray-900">{summary.currentMonth.onSickLeave}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Clock className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Запланировано</p>
+                <p className="text-2xl font-bold text-gray-900">{summary.currentMonth.planned}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Всего заявок</p>
+                <p className="text-2xl font-bold text-gray-900">{total}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Поиск по имени..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as VacationStatus | '')}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Все статусы</option>
+            {Object.values(VacationStatus).map(status => (
+              <option key={status} value={status}>
+                {VACATION_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as VacationType | '')}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Все типы</option>
+            {Object.values(VacationType).map(type => (
+              <option key={type} value={type}>
+                {VACATION_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={handleSearch}
+            className="flex items-center justify-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+          >
+            <Filter className="w-4 h-4" />
+            <span>Применить</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <Alert variant="error" title="Ошибка">
+          {error}
+        </Alert>
+      )}
+
+      {/* Vacations List */}
+      <div className="space-y-4">
+        {filteredVacations.length > 0 ? (
+          filteredVacations.map(vacation => (
+            <VacationCard
+              key={vacation.id}
+              vacation={vacation}
+              currentUserId={user?.id || 0}
+              userRole={user?.role || ''}
+              onEdit={handleEditVacation}
+              onDelete={handleDeleteVacation}
+              onStatusChange={handleStatusChange}
+            />
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Заявки не найдены</h3>
+            <p className="text-gray-600">
+              {searchTerm || statusFilter || typeFilter
+                ? 'Попробуйте изменить параметры поиска'
+                : 'Создайте первую заявку на отпуск'
+              }
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Form Modal */}
+      <VacationForm
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingVacation(null);
+        }}
+        vacation={editingVacation}
+        onSubmit={handleCreateVacation}
+      />
+    </div>
+  );
+};
+
+export default Vacations;

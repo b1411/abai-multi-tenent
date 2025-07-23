@@ -1,0 +1,1735 @@
+{
+  "version": "6.0",
+  "nxVersion": "20.8.2",
+  "pathMappings": {},
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "projectFileMap": {},
+    "nonProjectFiles": [
+      {
+        "file": "backend/.clinerules/используй pnpm для устагновки зависимостей.md",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "backend/.gitignore",
+        "hash": "8606007579107846283"
+      },
+      {
+        "file": "backend/.prettierrc",
+        "hash": "4808572120966128913"
+      },
+      {
+        "file": "backend/Api.ts",
+        "hash": "11449912634854292713"
+      },
+      {
+        "file": "backend/README.md",
+        "hash": "11787056192865015025"
+      },
+      {
+        "file": "backend/dockerfile",
+        "hash": "12854587611977543114"
+      },
+      {
+        "file": "backend/eslint.config.mjs",
+        "hash": "11452517348556635954"
+      },
+      {
+        "file": "backend/nest-cli.json",
+        "hash": "15614823379551250838"
+      },
+      {
+        "file": "backend/package.json",
+        "hash": "1168215124031542082"
+      },
+      {
+        "file": "backend/pnpm-lock.yaml",
+        "hash": "12162276032107994331"
+      },
+      {
+        "file": "backend/prisma/migrations/20250714193911_/migration.sql",
+        "hash": "17671326354076721542"
+      },
+      {
+        "file": "backend/prisma/migrations/20250714195157_added_password/migration.sql",
+        "hash": "18174382003836876864"
+      },
+      {
+        "file": "backend/prisma/migrations/20250714200057_/migration.sql",
+        "hash": "395248910257273026"
+      },
+      {
+        "file": "backend/prisma/migrations/migration_lock.toml",
+        "hash": "872437952673290735"
+      },
+      {
+        "file": "backend/prisma/schema.prisma",
+        "hash": "9170090298465994122"
+      },
+      {
+        "file": "backend/scripts/README.md",
+        "hash": "17739587806873950025"
+      },
+      {
+        "file": "backend/scripts/export-swagger-minimal.ts",
+        "hash": "8732651568148349967"
+      },
+      {
+        "file": "backend/scripts/export-swagger.ts",
+        "hash": "15688165639243751991"
+      },
+      {
+        "file": "backend/scripts/seed.ts",
+        "hash": "15642518646064499374"
+      },
+      {
+        "file": "backend/src/ai-assistant/ai-assistant.controller.ts",
+        "hash": "2632357199932541356"
+      },
+      {
+        "file": "backend/src/ai-assistant/ai-assistant.module.ts",
+        "hash": "4802027818289696944"
+      },
+      {
+        "file": "backend/src/ai-assistant/ai-assistant.service.ts",
+        "hash": "16317879233565494670"
+      },
+      {
+        "file": "backend/src/ai-assistant/dto/ai-schedule-response.dto.ts",
+        "hash": "4733315243349440547"
+      },
+      {
+        "file": "backend/src/ai-assistant/dto/create-session.dto.ts",
+        "hash": "5745910912842445232"
+      },
+      {
+        "file": "backend/src/ai-assistant/dto/generate-schedule.dto.ts",
+        "hash": "7443060649460023105"
+      },
+      {
+        "file": "backend/src/ai-assistant/schemas/schedule-generation.schema.ts",
+        "hash": "6079138133621652252"
+      },
+      {
+        "file": "backend/src/app.controller.spec.ts",
+        "hash": "2727664763654384995"
+      },
+      {
+        "file": "backend/src/app.controller.ts",
+        "hash": "4552329938751326480"
+      },
+      {
+        "file": "backend/src/app.module.ts",
+        "hash": "3282030967618231138"
+      },
+      {
+        "file": "backend/src/app.service.ts",
+        "hash": "16892833931858030153"
+      },
+      {
+        "file": "backend/src/auth/auth.controller.spec.ts",
+        "hash": "11331237801356277848"
+      },
+      {
+        "file": "backend/src/auth/auth.controller.ts",
+        "hash": "11816555061371272106"
+      },
+      {
+        "file": "backend/src/auth/auth.module.ts",
+        "hash": "12666474029267509642"
+      },
+      {
+        "file": "backend/src/auth/auth.service.spec.ts",
+        "hash": "5442871165268080463"
+      },
+      {
+        "file": "backend/src/auth/auth.service.ts",
+        "hash": "385838180804292815"
+      },
+      {
+        "file": "backend/src/auth/dto/login-dto.ts",
+        "hash": "8168575037754625911"
+      },
+      {
+        "file": "backend/src/classrooms/classrooms.controller.spec.ts",
+        "hash": "12832048921467513445"
+      },
+      {
+        "file": "backend/src/classrooms/classrooms.controller.ts",
+        "hash": "7469305290336121959"
+      },
+      {
+        "file": "backend/src/classrooms/classrooms.module.ts",
+        "hash": "9833908593621224770"
+      },
+      {
+        "file": "backend/src/classrooms/classrooms.service.spec.ts",
+        "hash": "14853827219561288199"
+      },
+      {
+        "file": "backend/src/classrooms/classrooms.service.ts",
+        "hash": "16923037104250106683"
+      },
+      {
+        "file": "backend/src/classrooms/dto/create-classroom.dto.ts",
+        "hash": "5799085822323744189"
+      },
+      {
+        "file": "backend/src/classrooms/dto/update-classroom.dto.ts",
+        "hash": "9129654607351184882"
+      },
+      {
+        "file": "backend/src/classrooms/entities/classroom.entity.ts",
+        "hash": "11728556137413232005"
+      },
+      {
+        "file": "backend/src/common/decorators/current-user.decorator.ts",
+        "hash": "3391498109808988314"
+      },
+      {
+        "file": "backend/src/common/decorators/paginate.decorator.ts",
+        "hash": "230956759687122290"
+      },
+      {
+        "file": "backend/src/common/decorators/roles.decorator.ts",
+        "hash": "14316102616135985399"
+      },
+      {
+        "file": "backend/src/common/dtos/paginate.dto.ts",
+        "hash": "2698230841746846973"
+      },
+      {
+        "file": "backend/src/common/guards/auth.guard.ts",
+        "hash": "7084934413530982062"
+      },
+      {
+        "file": "backend/src/common/guards/role.guard.ts",
+        "hash": "10538927525801430701"
+      },
+      {
+        "file": "backend/src/common/interceptors/file-upload.interceptor.ts",
+        "hash": "834649286114230773"
+      },
+      {
+        "file": "backend/src/common/types/jwt-payload.ts",
+        "hash": "14013798419928583311"
+      },
+      {
+        "file": "backend/src/files/dto/create-file.dto.ts",
+        "hash": "8745584425609824481"
+      },
+      {
+        "file": "backend/src/files/dto/update-file.dto.ts",
+        "hash": "14472180018344593763"
+      },
+      {
+        "file": "backend/src/files/entities/file.entity.ts",
+        "hash": "1395399455130189392"
+      },
+      {
+        "file": "backend/src/files/files.controller.spec.ts",
+        "hash": "6989735508825368532"
+      },
+      {
+        "file": "backend/src/files/files.controller.ts",
+        "hash": "15563845465458953965"
+      },
+      {
+        "file": "backend/src/files/files.module.ts",
+        "hash": "2644840220548069669"
+      },
+      {
+        "file": "backend/src/files/files.service.spec.ts",
+        "hash": "17694725318604314415"
+      },
+      {
+        "file": "backend/src/files/files.service.ts",
+        "hash": "2897514304372323448"
+      },
+      {
+        "file": "backend/src/groups/dto/create-group.dto.ts",
+        "hash": "1887136947810447803"
+      },
+      {
+        "file": "backend/src/groups/dto/update-group.dto.ts",
+        "hash": "4738910385662011420"
+      },
+      {
+        "file": "backend/src/groups/entities/group.entity.ts",
+        "hash": "18308596930551469732"
+      },
+      {
+        "file": "backend/src/groups/groups.controller.spec.ts",
+        "hash": "11229578326773976111"
+      },
+      {
+        "file": "backend/src/groups/groups.controller.ts",
+        "hash": "12559943759367564507"
+      },
+      {
+        "file": "backend/src/groups/groups.module.ts",
+        "hash": "3778458022473822055"
+      },
+      {
+        "file": "backend/src/groups/groups.service.spec.ts",
+        "hash": "3394834940292590841"
+      },
+      {
+        "file": "backend/src/groups/groups.service.ts",
+        "hash": "17486710621585824890"
+      },
+      {
+        "file": "backend/src/homework/dto/create-homework.dto.ts",
+        "hash": "5343533986552584437"
+      },
+      {
+        "file": "backend/src/homework/dto/update-homework.dto.ts",
+        "hash": "2207943959686194928"
+      },
+      {
+        "file": "backend/src/homework/entities/homework.entity.ts",
+        "hash": "17441781307973058645"
+      },
+      {
+        "file": "backend/src/homework/homework.controller.spec.ts",
+        "hash": "2820843567694906110"
+      },
+      {
+        "file": "backend/src/homework/homework.controller.ts",
+        "hash": "7938055929143064746"
+      },
+      {
+        "file": "backend/src/homework/homework.module.ts",
+        "hash": "286384008906329430"
+      },
+      {
+        "file": "backend/src/homework/homework.service.spec.ts",
+        "hash": "6340962116819211455"
+      },
+      {
+        "file": "backend/src/homework/homework.service.ts",
+        "hash": "7186401142285713016"
+      },
+      {
+        "file": "backend/src/jwt/jwt.service.spec.ts",
+        "hash": "16628513508916735"
+      },
+      {
+        "file": "backend/src/jwt/jwt.service.ts",
+        "hash": "3806021479490851385"
+      },
+      {
+        "file": "backend/src/lesson-results/dto/create-lesson-result.dto.ts",
+        "hash": "12406024957053420820"
+      },
+      {
+        "file": "backend/src/lesson-results/dto/update-lesson-result.dto.ts",
+        "hash": "14039725197421938766"
+      },
+      {
+        "file": "backend/src/lesson-results/entities/lesson-result.entity.ts",
+        "hash": "5780160637573160561"
+      },
+      {
+        "file": "backend/src/lesson-results/lesson-results.controller.spec.ts",
+        "hash": "16990304498209592656"
+      },
+      {
+        "file": "backend/src/lesson-results/lesson-results.controller.ts",
+        "hash": "16754302275099698178"
+      },
+      {
+        "file": "backend/src/lesson-results/lesson-results.module.ts",
+        "hash": "7342272508993463411"
+      },
+      {
+        "file": "backend/src/lesson-results/lesson-results.service.spec.ts",
+        "hash": "9209309844104453322"
+      },
+      {
+        "file": "backend/src/lesson-results/lesson-results.service.ts",
+        "hash": "16203078091973557679"
+      },
+      {
+        "file": "backend/src/lessons/dto/create-lesson.dto.ts",
+        "hash": "2080592674133993994"
+      },
+      {
+        "file": "backend/src/lessons/dto/lesson-filter.dto.ts",
+        "hash": "2764320439243015477"
+      },
+      {
+        "file": "backend/src/lessons/dto/update-lesson.dto.ts",
+        "hash": "7384211420364689762"
+      },
+      {
+        "file": "backend/src/lessons/entities/lesson.entity.ts",
+        "hash": "7101789854757466948"
+      },
+      {
+        "file": "backend/src/lessons/lessons.controller.spec.ts",
+        "hash": "17572981600192500881"
+      },
+      {
+        "file": "backend/src/lessons/lessons.controller.ts",
+        "hash": "6972245535435755262"
+      },
+      {
+        "file": "backend/src/lessons/lessons.module.ts",
+        "hash": "8824052012563612476"
+      },
+      {
+        "file": "backend/src/lessons/lessons.service.spec.ts",
+        "hash": "12280023884428914343"
+      },
+      {
+        "file": "backend/src/lessons/lessons.service.ts",
+        "hash": "16555654023613079223"
+      },
+      {
+        "file": "backend/src/main.ts",
+        "hash": "10817762435579326967"
+      },
+      {
+        "file": "backend/src/materials/dto/create-lesson-materials.dto.ts",
+        "hash": "11893994800582835835"
+      },
+      {
+        "file": "backend/src/materials/dto/create-material.dto.ts",
+        "hash": "10808295877976750177"
+      },
+      {
+        "file": "backend/src/materials/dto/update-material.dto.ts",
+        "hash": "5694892015119422581"
+      },
+      {
+        "file": "backend/src/materials/entities/material.entity.ts",
+        "hash": "5284860552138830981"
+      },
+      {
+        "file": "backend/src/materials/materials.controller.spec.ts",
+        "hash": "4849392877534888648"
+      },
+      {
+        "file": "backend/src/materials/materials.controller.ts",
+        "hash": "16673065768674937341"
+      },
+      {
+        "file": "backend/src/materials/materials.module.ts",
+        "hash": "2322391691287230388"
+      },
+      {
+        "file": "backend/src/materials/materials.service.spec.ts",
+        "hash": "1272185711398257297"
+      },
+      {
+        "file": "backend/src/materials/materials.service.ts",
+        "hash": "3800519640311613944"
+      },
+      {
+        "file": "backend/src/notifications/dto/create-notification.dto.ts",
+        "hash": "13111704614792813344"
+      },
+      {
+        "file": "backend/src/notifications/dto/update-notification.dto.ts",
+        "hash": "13787082950437784986"
+      },
+      {
+        "file": "backend/src/notifications/entities/notification.entity.ts",
+        "hash": "15379809395238849798"
+      },
+      {
+        "file": "backend/src/notifications/notifications.controller.spec.ts",
+        "hash": "3535756684985609509"
+      },
+      {
+        "file": "backend/src/notifications/notifications.controller.ts",
+        "hash": "5354181066172979610"
+      },
+      {
+        "file": "backend/src/notifications/notifications.module.ts",
+        "hash": "4090151188504733204"
+      },
+      {
+        "file": "backend/src/notifications/notifications.service.spec.ts",
+        "hash": "3673691284873335078"
+      },
+      {
+        "file": "backend/src/notifications/notifications.service.ts",
+        "hash": "18403865788494449590"
+      },
+      {
+        "file": "backend/src/parents/dto/create-parent.dto.ts",
+        "hash": "11111965251491756183"
+      },
+      {
+        "file": "backend/src/parents/dto/update-parent.dto.ts",
+        "hash": "2426205881674978762"
+      },
+      {
+        "file": "backend/src/parents/entities/parent.entity.ts",
+        "hash": "15173666347911267428"
+      },
+      {
+        "file": "backend/src/parents/parents.controller.spec.ts",
+        "hash": "9071476460256514410"
+      },
+      {
+        "file": "backend/src/parents/parents.controller.ts",
+        "hash": "16451961632959708355"
+      },
+      {
+        "file": "backend/src/parents/parents.module.ts",
+        "hash": "9328434330584749151"
+      },
+      {
+        "file": "backend/src/parents/parents.service.spec.ts",
+        "hash": "14966953312334301327"
+      },
+      {
+        "file": "backend/src/parents/parents.service.ts",
+        "hash": "2882115893461583631"
+      },
+      {
+        "file": "backend/src/payments/dto/create-payment.dto.ts",
+        "hash": "5020610925606678387"
+      },
+      {
+        "file": "backend/src/payments/dto/update-payment.dto.ts",
+        "hash": "13564430839098969489"
+      },
+      {
+        "file": "backend/src/payments/entities/payment.entity.ts",
+        "hash": "17513509833609368621"
+      },
+      {
+        "file": "backend/src/payments/payments.controller.spec.ts",
+        "hash": "16252558879807290033"
+      },
+      {
+        "file": "backend/src/payments/payments.controller.ts",
+        "hash": "7007480567359522343"
+      },
+      {
+        "file": "backend/src/payments/payments.module.ts",
+        "hash": "6368455748220323109"
+      },
+      {
+        "file": "backend/src/payments/payments.service.spec.ts",
+        "hash": "4338605367598567922"
+      },
+      {
+        "file": "backend/src/payments/payments.service.ts",
+        "hash": "17947981274981370262"
+      },
+      {
+        "file": "backend/src/prisma/prisma.service.spec.ts",
+        "hash": "1969171863458194817"
+      },
+      {
+        "file": "backend/src/prisma/prisma.service.ts",
+        "hash": "776056422454646665"
+      },
+      {
+        "file": "backend/src/quiz/dto/create-question.dto.ts",
+        "hash": "6962400776926219537"
+      },
+      {
+        "file": "backend/src/quiz/dto/create-quiz-submission.dto.ts",
+        "hash": "16040779812550544802"
+      },
+      {
+        "file": "backend/src/quiz/dto/create-quiz.dto.ts",
+        "hash": "14559783819304442024"
+      },
+      {
+        "file": "backend/src/quiz/dto/quiz-filter.dto.ts",
+        "hash": "1709748316546735621"
+      },
+      {
+        "file": "backend/src/quiz/dto/update-question.dto.ts",
+        "hash": "1461035058941381586"
+      },
+      {
+        "file": "backend/src/quiz/dto/update-quiz.dto.ts",
+        "hash": "16437045300331927624"
+      },
+      {
+        "file": "backend/src/quiz/entities/quiz.entity.ts",
+        "hash": "3146785280130651789"
+      },
+      {
+        "file": "backend/src/quiz/quiz.controller.spec.ts",
+        "hash": "16039970689467580768"
+      },
+      {
+        "file": "backend/src/quiz/quiz.controller.ts",
+        "hash": "15141186918315104170"
+      },
+      {
+        "file": "backend/src/quiz/quiz.module.ts",
+        "hash": "18332857063304687967"
+      },
+      {
+        "file": "backend/src/quiz/quiz.service.spec.ts",
+        "hash": "16950933892568040819"
+      },
+      {
+        "file": "backend/src/quiz/quiz.service.ts",
+        "hash": "6569388050528277991"
+      },
+      {
+        "file": "backend/src/schedule/dto/create-schedule.dto.ts",
+        "hash": "6188082165617461322"
+      },
+      {
+        "file": "backend/src/schedule/dto/update-schedule.dto.ts",
+        "hash": "2664659620455608668"
+      },
+      {
+        "file": "backend/src/schedule/entities/schedule.entity.ts",
+        "hash": "6107363307902627840"
+      },
+      {
+        "file": "backend/src/schedule/schedule.controller.spec.ts",
+        "hash": "8053593956801327831"
+      },
+      {
+        "file": "backend/src/schedule/schedule.controller.ts",
+        "hash": "14845951342146248948"
+      },
+      {
+        "file": "backend/src/schedule/schedule.module.ts",
+        "hash": "11431045182836496613"
+      },
+      {
+        "file": "backend/src/schedule/schedule.service.spec.ts",
+        "hash": "17852625902822226337"
+      },
+      {
+        "file": "backend/src/schedule/schedule.service.ts",
+        "hash": "12667759442981141067"
+      },
+      {
+        "file": "backend/src/students/dto/create-student.dto.ts",
+        "hash": "12330661216397255075"
+      },
+      {
+        "file": "backend/src/students/dto/update-student.dto.ts",
+        "hash": "13491200688940176835"
+      },
+      {
+        "file": "backend/src/students/entities/student.entity.ts",
+        "hash": "1751664653344768455"
+      },
+      {
+        "file": "backend/src/students/students.controller.spec.ts",
+        "hash": "18412535983963385416"
+      },
+      {
+        "file": "backend/src/students/students.controller.ts",
+        "hash": "15788075829727041765"
+      },
+      {
+        "file": "backend/src/students/students.module.ts",
+        "hash": "6857821318495630497"
+      },
+      {
+        "file": "backend/src/students/students.service.spec.ts",
+        "hash": "7871497616055962740"
+      },
+      {
+        "file": "backend/src/students/students.service.ts",
+        "hash": "18333330499856683146"
+      },
+      {
+        "file": "backend/src/study-plans/dto/create-quiz.dto.ts",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "backend/src/study-plans/dto/create-study-plan.dto.ts",
+        "hash": "17532050828267924649"
+      },
+      {
+        "file": "backend/src/study-plans/dto/study-plan-filter.dto.ts",
+        "hash": "7493177957204155804"
+      },
+      {
+        "file": "backend/src/study-plans/dto/update-study-plan-dto.ts",
+        "hash": "10559683847936344800"
+      },
+      {
+        "file": "backend/src/study-plans/entities/study-plan.entity.ts",
+        "hash": "1847061342199382686"
+      },
+      {
+        "file": "backend/src/study-plans/study-plans.controller.spec.ts",
+        "hash": "16882804775826854970"
+      },
+      {
+        "file": "backend/src/study-plans/study-plans.controller.ts",
+        "hash": "18289761233160929557"
+      },
+      {
+        "file": "backend/src/study-plans/study-plans.module.ts",
+        "hash": "2245975887128552849"
+      },
+      {
+        "file": "backend/src/study-plans/study-plans.service.spec.ts",
+        "hash": "2959989506279701108"
+      },
+      {
+        "file": "backend/src/study-plans/study-plans.service.ts",
+        "hash": "16774882207753228738"
+      },
+      {
+        "file": "backend/src/teachers/dto/create-teacher.dto.ts",
+        "hash": "12666997081593653089"
+      },
+      {
+        "file": "backend/src/teachers/dto/update-teacher.dto.ts",
+        "hash": "18389479901016638407"
+      },
+      {
+        "file": "backend/src/teachers/entities/teacher.entity.ts",
+        "hash": "18157493097953411555"
+      },
+      {
+        "file": "backend/src/teachers/teachers.controller.spec.ts",
+        "hash": "400374339544126947"
+      },
+      {
+        "file": "backend/src/teachers/teachers.controller.ts",
+        "hash": "8651214249130136385"
+      },
+      {
+        "file": "backend/src/teachers/teachers.module.ts",
+        "hash": "12414945732297091058"
+      },
+      {
+        "file": "backend/src/teachers/teachers.service.spec.ts",
+        "hash": "4156814603109745145"
+      },
+      {
+        "file": "backend/src/teachers/teachers.service.ts",
+        "hash": "1709100071743101368"
+      },
+      {
+        "file": "backend/src/users/dto/create-user.dto.ts",
+        "hash": "11281996055378815384"
+      },
+      {
+        "file": "backend/src/users/dto/update-user.dto.ts",
+        "hash": "18378884879315876314"
+      },
+      {
+        "file": "backend/src/users/entities/user.entity.ts",
+        "hash": "13054657399910609334"
+      },
+      {
+        "file": "backend/src/users/users.controller.spec.ts",
+        "hash": "630008681152191121"
+      },
+      {
+        "file": "backend/src/users/users.controller.ts",
+        "hash": "9631532126341449351"
+      },
+      {
+        "file": "backend/src/users/users.module.ts",
+        "hash": "17103152764184571234"
+      },
+      {
+        "file": "backend/src/users/users.service.spec.ts",
+        "hash": "7278099433523887940"
+      },
+      {
+        "file": "backend/src/users/users.service.ts",
+        "hash": "16354108295802728943"
+      },
+      {
+        "file": "backend/test/app.e2e-spec.ts",
+        "hash": "7164584812487523395"
+      },
+      {
+        "file": "backend/test/jest-e2e.json",
+        "hash": "7570273541430074424"
+      },
+      {
+        "file": "backend/tsconfig.build.json",
+        "hash": "9601273088445918315"
+      },
+      {
+        "file": "backend/tsconfig.json",
+        "hash": "12441024570612121165"
+      },
+      {
+        "file": "backend/types/express.d.ts",
+        "hash": "16726567633216948850"
+      },
+      {
+        "file": "frontend/.gitignore",
+        "hash": "13046175384202504187"
+      },
+      {
+        "file": "frontend/README-JOURNAL.md",
+        "hash": "884364314547125754"
+      },
+      {
+        "file": "frontend/README-STUDENTS.md",
+        "hash": "14975641252525863830"
+      },
+      {
+        "file": "frontend/README.md",
+        "hash": "3805333385135325002"
+      },
+      {
+        "file": "frontend/eslint.config.js",
+        "hash": "6477252810371379547"
+      },
+      {
+        "file": "frontend/index.html",
+        "hash": "4025202329384162906"
+      },
+      {
+        "file": "frontend/package.json",
+        "hash": "13066522147763256825"
+      },
+      {
+        "file": "frontend/postcss.config.js",
+        "hash": "1121830044826443979"
+      },
+      {
+        "file": "frontend/public/logo rfm.png",
+        "hash": "211875586758993072"
+      },
+      {
+        "file": "frontend/public/vite.svg",
+        "hash": "16046085400642193116"
+      },
+      {
+        "file": "frontend/src/App.css",
+        "hash": "3739391659270974612"
+      },
+      {
+        "file": "frontend/src/App.tsx",
+        "hash": "8596285144042551856"
+      },
+      {
+        "file": "frontend/src/assets/react.svg",
+        "hash": "16069471864800376455"
+      },
+      {
+        "file": "frontend/src/components/AIScheduleGeneratorModal.tsx",
+        "hash": "7616554111324390672"
+      },
+      {
+        "file": "frontend/src/components/AnimatedBackground.tsx",
+        "hash": "11097967859634634530"
+      },
+      {
+        "file": "frontend/src/components/BiometricSetup.tsx",
+        "hash": "3639581073101065687"
+      },
+      {
+        "file": "frontend/src/components/ClassroomForm.tsx",
+        "hash": "7851381655489860764"
+      },
+      {
+        "file": "frontend/src/components/DashboardLayout.tsx",
+        "hash": "15403665347969454526"
+      },
+      {
+        "file": "frontend/src/components/HomeworkDetailModal.tsx",
+        "hash": "1612512632712342419"
+      },
+      {
+        "file": "frontend/src/components/HomeworkForm.tsx",
+        "hash": "9213602727789950516"
+      },
+      {
+        "file": "frontend/src/components/MathRenderer.tsx",
+        "hash": "7738328948436574581"
+      },
+      {
+        "file": "frontend/src/components/ProtectedRoute.tsx",
+        "hash": "4980998657906967920"
+      },
+      {
+        "file": "frontend/src/components/Sidebar.tsx",
+        "hash": "2402564736822833937"
+      },
+      {
+        "file": "frontend/src/components/StudyPlanForm.tsx",
+        "hash": "2720795283967059817"
+      },
+      {
+        "file": "frontend/src/components/TopPanel.tsx",
+        "hash": "129289384767991265"
+      },
+      {
+        "file": "frontend/src/components/VideoPlayer.tsx",
+        "hash": "7310973601306629119"
+      },
+      {
+        "file": "frontend/src/components/WeekGrid.tsx",
+        "hash": "16265513442011145505"
+      },
+      {
+        "file": "frontend/src/components/ui/Alert.tsx",
+        "hash": "9291557323050270594"
+      },
+      {
+        "file": "frontend/src/components/ui/Autocomplete.tsx",
+        "hash": "16905249402194870421"
+      },
+      {
+        "file": "frontend/src/components/ui/Button.tsx",
+        "hash": "9827488191444230913"
+      },
+      {
+        "file": "frontend/src/components/ui/Input.tsx",
+        "hash": "7991252698617825737"
+      },
+      {
+        "file": "frontend/src/components/ui/Loading.tsx",
+        "hash": "9741073706434251352"
+      },
+      {
+        "file": "frontend/src/components/ui/Modal.tsx",
+        "hash": "6195611276502284782"
+      },
+      {
+        "file": "frontend/src/components/ui/Select.tsx",
+        "hash": "6383220715936821617"
+      },
+      {
+        "file": "frontend/src/components/ui/Spinner.tsx",
+        "hash": "12445678514876235469"
+      },
+      {
+        "file": "frontend/src/components/ui/Table.tsx",
+        "hash": "13883123518575333306"
+      },
+      {
+        "file": "frontend/src/components/ui/index.ts",
+        "hash": "9133771637237629043"
+      },
+      {
+        "file": "frontend/src/contexts/AuthContext.ts",
+        "hash": "4985233687766003309"
+      },
+      {
+        "file": "frontend/src/hooks/useAuth.ts",
+        "hash": "2482018917950890895"
+      },
+      {
+        "file": "frontend/src/hooks/useClassrooms.ts",
+        "hash": "1041235566711226060"
+      },
+      {
+        "file": "frontend/src/hooks/useLessons.ts",
+        "hash": "2955253711207937511"
+      },
+      {
+        "file": "frontend/src/hooks/useRealtimeChat.ts",
+        "hash": "1490329571616703638"
+      },
+      {
+        "file": "frontend/src/hooks/useStudents.ts",
+        "hash": "468569465906519651"
+      },
+      {
+        "file": "frontend/src/hooks/useStudyPlans.ts",
+        "hash": "18159314017474307842"
+      },
+      {
+        "file": "frontend/src/index.css",
+        "hash": "16417989443360718053"
+      },
+      {
+        "file": "frontend/src/main.tsx",
+        "hash": "11038211546439381838"
+      },
+      {
+        "file": "frontend/src/pages/AcademicJournal.tsx",
+        "hash": "2397898152053133543"
+      },
+      {
+        "file": "frontend/src/pages/AiChat.tsx",
+        "hash": "10085990681090280526"
+      },
+      {
+        "file": "frontend/src/pages/Classrooms.tsx",
+        "hash": "17896996019927955050"
+      },
+      {
+        "file": "frontend/src/pages/Dashboard.tsx",
+        "hash": "2951988903587937275"
+      },
+      {
+        "file": "frontend/src/pages/Homework.tsx",
+        "hash": "6176006714609500009"
+      },
+      {
+        "file": "frontend/src/pages/HomeworkSubmissions.tsx",
+        "hash": "15874907060464282377"
+      },
+      {
+        "file": "frontend/src/pages/Journal.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "frontend/src/pages/JournalList.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "frontend/src/pages/Lesson.tsx",
+        "hash": "14713476948092083638"
+      },
+      {
+        "file": "frontend/src/pages/LessonDetail.tsx",
+        "hash": "14928471989681300286"
+      },
+      {
+        "file": "frontend/src/pages/LessonEditor.tsx",
+        "hash": "6263141248030668271"
+      },
+      {
+        "file": "frontend/src/pages/LessonJournal.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "frontend/src/pages/LessonMaterials.tsx",
+        "hash": "18361332581466651545"
+      },
+      {
+        "file": "frontend/src/pages/Lessons.tsx",
+        "hash": "7039518231123178747"
+      },
+      {
+        "file": "frontend/src/pages/Login.tsx",
+        "hash": "4103918130236666752"
+      },
+      {
+        "file": "frontend/src/pages/NeuroAbai.tsx",
+        "hash": "8933252419214866499"
+      },
+      {
+        "file": "frontend/src/pages/Schedule.tsx",
+        "hash": "3592590250177783787"
+      },
+      {
+        "file": "frontend/src/pages/StudentDetail.tsx",
+        "hash": "10147123429985524839"
+      },
+      {
+        "file": "frontend/src/pages/Students.tsx",
+        "hash": "6919348992290925496"
+      },
+      {
+        "file": "frontend/src/pages/StudyPlans.tsx",
+        "hash": "16409031704941075109"
+      },
+      {
+        "file": "frontend/src/providers/AuthProvider.tsx",
+        "hash": "11576921286228331254"
+      },
+      {
+        "file": "frontend/src/routes/JournalRoutes.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "frontend/src/services/aiChatService.ts",
+        "hash": "10142412969995218554"
+      },
+      {
+        "file": "frontend/src/services/apiClient.ts",
+        "hash": "5726145199608705889"
+      },
+      {
+        "file": "frontend/src/services/authService.ts",
+        "hash": "12984882081997927325"
+      },
+      {
+        "file": "frontend/src/services/biometricService.ts",
+        "hash": "14002500438525028916"
+      },
+      {
+        "file": "frontend/src/services/classroomService.ts",
+        "hash": "1503904038749998248"
+      },
+      {
+        "file": "frontend/src/services/fileService.ts",
+        "hash": "17642708625872215338"
+      },
+      {
+        "file": "frontend/src/services/homeworkService.ts",
+        "hash": "14610781410001759104"
+      },
+      {
+        "file": "frontend/src/services/journalService.ts",
+        "hash": "18074976261943071186"
+      },
+      {
+        "file": "frontend/src/services/lessonService.ts",
+        "hash": "2337150676038976368"
+      },
+      {
+        "file": "frontend/src/services/materialService.ts",
+        "hash": "17357913929999417913"
+      },
+      {
+        "file": "frontend/src/services/neuroAbaiService.ts",
+        "hash": "5268844062065402081"
+      },
+      {
+        "file": "frontend/src/services/quizService.ts",
+        "hash": "17703570307148304161"
+      },
+      {
+        "file": "frontend/src/services/scheduleService.ts",
+        "hash": "2603361485773634013"
+      },
+      {
+        "file": "frontend/src/services/studentService.ts",
+        "hash": "13450409575649747450"
+      },
+      {
+        "file": "frontend/src/services/studyPlanService.ts",
+        "hash": "679963387276355627"
+      },
+      {
+        "file": "frontend/src/styles/animations.css",
+        "hash": "6056688194955776307"
+      },
+      {
+        "file": "frontend/src/types/api.ts",
+        "hash": "13867476893039250284"
+      },
+      {
+        "file": "frontend/src/types/classroom.ts",
+        "hash": "10836969062489919571"
+      },
+      {
+        "file": "frontend/src/types/homework.ts",
+        "hash": "5923260052734415445"
+      },
+      {
+        "file": "frontend/src/types/journal.ts",
+        "hash": "9056241303613950619"
+      },
+      {
+        "file": "frontend/src/types/lesson.ts",
+        "hash": "1395549786914205500"
+      },
+      {
+        "file": "frontend/src/types/schedule.ts",
+        "hash": "1955637967590607764"
+      },
+      {
+        "file": "frontend/src/types/studyPlan.ts",
+        "hash": "8399850511386525871"
+      },
+      {
+        "file": "frontend/src/utils/constants.ts",
+        "hash": "6568727524476160392"
+      },
+      {
+        "file": "frontend/src/utils/formatters.ts",
+        "hash": "13104669426369452865"
+      },
+      {
+        "file": "frontend/src/utils/index.ts",
+        "hash": "15520105518377604418"
+      },
+      {
+        "file": "frontend/src/utils/validators.ts",
+        "hash": "3422364136242112554"
+      },
+      {
+        "file": "frontend/src/vite-env.d.ts",
+        "hash": "12946363841406869089"
+      },
+      {
+        "file": "frontend/tailwind.config.js",
+        "hash": "7082402037600683070"
+      },
+      {
+        "file": "frontend/tsconfig.app.json",
+        "hash": "14131882195990395909"
+      },
+      {
+        "file": "frontend/tsconfig.json",
+        "hash": "2365188958523842680"
+      },
+      {
+        "file": "frontend/tsconfig.node.json",
+        "hash": "9858793137337689717"
+      },
+      {
+        "file": "frontend/vite.config.ts",
+        "hash": "12700629396391108940"
+      },
+      {
+        "file": "frontend_legacy/.gitignore",
+        "hash": "3851132276800062212"
+      },
+      {
+        "file": "frontend_legacy/index.d.ts",
+        "hash": "11294298266029491553"
+      },
+      {
+        "file": "frontend_legacy/index.html",
+        "hash": "16356805413586203496"
+      },
+      {
+        "file": "frontend_legacy/package.json",
+        "hash": "3404649561526238190"
+      },
+      {
+        "file": "frontend_legacy/postcss.config.cjs",
+        "hash": "10699918871536659132"
+      },
+      {
+        "file": "frontend_legacy/public/logo rfm.png",
+        "hash": "211875586758993072"
+      },
+      {
+        "file": "frontend_legacy/public/logo.svg",
+        "hash": "11440359298932327150"
+      },
+      {
+        "file": "frontend_legacy/server-legacy/index.ts",
+        "hash": "5784838027980213975"
+      },
+      {
+        "file": "frontend_legacy/server-legacy/main.ts",
+        "hash": "11686806328316968861"
+      },
+      {
+        "file": "frontend_legacy/src/App.tsx",
+        "hash": "5229977236201121660"
+      },
+      {
+        "file": "frontend_legacy/src/api-legacy/index.ts",
+        "hash": "8797765187072896788"
+      },
+      {
+        "file": "frontend_legacy/src/api-legacy/openai-responses.ts",
+        "hash": "3016545831904522908"
+      },
+      {
+        "file": "frontend_legacy/src/api-legacy/sps-chat/index.ts",
+        "hash": "5323929461099541764"
+      },
+      {
+        "file": "frontend_legacy/src/api/Api.ts",
+        "hash": "11449912634854292713"
+      },
+      {
+        "file": "frontend_legacy/src/api/authService.ts",
+        "hash": "17516269326227373419"
+      },
+      {
+        "file": "frontend_legacy/src/api/client.ts",
+        "hash": "16599043719693019941"
+      },
+      {
+        "file": "frontend_legacy/src/api/filesService.ts",
+        "hash": "15702777726083076111"
+      },
+      {
+        "file": "frontend_legacy/src/api/index.ts",
+        "hash": "7097707116913418523"
+      },
+      {
+        "file": "frontend_legacy/src/api/lessonsService.ts",
+        "hash": "15247399241609403388"
+      },
+      {
+        "file": "frontend_legacy/src/api/materialsService.ts",
+        "hash": "13816874265074718198"
+      },
+      {
+        "file": "frontend_legacy/src/api/quizService.ts",
+        "hash": "9297413240981811143"
+      },
+      {
+        "file": "frontend_legacy/src/api/studyPlansService.ts",
+        "hash": "13101838845984368561"
+      },
+      {
+        "file": "frontend_legacy/src/components/AIAnalytics.tsx",
+        "hash": "706098394868682539"
+      },
+      {
+        "file": "frontend_legacy/src/components/AddWidgetModal.tsx",
+        "hash": "2331606599075947287"
+      },
+      {
+        "file": "frontend_legacy/src/components/AnimatedBackground.tsx",
+        "hash": "13272256170379795767"
+      },
+      {
+        "file": "frontend_legacy/src/components/AttendanceChart.tsx",
+        "hash": "17496734829787088962"
+      },
+      {
+        "file": "frontend_legacy/src/components/Calendar.tsx",
+        "hash": "1018159397921299098"
+      },
+      {
+        "file": "frontend_legacy/src/components/ClassroomModal.tsx",
+        "hash": "3159206506374163570"
+      },
+      {
+        "file": "frontend_legacy/src/components/DashboardGrid.tsx",
+        "hash": "11407435459676503163"
+      },
+      {
+        "file": "frontend_legacy/src/components/DashboardLayout.tsx",
+        "hash": "7896805699661095491"
+      },
+      {
+        "file": "frontend_legacy/src/components/DateRangePicker.tsx",
+        "hash": "9240019994640376432"
+      },
+      {
+        "file": "frontend_legacy/src/components/EducationalProcess.tsx",
+        "hash": "5594671093191511885"
+      },
+      {
+        "file": "frontend_legacy/src/components/LanguageSwitcher.tsx",
+        "hash": "9281044256255648920"
+      },
+      {
+        "file": "frontend_legacy/src/components/MathRenderer.tsx",
+        "hash": "13724979894227002406"
+      },
+      {
+        "file": "frontend_legacy/src/components/ProtectedRoute.tsx",
+        "hash": "17025082185941661356"
+      },
+      {
+        "file": "frontend_legacy/src/components/Sidebar.tsx",
+        "hash": "17461880907195225889"
+      },
+      {
+        "file": "frontend_legacy/src/components/SidebarLink.tsx",
+        "hash": "5232871457402888373"
+      },
+      {
+        "file": "frontend_legacy/src/components/StrategicSummary.tsx",
+        "hash": "14982375768556312669"
+      },
+      {
+        "file": "frontend_legacy/src/components/TemplatesManager.tsx",
+        "hash": "17293396259585189295"
+      },
+      {
+        "file": "frontend_legacy/src/components/TopPanel.tsx",
+        "hash": "6824660779959608531"
+      },
+      {
+        "file": "frontend_legacy/src/components/WeekGrid.tsx",
+        "hash": "8231810558442011734"
+      },
+      {
+        "file": "frontend_legacy/src/components/erp/inventory/InventoryModals.tsx",
+        "hash": "8731049072867459711"
+      },
+      {
+        "file": "frontend_legacy/src/components/erp/supply/SupplyModals.tsx",
+        "hash": "7117955592136548689"
+      },
+      {
+        "file": "frontend_legacy/src/components/magicui/interactive-grid-pattern-demo.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "frontend_legacy/src/components/magicui/interactive-grid-pattern.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/AIAnalyticsWidgets.tsx",
+        "hash": "6608973555795564941"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/CommunicationsWidgets.tsx",
+        "hash": "16903447226379934088"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/ERPSecurityWidgets.tsx",
+        "hash": "12688030538759328241"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/EducationWidgets.tsx",
+        "hash": "205679549549391179"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/EventsDeadlinesWidgets.tsx",
+        "hash": "5220844638909151057"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/FinanceWidgets.tsx",
+        "hash": "15774387330508245313"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/HRWidgets.tsx",
+        "hash": "9052140609194322100"
+      },
+      {
+        "file": "frontend_legacy/src/components/widgets/TodoWidgets.tsx",
+        "hash": "14100734231220206319"
+      },
+      {
+        "file": "frontend_legacy/src/hooks/useLanguage.ts",
+        "hash": "1319403126552261244"
+      },
+      {
+        "file": "frontend_legacy/src/index.css",
+        "hash": "5156528416989815499"
+      },
+      {
+        "file": "frontend_legacy/src/lib/utils.ts",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "frontend_legacy/src/locales/translations.ts",
+        "hash": "16325445002799191111"
+      },
+      {
+        "file": "frontend_legacy/src/main.tsx",
+        "hash": "8803874027248700706"
+      },
+      {
+        "file": "frontend_legacy/src/pages/AcademicJournalPage.docs.md",
+        "hash": "4086968931973302375"
+      },
+      {
+        "file": "frontend_legacy/src/pages/AcademicJournalPage.tsx",
+        "hash": "6859515978916569763"
+      },
+      {
+        "file": "frontend_legacy/src/pages/BookingRequestsPage.docs.md",
+        "hash": "7395295594328977494"
+      },
+      {
+        "file": "frontend_legacy/src/pages/BookingRequestsPage.tsx",
+        "hash": "1034279387872242042"
+      },
+      {
+        "file": "frontend_legacy/src/pages/ChatPage.tsx",
+        "hash": "351140279316672485"
+      },
+      {
+        "file": "frontend_legacy/src/pages/ClassroomsPage.docs.md",
+        "hash": "176553385945566783"
+      },
+      {
+        "file": "frontend_legacy/src/pages/ClassroomsPage.tsx",
+        "hash": "7698782917551294757"
+      },
+      {
+        "file": "frontend_legacy/src/pages/Dashboard.tsx",
+        "hash": "7183320982382415125"
+      },
+      {
+        "file": "frontend_legacy/src/pages/DashboardPage.tsx",
+        "hash": "15351562768423622190"
+      },
+      {
+        "file": "frontend_legacy/src/pages/HomeworkPage.docs.md",
+        "hash": "4387261462428035240"
+      },
+      {
+        "file": "frontend_legacy/src/pages/HomeworkPage.tsx",
+        "hash": "7868277228403489545"
+      },
+      {
+        "file": "frontend_legacy/src/pages/LessonDetailPage.tsx",
+        "hash": "18019551855048449862"
+      },
+      {
+        "file": "frontend_legacy/src/pages/LessonMaterialsPage.tsx",
+        "hash": "315498904553508718"
+      },
+      {
+        "file": "frontend_legacy/src/pages/LessonsManagePage.tsx",
+        "hash": "13076262063454751155"
+      },
+      {
+        "file": "frontend_legacy/src/pages/Login.tsx",
+        "hash": "17602725130198330382"
+      },
+      {
+        "file": "frontend_legacy/src/pages/PerformancePage.docs.md",
+        "hash": "12563289729401078412"
+      },
+      {
+        "file": "frontend_legacy/src/pages/PerformancePage.tsx",
+        "hash": "14924651209650558678"
+      },
+      {
+        "file": "frontend_legacy/src/pages/QuizStatisticsPage.tsx",
+        "hash": "16512439629078321521"
+      },
+      {
+        "file": "frontend_legacy/src/pages/SchedulePage.docs.md",
+        "hash": "17600650848003200575"
+      },
+      {
+        "file": "frontend_legacy/src/pages/SchedulePage.tsx",
+        "hash": "15303004110826400722"
+      },
+      {
+        "file": "frontend_legacy/src/pages/StudentDetailPage.docs.md",
+        "hash": "14536182053729410017"
+      },
+      {
+        "file": "frontend_legacy/src/pages/StudentDetailPage.tsx",
+        "hash": "4488070871862284130"
+      },
+      {
+        "file": "frontend_legacy/src/pages/StudentsPage.docs.md",
+        "hash": "9515704852366467143"
+      },
+      {
+        "file": "frontend_legacy/src/pages/StudentsPage.tsx",
+        "hash": "14576411582201880188"
+      },
+      {
+        "file": "frontend_legacy/src/pages/StudyPlanDetailPage.tsx",
+        "hash": "8976015565434442403"
+      },
+      {
+        "file": "frontend_legacy/src/pages/StudyPlansPage.docs.md",
+        "hash": "10511969782217452517"
+      },
+      {
+        "file": "frontend_legacy/src/pages/StudyPlansPage.tsx",
+        "hash": "17488148832410065233"
+      },
+      {
+        "file": "frontend_legacy/src/pages/TestRealtimeApi.tsx",
+        "hash": "734282980711837874"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/AIChatPage.tsx",
+        "hash": "12831338575302684028"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/CalendarPage.tsx",
+        "hash": "3945381914598060204"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/ChatPage.tsx",
+        "hash": "11506773222917617715"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/NeuroAbaiPage.tsx",
+        "hash": "17686542203065414813"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/ProfilePage.tsx",
+        "hash": "11756180255065081909"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/SettingsPage.tsx",
+        "hash": "7812049722597628010"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/TodoPage.docs.md",
+        "hash": "2759338135049557080"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/TodoPage.tsx",
+        "hash": "13627882857795738504"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/ai-chat/AIChatPage.tsx",
+        "hash": "5460189329864608697"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/calendar/CalendarPage.tsx",
+        "hash": "7520812934222819392"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/schedule/SchedulePage.module.css",
+        "hash": "7657554733765905502"
+      },
+      {
+        "file": "frontend_legacy/src/pages/app/schedule/SchedulePage.tsx",
+        "hash": "149091898843989051"
+      },
+      {
+        "file": "frontend_legacy/src/pages/erp/InventoryPage.docs.md",
+        "hash": "10076265885622351727"
+      },
+      {
+        "file": "frontend_legacy/src/pages/erp/InventoryPage.tsx",
+        "hash": "12857797980895730851"
+      },
+      {
+        "file": "frontend_legacy/src/pages/erp/SupplyPage.docs.md",
+        "hash": "12945255910517797706"
+      },
+      {
+        "file": "frontend_legacy/src/pages/erp/SupplyPage.tsx",
+        "hash": "15162470133999388933"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/ACLPage.docs.md",
+        "hash": "15402129552019145690"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/ACLPage.tsx",
+        "hash": "13076955019793998850"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/AntiFraudPage.docs.md",
+        "hash": "1289329958540046671"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/AntiFraudPage.tsx",
+        "hash": "720907112783089181"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/BudgetPage.docs.md",
+        "hash": "15111453169038401343"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/BudgetPage.tsx",
+        "hash": "10234106756036133466"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/PaymentsPage.docs.md",
+        "hash": "14563980731709617586"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/PaymentsPage.tsx",
+        "hash": "11576338120914058424"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/PayrollPage.docs.md",
+        "hash": "8669312184853996661"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/PayrollPage.tsx",
+        "hash": "3177434420912043666"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/ReportsPage.docs.md",
+        "hash": "2414153932560410893"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/ReportsPage.tsx",
+        "hash": "17480035568494318960"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/SalariesPage.docs.md",
+        "hash": "11905883517203823651"
+      },
+      {
+        "file": "frontend_legacy/src/pages/finance/SalariesPage.tsx",
+        "hash": "1895719875599767356"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/EmployeesPage.docs.md",
+        "hash": "13371961191974578383"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/EmployeesPage.tsx",
+        "hash": "1182564171645990782"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/FakePositionsPage.docs.md",
+        "hash": "7126810614782990715"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/FakePositionsPage.tsx",
+        "hash": "4497125945595225445"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/KpiPage.docs.md",
+        "hash": "15330489727602560305"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/KpiPage.tsx",
+        "hash": "10780829529509675886"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/VacationPage.docs.md",
+        "hash": "33080810324053833"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/VacationPage.tsx",
+        "hash": "11319027518721366696"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/WorkloadPage.docs.md",
+        "hash": "5482894702828996479"
+      },
+      {
+        "file": "frontend_legacy/src/pages/hr/WorkloadPage.tsx",
+        "hash": "1122096553502737808"
+      },
+      {
+        "file": "frontend_legacy/src/pages/settings/BrandingPage.tsx",
+        "hash": "8346449433581963289"
+      },
+      {
+        "file": "frontend_legacy/src/pages/settings/IntegrationsPage.tsx",
+        "hash": "648620574484091191"
+      },
+      {
+        "file": "frontend_legacy/src/pages/settings/PermissionsPage.tsx",
+        "hash": "2074722705238580591"
+      },
+      {
+        "file": "frontend_legacy/src/pages/settings/SystemPage.tsx",
+        "hash": "16829112050617583085"
+      },
+      {
+        "file": "frontend_legacy/src/pages/settings/UsersPage.tsx",
+        "hash": "4217718213900110160"
+      },
+      {
+        "file": "frontend_legacy/src/providers/AuthProvider.tsx",
+        "hash": "14381259247687003851"
+      },
+      {
+        "file": "frontend_legacy/src/providers/LanguageProvider.tsx",
+        "hash": "15336926243361467275"
+      },
+      {
+        "file": "frontend_legacy/src/styles/colors.css",
+        "hash": "14524655678773668933"
+      },
+      {
+        "file": "frontend_legacy/src/styles/math-renderer.css",
+        "hash": "13463805186767752677"
+      },
+      {
+        "file": "frontend_legacy/src/styles/tailwind.css",
+        "hash": "6103479149173286738"
+      },
+      {
+        "file": "frontend_legacy/tailwind.config.js",
+        "hash": "12775206185932946334"
+      },
+      {
+        "file": "frontend_legacy/tsconfig.json",
+        "hash": "16778835233676935021"
+      },
+      {
+        "file": "frontend_legacy/tsconfig.node.json",
+        "hash": "3399001416637810735"
+      },
+      {
+        "file": "frontend_legacy/vite.config.ts",
+        "hash": "1050596679855442083"
+      }
+    ]
+  }
+}

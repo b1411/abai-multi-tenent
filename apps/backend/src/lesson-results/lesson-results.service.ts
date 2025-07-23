@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { CreateLessonResultDto } from './dto/create-lesson-result.dto';
 import { UpdateLessonResultDto } from './dto/update-lesson-result.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class LessonResultsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService
+  ) {}
 
   async getMyGrades(userId: number, filters: {
     studyPlanId?: number;
@@ -109,22 +113,40 @@ export class LessonResultsService {
       throw new ConflictException('Lesson result for this student and lesson already exists');
     }
 
-    return this.prisma.lessonResult.create({
+    const result = await this.prisma.lessonResult.create({
       data: createLessonResultDto,
       include: {
         Student: {
           include: {
             user: true,
             group: true,
+            Parents: {
+              include: {
+                user: true,
+              },
+            },
           },
         },
         Lesson: {
           include: {
-            studyPlan: true,
+            studyPlan: {
+              include: {
+                teacher: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
+
+    // Создаем уведомления при выставлении оценки
+    await this.createGradeNotifications(result);
+
+    return result;
   }
 
   async findAll() {
@@ -539,5 +561,73 @@ export class LessonResultsService {
   private async validateStudentAndLesson(studentId: number, lessonId: number) {
     await this.validateStudent(studentId);
     await this.validateLesson(lessonId);
+  }
+
+  // Создание уведомлений при выставлении оценок
+  private async createGradeNotifications(result: any) {
+    try {
+      const notifications = [];
+
+      // Уведомление студенту при выставлении оценки за урок
+      if (result.lessonScore !== null && result.lessonScore !== undefined) {
+        notifications.push({
+          userId: result.Student.user.id,
+          type: 'LESSON_GRADE',
+          message: `Выставлена оценка за урок "${result.Lesson.name}": ${result.lessonScore} баллов`,
+          url: '/journal',
+          createdBy: result.Lesson.studyPlan.teacher.user.id,
+        });
+      }
+
+      // Уведомление студенту при выставлении оценки за домашнее задание
+      if (result.homeworkScore !== null && result.homeworkScore !== undefined) {
+        notifications.push({
+          userId: result.Student.user.id,
+          type: 'HOMEWORK_GRADE',
+          message: `Выставлена оценка за домашнее задание по уроку "${result.Lesson.name}": ${result.homeworkScore} баллов`,
+          url: '/homework',
+          createdBy: result.Lesson.studyPlan.teacher.user.id,
+        });
+      }
+
+      // Уведомления родителям студента
+      if (result.Student.Parents && result.Student.Parents.length > 0) {
+        for (const parent of result.Student.Parents) {
+          if (result.lessonScore !== null && result.lessonScore !== undefined) {
+            notifications.push({
+              userId: parent.user.id,
+              type: 'CHILD_LESSON_GRADE',
+              message: `Вашему ребенку ${result.Student.user.name} ${result.Student.user.surname} выставлена оценка за урок "${result.Lesson.name}": ${result.lessonScore} баллов`,
+              url: '/journal',
+              createdBy: result.Lesson.studyPlan.teacher.user.id,
+            });
+          }
+
+          if (result.homeworkScore !== null && result.homeworkScore !== undefined) {
+            notifications.push({
+              userId: parent.user.id,
+              type: 'CHILD_HOMEWORK_GRADE',
+              message: `Вашему ребенку ${result.Student.user.name} ${result.Student.user.surname} выставлена оценка за домашнее задание по уроку "${result.Lesson.name}": ${result.homeworkScore} баллов`,
+              url: '/homework',
+              createdBy: result.Lesson.studyPlan.teacher.user.id,
+            });
+          }
+        }
+      }
+
+      // Создаем все уведомления
+      if (notifications.length > 0) {
+        const userIds = notifications.map(n => n.userId);
+        await this.notificationsService.addNotification({
+          userIds,
+          type: notifications[0].type,
+          message: notifications[0].message,
+          url: notifications[0].url,
+          createdBy: notifications[0].createdBy,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating grade notifications:', error);
+    }
   }
 }

@@ -36,6 +36,19 @@ async function main() {
         },
     });
 
+    // Создаем финансиста
+    const financist = await prisma.user.create({
+        data: {
+            email: 'financist@abai.edu.kz',
+            name: 'Гульмира',
+            surname: 'Касымова',
+            middlename: 'Серикжановна',
+            phone: '+7 700 000 0006',
+            role: 'FINANCIST',
+            hashedPassword,
+        },
+    });
+
     // Создаем преподавателей
     const teachers = await Promise.all([
         prisma.user.create({
@@ -223,8 +236,9 @@ async function main() {
 
     console.log('👨‍👩‍👧‍👦 Создаем родителей...');
 
-    // Создаем родителей
+    // Создаем родителей для всех студентов
     const parents = await Promise.all([
+        // Родители для Айды Казыбековой (студент 0)
         prisma.user.create({
             data: {
                 email: 'nazym.parent@abai.edu.kz',
@@ -247,6 +261,27 @@ async function main() {
         }),
         prisma.user.create({
             data: {
+                email: 'nurlan.parent@abai.edu.kz',
+                name: 'Нурлан',
+                surname: 'Казыбеков',
+                middlename: 'Абайевич',
+                phone: '+7 700 000 0025',
+                role: 'PARENT',
+                hashedPassword,
+                parent: {
+                    create: {
+                        relation: 'Отец',
+                        students: {
+                            connect: { id: studentUsers[0].student.id }, // Айда
+                        },
+                    },
+                },
+            },
+            include: { parent: true },
+        }),
+        // Родители для Армана Жакипова (студент 1)
+        prisma.user.create({
+            data: {
                 email: 'bolat.parent@abai.edu.kz',
                 name: 'Болат',
                 surname: 'Жакипов',
@@ -259,6 +294,88 @@ async function main() {
                         relation: 'Отец',
                         students: {
                             connect: { id: studentUsers[1].student.id }, // Арман
+                        },
+                    },
+                },
+            },
+            include: { parent: true },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'gulnara.parent@abai.edu.kz',
+                name: 'Гульнара',
+                surname: 'Жакипова',
+                middlename: 'Ерлановна',
+                phone: '+7 700 000 0026',
+                role: 'PARENT',
+                hashedPassword,
+                parent: {
+                    create: {
+                        relation: 'Мать',
+                        students: {
+                            connect: { id: studentUsers[1].student.id }, // Арман
+                        },
+                    },
+                },
+            },
+            include: { parent: true },
+        }),
+        // Родители для Даны Сералиевой (студент 2)
+        prisma.user.create({
+            data: {
+                email: 'asylbek.parent@abai.edu.kz',
+                name: 'Асылбек',
+                surname: 'Сералиев',
+                middlename: 'Касымович',
+                phone: '+7 700 000 0027',
+                role: 'PARENT',
+                hashedPassword,
+                parent: {
+                    create: {
+                        relation: 'Отец',
+                        students: {
+                            connect: { id: studentUsers[2].student.id }, // Дана
+                        },
+                    },
+                },
+            },
+            include: { parent: true },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'zhanar.parent@abai.edu.kz',
+                name: 'Жанар',
+                surname: 'Сералиева',
+                middlename: 'Амангельдиновна',
+                phone: '+7 700 000 0028',
+                role: 'PARENT',
+                hashedPassword,
+                parent: {
+                    create: {
+                        relation: 'Мать',
+                        students: {
+                            connect: { id: studentUsers[2].student.id }, // Дана
+                        },
+                    },
+                },
+            },
+            include: { parent: true },
+        }),
+        // Родитель для Бекзата Оразбаева (студент 3) - одинокий родитель
+        prisma.user.create({
+            data: {
+                email: 'almas.parent@abai.edu.kz',
+                name: 'Алмас',
+                surname: 'Оразбаев',
+                middlename: 'Ильясович',
+                phone: '+7 700 000 0029',
+                role: 'PARENT',
+                hashedPassword,
+                parent: {
+                    create: {
+                        relation: 'Отец',
+                        students: {
+                            connect: { id: studentUsers[3].student.id }, // Бекзат
                         },
                     },
                 },
@@ -495,6 +612,7 @@ async function main() {
 
     // Создаем платежи для студентов
     await Promise.all([
+        // Платежи для Айды Казыбековой
         prisma.payment.create({
             data: {
                 studentId: studentUsers[0].student.id,
@@ -510,6 +628,20 @@ async function main() {
         }),
         prisma.payment.create({
             data: {
+                studentId: studentUsers[0].student.id,
+                serviceType: 'meals',
+                serviceName: 'Питание за сентябрь 2024',
+                amount: 15000,
+                currency: 'KZT',
+                dueDate: new Date('2024-09-01'),
+                status: 'paid',
+                paymentDate: new Date('2024-08-30'),
+                paidAmount: 15000,
+            },
+        }),
+        // Платежи для Армана Жакипова
+        prisma.payment.create({
+            data: {
                 studentId: studentUsers[1].student.id,
                 serviceType: 'tuition',
                 serviceName: 'Обучение за сентябрь 2024',
@@ -521,15 +653,158 @@ async function main() {
         }),
         prisma.payment.create({
             data: {
-                studentId: studentUsers[0].student.id,
-                serviceType: 'meals',
-                serviceName: 'Питание за сентябрь 2024',
-                amount: 15000,
+                studentId: studentUsers[1].student.id,
+                serviceType: 'transportation',
+                serviceName: 'Транспорт за сентябрь 2024',
+                amount: 8000,
+                currency: 'KZT',
+                dueDate: new Date('2024-09-15'),
+                status: 'partial',
+                paymentDate: new Date('2024-09-10'),
+                paidAmount: 4000,
+            },
+        }),
+        // Платежи для Даны Сералиевой
+        prisma.payment.create({
+            data: {
+                studentId: studentUsers[2].student.id,
+                serviceType: 'tuition',
+                serviceName: 'Обучение за сентябрь 2024',
+                amount: 45000,
+                currency: 'KZT',
+                dueDate: new Date('2024-09-01'),
+                status: 'overdue',
+            },
+        }),
+        prisma.payment.create({
+            data: {
+                studentId: studentUsers[2].student.id,
+                serviceType: 'extra',
+                serviceName: 'Дополнительные занятия по математике',
+                amount: 25000,
+                currency: 'KZT',
+                dueDate: new Date('2024-09-20'),
+                status: 'unpaid',
+            },
+        }),
+        // Платежи для Бекзата Оразбаева
+        prisma.payment.create({
+            data: {
+                studentId: studentUsers[3].student.id,
+                serviceType: 'tuition',
+                serviceName: 'Обучение за сентябрь 2024',
+                amount: 45000,
                 currency: 'KZT',
                 dueDate: new Date('2024-09-01'),
                 status: 'paid',
-                paymentDate: new Date('2024-08-30'),
-                paidAmount: 15000,
+                paymentDate: new Date('2024-08-25'),
+                paidAmount: 45000,
+            },
+        }),
+    ]);
+
+    console.log('💼 Создаем статьи бюджета...');
+
+    // Создаем статьи бюджета
+    await Promise.all([
+        // Доходы
+        prisma.budgetItem.create({
+            data: {
+                name: 'Оплата за обучение',
+                type: 'INCOME',
+                category: 'tuition',
+                plannedAmount: 5000000,
+                actualAmount: 4200000,
+                currency: 'KZT',
+                period: '2024 Q4',
+                responsible: 'Касымова Г.С.',
+                status: 'ACTIVE',
+                description: 'Основные доходы от платы за обучение студентов',
+            },
+        }),
+        prisma.budgetItem.create({
+            data: {
+                name: 'Гранты и субсидии',
+                type: 'INCOME',
+                category: 'grants',
+                plannedAmount: 1200000,
+                actualAmount: 1200000,
+                currency: 'KZT',
+                period: '2024 Q4',
+                responsible: 'Касымова Г.С.',
+                status: 'ACTIVE',
+                description: 'Государственные гранты и субсидии на образование',
+            },
+        }),
+        prisma.budgetItem.create({
+            data: {
+                name: 'Дополнительные услуги',
+                type: 'INCOME',
+                category: 'services',
+                plannedAmount: 300000,
+                actualAmount: 180000,
+                currency: 'KZT',
+                period: '2024 Q4',
+                responsible: 'Касымова Г.С.',
+                status: 'ACTIVE',
+                description: 'Доходы от дополнительных образовательных услуг',
+            },
+        }),
+        // Расходы
+        prisma.budgetItem.create({
+            data: {
+                name: 'Заработная плата преподавателей',
+                type: 'EXPENSE',
+                category: 'salaries',
+                plannedAmount: 3200000,
+                actualAmount: 3150000,
+                currency: 'KZT',
+                period: '2024 Q4',
+                responsible: 'Касымова Г.С.',
+                status: 'ACTIVE',
+                description: 'Основные расходы на заработную плату педагогического состава',
+            },
+        }),
+        prisma.budgetItem.create({
+            data: {
+                name: 'Коммунальные услуги',
+                type: 'EXPENSE',
+                category: 'utilities',
+                plannedAmount: 800000,
+                actualAmount: 850000,
+                currency: 'KZT',
+                period: '2024 Q4',
+                responsible: 'Касымова Г.С.',
+                status: 'ACTIVE',
+                description: 'Расходы на электричество, отопление, водоснабжение',
+            },
+        }),
+        prisma.budgetItem.create({
+            data: {
+                name: 'Учебные материалы и оборудование',
+                type: 'EXPENSE',
+                category: 'materials',
+                plannedAmount: 500000,
+                actualAmount: 320000,
+                currency: 'KZT',
+                period: '2024 Q4',
+                responsible: 'Касымова Г.С.',
+                status: 'ACTIVE',
+                description: 'Закупка учебников, канцелярии, лабораторного оборудования',
+            },
+        }),
+        prisma.budgetItem.create({
+            data: {
+                name: 'Ремонт и обслуживание',
+                type: 'EXPENSE',
+                category: 'infrastructure',
+                plannedAmount: 400000,
+                actualAmount: 200000,
+                currency: 'KZT',
+                period: '2024 Q4',
+                responsible: 'Касымова Г.С.',
+                status: 'ACTIVE',
+                description: 'Текущий ремонт помещений и обслуживание оборудования',
             },
         }),
     ]);
@@ -572,10 +847,18 @@ async function main() {
     console.log(`📚 Учебных планов: ${studyPlans.length}`);
     console.log(`📖 Уроков: ${lessons.length}`);
     console.log('\n🔑 Тестовые аккаунты:');
-    console.log('Администратор: admin@abai.edu.kz / password123');
-    console.log('Преподаватель: ivanova@abai.edu.kz / password123');
-    console.log('Студент: aida.student@abai.edu.kz / password123');
-    console.log('Родитель: nazym.parent@abai.edu.kz / password123');
+    console.log('👨‍💼 Администратор: admin@abai.edu.kz / password123');
+    console.log('💰 Финансист: financist@abai.edu.kz / password123');
+    console.log('👨‍🏫 Преподаватель: ivanova@abai.edu.kz / password123');
+    console.log('🎓 Студент: aida.student@abai.edu.kz / password123');
+    console.log('👨‍👩‍👧‍👦 Родители:');
+    console.log('  👩 Назым Казыбекова: nazym.parent@abai.edu.kz / password123 (мать Айды)');
+    console.log('  👨 Нурлан Казыбеков: nurlan.parent@abai.edu.kz / password123 (отец Айды)');
+    console.log('  👨 Болат Жакипов: bolat.parent@abai.edu.kz / password123 (отец Армана)');
+    console.log('  👩 Гульнара Жакипова: gulnara.parent@abai.edu.kz / password123 (мать Армана)');
+    console.log('  👨 Асылбек Сералиев: asylbek.parent@abai.edu.kz / password123 (отец Даны)');
+    console.log('  👩 Жанар Сералиева: zhanar.parent@abai.edu.kz / password123 (мать Даны)');
+    console.log('  👨 Алмас Оразбаев: almas.parent@abai.edu.kz / password123 (отец Бекзата)');
 }
 
 main()

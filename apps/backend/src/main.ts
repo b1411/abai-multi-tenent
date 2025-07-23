@@ -9,7 +9,9 @@ import * as path from 'path';
 import * as express from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    snapshot: true, // Используем snapshot для создания документации
+  });
 
   // Обслуживание статических файлов
   app.useStaticAssets(path.join(__dirname, '..', 'uploads'), {

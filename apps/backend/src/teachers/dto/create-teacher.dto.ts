@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsEnum } from 'class-validator';
+import { EmploymentType } from '../../../generated/prisma';
 
 export class CreateTeacherDto {
   @ApiProperty({ 
@@ -8,6 +9,16 @@ export class CreateTeacherDto {
   })
   @IsInt()
   userId: number;
+
+  @ApiPropertyOptional({ 
+    description: 'Тип занятости преподавателя',
+    example: 'STAFF',
+    enum: EmploymentType,
+    default: EmploymentType.STAFF
+  })
+  @IsOptional()
+  @IsEnum(EmploymentType)
+  employmentType?: EmploymentType;
 
   @ApiPropertyOptional({ 
     description: 'Специализация преподавателя',

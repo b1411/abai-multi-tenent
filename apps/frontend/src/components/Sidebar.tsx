@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { User } from '../types/api';
-import { 
-  Home, 
-  Users, 
-  BookOpen, 
-  Settings, 
+import {
+  Home,
+  Users,
+  BookOpen,
+  Settings,
   LogOut,
   GraduationCap,
   ClipboardList,
@@ -29,7 +29,9 @@ import {
   ShoppingCart,
   Lock,
   Palette,
-  Cog
+  Cog,
+  Heart,
+  MessageCircle
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -93,19 +95,21 @@ const Sidebar: React.FC = () => {
       children: [
         { name: 'Списки учащихся', href: '/students', icon: GraduationCap },
         { name: 'Успеваемость', href: '/performance', icon: TrendingUp },
+        { name: 'Анализ лояльности', href: '/loyalty', icon: Heart, roles: ['ADMIN', 'TEACHER', 'HR'] },
       ]
     },
     {
       name: 'HR (Персонал)',
       icon: Users,
-      roles: ['ADMIN', 'HR'],
+      roles: ['ADMIN', 'HR', 'TEACHER', 'FINANCIST'],
       key: 'hr',
       children: [
-        { name: 'Сотрудники и преподаватели', href: '/hr/employees', icon: Users },
-        { name: 'Нагрузки и расписание ставок', href: '/hr/workload', icon: ClipboardList },
-        { name: 'KPI и эффективность', href: '/hr/kpi', icon: BarChart3 },
-        { name: 'Отпуска и замены', href: '/hr/vacation', icon: Umbrella },
-        { name: 'Контроль фиктивных ставок (AI)', href: '/hr/fake-positions', icon: UserX },
+        { name: 'Сотрудники и преподаватели', href: '/hr/employees', icon: Users, roles: ['ADMIN', 'HR'] },
+        { name: 'Нагрузки и расписание ставок', href: '/hr/workload', icon: ClipboardList, roles: ['ADMIN', 'HR'] },
+        { name: 'KPI и эффективность', href: '/hr/kpi', icon: BarChart3, roles: ['ADMIN', 'HR'] },
+        { name: 'Отпуска и замены', href: '/hr/vacation', icon: Umbrella, roles: ['ADMIN', 'HR', 'TEACHER', 'FINANCIST'] },
+        { name: 'Замещения', href: '/hr/substitutions', icon: Users, roles: ['ADMIN', 'HR', 'TEACHER', 'FINANCIST'] },
+        { name: 'Контроль фиктивных ставок (AI)', href: '/hr/fake-positions', icon: UserX, roles: ['ADMIN', 'HR'] },
       ]
     },
     {
@@ -119,8 +123,6 @@ const Sidebar: React.FC = () => {
         { name: 'Бюджет и прогноз', href: '/finance/budget', icon: BarChart3 },
         { name: 'Анализ лояльности', href: '/finance/acl', icon: TrendingUp },
         { name: 'Управление зарплатой', href: '/finance/payroll', icon: Briefcase },
-        { name: 'Зарплаты', href: '/finance/salaries', icon: DollarSign },
-        { name: 'Антифрод', href: '/finance/antifraud', icon: UserX },
       ]
     },
     {
@@ -144,11 +146,12 @@ const Sidebar: React.FC = () => {
         { name: 'Интеграции', href: '/settings/integrations', icon: Cog },
         { name: 'Брендинг', href: '/settings/branding', icon: Palette },
         { name: 'Система', href: '/settings/system', icon: Settings },
+        { name: 'Обратная связь', href: '/settings/feedback', icon: MessageCircle },
       ]
     },
   ];
 
-  const filteredItems = navigationItems.filter(item => 
+  const filteredItems = navigationItems.filter(item =>
     hasAnyRole(item.roles as User['role'][])
   );
 
@@ -169,10 +172,9 @@ const Sidebar: React.FC = () => {
                   <NavLink
                     to={item.href}
                     className={({ isActive }) =>
-                      `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        isActive
-                          ? 'bg-primary text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
+                      `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
+                        ? 'bg-primary text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
                       }`
                     }
                   >
@@ -191,35 +193,33 @@ const Sidebar: React.FC = () => {
                       </div>
                       {item.key && (
                         <ChevronDown
-                          className={`h-4 w-4 transition-transform ${
-                            expandedItems[item.key] ? 'rotate-180' : ''
-                          }`}
+                          className={`h-4 w-4 transition-transform ${expandedItems[item.key] ? 'rotate-180' : ''
+                            }`}
                         />
                       )}
                     </button>
                     {item.children && item.key && expandedItems[item.key] && (
                       <ul className="ml-8 mt-1 space-y-1">
                         {item.children
-                          .filter(child => 
+                          .filter(child =>
                             !child.roles || hasAnyRole(child.roles as User['role'][])
                           )
                           .map((child) => (
-                          <li key={child.name}>
-                            <NavLink
-                              to={child.href}
-                              className={({ isActive }) =>
-                                `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
-                                  isActive
+                            <li key={child.name}>
+                              <NavLink
+                                to={child.href}
+                                className={({ isActive }) =>
+                                  `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${isActive
                                     ? 'bg-primary text-white'
                                     : 'text-gray-600 hover:bg-gray-100'
-                                }`
-                              }
-                            >
-                              <child.icon className="mr-3 h-4 w-4" />
-                              {child.name}
-                            </NavLink>
-                          </li>
-                        ))}
+                                  }`
+                                }
+                              >
+                                <child.icon className="mr-3 h-4 w-4" />
+                                {child.name}
+                              </NavLink>
+                            </li>
+                          ))}
                       </ul>
                     )}
                   </div>

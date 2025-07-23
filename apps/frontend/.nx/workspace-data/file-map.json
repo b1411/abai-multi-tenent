@@ -1,0 +1,415 @@
+{
+  "version": "6.0",
+  "nxVersion": "20.8.2",
+  "pathMappings": {},
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "projectFileMap": {},
+    "nonProjectFiles": [
+      {
+        "file": ".gitignore",
+        "hash": "13046175384202504187"
+      },
+      {
+        "file": "README-JOURNAL.md",
+        "hash": "884364314547125754"
+      },
+      {
+        "file": "README-STUDENTS.md",
+        "hash": "14975641252525863830"
+      },
+      {
+        "file": "README.md",
+        "hash": "3805333385135325002"
+      },
+      {
+        "file": "eslint.config.js",
+        "hash": "6477252810371379547"
+      },
+      {
+        "file": "index.html",
+        "hash": "4025202329384162906"
+      },
+      {
+        "file": "package.json",
+        "hash": "13066522147763256825"
+      },
+      {
+        "file": "postcss.config.js",
+        "hash": "1121830044826443979"
+      },
+      {
+        "file": "public/logo rfm.png",
+        "hash": "211875586758993072"
+      },
+      {
+        "file": "public/vite.svg",
+        "hash": "16046085400642193116"
+      },
+      {
+        "file": "src/App.css",
+        "hash": "3739391659270974612"
+      },
+      {
+        "file": "src/App.tsx",
+        "hash": "8596285144042551856"
+      },
+      {
+        "file": "src/assets/react.svg",
+        "hash": "16069471864800376455"
+      },
+      {
+        "file": "src/components/AIScheduleGeneratorModal.tsx",
+        "hash": "7616554111324390672"
+      },
+      {
+        "file": "src/components/AnimatedBackground.tsx",
+        "hash": "11097967859634634530"
+      },
+      {
+        "file": "src/components/BiometricSetup.tsx",
+        "hash": "3639581073101065687"
+      },
+      {
+        "file": "src/components/ClassroomForm.tsx",
+        "hash": "7851381655489860764"
+      },
+      {
+        "file": "src/components/DashboardLayout.tsx",
+        "hash": "15403665347969454526"
+      },
+      {
+        "file": "src/components/HomeworkDetailModal.tsx",
+        "hash": "1612512632712342419"
+      },
+      {
+        "file": "src/components/HomeworkForm.tsx",
+        "hash": "9213602727789950516"
+      },
+      {
+        "file": "src/components/MathRenderer.tsx",
+        "hash": "7738328948436574581"
+      },
+      {
+        "file": "src/components/ProtectedRoute.tsx",
+        "hash": "4980998657906967920"
+      },
+      {
+        "file": "src/components/Sidebar.tsx",
+        "hash": "2402564736822833937"
+      },
+      {
+        "file": "src/components/StudyPlanForm.tsx",
+        "hash": "2720795283967059817"
+      },
+      {
+        "file": "src/components/TopPanel.tsx",
+        "hash": "129289384767991265"
+      },
+      {
+        "file": "src/components/VideoPlayer.tsx",
+        "hash": "7310973601306629119"
+      },
+      {
+        "file": "src/components/WeekGrid.tsx",
+        "hash": "16265513442011145505"
+      },
+      {
+        "file": "src/components/ui/Alert.tsx",
+        "hash": "9291557323050270594"
+      },
+      {
+        "file": "src/components/ui/Autocomplete.tsx",
+        "hash": "16905249402194870421"
+      },
+      {
+        "file": "src/components/ui/Button.tsx",
+        "hash": "9827488191444230913"
+      },
+      {
+        "file": "src/components/ui/Input.tsx",
+        "hash": "7991252698617825737"
+      },
+      {
+        "file": "src/components/ui/Loading.tsx",
+        "hash": "9741073706434251352"
+      },
+      {
+        "file": "src/components/ui/Modal.tsx",
+        "hash": "6195611276502284782"
+      },
+      {
+        "file": "src/components/ui/Select.tsx",
+        "hash": "6383220715936821617"
+      },
+      {
+        "file": "src/components/ui/Spinner.tsx",
+        "hash": "12445678514876235469"
+      },
+      {
+        "file": "src/components/ui/Table.tsx",
+        "hash": "13883123518575333306"
+      },
+      {
+        "file": "src/components/ui/index.ts",
+        "hash": "9133771637237629043"
+      },
+      {
+        "file": "src/contexts/AuthContext.ts",
+        "hash": "4985233687766003309"
+      },
+      {
+        "file": "src/hooks/useAuth.ts",
+        "hash": "2482018917950890895"
+      },
+      {
+        "file": "src/hooks/useClassrooms.ts",
+        "hash": "1041235566711226060"
+      },
+      {
+        "file": "src/hooks/useLessons.ts",
+        "hash": "2955253711207937511"
+      },
+      {
+        "file": "src/hooks/useRealtimeChat.ts",
+        "hash": "1490329571616703638"
+      },
+      {
+        "file": "src/hooks/useStudents.ts",
+        "hash": "468569465906519651"
+      },
+      {
+        "file": "src/hooks/useStudyPlans.ts",
+        "hash": "18159314017474307842"
+      },
+      {
+        "file": "src/index.css",
+        "hash": "16417989443360718053"
+      },
+      {
+        "file": "src/main.tsx",
+        "hash": "11038211546439381838"
+      },
+      {
+        "file": "src/pages/AcademicJournal.tsx",
+        "hash": "2397898152053133543"
+      },
+      {
+        "file": "src/pages/AiChat.tsx",
+        "hash": "10085990681090280526"
+      },
+      {
+        "file": "src/pages/Classrooms.tsx",
+        "hash": "17896996019927955050"
+      },
+      {
+        "file": "src/pages/Dashboard.tsx",
+        "hash": "2951988903587937275"
+      },
+      {
+        "file": "src/pages/Homework.tsx",
+        "hash": "6176006714609500009"
+      },
+      {
+        "file": "src/pages/HomeworkSubmissions.tsx",
+        "hash": "15874907060464282377"
+      },
+      {
+        "file": "src/pages/Journal.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "src/pages/JournalList.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "src/pages/Lesson.tsx",
+        "hash": "14713476948092083638"
+      },
+      {
+        "file": "src/pages/LessonDetail.tsx",
+        "hash": "14928471989681300286"
+      },
+      {
+        "file": "src/pages/LessonEditor.tsx",
+        "hash": "6263141248030668271"
+      },
+      {
+        "file": "src/pages/LessonJournal.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "src/pages/LessonMaterials.tsx",
+        "hash": "18361332581466651545"
+      },
+      {
+        "file": "src/pages/Lessons.tsx",
+        "hash": "7039518231123178747"
+      },
+      {
+        "file": "src/pages/Login.tsx",
+        "hash": "4103918130236666752"
+      },
+      {
+        "file": "src/pages/NeuroAbai.tsx",
+        "hash": "8933252419214866499"
+      },
+      {
+        "file": "src/pages/Schedule.tsx",
+        "hash": "3592590250177783787"
+      },
+      {
+        "file": "src/pages/StudentDetail.tsx",
+        "hash": "10147123429985524839"
+      },
+      {
+        "file": "src/pages/Students.tsx",
+        "hash": "6919348992290925496"
+      },
+      {
+        "file": "src/pages/StudyPlans.tsx",
+        "hash": "16409031704941075109"
+      },
+      {
+        "file": "src/providers/AuthProvider.tsx",
+        "hash": "11576921286228331254"
+      },
+      {
+        "file": "src/routes/JournalRoutes.tsx",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "src/services/aiChatService.ts",
+        "hash": "10142412969995218554"
+      },
+      {
+        "file": "src/services/apiClient.ts",
+        "hash": "5726145199608705889"
+      },
+      {
+        "file": "src/services/authService.ts",
+        "hash": "12984882081997927325"
+      },
+      {
+        "file": "src/services/biometricService.ts",
+        "hash": "14002500438525028916"
+      },
+      {
+        "file": "src/services/classroomService.ts",
+        "hash": "1503904038749998248"
+      },
+      {
+        "file": "src/services/fileService.ts",
+        "hash": "17642708625872215338"
+      },
+      {
+        "file": "src/services/homeworkService.ts",
+        "hash": "14610781410001759104"
+      },
+      {
+        "file": "src/services/journalService.ts",
+        "hash": "18074976261943071186"
+      },
+      {
+        "file": "src/services/lessonService.ts",
+        "hash": "2337150676038976368"
+      },
+      {
+        "file": "src/services/materialService.ts",
+        "hash": "17357913929999417913"
+      },
+      {
+        "file": "src/services/neuroAbaiService.ts",
+        "hash": "5268844062065402081"
+      },
+      {
+        "file": "src/services/quizService.ts",
+        "hash": "17703570307148304161"
+      },
+      {
+        "file": "src/services/scheduleService.ts",
+        "hash": "2603361485773634013"
+      },
+      {
+        "file": "src/services/studentService.ts",
+        "hash": "13450409575649747450"
+      },
+      {
+        "file": "src/services/studyPlanService.ts",
+        "hash": "679963387276355627"
+      },
+      {
+        "file": "src/styles/animations.css",
+        "hash": "6056688194955776307"
+      },
+      {
+        "file": "src/types/api.ts",
+        "hash": "13867476893039250284"
+      },
+      {
+        "file": "src/types/classroom.ts",
+        "hash": "10836969062489919571"
+      },
+      {
+        "file": "src/types/homework.ts",
+        "hash": "5923260052734415445"
+      },
+      {
+        "file": "src/types/journal.ts",
+        "hash": "9056241303613950619"
+      },
+      {
+        "file": "src/types/lesson.ts",
+        "hash": "1395549786914205500"
+      },
+      {
+        "file": "src/types/schedule.ts",
+        "hash": "1955637967590607764"
+      },
+      {
+        "file": "src/types/studyPlan.ts",
+        "hash": "8399850511386525871"
+      },
+      {
+        "file": "src/utils/constants.ts",
+        "hash": "6568727524476160392"
+      },
+      {
+        "file": "src/utils/formatters.ts",
+        "hash": "13104669426369452865"
+      },
+      {
+        "file": "src/utils/index.ts",
+        "hash": "15520105518377604418"
+      },
+      {
+        "file": "src/utils/validators.ts",
+        "hash": "3422364136242112554"
+      },
+      {
+        "file": "src/vite-env.d.ts",
+        "hash": "12946363841406869089"
+      },
+      {
+        "file": "tailwind.config.js",
+        "hash": "7082402037600683070"
+      },
+      {
+        "file": "tsconfig.app.json",
+        "hash": "14131882195990395909"
+      },
+      {
+        "file": "tsconfig.json",
+        "hash": "2365188958523842680"
+      },
+      {
+        "file": "tsconfig.node.json",
+        "hash": "9858793137337689717"
+      },
+      {
+        "file": "vite.config.ts",
+        "hash": "12700629396391108940"
+      }
+    ]
+  }
+}

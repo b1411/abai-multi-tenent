@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './providers/AuthProvider';
 import { NotificationProvider } from './providers/NotificationProvider';
+import { BrandingProvider } from './contexts/BrandingContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import DashboardLayout from './components/DashboardLayout';
 import Login from './pages/Login';
@@ -16,6 +17,7 @@ import SchedulePage from './pages/Schedule';
 import AcademicJournal from './pages/AcademicJournal';
 import StudentsPage from './pages/Students';
 import StudentDetailPage from './pages/StudentDetail';
+import GroupsPage from './pages/Groups';
 import AiChatPage from './pages/AiChat';
 import NeuroAbaiPage from './pages/NeuroAbai';
 import ClassroomsPage from './pages/Classrooms';
@@ -35,13 +37,22 @@ import MandatoryFeedbackWrapper from './components/MandatoryFeedbackWrapper';
 import Inventory from './pages/Inventory';
 import InventoryAnalytics from './pages/InventoryAnalytics';
 import Supply from './pages/Supply';
+import TasksPage from './pages/Tasks';
+import ChatPage from './pages/Chat';
+import CalendarPage from './pages/Calendar';
+import SystemSettingsPage from './pages/SystemSettings';
+import UsersPage from './pages/Users';
+import PermissionsPage from './pages/Permissions';
+import BrandingPage from './pages/Branding';
+import IntegrationsPage from './pages/Integrations';
 
 const App: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
         <NotificationProvider>
-          <Routes>
+          <BrandingProvider>
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route
               path="/"
@@ -87,6 +98,7 @@ const App: React.FC = () => {
               {/* Students routes */}
               <Route path="students" element={<StudentsPage />} />
               <Route path="students/:id" element={<StudentDetailPage />} />
+              <Route path="groups" element={<GroupsPage />} />
               <Route path="performance" element={<PerformancePage />} />
               <Route path="loyalty" element={<LoyaltyPage />} />
 
@@ -116,10 +128,10 @@ const App: React.FC = () => {
 
               {/* Applications routes */}
               <Route path="app">
-                <Route path="chat" element={<div>Chat Page</div>} />
+                <Route path="chat" element={<ChatPage />} />
                 <Route path="ai-chat" element={<AiChatPage />} />
-                <Route path="calendar" element={<div>Calendar Page</div>} />
-                <Route path="tasks" element={<div>Tasks Page</div>} />
+                <Route path="calendar" element={<CalendarPage />} />
+                <Route path="tasks" element={<TasksPage />} />
                 <Route path="neuro-abai" element={<NeuroAbaiPage />} />
                 <Route path="profile" element={<div>Profile Page</div>} />
 
@@ -133,15 +145,16 @@ const App: React.FC = () => {
 
               {/* Settings routes */}
               <Route path="settings">
-                <Route path="users" element={<div>Users Page</div>} />
-                <Route path="permissions" element={<div>Permissions Page</div>} />
-                <Route path="integrations" element={<div>Integrations Page</div>} />
-                <Route path="branding" element={<div>Branding Page</div>} />
+                <Route path="users" element={<UsersPage />} />
+                <Route path="permissions" element={<PermissionsPage />} />
+                <Route path="integrations" element={<IntegrationsPage />} />
+                <Route path="branding" element={<BrandingPage />} />
                 <Route path="feedback" element={<FeedbackAdmin />} />
-                <Route path="system" element={<div>System Page</div>} />
+                <Route path="system" element={<SystemSettingsPage />} />
               </Route>
             </Route>
-          </Routes>
+            </Routes>
+          </BrandingProvider>
         </NotificationProvider>
       </AuthProvider>
     </Router>

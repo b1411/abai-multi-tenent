@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async generateReport(generateReportDto: GenerateReportDto, userId: string): Promise<FinancialReport> {
     const reportId = uuidv4();
@@ -104,7 +104,7 @@ export class ReportsService {
 
     budgetItems.forEach(item => {
       const period = item.createdAt.toISOString().substring(0, 7); // YYYY-MM
-      
+
       if (!trends[period]) {
         trends[period] = {
           period,
@@ -251,23 +251,30 @@ export class ReportsService {
   }
 
   private async generateForecastReport(startDate: Date, endDate: Date): Promise<ForecastData[]> {
-    // Simple forecast based on historical data
+    // Прогноз на основе реальных исторических данных
     const historicalData = await this.generateCashflowReport(startDate, endDate);
     const forecasts: ForecastData[] = [];
 
-    const avgIncome = historicalData.reduce((sum, d) => sum + d.income, 0) / (historicalData.length || 1);
-    const avgExpense = historicalData.reduce((sum, d) => sum + d.expense, 0) / (historicalData.length || 1);
+    if (historicalData.length === 0) {
+      return forecasts;
+    }
 
-    // Generate 6 months forecast
+    const avgIncome = historicalData.reduce((sum, d) => sum + d.income, 0) / historicalData.length;
+    const avgExpense = historicalData.reduce((sum, d) => sum + d.expense, 0) / historicalData.length;
+
+    // Вычисляем тренд роста на основе реальных данных
+    const growthRate = historicalData.length > 1 
+      ? (historicalData[historicalData.length - 1].income - historicalData[0].income) / historicalData[0].income / historicalData.length
+      : 0.02; // Дефолтный рост 2%
+
+    // Генерируем прогноз на 6 месяцев
     for (let i = 1; i <= 6; i++) {
       const forecastDate = new Date(endDate);
       forecastDate.setMonth(forecastDate.getMonth() + i);
       const period = forecastDate.toISOString().substring(0, 7);
 
-      // Simple growth projection
-      const growthFactor = 1 + (0.02 * i); // 2% monthly growth
-      const projectedIncome = avgIncome * growthFactor;
-      const projectedExpense = avgExpense * (1 + (0.01 * i)); // 1% monthly expense growth
+      const projectedIncome = avgIncome * (1 + (growthRate * i));
+      const projectedExpense = avgExpense * (1 + (0.01 * i)); // 1% рост расходов
 
       forecasts.push({
         period,
@@ -276,7 +283,7 @@ export class ReportsService {
           expense: projectedExpense,
           balance: projectedIncome - projectedExpense,
         },
-        confidence: Math.max(95 - (i * 10), 60), // Decreasing confidence over time
+        confidence: Math.max(95 - (i * 10), 60),
         scenarios: {
           optimistic: projectedIncome * 1.2,
           realistic: projectedIncome,
@@ -317,7 +324,7 @@ export class ReportsService {
     return Object.values(varianceByCategory).map(analysis => {
       analysis.variance = analysis.actual - analysis.planned;
       analysis.variancePercent = analysis.planned > 0 ? (analysis.variance / analysis.planned) * 100 : 0;
-      
+
       if (analysis.variancePercent > 5) {
         analysis.status = 'unfavorable';
       } else if (analysis.variancePercent < -5) {
@@ -429,7 +436,7 @@ export class ReportsService {
     });
 
     const cash = (totalRevenue._sum.amount || 0) - ((totalExpenses._sum.actualAmount || totalExpenses._sum.plannedAmount) || 0);
-    
+
     return {
       period: this.formatPeriod(startDate, endDate),
       assets: {
@@ -504,15 +511,15 @@ export class ReportsService {
 
   private generateTags(type: ReportType, startDate: Date, endDate: Date): string[] {
     const tags = [type.toLowerCase().replace('_', '-')];
-    
+
     const year = startDate.getFullYear().toString();
     tags.push(year);
-    
+
     const months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-                   'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+      'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
     const month = months[startDate.getMonth()];
     tags.push(month);
-    
+
     return tags;
   }
 }

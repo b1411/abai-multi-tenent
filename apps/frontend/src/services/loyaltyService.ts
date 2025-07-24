@@ -167,6 +167,63 @@ class LoyaltyService {
       sortOrder: 'desc'
     };
   }
+
+  // Получение feedback ответов
+  async getFeedbackResponses(filter: LoyaltyFilter = {}): Promise<any> {
+    const params = new URLSearchParams();
+    
+    Object.entries(filter).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value.toString());
+      }
+    });
+
+    return await apiClient.get<any>(`/loyalty/feedback-responses?${params.toString()}`);
+  }
+
+  // Получение конкретного feedback ответа
+  async getFeedbackResponse(id: number): Promise<any> {
+    return await apiClient.get<any>(`/loyalty/feedback-responses/${id}`);
+  }
+
+  // Получение статистики по feedback ответам
+  async getFeedbackResponsesStats(filter: LoyaltyFilter = {}): Promise<any> {
+    const params = new URLSearchParams();
+    
+    Object.entries(filter).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value.toString());
+      }
+    });
+
+    return await apiClient.get<any>(`/loyalty/feedback-responses/stats?${params.toString()}`);
+  }
+
+  // Получение аналитики на основе feedback
+  async getFeedbackBasedLoyalty(filter: LoyaltyFilter = {}): Promise<any> {
+    const params = new URLSearchParams();
+    
+    Object.entries(filter).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value.toString());
+      }
+    });
+
+    return await apiClient.get<any>(`/loyalty/analytics/feedback-based?${params.toString()}`);
+  }
+
+  // Получение эмоциональной аналитики
+  async getEmotionalLoyalty(filter: LoyaltyFilter = {}): Promise<any> {
+    const params = new URLSearchParams();
+    
+    Object.entries(filter).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value.toString());
+      }
+    });
+
+    return await apiClient.get<any>(`/loyalty/analytics/emotional?${params.toString()}`);
+  }
 }
 
 export const loyaltyService = new LoyaltyService();

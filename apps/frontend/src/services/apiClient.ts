@@ -57,7 +57,7 @@ class ApiClient {
     this.isRedirecting = true;
 
     // Clear all authentication data from localStorage
-    localStorage.removeItem('token');
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpiry');

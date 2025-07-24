@@ -278,4 +278,14 @@ export class NotificationsService {
       createdBy: teacherId,
     });
   }
+
+  async notifyNewChatMessage(senderId: number, recipientIds: number[], senderName: string, messagePreview: string, chatId: number) {
+    return this.addNotification({
+      userIds: recipientIds,
+      type: 'NEW_MESSAGE',
+      message: `${senderName}: ${messagePreview}`,
+      url: `/chat?chatId=${chatId}`,
+      createdBy: senderId,
+    });
+  }
 }

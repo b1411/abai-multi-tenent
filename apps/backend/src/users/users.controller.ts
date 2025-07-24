@@ -12,14 +12,14 @@ import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery }
 @ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Post()
   @ApiOperation({ summary: 'Создать нового пользователя (регистрация)' })
   @ApiResponse({ status: 201, description: 'Пользователь успешно создан' })
   @ApiResponse({ status: 400, description: 'Некорректные данные' })
   @ApiResponse({ status: 409, description: 'Пользователь с таким email уже существует' })
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'TEACHER')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
@@ -35,8 +35,8 @@ export class UsersController {
   @Get('role/:role')
   @ApiOperation({ summary: 'Получить пользователей по роли' })
   @ApiResponse({ status: 200, description: 'Пользователи с указанной ролью' })
-  @ApiParam({ 
-    name: 'role', 
+  @ApiParam({
+    name: 'role',
     description: 'Роль пользователя',
     enum: ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'FINANCIST', 'HR']
   })

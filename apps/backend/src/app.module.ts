@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
@@ -32,10 +33,18 @@ import { LoyaltyModule } from './loyalty/loyalty.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SupplyModule } from './supply/supply.module';
+import { TasksModule } from './tasks/tasks.module';
+import { ChatModule } from './chat/chat.module';
+import { CalendarModule } from './calendar/calendar.module';
+import { SystemModule } from './system/system.module';
 import { DevtoolsModule } from '@nestjs/devtools-integration';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     StudyPlansModule,
     AuthModule,
     LessonsModule,
@@ -61,6 +70,10 @@ import { DevtoolsModule } from '@nestjs/devtools-integration';
     FeedbackModule,
     InventoryModule,
     SupplyModule,
+    TasksModule,
+    ChatModule,
+    CalendarModule,
+    SystemModule,
     NotificationsModule,
     FilesModule,
     LessonResultsModule,

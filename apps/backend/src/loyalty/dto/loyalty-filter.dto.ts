@@ -64,3 +64,6 @@ export class LoyaltyFilterDto {
   @IsInt()
   limit?: number = 10;
 }
+
+// Экспортируем также тип для использования в сервисах
+export type LoyaltyFilter = LoyaltyFilterDto;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  FaArrowLeft, FaSave, FaPlus, FaEdit, FaTrash, FaVideo, FaFile, 
+  FaArrowLeft, FaSave, FaPlus, FaEdit, FaTrash, FaVideo, FaFile,
   FaClipboardCheck, FaHome, FaBookOpen, FaUpload, FaCheck, FaTimes
 } from 'react-icons/fa';
 import { formatDate } from '../utils';
@@ -54,13 +54,13 @@ interface Lesson {
 const LessonEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'materials' | 'quiz' | 'homework'>('materials');
-  
+
   // Модальные окна
   const [showCreateMaterial, setShowCreateMaterial] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
@@ -214,8 +214,8 @@ const LessonEditor: React.FC = () => {
       // Обновление существующего материала
       setLesson({
         ...lesson,
-        materials: lesson.materials.map(m => 
-          m.id === editingMaterial.id 
+        materials: lesson.materials.map(m =>
+          m.id === editingMaterial.id
             ? { ...m, ...materialData }
             : m
         )
@@ -335,11 +335,10 @@ const LessonEditor: React.FC = () => {
             <button
               onClick={handlePublishLesson}
               disabled={saving}
-              className={`flex items-center px-4 py-2 rounded-md button-hover ${
-                lesson.status === 'published'
+              className={`flex items-center px-4 py-2 rounded-md button-hover ${lesson.status === 'published'
                   ? 'bg-yellow-500 text-white hover:bg-yellow-600'
                   : 'bg-green-500 text-white hover:bg-green-600'
-              }`}
+                }`}
             >
               {lesson.status === 'published' ? (
                 <>
@@ -359,15 +358,14 @@ const LessonEditor: React.FC = () => {
 
       {/* Статус */}
       <div className="mb-6">
-        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
-          lesson.status === 'published' 
-            ? 'bg-green-100 text-green-800' 
+        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${lesson.status === 'published'
+            ? 'bg-green-100 text-green-800'
             : lesson.status === 'draft'
-            ? 'bg-yellow-100 text-yellow-800'
-            : 'bg-blue-100 text-blue-800'
-        }`}>
-          {lesson.status === 'published' ? 'Опубликован' : 
-           lesson.status === 'draft' ? 'Черновик' : 'Завершен'}
+              ? 'bg-yellow-100 text-yellow-800'
+              : 'bg-blue-100 text-blue-800'
+          }`}>
+          {lesson.status === 'published' ? 'Опубликован' :
+            lesson.status === 'draft' ? 'Черновик' : 'Завершен'}
         </span>
       </div>
 
@@ -376,33 +374,30 @@ const LessonEditor: React.FC = () => {
         <nav className="flex space-x-8">
           <button
             onClick={() => setActiveTab('materials')}
-            className={`pb-2 px-1 border-b-2 font-medium text-sm button-hover ${
-              activeTab === 'materials'
+            className={`pb-2 px-1 border-b-2 font-medium text-sm button-hover ${activeTab === 'materials'
                 ? 'border-corporate-primary text-corporate-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <FaBookOpen className="inline mr-2" />
             Материалы ({lesson.materials.filter(m => ['lecture', 'video', 'presentation'].includes(m.type)).length})
           </button>
           <button
             onClick={() => setActiveTab('quiz')}
-            className={`pb-2 px-1 border-b-2 font-medium text-sm button-hover ${
-              activeTab === 'quiz'
+            className={`pb-2 px-1 border-b-2 font-medium text-sm button-hover ${activeTab === 'quiz'
                 ? 'border-corporate-primary text-corporate-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <FaClipboardCheck className="inline mr-2" />
             Тесты ({lesson.materials.filter(m => m.type === 'quiz').length})
           </button>
           <button
             onClick={() => setActiveTab('homework')}
-            className={`pb-2 px-1 border-b-2 font-medium text-sm button-hover ${
-              activeTab === 'homework'
+            className={`pb-2 px-1 border-b-2 font-medium text-sm button-hover ${activeTab === 'homework'
                 ? 'border-corporate-primary text-corporate-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <FaHome className="inline mr-2" />
             Домашние задания ({lesson.materials.filter(m => m.type === 'homework').length})
@@ -460,11 +455,10 @@ const LessonEditor: React.FC = () => {
                             <span className="text-xs text-gray-400 mr-4">
                               {getMaterialTypeName(material.type)}
                             </span>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              material.isPublished 
-                                ? 'bg-green-100 text-green-800' 
+                            <span className={`text-xs px-2 py-1 rounded-full ${material.isPublished
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-gray-100 text-gray-800'
-                            }`}>
+                              }`}>
                               {material.isPublished ? 'Опубликован' : 'Черновик'}
                             </span>
                           </div>
@@ -537,11 +531,10 @@ const LessonEditor: React.FC = () => {
                                 {material.quiz.timeLimit} мин
                               </span>
                             )}
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              material.isPublished 
-                                ? 'bg-green-100 text-green-800' 
+                            <span className={`text-xs px-2 py-1 rounded-full ${material.isPublished
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-gray-100 text-gray-800'
-                            }`}>
+                              }`}>
                               {material.isPublished ? 'Опубликован' : 'Черновик'}
                             </span>
                           </div>
@@ -616,11 +609,10 @@ const LessonEditor: React.FC = () => {
                                 Макс. балл: {material.homework.maxScore}
                               </span>
                             )}
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              material.isPublished 
-                                ? 'bg-green-100 text-green-800' 
+                            <span className={`text-xs px-2 py-1 rounded-full ${material.isPublished
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-gray-100 text-gray-800'
-                            }`}>
+                              }`}>
                               {material.isPublished ? 'Опубликован' : 'Черновик'}
                             </span>
                           </div>
@@ -692,7 +684,7 @@ const MaterialEditor: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title) return;
-    
+
     onSave(formData);
   };
 
@@ -719,7 +711,7 @@ const MaterialEditor: React.FC<{
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fadeIn">
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-4">{getTitle()}</h3>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

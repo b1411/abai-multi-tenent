@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
+import { CreateFullStudentDto } from './dto/create-full-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class StudentsService {
@@ -251,6 +253,99 @@ export class StudentsService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async createFullStudent(createFullStudentDto: CreateFullStudentDto, currentUserRole?: string) {
+    // Проверяем права доступа для учителей
+    if (currentUserRole === 'TEACHER') {
+      // Учителя могут создавать только студентов
+      // Дополнительных ограничений нет, так как роль уже задана как STUDENT
+    }
+
+    // Проверяем уникальность email
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createFullStudentDto.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    // Проверяем существование группы
+    const group = await this.prisma.group.findFirst({
+      where: {
+        id: createFullStudentDto.groupId,
+        deletedAt: null
+      },
+    });
+
+    if (!group) {
+      throw new NotFoundException(`Group with ID ${createFullStudentDto.groupId} not found`);
+    }
+
+    // Хешируем пароль
+    const hashedPassword = await bcrypt.hash(createFullStudentDto.password, 12);
+
+    // Извлекаем данные для создания пользователя и студента
+    const { password, groupId, classId, ...userData } = createFullStudentDto;
+
+    // Используем транзакцию для создания пользователя и студента
+    const result = await this.prisma.$transaction(async (prisma) => {
+      // Создаем пользователя
+      const user = await prisma.user.create({
+        data: {
+          ...userData,
+          hashedPassword,
+          role: 'STUDENT',
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          surname: true,
+          middlename: true,
+          phone: true,
+          avatar: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // Создаем запись студента
+      const student = await prisma.student.create({
+        data: {
+          userId: user.id,
+          groupId,
+          classId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              surname: true,
+              middlename: true,
+              phone: true,
+              avatar: true,
+              role: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+          group: true,
+        },
+      });
+
+      return student;
+    });
+
+    return {
+      success: true,
+      message: `Student ${result.user.surname} ${result.user.name} successfully created and enrolled`,
+      student: result,
+    };
   }
 
   // Специальные методы для студентов

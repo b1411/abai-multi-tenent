@@ -94,6 +94,7 @@ const Sidebar: React.FC = () => {
       key: 'students',
       children: [
         { name: 'Списки учащихся', href: '/students', icon: GraduationCap },
+        { name: 'Группы', href: '/groups', icon: Users },
         { name: 'Успеваемость', href: '/performance', icon: TrendingUp },
         { name: 'Анализ лояльности', href: '/loyalty', icon: Heart, roles: ['ADMIN', 'TEACHER', 'HR'] },
       ]

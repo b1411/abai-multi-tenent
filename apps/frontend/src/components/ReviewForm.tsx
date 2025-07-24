@@ -38,9 +38,16 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
     setError(null);
 
     try {
+      console.log('Sending review data:', formData);
       const review = await loyaltyService.createReview(formData);
+      console.log('Review created successfully:', review);
       setSuccess(true);
-      onSubmit?.(review);
+      
+      // Вызываем callback для обновления данных
+      if (onSubmit) {
+        console.log('Calling onSubmit callback');
+        onSubmit(review);
+      }
       
       // Очищаем форму
       setFormData({
@@ -50,6 +57,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
         comment: '',
       });
     } catch (err: any) {
+      console.error('Error creating review:', err);
       setError(err.message || 'Ошибка при отправке отзыва');
     } finally {
       setLoading(false);

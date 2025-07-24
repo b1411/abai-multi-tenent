@@ -16,3 +16,6 @@ export class CreateReviewDto {
   @IsNotEmpty()
   comment: string;
 }
+
+// Экспортируем также тип для использования в сервисах
+export type CreateReviewRequest = CreateReviewDto;

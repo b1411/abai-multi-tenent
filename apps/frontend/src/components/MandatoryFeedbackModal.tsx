@@ -1,22 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Alert } from './ui/Alert';
 import { Spinner } from './ui/Spinner';
-
-interface Question {
-  id: string;
-  question: string;
-  type: 'RATING_1_5' | 'RATING_1_10' | 'TEXT' | 'EMOTIONAL_SCALE' | 'YES_NO';
-  category: string;
-  required?: boolean;
-}
-
-interface FeedbackTemplate {
-  id: number;
-  name: string;
-  title: string;
-  description?: string;
-  questions: Question[];
-}
+import { feedbackService, FeedbackTemplate, Question } from '../services/feedbackService';
 
 interface MandatoryFeedbackModalProps {
   isOpen: boolean;
@@ -75,23 +60,12 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
     setError(null);
 
     try {
-      // Отправляем ответы на сервер
-      const response = await fetch('/api/feedback/responses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          templateId: currentTemplate.id,
-          answers: answers,
-          isCompleted: true,
-        }),
+      // Отправляем ответы на сервер через feedbackService
+      await feedbackService.submitResponse({
+        templateId: currentTemplate.id,
+        answers: answers,
+        isCompleted: true,
       });
-
-      if (!response.ok) {
-        throw new Error('Ошибка при отправке формы');
-      }
 
       // Переходим к следующей форме или завершаем
       if (isLastTemplate) {

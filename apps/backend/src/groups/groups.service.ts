@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
+import { GroupStatisticsDto } from './dto/group-statistics.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -211,41 +212,26 @@ export class GroupsService {
       where: { deletedAt: null },
     });
 
-    const groupsByCourse = await this.prisma.group.groupBy({
+    const groupsByCourseRaw = await this.prisma.group.groupBy({
       by: ['courseNumber'],
       where: { deletedAt: null },
       _count: true,
-    });
-
-    const studentsPerGroup = await this.prisma.group.findMany({
-      where: { deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        courseNumber: true,
-        _count: {
-          select: {
-            students: {
-              where: { deletedAt: null },
-            },
-          },
-        },
-      },
-      orderBy: [
-        { courseNumber: 'asc' },
-        { name: 'asc' },
-      ],
     });
 
     const totalStudents = await this.prisma.student.count({
       where: { deletedAt: null },
     });
 
+    // Преобразуем данные в нужный формат
+    const groupsByCourse = groupsByCourseRaw.map(item => ({
+      courseNumber: item.courseNumber,
+      count: item._count,
+    }));
+
     return {
       totalGroups,
       totalStudents,
       groupsByCourse,
-      studentsPerGroup,
       averageStudentsPerGroup: totalStudents / totalGroups || 0,
     };
   }

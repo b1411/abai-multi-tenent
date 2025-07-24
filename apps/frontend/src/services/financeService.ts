@@ -12,6 +12,13 @@ import {
 } from '../types/finance';
 
 class FinanceService {
+  async getReports(): Promise<any[]> {
+    // Получить отчеты по типу PERFORMANCE (или другой тип, если нужен весь список)
+    const response = await apiClient.get('/reports/PERFORMANCE');
+    // Если ответ не массив, возвращаем пустой массив
+    if (!Array.isArray(response)) return [];
+    return response;
+  }
   // Платежи
   async getPayments(filters?: PaymentFilters): Promise<PaymentResponse> {
     const params = new URLSearchParams();
@@ -140,12 +147,12 @@ class FinanceService {
     return await apiClient.get(`/reports/${type}?${params.toString()}`);
   }
 
-  async getCashflowData(period: string): Promise<any> {
-    return await apiClient.get(`/reports/cashflow?period=${period}`);
+  async getCashflowData(queryParams: string): Promise<any> {
+    return await apiClient.get(`/reports/cashflow?${queryParams}`);
   }
 
-  async getPerformanceMetrics(period: string): Promise<any> {
-    return await apiClient.get(`/reports/performance?period=${period}`);
+  async getPerformanceMetrics(queryParams: string): Promise<any> {
+    return await apiClient.get(`/reports/performance?${queryParams}`);
   }
 
   async getForecastData(period: string, months: number = 6): Promise<any> {

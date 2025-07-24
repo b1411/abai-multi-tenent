@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaUserGraduate, FaPhone, FaEnvelope, FaUsers, FaFilter } from 'react-icons/fa';
+import { FaSearch, FaUserGraduate, FaPhone, FaEnvelope, FaUsers, FaFilter, FaPlus } from 'react-icons/fa';
 import { useStudents } from '../hooks/useStudents';
 import { useAuth } from '../hooks/useAuth';
 import { Student } from '../services/studentService';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { CreateStudentForm } from '../components/CreateStudentForm';
 
 const Students: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Students: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Получаем уникальные группы из списка студентов
   const groups = useMemo(() => {
@@ -110,9 +112,22 @@ const Students: React.FC = () => {
             {(user?.role === 'TEACHER' || user?.role === 'ADMIN' || user?.role === 'HR') && 'Управление студентами'}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <FaUsers className="w-4 h-4" />
-          <span>Всего: {filteredStudents.length}</span>
+        <div className="flex items-center gap-4">
+          {/* Кнопка создания студента для админов и учителей */}
+          {user && ['ADMIN', 'TEACHER'].includes(user.role) && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+            >
+              <FaPlus className="w-4 h-4" />
+              <span>Создать студента</span>
+            </button>
+          )}
+          
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <FaUsers className="w-4 h-4" />
+            <span>Всего: {filteredStudents.length}</span>
+          </div>
         </div>
       </div>
 
@@ -291,6 +306,22 @@ const Students: React.FC = () => {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно с формой создания студента */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <CreateStudentForm
+              onSuccess={() => {
+                setShowCreateForm(false);
+                // Обновляем список студентов
+                window.location.reload(); // Простое решение для обновления списка
+              }}
+              onClose={() => setShowCreateForm(false)}
+            />
           </div>
         </div>
       )}

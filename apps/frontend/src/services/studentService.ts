@@ -122,6 +122,18 @@ export interface StudentStatistics {
   recentStudents: Student[];
 }
 
+export interface CreateFullStudentData {
+  email: string;
+  name: string;
+  surname: string;
+  password: string;
+  phone?: string;
+  middlename?: string;
+  avatar?: string;
+  groupId: number;
+  classId?: number;
+}
+
 export const studentService = {
   // Получить всех студентов (для админа/HR/учителя)
   async getAllStudents(): Promise<Student[]> {
@@ -161,6 +173,11 @@ export const studentService = {
   // Зачислить студента
   async createStudent(data: { userId: number; groupId: number }) {
     return await apiClient.post('/students', data);
+  },
+
+  // Создать полного студента (пользователь + студент)
+  async createFullStudent(data: CreateFullStudentData) {
+    return await apiClient.post('/students/create-full', data);
   },
 
   // Обновить данные студента

@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
+import { CreateFullStudentDto } from './dto/create-full-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
@@ -30,9 +31,30 @@ export class StudentsController {
   @ApiResponse({ status: 400, description: 'Некорректные данные' })
   @ApiResponse({ status: 404, description: 'Пользователь или группа не найдены' })
   @ApiResponse({ status: 409, description: 'Пользователь уже является студентом' })
-  @Roles('ADMIN', 'HR')
+  @Roles('ADMIN', 'HR', 'TEACHER')
   create(@Body() createStudentDto: CreateStudentDto) {
     return this.studentsService.create(createStudentDto);
+  }
+
+  @Post('create-full')
+  @ApiOperation({
+    summary: 'Создать нового студента (пользователь + студент)',
+    description: `
+Создает нового пользователя с ролью STUDENT и сразу зачисляет его как студента в группу.
+
+**Требования:**
+- Email должен быть уникальным
+- Группа должна существовать
+- Только админы и учителя могут создавать студентов
+    `
+  })
+  @ApiResponse({ status: 201, description: 'Студент успешно создан и зачислен' })
+  @ApiResponse({ status: 400, description: 'Некорректные данные' })
+  @ApiResponse({ status: 404, description: 'Группа не найдена' })
+  @ApiResponse({ status: 409, description: 'Пользователь с таким email уже существует' })
+  @Roles('ADMIN', 'HR', 'TEACHER')
+  createFullStudent(@Body() createFullStudentDto: CreateFullStudentDto, @Request() req) {
+    return this.studentsService.createFullStudent(createFullStudentDto, req.user?.role);
   }
 
   @Get()

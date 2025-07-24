@@ -36,9 +36,12 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/devtools-integration": "^0.2.0",
+    "@nestjs/jwt": "^10.2.0",
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-socket.io": "^11.1.5",
     "@nestjs/swagger": "^11.2.0",
+    "@nestjs/websockets": "^11.1.5",
     "@prisma/client": "6.11.1",
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.2",
@@ -49,6 +52,7 @@
     "prisma": "^6.11.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1",
     "swagger-typescript-api": "^13.2.7"
   },
   "devDependencies": {

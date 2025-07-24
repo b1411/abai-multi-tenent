@@ -59,21 +59,7 @@ const statusColors = {
   FAILED: 'bg-red-100 text-red-800'
 };
 
-// Демо-данные для графиков
-const monthlyRevenueData = [
-  { name: 'Янв', value: 5200000 },
-  { name: 'Фев', value: 4800000 },
-  { name: 'Мар', value: 5000000 },
-  { name: 'Апр', value: 5300000 },
-  { name: 'Май', value: 5500000 },
-  { name: 'Июн', value: 4100000 },
-  { name: 'Июл', value: 3800000 },
-  { name: 'Авг', value: 5000000 },
-  { name: 'Сен', value: 5700000 },
-  { name: 'Окт', value: 5400000 },
-  { name: 'Ноя', value: 5300000 },
-  { name: 'Дек', value: 5200000 }
-];
+/* Удалить этот хук из глобального scope и перенести внутрь компонента Reports */
 
 const Reports: React.FC = () => {
   const [reports, setReports] = useState<FinancialReport[]>([]);
@@ -88,80 +74,90 @@ const Reports: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [cashflowData, setCashflowData] = useState<any[]>([]);
   const [performanceMetrics, setPerformanceMetrics] = useState<any>(null);
+  const [monthlyRevenueData, setMonthlyRevenueData] = useState<any[]>([]);
 
   // Загрузка данных
   useEffect(() => {
     loadReportsData();
   }, []);
 
+  // Загрузка данных для графика после получения cashflowData
+  useEffect(() => {
+    loadMonthlyRevenue();
+  }, [cashflowData]);
+
   const loadReportsData = async () => {
     try {
       setLoading(true);
-      
-      // Загружаем данные движения денежных средств
-      const startDate = new Date(new Date().getFullYear(), 0, 1).toISOString();
-      const endDate = new Date().toISOString();
-      
-      // Упрощенная загрузка данных с демо-данными
-      const cashflow: any[] = [];
-      const performance = null;
 
-      setCashflowData(cashflow);
+      // Загружаем данные движения денежных средств
+      const startDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+      const endDate = new Date().toISOString().split('T')[0];
+
+      // Получаем реальные данные cashflow
+      const cashflow = await financeService.getCashflowData(`startDate=${startDate}&endDate=${endDate}`);
+      
+      // Получаем реальные данные performance
+      const performance = await financeService.getPerformanceMetrics(`startDate=${startDate}&endDate=${endDate}`);
+
+      setCashflowData(Array.isArray(cashflow) ? cashflow : []);
       setPerformanceMetrics(performance);
 
-      // Создаем демо-отчеты
-      const demoReports: FinancialReport[] = [
+      // Моковые отчеты (поскольку нет эндпоинта для списка отчетов)
+      const mockReports: FinancialReport[] = [
         {
-          id: 'r001',
-          title: 'Баланс школы за 4 квартал 2024',
-          type: 'BALANCE_SHEET',
-          period: 'Q4 2024',
+          id: '1',
+          title: 'Отчет о движении денежных средств - Январь 2025',
+          period: '2025-01',
           generatedAt: new Date().toISOString(),
-          generatedBy: 'Система',
-          status: 'COMPLETED',
-          description: 'Квартальный отчет о финансовом состоянии школы',
-          tags: ['квартальный', '2024']
-        },
-        {
-          id: 'r002',
-          title: 'Отчет о движении денежных средств за декабрь 2024',
           type: 'CASHFLOW',
-          period: 'Декабрь 2024',
-          generatedAt: new Date().toISOString(),
-          generatedBy: 'Система',
           status: 'COMPLETED',
-          description: 'Ежемесячный отчет о поступлениях и расходах',
-          tags: ['ежемесячный', 'cashflow', '2024']
+          generatedBy: 'Система',
+          description: 'Анализ входящих и исходящих денежных потоков за январь 2025',
+          tags: ['движение-денежных-средств', '2025', 'январь']
         },
         {
-          id: 'r003',
-          title: 'Показатели эффективности за 2024 год',
+          id: '2',
+          title: 'Показатели эффективности - Январь 2025',
+          period: '2025-01',
+          generatedAt: new Date().toISOString(),
           type: 'PERFORMANCE',
-          period: '2024 год',
-          generatedAt: new Date().toISOString(),
-          generatedBy: 'Система',
           status: 'COMPLETED',
-          description: 'Годовой отчет о ключевых показателях эффективности',
-          tags: ['годовой', 'kpi', '2024']
-        },
-        {
-          id: 'r004',
-          title: 'Финансовый прогноз на 2025 год',
-          type: 'FORECAST',
-          period: '2025 год',
-          generatedAt: new Date().toISOString(),
           generatedBy: 'Система',
-          status: 'GENERATING',
-          description: 'Прогноз финансовых показателей на следующий год',
-          tags: ['прогноз', '2025']
+          description: 'Анализ ключевых показателей эффективности за январь 2025',
+          tags: ['показатели-эффективности', '2025', 'январь']
         }
       ];
-
-      setReports(demoReports);
+      
+      setReports(mockReports);
     } catch (error) {
       console.error('Ошибка загрузки данных отчетов:', error);
+      setCashflowData([]);
+      setPerformanceMetrics(null);
+      setReports([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMonthlyRevenue = async () => {
+    try {
+      // Используем те же данные, что и для статистики
+      if (cashflowData && Array.isArray(cashflowData)) {
+        // Преобразуем данные для графика
+        const chartData = cashflowData.map((item: any) => ({
+          name: new Date(item.period + '-01').toLocaleDateString('ru-RU', { month: 'short' }),
+          value: item.income || 0,
+          expense: item.expense || 0,
+          netFlow: item.netFlow || 0
+        }));
+        setMonthlyRevenueData(chartData);
+      } else {
+        setMonthlyRevenueData([]);
+      }
+    } catch (error) {
+      setMonthlyRevenueData([]);
+      console.error('Ошибка загрузки данных для графика доходов:', error);
     }
   };
 
@@ -177,22 +173,18 @@ const Reports: React.FC = () => {
 
   // Статистика
   const stats = useMemo(() => {
-    if (!performanceMetrics) {
-      return {
-        totalIncome: '0',
-        avgPayment: '0',
-        activeStudents: 0,
-        growthRate: 0
-      };
-    }
-
+    // Рассчитываем статистику на основе реальных данных
+    const totalIncome = cashflowData.reduce((sum, item) => sum + (item.income || 0), 0);
+    const totalExpense = cashflowData.reduce((sum, item) => sum + (item.expense || 0), 0);
+    const avgPayment = cashflowData.length > 0 ? totalIncome / cashflowData.length : 0;
+    
     return {
-      totalIncome: '62,400,000',
-      avgPayment: '5,200,000',
-      activeStudents: 245,
-      growthRate: Math.round(performanceMetrics.revenueGrowth || 0)
+      totalIncome: totalIncome.toLocaleString('ru-RU'),
+      avgPayment: avgPayment.toLocaleString('ru-RU'),
+      activeStudents: 245, // можно получить из API students если нужно
+      growthRate: Math.round(performanceMetrics?.revenueGrowth || 0)
     };
-  }, [performanceMetrics]);
+  }, [cashflowData, performanceMetrics]);
 
   // Обработчики событий
   const handleFilterChange = (key: string, value: string) => {

@@ -1,121 +1,121 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateReviewDto } from './dto/create-review.dto';
-import { LoyaltyFilterDto, MetricType, PeriodType } from './dto/loyalty-filter.dto';
+import { LoyaltyFilter, PeriodType } from './dto/loyalty-filter.dto';
+import { CreateReviewRequest } from './dto/create-review.dto';
 import { ReviewReactionDto } from './dto/review-reaction.dto';
 
 @Injectable()
 export class LoyaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createReview(createReviewDto: CreateReviewDto, userId: number) {
-    return await this.prisma.studentReview.create({
-      data: {
-        ...createReviewDto,
-        studentId: userId,
-        createdAt: new Date(),
-      },
-      include: {
-        teacher: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                surname: true,
-              },
-            },
-          },
-        },
-        group: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-  }
+  // Получение отзывов из существующих данных feedback
+  async getReviews(filter?: LoyaltyFilter) {
+    const where: any = { isPublished: true };
+    const take = filter?.limit || 10;
+    const skip = filter?.page ? (filter.page - 1) * take : 0;
 
-  async getReviews(filter: LoyaltyFilterDto) {
-    const where: any = {};
-
-    if (filter.teacherId) {
-      where.teacherId = filter.teacherId;
+    // Фильтры по дате
+    if (filter?.dateFrom || filter?.dateTo) {
+      where.createdAt = {};
+      if (filter.dateFrom) where.createdAt.gte = new Date(filter.dateFrom);
+      if (filter.dateTo) where.createdAt.lte = new Date(filter.dateTo);
     }
 
-    if (filter.groupId) {
-      where.groupId = filter.groupId;
-    }
-
-    if (filter.rating) {
+    // Фильтр по рейтингу
+    if (filter?.rating) {
       where.rating = filter.rating;
     }
 
-    if (filter.dateFrom || filter.dateTo) {
-      where.createdAt = {};
-      if (filter.dateFrom) {
-        where.createdAt.gte = new Date(filter.dateFrom);
-      }
-      if (filter.dateTo) {
-        where.createdAt.lte = new Date(filter.dateTo);
-      }
+    // Фильтр по учителю
+    if (filter?.teacherId) {
+      where.teacherId = filter.teacherId;
     }
 
-    const reviews = await this.prisma.studentReview.findMany({
-      where,
-      include: {
-        teacher: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                surname: true,
-              },
-            },
-          },
-        },
-        group: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        reactions: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                surname: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        [filter.sortBy || 'createdAt']: filter.sortOrder || 'desc',
-      },
-      skip: ((filter.page || 1) - 1) * (filter.limit || 10),
-      take: filter.limit || 10,
-    });
+    // Фильтр по группе
+    if (filter?.groupId) {
+      where.groupId = filter.groupId;
+    }
 
-    const total = await this.prisma.studentReview.count({ where });
+    const [reviews, total] = await Promise.all([
+      this.prisma.studentReview.findMany({
+        where,
+        include: {
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
+                },
+              },
+            },
+          },
+          teacher: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
+                },
+              },
+            },
+          },
+          group: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          reactions: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+      }),
+      this.prisma.studentReview.count({ where }),
+    ]);
 
     return {
       data: reviews,
       total,
-      page: filter.page || 1,
-      limit: filter.limit || 10,
-      totalPages: Math.ceil(total / (filter.limit || 10)),
+      page: filter?.page || 1,
+      totalPages: Math.ceil(total / take),
+      limit: take,
     };
   }
 
-  async getReview(id: number) {
-    return await this.prisma.studentReview.findUnique({
-      where: { id },
+  // Создание отзыва (через feedback или напрямую)
+  async createReview(userId: number, createReviewDto: CreateReviewRequest) {
+    const student = await this.prisma.student.findUnique({
+      where: { userId },
+    });
+
+    if (!student) {
+      throw new Error('Student not found');
+    }
+
+    return await this.prisma.studentReview.create({
+      data: {
+        ...createReviewDto,
+        studentId: student.id,
+        isModerated: true,
+        isPublished: true,
+        createdAt: new Date(),
+      },
       include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
         teacher: {
           include: {
             user: {
@@ -133,7 +133,277 @@ export class LoyaltyService {
             name: true,
           },
         },
-        reactions: {
+      },
+    });
+  }
+
+  // Аналитика лояльности на основе feedback данных
+  async getAnalytics(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    const whereWithPublished = { ...dateFilter, isPublished: true };
+
+    // Получаем данные из отзывов
+    const [reviews, ratingDistribution, topTeachers] = await Promise.all([
+      this.prisma.studentReview.findMany({
+        where: whereWithPublished,
+        include: {
+          teacher: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.studentReview.groupBy({
+        by: ['rating'],
+        where: whereWithPublished,
+        _count: {
+          rating: true,
+        },
+        orderBy: {
+          rating: 'asc',
+        },
+      }),
+      this.prisma.studentReview.groupBy({
+        by: ['teacherId'],
+        where: whereWithPublished,
+        _avg: {
+          rating: true,
+        },
+        _count: {
+          rating: true,
+        },
+        orderBy: {
+          _avg: {
+            rating: 'desc',
+          },
+        },
+        take: 10,
+      }),
+    ]);
+
+    // Дополняем данными о преподавателях
+    const teacherIds = topTeachers.map(t => t.teacherId);
+    const teachers = await this.prisma.teacher.findMany({
+      where: { id: { in: teacherIds } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+      },
+    });
+
+    const topTeachersWithData = topTeachers.map(teacher => ({
+      ...teacher,
+      teacher: teachers.find(t => t.id === teacher.teacherId),
+    }));
+
+    return {
+      totalReviews: reviews.length,
+      averageRating: reviews.length > 0 
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
+        : 0,
+      ratingDistribution,
+      topTeachers: topTeachersWithData,
+    };
+  }
+
+  // Анализ лояльности на основе feedback responses
+  async getFeedbackBasedLoyalty(filter?: LoyaltyFilter) {
+    const period = filter?.period || this.getCurrentPeriod();
+    
+    // Получаем ответы из feedback форм, связанных с удовлетворенностью
+    const feedbackResponses = await this.prisma.feedbackResponse.findMany({
+      where: {
+        isCompleted: true,
+        period,
+        template: {
+          name: {
+            in: ['student_satisfaction', 'course_evaluation', 'teacher_rating'],
+          },
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            role: true,
+          },
+        },
+        template: true,
+      },
+    });
+
+    // Анализируем ответы
+    const loyaltyMetrics = this.analyzeFeedbackForLoyalty(feedbackResponses);
+    
+    return {
+      period,
+      totalResponses: feedbackResponses.length,
+      ...loyaltyMetrics,
+    };
+  }
+
+  // Анализ эмоционального состояния студентов
+  async getEmotionalLoyalty(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    
+    const emotionalStates = await this.prisma.emotionalState.findMany({
+      where: {
+        updatedAt: dateFilter.createdAt,
+      },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+              },
+            },
+            group: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const averages = emotionalStates.reduce(
+      (acc, state) => {
+        acc.mood += state.mood;
+        acc.motivation += state.motivation;
+        acc.satisfaction += (state.mood + state.motivation) / 2;
+        return acc;
+      },
+      { mood: 0, motivation: 0, satisfaction: 0 }
+    );
+
+    const count = emotionalStates.length;
+    if (count > 0) {
+      averages.mood = Math.round(averages.mood / count);
+      averages.motivation = Math.round(averages.motivation / count);
+      averages.satisfaction = Math.round(averages.satisfaction / count);
+    }
+
+    // Группировка по группам
+    const byGroup = emotionalStates.reduce((acc, state) => {
+      const groupName = state.student.group.name;
+      if (!acc[groupName]) {
+        acc[groupName] = {
+          students: 0,
+          totalMood: 0,
+          totalMotivation: 0,
+        };
+      }
+      acc[groupName].students++;
+      acc[groupName].totalMood += state.mood;
+      acc[groupName].totalMotivation += state.motivation;
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Вычисляем средние по группам
+    const groupStats = Object.entries(byGroup).map(([group, stats]) => ({
+      group,
+      students: stats.students,
+      averageMood: Math.round(stats.totalMood / stats.students),
+      averageMotivation: Math.round(stats.totalMotivation / stats.students),
+      loyaltyScore: Math.round((stats.totalMood + stats.totalMotivation) / (2 * stats.students)),
+    }));
+
+    return {
+      totalStudents: count,
+      averages,
+      groupStats,
+      emotionalStates,
+    };
+  }
+
+  // Получение трендов лояльности
+  async getTrends(filter?: LoyaltyFilter) {
+    const periodType = filter?.period || 'month';
+    
+    // Получаем данные за последние периоды
+    const trends = await this.getTrendsByPeriod(periodType);
+    
+    return trends;
+  }
+
+  // Сводная информация о лояльности
+  async getSummary(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    const whereWithPublished = { ...dateFilter, isPublished: true };
+
+    const [
+      totalReviews,
+      averageRatingResult,
+      activeTeachers,
+      activeGroups,
+      emotionalData,
+      repeatPurchases,
+    ] = await Promise.all([
+      this.prisma.studentReview.count({
+        where: whereWithPublished,
+      }),
+      this.prisma.studentReview.aggregate({
+        where: whereWithPublished,
+        _avg: {
+          rating: true,
+        },
+      }),
+      this.prisma.studentReview.groupBy({
+        by: ['teacherId'],
+        where: whereWithPublished,
+      }).then(results => results.length),
+      this.prisma.studentReview.groupBy({
+        by: ['groupId'],
+        where: whereWithPublished,
+      }).then(results => results.length),
+      this.getEmotionalLoyalty(filter),
+      this.getRepeatPurchaseRate(filter),
+    ]);
+
+    const averageRating = averageRatingResult._avg.rating || 0;
+    const satisfactionRate = emotionalData.averages.satisfaction || 0;
+    const repeatPurchaseRate = repeatPurchases.rate || 0;
+
+    return {
+      totalReviews,
+      averageRating,
+      activeTeachers,
+      activeGroups,
+      satisfactionRate,
+      repeatPurchaseRate,
+      loyaltyScore: Math.round((averageRating / 5 * 100 + satisfactionRate + repeatPurchaseRate) / 3),
+    };
+  }
+
+  // Анализ повторных покупок
+  async getRepeatPurchaseRate(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+
+    const repeatPurchases = await this.prisma.repeatPurchase.findMany({
+      where: {
+        createdAt: dateFilter.createdAt,
+      },
+      include: {
+        student: {
           include: {
             user: {
               select: {
@@ -146,9 +416,24 @@ export class LoyaltyService {
         },
       },
     });
+
+    const totalStudents = await this.prisma.student.count();
+    const studentsWithRepeatPurchases = new Set(repeatPurchases.map(rp => rp.studentId)).size;
+    
+    const rate = totalStudents > 0 ? Math.round((studentsWithRepeatPurchases / totalStudents) * 100) : 0;
+
+    return {
+      rate,
+      totalStudents,
+      studentsWithRepeatPurchases,
+      averageDaysBetween: repeatPurchases.length > 0 
+        ? Math.round(repeatPurchases.reduce((sum, rp) => sum + rp.daysBetween, 0) / repeatPurchases.length)
+        : 0,
+    };
   }
 
-  async addReaction(reviewId: number, reactionDto: ReviewReactionDto, userId: number) {
+  // Реакции на отзывы
+  async addReaction(reviewId: number, userId: number, reactionDto: ReviewReactionDto) {
     return await this.prisma.reviewReaction.upsert({
       where: {
         reviewId_userId_type: {
@@ -157,60 +442,21 @@ export class LoyaltyService {
           type: reactionDto.type,
         },
       },
-      update: {
-        type: reactionDto.type,
-      },
       create: {
         reviewId,
         userId,
         type: reactionDto.type,
       },
+      update: {},
     });
   }
 
-  async getAnalytics(filter: LoyaltyFilterDto) {
-    const dateFilter = this.buildDateFilter(filter);
-
-    const totalReviews = await this.prisma.studentReview.count({
-      where: dateFilter,
-    });
-
-    const averageRating = await this.prisma.studentReview.aggregate({
-      where: dateFilter,
-      _avg: {
-        rating: true,
-      },
-    });
-
-    const ratingDistribution = await this.prisma.studentReview.groupBy({
-      by: ['rating'],
-      where: dateFilter,
-      _count: {
-        rating: true,
-      },
-    });
-
-    const topTeachers = await this.prisma.studentReview.groupBy({
-      by: ['teacherId'],
-      where: dateFilter,
-      _avg: {
-        rating: true,
-      },
-      _count: {
-        rating: true,
-      },
-      orderBy: {
-        _avg: {
-          rating: 'desc',
-        },
-      },
-      take: 10,
-    });
-
-    const teachersWithNames = await Promise.all(
-      topTeachers.map(async (teacher) => {
-        const teacherData = await this.prisma.teacher.findUnique({
-          where: { id: teacher.teacherId },
+  // Получение одного отзыва
+  async getReview(id: number) {
+    return await this.prisma.studentReview.findUnique({
+      where: { id },
+      include: {
+        student: {
           include: {
             user: {
               select: {
@@ -220,163 +466,25 @@ export class LoyaltyService {
               },
             },
           },
-        });
-        return {
-          ...teacher,
-          teacher: teacherData,
-        };
-      }),
-    );
-
-    return {
-      totalReviews,
-      averageRating: averageRating._avg.rating || 0,
-      ratingDistribution,
-      topTeachers: teachersWithNames,
-    };
-  }
-
-  async getTrends(filter: LoyaltyFilterDto) {
-    const period = filter.period || PeriodType.MONTH;
-    const dateFilter = this.buildDateFilter(filter);
-
-    // Используем Prisma groupBy вместо raw SQL для избежания ошибок GROUP BY
-    const startDate = dateFilter.createdAt?.gte || new Date('2020-01-01');
-    const endDate = dateFilter.createdAt?.lte || new Date();
-
-    try {
-      // Получаем все отзывы в диапазоне дат
-      const reviews = await this.prisma.studentReview.findMany({
-        where: {
-          createdAt: {
-            gte: startDate,
-            lte: endDate,
+        },
+        teacher: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+              },
+            },
           },
         },
-        select: {
-          rating: true,
-          createdAt: true,
-        },
-        orderBy: {
-          createdAt: 'asc',
-        },
-      });
-
-      // Группируем данные по периодам в JavaScript
-      const trendsMap = new Map<string, { sum: number; count: number }>();
-
-      reviews.forEach((review) => {
-        let periodKey: string;
-        const date = new Date(review.createdAt);
-
-        switch (period) {
-          case PeriodType.MONTH: {
-            periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-            break;
-          }
-          case PeriodType.QUARTER: {
-            const quarter = Math.floor(date.getMonth() / 3) + 1;
-            periodKey = `${date.getFullYear()}-Q${quarter}`;
-            break;
-          }
-          case PeriodType.YEAR: {
-            periodKey = `${date.getFullYear()}-01-01`;
-            break;
-          }
-          default: {
-            periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-          }
-        }
-
-        if (!trendsMap.has(periodKey)) {
-          trendsMap.set(periodKey, { sum: 0, count: 0 });
-        }
-
-        const current = trendsMap.get(periodKey);
-        if (current) {
-          current.sum += review.rating;
-          current.count += 1;
-        }
-      });
-
-      // Преобразуем в массив результатов
-      const trends = Array.from(trendsMap.entries()).map(([period, data]) => ({
-        period,
-        average_rating: data.count > 0 ? data.sum / data.count : 0,
-        review_count: data.count,
-      }));
-
-      // Сортируем по периоду
-      trends.sort((a, b) => a.period.localeCompare(b.period));
-
-      return trends;
-    } catch (error) {
-      console.error('Error getting trends:', error);
-      return [];
-    }
-  }
-
-  async getTeacherAnalytics(teacherId: number, filter: LoyaltyFilterDto) {
-    const dateFilter = this.buildDateFilter(filter);
-    const where = { ...dateFilter, teacherId };
-
-    const totalReviews = await this.prisma.studentReview.count({ where });
-
-    const averageRating = await this.prisma.studentReview.aggregate({
-      where,
-      _avg: { rating: true },
-    });
-
-    const ratingDistribution = await this.prisma.studentReview.groupBy({
-      by: ['rating'],
-      where,
-      _count: { rating: true },
-    });
-
-    const recentReviews = await this.prisma.studentReview.findMany({
-      where,
-      include: {
         group: {
           select: {
             id: true,
             name: true,
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
-
-    return {
-      totalReviews,
-      averageRating: averageRating._avg.rating || 0,
-      ratingDistribution,
-      recentReviews,
-    };
-  }
-
-  async getGroupAnalytics(groupId: number, filter: LoyaltyFilterDto) {
-    const dateFilter = this.buildDateFilter(filter);
-    const where = { ...dateFilter, groupId };
-
-    const totalReviews = await this.prisma.studentReview.count({ where });
-
-    const averageRating = await this.prisma.studentReview.aggregate({
-      where,
-      _avg: { rating: true },
-    });
-
-    const teacherRatings = await this.prisma.studentReview.groupBy({
-      by: ['teacherId'],
-      where,
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    const teachersWithNames = await Promise.all(
-      teacherRatings.map(async (teacher) => {
-        const teacherData = await this.prisma.teacher.findUnique({
-          where: { id: teacher.teacherId },
+        reactions: {
           include: {
             user: {
               select: {
@@ -386,228 +494,614 @@ export class LoyaltyService {
               },
             },
           },
-        });
-        return {
-          ...teacher,
-          teacher: teacherData,
-        };
-      }),
-    );
-
-    return {
-      totalReviews,
-      averageRating: averageRating._avg.rating || 0,
-      teacherRatings: teachersWithNames,
-    };
-  }
-
-  async getSummary(filter: LoyaltyFilterDto) {
-    const dateFilter = this.buildDateFilter(filter);
-
-    const summary = await Promise.all([
-      this.prisma.studentReview.count({ where: dateFilter }),
-      this.prisma.studentReview.aggregate({
-        where: dateFilter,
-        _avg: { rating: true },
-      }),
-      this.prisma.studentReview.groupBy({
-        by: ['teacherId'],
-        where: dateFilter,
-        _count: { teacherId: true },
-      }),
-      this.prisma.studentReview.groupBy({
-        by: ['groupId'],
-        where: dateFilter,
-        _count: { groupId: true },
-      }),
-      this.getRepeatPurchaseRate(dateFilter),
-    ]);
-
-    const [totalReviews, avgRating, teacherCounts, groupCounts, repeatPurchaseRate] = summary;
-
-    return {
-      totalReviews,
-      averageRating: avgRating._avg.rating || 0,
-      activeTeachers: teacherCounts.length,
-      activeGroups: groupCounts.length,
-      satisfactionRate: avgRating._avg.rating ? (avgRating._avg.rating / 5) * 100 : 0,
-      repeatPurchaseRate,
-    };
-  }
-
-  // Новый метод для расчета процента повторных покупок
-  async getRepeatPurchaseRate(dateFilter?: any) {
-    try {
-      // Получаем всех студентов, которые делали покупки в указанном периоде
-      const studentsWithPayments = await this.prisma.student.findMany({
-        include: {
-          Payment: {
-            where: {
-              status: 'paid',
-              paymentDate: dateFilter?.createdAt ? {
-                gte: dateFilter.createdAt.gte,
-                lte: dateFilter.createdAt.lte,
-              } : undefined,
-            },
-            orderBy: { paymentDate: 'asc' },
-          },
         },
-      });
-
-      let totalStudents = 0;
-      let studentsWithRepeatPurchases = 0;
-
-      for (const student of studentsWithPayments) {
-        const payments = student.Payment;
-        if (payments.length > 0) {
-          totalStudents++;
-          
-          // Проверяем, есть ли у студента более одной покупки
-          if (payments.length > 1) {
-            studentsWithRepeatPurchases++;
-          }
-        }
-      }
-
-      return totalStudents > 0 ? (studentsWithRepeatPurchases / totalStudents) * 100 : 0;
-    } catch (error) {
-      console.error('Error calculating repeat purchase rate:', error);
-      return 0;
-    }
+      },
+    });
   }
 
-  // Новый метод для получения детальной аналитики повторных покупок
-  async getRepeatPurchaseAnalytics(filter: LoyaltyFilterDto) {
+  // Аналитика по учителю
+  async getTeacherAnalytics(teacherId: number, filter?: LoyaltyFilter) {
     const dateFilter = this.buildDateFilter(filter);
+    const where = { teacherId, isPublished: true, ...dateFilter };
 
-    try {
-      // Получаем записи повторных покупок
-      const repeatPurchases = await this.prisma.repeatPurchase.findMany({
-        where: {
-          createdAt: dateFilter?.createdAt ? {
-            gte: dateFilter.createdAt.gte,
-            lte: dateFilter.createdAt.lte,
-          } : undefined,
-        },
+    const [reviews, averageRating, feedbackData] = await Promise.all([
+      this.prisma.studentReview.findMany({
+        where,
         include: {
           student: {
             include: {
               user: {
-                select: { name: true, surname: true },
-              },
-              group: {
-                select: { name: true },
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
+                },
               },
             },
           },
-          firstPurchase: true,
-          secondPurchase: true,
-        },
-      });
-
-      // Группируем по периодам между покупками
-      const purchaseIntervals = repeatPurchases.reduce((acc, purchase) => {
-        const interval = purchase.daysBetween;
-        let category = '';
-
-        if (interval <= 30) category = '0-30 дней';
-        else if (interval <= 90) category = '31-90 дней';
-        else if (interval <= 180) category = '91-180 дней';
-        else category = '180+ дней';
-
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Средний интервал между покупками
-      const avgInterval = repeatPurchases.length > 0
-        ? repeatPurchases.reduce((sum, p) => sum + p.daysBetween, 0) / repeatPurchases.length
-        : 0;
-
-      return {
-        totalRepeatPurchases: repeatPurchases.length,
-        purchaseIntervals,
-        averageInterval: Math.round(avgInterval),
-        repeatPurchases: repeatPurchases.slice(0, 20), // Последние 20 для отображения
-      };
-    } catch (error) {
-      console.error('Error getting repeat purchase analytics:', error);
-      return {
-        totalRepeatPurchases: 0,
-        purchaseIntervals: {},
-        averageInterval: 0,
-        repeatPurchases: [],
-      };
-    }
-  }
-
-  // Метод для автоматического создания записей повторных покупок
-  async updateRepeatPurchases() {
-    try {
-      // Получаем всех студентов с их платежами
-      const studentsWithPayments = await this.prisma.student.findMany({
-        include: {
-          Payment: {
-            where: { status: 'paid' },
-            orderBy: { paymentDate: 'asc' },
+          group: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      });
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.studentReview.aggregate({
+        where,
+        _avg: { rating: true },
+        _count: { rating: true },
+      }),
+      this.getTeacherFeedbackData(teacherId, filter),
+    ]);
 
-      for (const student of studentsWithPayments) {
-        const payments = student.Payment;
-        
-        for (let i = 1; i < payments.length; i++) {
-          const firstPayment = payments[i - 1];
-          const secondPayment = payments[i];
+    return {
+      teacherId,
+      totalReviews: reviews.length,
+      averageRating: averageRating._avg.rating || 0,
+      reviews,
+      feedbackData,
+    };
+  }
 
-          if (firstPayment.paymentDate && secondPayment.paymentDate) {
-            const daysBetween = Math.floor(
-              (new Date(secondPayment.paymentDate).getTime() - 
-               new Date(firstPayment.paymentDate).getTime()) / 
-              (1000 * 60 * 60 * 24)
-            );
+  // Аналитика по группе
+  async getGroupAnalytics(groupId: number, filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    const where = { groupId, isPublished: true, ...dateFilter };
 
-            // Создаем запись повторной покупки, если её еще нет
-            await this.prisma.repeatPurchase.upsert({
-              where: {
-                studentId_firstPurchaseId_secondPurchaseId: {
-                  studentId: student.id,
-                  firstPurchaseId: firstPayment.id,
-                  secondPurchaseId: secondPayment.id,
+    const [reviews, groupData, emotionalData] = await Promise.all([
+      this.prisma.studentReview.findMany({
+        where,
+        include: {
+          teacher: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
                 },
               },
-              create: {
-                studentId: student.id,
-                firstPurchaseId: firstPayment.id,
-                secondPurchaseId: secondPayment.id,
-                daysBetween,
+            },
+          },
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
+                },
               },
-              update: {
-                daysBetween,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.group.findUnique({
+        where: { id: groupId },
+        include: {
+          students: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
+                },
               },
-            });
-          }
-        }
+            },
+          },
+        },
+      }),
+      this.getGroupEmotionalData(groupId, filter),
+    ]);
+
+    return {
+      groupId,
+      group: groupData,
+      totalReviews: reviews.length,
+      reviews,
+      emotionalData,
+    };
+  }
+
+  // Вспомогательные методы
+  private buildDateFilter(filter?: LoyaltyFilter) {
+    const dateFilter: any = {};
+    
+    if (filter?.dateFrom || filter?.dateTo) {
+      dateFilter.createdAt = {};
+      if (filter.dateFrom) dateFilter.createdAt.gte = new Date(filter.dateFrom);
+      if (filter.dateTo) dateFilter.createdAt.lte = new Date(filter.dateTo);
+    }
+
+    return dateFilter;
+  }
+
+  private getCurrentPeriod(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private analyzeFeedbackForLoyalty(responses: any[]) {
+    const metrics = {
+      averageSatisfaction: 0,
+      recommendationScore: 0,
+      teacherRatings: [] as any[],
+      courseRatings: [] as any[],
+    };
+
+    responses.forEach(response => {
+      const answers = response.answers;
+      
+      // Анализируем различные типы ответов
+      if (answers.overall_satisfaction) {
+        metrics.averageSatisfaction += answers.overall_satisfaction;
       }
-    } catch (error) {
-      console.error('Error updating repeat purchases:', error);
+      
+      if (answers.recommend_course !== undefined) {
+        metrics.recommendationScore += answers.recommend_course ? 100 : 0;
+      }
+      
+      if (answers.teacher_rating && answers.teacher_id) {
+        metrics.teacherRatings.push({
+          teacherId: answers.teacher_id,
+          rating: answers.teacher_rating,
+          comment: answers.teacher_comment,
+        });
+      }
+    });
+
+    const count = responses.length;
+    if (count > 0) {
+      metrics.averageSatisfaction = Math.round(metrics.averageSatisfaction / count);
+      metrics.recommendationScore = Math.round(metrics.recommendationScore / count);
+    }
+
+    return metrics;
+  }
+
+  private async getTrendsByPeriod(periodType: string) {
+    const periods = this.generatePeriods(periodType, 12); // Последние 12 периодов
+    
+    const trends = await Promise.all(
+      periods.map(async (period) => {
+        const startDate = this.getPeriodStartDate(period, periodType);
+        const endDate = this.getPeriodEndDate(period, periodType);
+        
+        const [reviewCount, averageRating] = await Promise.all([
+          this.prisma.studentReview.count({
+            where: {
+              isPublished: true,
+              createdAt: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          }),
+          this.prisma.studentReview.aggregate({
+            where: {
+              isPublished: true,
+              createdAt: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            _avg: {
+              rating: true,
+            },
+          }),
+        ]);
+        
+        return {
+          period: startDate,
+          review_count: reviewCount,
+          average_rating: averageRating._avg.rating || 0,
+        };
+      })
+    );
+    
+    return trends;
+  }
+
+  private generatePeriods(periodType: string, count: number): string[] {
+    const periods: string[] = [];
+    const now = new Date();
+    
+    for (let i = count - 1; i >= 0; i--) {
+      let period: string;
+      
+      if (periodType === 'month') {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else if (periodType === 'quarter') {
+        const quarter = Math.floor((now.getMonth() - i * 3) / 3) + 1;
+        const year = now.getFullYear() - Math.floor(i / 4);
+        period = `${year}-Q${quarter}`;
+      } else {
+        period = String(now.getFullYear() - i);
+      }
+      
+      periods.push(period);
+    }
+    
+    return periods;
+  }
+
+  private getPeriodStartDate(period: string, periodType: string): Date {
+    if (periodType === 'month') {
+      const [year, month] = period.split('-').map(Number);
+      return new Date(year, month - 1, 1);
+    } else if (periodType === 'quarter') {
+      const [year, quarterStr] = period.split('-');
+      const quarter = parseInt(quarterStr.replace('Q', ''));
+      return new Date(parseInt(year), (quarter - 1) * 3, 1);
+    } else {
+      return new Date(parseInt(period), 0, 1);
     }
   }
 
-  private buildDateFilter(filter: LoyaltyFilterDto) {
-    const where: any = {};
+  private getPeriodEndDate(period: string, periodType: string): Date {
+    if (periodType === 'month') {
+      const [year, month] = period.split('-').map(Number);
+      return new Date(year, month, 0);
+    } else if (periodType === 'quarter') {
+      const [year, quarterStr] = period.split('-');
+      const quarter = parseInt(quarterStr.replace('Q', ''));
+      return new Date(parseInt(year), quarter * 3, 0);
+    } else {
+      return new Date(parseInt(period), 11, 31);
+    }
+  }
 
-    if (filter.dateFrom || filter.dateTo) {
-      where.createdAt = {};
-      if (filter.dateFrom) {
-        where.createdAt.gte = new Date(filter.dateFrom);
-      }
-      if (filter.dateTo) {
-        where.createdAt.lte = new Date(filter.dateTo);
-      }
+  private async getTeacherFeedbackData(teacherId: number, filter?: LoyaltyFilter) {
+    // Получаем feedback данные для конкретного учителя
+    const responses = await this.prisma.feedbackResponse.findMany({
+      where: {
+        isCompleted: true,
+        template: {
+          name: {
+            in: ['teacher_evaluation', 'course_evaluation'],
+          },
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+      },
+    });
+
+    // Фильтруем ответы, связанные с данным учителем
+    const teacherResponses = responses.filter(response => {
+      const answers = response.answers as any;
+      return answers && answers.teacher_id === teacherId;
+    });
+
+    return this.analyzeFeedbackForLoyalty(teacherResponses);
+  }
+
+  private async getGroupEmotionalData(groupId: number, filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    
+    const students = await this.prisma.student.findMany({
+      where: { groupId },
+      include: {
+        EmotionalState: true,
+      },
+    });
+
+    const emotionalStates = students
+      .map(student => student.EmotionalState)
+      .filter(Boolean);
+
+    if (emotionalStates.length === 0) return null;
+
+    const averages = emotionalStates.reduce(
+      (acc, state) => {
+        acc.mood += state.mood;
+        acc.motivation += state.motivation;
+        acc.concentration += state.concentration;
+        acc.socialization += state.socialization;
+        return acc;
+      },
+      { mood: 0, motivation: 0, concentration: 0, socialization: 0 }
+    );
+
+    const count = emotionalStates.length;
+    Object.keys(averages).forEach(key => {
+      averages[key] = Math.round(averages[key] / count);
+    });
+
+    return {
+      studentsCount: count,
+      averages,
+      emotionalStates,
+    };
+  }
+
+  // Утилиты форматирования (совместимость с фронтендом)
+  formatRating(rating: number): string {
+    return `${rating}/5`;
+  }
+
+  getRatingLabel(rating: number): string {
+    if (rating >= 4.5) return 'Отлично';
+    if (rating >= 3.5) return 'Хорошо';
+    if (rating >= 2.5) return 'Удовлетворительно';
+    if (rating >= 1.5) return 'Плохо';
+    return 'Очень плохо';
+  }
+
+  getRatingColor(rating: number): string {
+    if (rating >= 4.5) return '#10B981';
+    if (rating >= 3.5) return '#F59E0B';
+    if (rating >= 2.5) return '#EF4444';
+    return '#DC2626';
+  }
+
+  formatTeacherName(teacher: any): string {
+    if (!teacher?.user) return 'Неизвестный учитель';
+    return `${teacher.user.name} ${teacher.user.surname}`;
+  }
+
+  formatDate(date: Date): string {
+    return new Intl.DateTimeFormat('ru-RU').format(new Date(date));
+  }
+
+  getDefaultFilter(): LoyaltyFilter {
+    return {
+      period: PeriodType.MONTH,
+      page: 1,
+      limit: 10,
+    };
+  }
+
+  // Получение feedback ответов для отображения в модуле лояльности
+  async getFeedbackResponses(filter?: LoyaltyFilter) {
+    const where: any = { isCompleted: true };
+    const take = filter?.limit || 10;
+    const skip = filter?.page ? (filter.page - 1) * take : 0;
+
+    // Фильтр по периоду
+    if (filter?.period) {
+      const currentPeriod = this.getCurrentPeriod();
+      where.period = currentPeriod;
     }
 
-    return where;
+    // Фильтр по дате
+    if (filter?.dateFrom || filter?.dateTo) {
+      where.submittedAt = {};
+      if (filter.dateFrom) where.submittedAt.gte = new Date(filter.dateFrom);
+      if (filter.dateTo) where.submittedAt.lte = new Date(filter.dateTo);
+    }
+
+    // Получаем только ответы из форм, связанных с лояльностью
+    where.template = {
+      name: {
+        in: ['student_satisfaction', 'course_evaluation', 'teacher_rating', 'teacher_evaluation'],
+      },
+    };
+
+    const [responses, total] = await Promise.all([
+      this.prisma.feedbackResponse.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              surname: true,
+              role: true,
+              student: {
+                select: {
+                  id: true,
+                  group: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          template: {
+            select: {
+              id: true,
+              name: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: { submittedAt: 'desc' },
+        take,
+        skip,
+      }),
+      this.prisma.feedbackResponse.count({ where }),
+    ]);
+
+    // Обрабатываем ответы для удобного отображения
+    const processedResponses = responses.map(response => {
+      const answers = response.answers as any;
+      
+      return {
+        id: response.id,
+        submittedAt: response.submittedAt,
+        period: response.period,
+        user: response.user,
+        template: response.template,
+        answers: answers,
+        // Извлекаем ключевые метрики для отображения
+        displayData: {
+          overallSatisfaction: answers.overall_satisfaction || null,
+          teacherRating: answers.teacher_rating || null,
+          teacherComment: answers.teacher_comment || null,
+          recommendCourse: answers.recommend_course || null,
+          mood: answers.mood_today || null,
+          motivation: answers.motivation_level || null,
+          concentration: answers.concentration_level || null,
+        },
+      };
+    });
+
+    return {
+      data: processedResponses,
+      total,
+      page: filter?.page || 1,
+      totalPages: Math.ceil(total / take),
+      limit: take,
+    };
+  }
+
+  // Получение конкретного feedback ответа
+  async getFeedbackResponse(id: number) {
+    const response = await this.prisma.feedbackResponse.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            role: true,
+            student: {
+              select: {
+                id: true,
+                group: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        template: {
+          select: {
+            id: true,
+            name: true,
+            title: true,
+            questions: true,
+          },
+        },
+      },
+    });
+
+    if (!response) {
+      throw new Error('Feedback response not found');
+    }
+
+    return {
+      ...response,
+      answers: response.answers as any,
+    };
+  }
+
+  // Статистика по feedback ответам
+  async getFeedbackResponsesStats(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    
+    const where = {
+      isCompleted: true,
+      template: {
+        name: {
+          in: ['student_satisfaction', 'course_evaluation', 'teacher_rating', 'teacher_evaluation'],
+        },
+      },
+      ...dateFilter,
+    };
+
+    const [
+      totalResponses,
+      responsesByTemplate,
+      responsesByPeriod,
+      averageRatings,
+    ] = await Promise.all([
+      this.prisma.feedbackResponse.count({ where }),
+      
+      this.prisma.feedbackResponse.groupBy({
+        by: ['templateId'],
+        where,
+        _count: { id: true },
+      }),
+      
+      this.prisma.feedbackResponse.groupBy({
+        by: ['period'],
+        where,
+        _count: { id: true },
+        orderBy: { period: 'desc' },
+      }),
+      
+      // Тут нужно будет агрегировать JSON поля отдельно
+      this.getAverageRatingsFromResponses(filter),
+    ]);
+
+    return {
+      totalResponses,
+      responsesByTemplate,
+      responsesByPeriod,
+      averageRatings,
+    };
+  }
+
+  private async getAverageRatingsFromResponses(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    
+    const responses = await this.prisma.feedbackResponse.findMany({
+      where: {
+        isCompleted: true,
+        template: {
+          name: {
+            in: ['student_satisfaction', 'course_evaluation', 'teacher_rating'],
+          },
+        },
+        ...dateFilter,
+      },
+      select: {
+        answers: true,
+      },
+    });
+
+    let totalSatisfaction = 0;
+    let satisfactionCount = 0;
+    let totalTeacherRating = 0;
+    let teacherRatingCount = 0;
+    let recommendCount = 0;
+    let totalRecommend = 0;
+
+    responses.forEach(response => {
+      const answers = response.answers as any;
+      
+      if (answers.overall_satisfaction) {
+        totalSatisfaction += answers.overall_satisfaction;
+        satisfactionCount++;
+      }
+      
+      if (answers.teacher_rating) {
+        totalTeacherRating += answers.teacher_rating;
+        teacherRatingCount++;
+      }
+      
+      if (answers.recommend_course !== undefined) {
+        recommendCount++;
+        if (answers.recommend_course) {
+          totalRecommend++;
+        }
+      }
+    });
+
+    return {
+      averageSatisfaction: satisfactionCount > 0 ? totalSatisfaction / satisfactionCount : 0,
+      averageTeacherRating: teacherRatingCount > 0 ? totalTeacherRating / teacherRatingCount : 0,
+      recommendationRate: recommendCount > 0 ? (totalRecommend / recommendCount) * 100 : 0,
+    };
   }
 }

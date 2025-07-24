@@ -20,8 +20,8 @@ export class LoyaltyController {
   constructor(private readonly loyaltyService: LoyaltyService) {}
 
   @Post('reviews')
-  async createReview(@Body() createReviewDto: CreateReviewDto, @Request() req) {
-    return this.loyaltyService.createReview(createReviewDto, req.user.id);
+  async createReview(@Request() req, @Body() createReviewDto: CreateReviewDto) {
+    return this.loyaltyService.createReview(req.user.id, createReviewDto);
   }
 
   @Get('reviews')
@@ -40,7 +40,7 @@ export class LoyaltyController {
     @Body() reactionDto: ReviewReactionDto,
     @Request() req,
   ) {
-    return this.loyaltyService.addReaction(+reviewId, reactionDto, req.user.id);
+    return this.loyaltyService.addReaction(+reviewId, req.user.id, reactionDto);
   }
 
   @Get('analytics')
@@ -76,12 +76,31 @@ export class LoyaltyController {
 
   @Get('analytics/repeat-purchases')
   async getRepeatPurchaseAnalytics(@Query() filter: LoyaltyFilterDto) {
-    return await this.loyaltyService.getRepeatPurchaseAnalytics(filter);
+    return await this.loyaltyService.getRepeatPurchaseRate(filter);
   }
 
-  @Post('repeat-purchases/update')
-  async updateRepeatPurchases() {
-    await this.loyaltyService.updateRepeatPurchases();
-    return { message: 'Repeat purchases updated successfully' };
+  @Get('analytics/feedback-based')
+  async getFeedbackBasedLoyalty(@Query() filter: LoyaltyFilterDto) {
+    return await this.loyaltyService.getFeedbackBasedLoyalty(filter);
+  }
+
+  @Get('analytics/emotional')
+  async getEmotionalLoyalty(@Query() filter: LoyaltyFilterDto) {
+    return await this.loyaltyService.getEmotionalLoyalty(filter);
+  }
+
+  @Get('feedback-responses')
+  async getFeedbackResponses(@Query() filter: LoyaltyFilterDto) {
+    return await this.loyaltyService.getFeedbackResponses(filter);
+  }
+
+  @Get('feedback-responses/:id')
+  async getFeedbackResponse(@Param('id') id: string) {
+    return await this.loyaltyService.getFeedbackResponse(+id);
+  }
+
+  @Get('feedback-responses/stats')
+  async getFeedbackResponsesStats(@Query() filter: LoyaltyFilterDto) {
+    return await this.loyaltyService.getFeedbackResponsesStats(filter);
   }
 }

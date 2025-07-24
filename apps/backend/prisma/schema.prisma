@@ -47,26 +47,40 @@ enum WorkloadType {
 }
 
 model User {
-  id              Int               @id @default(autoincrement())
-  email           String            @unique
-  name            String
-  surname         String
-  phone           String?
-  middlename      String?
-  avatar          String? // URL или путь к аватарке
-  role            UserRole          @default(STUDENT)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  deletedAt       DateTime?
-  student         Student?
-  teacher         Teacher?
-  hashedPassword  String
-  parent          Parent?
-  Notification    Notification[]
-  FinancialReport FinancialReport[]
-  reviewReactions ReviewReaction[]  @relation("UserReviewReactions")
-  feedbackResponses FeedbackResponse[] @relation("UserFeedbackResponses")
-  feedbackStatus  UserFeedbackStatus? @relation("UserFeedbackStatus")
+  id                Int                 @id @default(autoincrement())
+  email             String              @unique
+  name              String
+  surname           String
+  phone             String?
+  middlename        String?
+  avatar            String? // URL или путь к аватарке
+  role              UserRole            @default(STUDENT)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deletedAt         DateTime?
+  student           Student?
+  teacher           Teacher?
+  hashedPassword    String
+  parent            Parent?
+  Notification      Notification[]
+  FinancialReport   FinancialReport[]
+  reviewReactions   ReviewReaction[]    @relation("UserReviewReactions")
+  feedbackResponses FeedbackResponse[]  @relation("UserFeedbackResponses")
+  feedbackStatus    UserFeedbackStatus? @relation("UserFeedbackStatus")
+
+  // Chat relations
+  createdChats     ChatRoom[]        @relation("CreatedChats")
+  chatParticipants ChatParticipant[]
+  sentMessages     ChatMessage[]     @relation("SentMessages")
+
+  // Task relations
+  assignedTasks Task[] @relation("AssignedTasks")
+  createdTasks  Task[] @relation("CreatedTasks")
+
+  // Calendar relations
+  createdEvents     CalendarEvent[]    @relation("CreatedEvents")
+  eventParticipants EventParticipant[]
+  eventReminders    EventReminder[]
 }
 
 model Student {
@@ -112,20 +126,20 @@ model LessonResult {
 }
 
 model Teacher {
-  id             Int            @id @default(autoincrement())
-  userId         Int            @unique
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id             Int               @id @default(autoincrement())
+  userId         Int               @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   deletedAt      DateTime?
-  user           User           @relation(fields: [userId], references: [id])
+  user           User              @relation(fields: [userId], references: [id])
   studyPlans     StudyPlan[]
   schedules      Schedule[]
-  employmentType EmploymentType @default(STAFF)
+  employmentType EmploymentType    @default(STAFF)
   workloads      TeacherWorkload[]
   vacations      Vacation[]
-  substituteFor  Vacation[]     @relation("VacationSubstitute")
+  substituteFor  Vacation[]        @relation("VacationSubstitute")
   salaries       Salary[]
-  reviews        StudentReview[] @relation("StudentReviewsTeacher")
+  reviews        StudentReview[]   @relation("StudentReviewsTeacher")
 }
 
 model Parent {
@@ -146,7 +160,7 @@ model Group {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  courseNumber Int         @default(1)
+  courseNumber Int             @default(1)
   students     Student[]
   studyPlans   StudyPlan[]
   schedules    Schedule[]
@@ -154,14 +168,14 @@ model Group {
 }
 
 model StudyPlan {
-  id                Int        @id @default(autoincrement())
+  id                Int               @id @default(autoincrement())
   name              String
-  description       String?    @db.Text
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  description       String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
   teacherId         Int
-  teacher           Teacher    @relation(fields: [teacherId], references: [id])
+  teacher           Teacher           @relation(fields: [teacherId], references: [id])
   group             Group[]
   lessons           Lesson[]
   schedules         Schedule[]
@@ -170,20 +184,20 @@ model StudyPlan {
 }
 
 model Lesson {
-  id           Int            @id @default(autoincrement())
-  name         String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  deletedAt    DateTime?
-  date         DateTime
-  studyPlanId  Int
-  description  String?        @db.Text
-  studyPlan    StudyPlan      @relation(fields: [studyPlanId], references: [id])
-  homework     Homework?      @relation(fields: [homeworkId], references: [id])
-  homeworkId   Int?           @unique
-  materials    Materials?     @relation(fields: [materialsId], references: [id])
-  materialsId  Int?           @unique
-  LessonResult LessonResult[]
+  id              Int              @id @default(autoincrement())
+  name            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  date            DateTime
+  studyPlanId     Int
+  description     String?          @db.Text
+  studyPlan       StudyPlan        @relation(fields: [studyPlanId], references: [id])
+  homework        Homework?        @relation(fields: [homeworkId], references: [id])
+  homeworkId      Int?             @unique
+  materials       Materials?       @relation(fields: [materialsId], references: [id])
+  materialsId     Int?             @unique
+  LessonResult    LessonResult[]
   vacationLessons VacationLesson[]
 }
 
@@ -400,23 +414,23 @@ enum VacationStatus {
 
 
 model Vacation {
-  id            Int                @id @default(autoincrement())
-  teacher       Teacher            @relation(fields: [teacherId], references: [id])
-  teacherId     Int
-  type          VacationType
-  startDate     DateTime
-  endDate       DateTime
-  days          Int
-  status        VacationStatus     @default(pending)
-  substitute    Teacher?           @relation("VacationSubstitute", fields: [substituteId], references: [id])
-  substituteId  Int?
-  comment       String?
-  workTasks     String?            // Задачи для передачи замещающему
-  documents     VacationDocument[]
-  lessons       VacationLesson[]   // Связь с уроками для замещения
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  deletedAt     DateTime?
+  id           Int                @id @default(autoincrement())
+  teacher      Teacher            @relation(fields: [teacherId], references: [id])
+  teacherId    Int
+  type         VacationType
+  startDate    DateTime
+  endDate      DateTime
+  days         Int
+  status       VacationStatus     @default(pending)
+  substitute   Teacher?           @relation("VacationSubstitute", fields: [substituteId], references: [id])
+  substituteId Int?
+  comment      String?
+  workTasks    String? // Задачи для передачи замещающему
+  documents    VacationDocument[]
+  lessons      VacationLesson[] // Связь с уроками для замещения
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  deletedAt    DateTime?
 }
 
 model VacationLesson {
@@ -425,7 +439,7 @@ model VacationLesson {
   vacationId Int
   lesson     Lesson   @relation(fields: [lessonId], references: [id])
   lessonId   Int
-  notes      String?  // Заметки для замещающего о конкретном уроке
+  notes      String? // Заметки для замещающего о конкретном уроке
   createdAt  DateTime @default(now())
 
   @@unique([vacationId, lessonId])
@@ -518,23 +532,23 @@ model FinancialReport {
 // --- Workload management ---
 
 model TeacherWorkload {
-  id             Int                 @id @default(autoincrement())
-  teacherId      Int
-  teacher        Teacher             @relation(fields: [teacherId], references: [id])
-  academicYear   String
-  standardHours  Int                 @default(0)
-  actualHours    Int                 @default(0)
-  overtimeHours  Int                 @default(0)
-  vacationDays   Int                 @default(0)
-  sickLeaveDays  Int                 @default(0)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  deletedAt      DateTime?
-  
-  monthlyHours       MonthlyWorkload[]
-  quarterlyHours     QuarterlyWorkload[]
-  dailyHours         DailyWorkload[]
-  subjectWorkloads   SubjectWorkload[]
+  id            Int       @id @default(autoincrement())
+  teacherId     Int
+  teacher       Teacher   @relation(fields: [teacherId], references: [id])
+  academicYear  String
+  standardHours Int       @default(0)
+  actualHours   Int       @default(0)
+  overtimeHours Int       @default(0)
+  vacationDays  Int       @default(0)
+  sickLeaveDays Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  monthlyHours         MonthlyWorkload[]
+  quarterlyHours       QuarterlyWorkload[]
+  dailyHours           DailyWorkload[]
+  subjectWorkloads     SubjectWorkload[]
   additionalActivities AdditionalActivity[]
 
   @@unique([teacherId, academicYear])
@@ -623,24 +637,24 @@ enum BonusType {
 }
 
 model Salary {
-  id            Int               @id @default(autoincrement())
-  teacherId     Int
-  teacher       Teacher           @relation(fields: [teacherId], references: [id])
-  baseSalary    Int               // Базовая зарплата в тенге
-  bonuses       SalaryBonus[]
-  deductions    SalaryDeduction[]
-  totalGross    Int               // Общая сумма до вычетов
-  totalNet      Int               // Сумма к выплате
-  month         Int               // 1-12
-  year          Int
-  status        SalaryStatus      @default(DRAFT)
-  approvedBy    Int?
-  approvedAt    DateTime?
-  paidAt        DateTime?
-  comment       String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  deletedAt     DateTime?
+  id         Int               @id @default(autoincrement())
+  teacherId  Int
+  teacher    Teacher           @relation(fields: [teacherId], references: [id])
+  baseSalary Int // Базовая зарплата в тенге
+  bonuses    SalaryBonus[]
+  deductions SalaryDeduction[]
+  totalGross Int // Общая сумма до вычетов
+  totalNet   Int // Сумма к выплате
+  month      Int // 1-12
+  year       Int
+  status     SalaryStatus      @default(DRAFT)
+  approvedBy Int?
+  approvedAt DateTime?
+  paidAt     DateTime?
+  comment    String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  deletedAt  DateTime?
 
   @@unique([teacherId, month, year])
 }
@@ -661,7 +675,7 @@ model SalaryDeduction {
   id        Int      @id @default(autoincrement())
   salaryId  Int
   salary    Salary   @relation(fields: [salaryId], references: [id], onDelete: Cascade)
-  name      String   // Налоги, соцвзносы, аванс и т.д.
+  name      String // Налоги, соцвзносы, аванс и т.д.
   amount    Int
   comment   String?
   createdAt DateTime @default(now())
@@ -669,50 +683,50 @@ model SalaryDeduction {
 }
 
 model SalaryTemplate {
-  id            Int      @id @default(autoincrement())
-  name          String
-  baseSalary    Int
-  bonusRules    String   @db.Text // JSON с правилами начисления бонусов
-  deductionRules String   @db.Text // JSON с правилами удержаний
-  description   String?  @db.Text
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  id             Int       @id @default(autoincrement())
+  name           String
+  baseSalary     Int
+  bonusRules     String    @db.Text // JSON с правилами начисления бонусов
+  deductionRules String    @db.Text // JSON с правилами удержаний
+  description    String?   @db.Text
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
 }
 
 // --- Customer Loyalty Analysis ---
 
 model StudentReview {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   studentId   Int
-  student     Student  @relation(fields: [studentId], references: [id])
+  student     Student   @relation(fields: [studentId], references: [id])
   teacherId   Int
-  teacher     Teacher  @relation("StudentReviewsTeacher", fields: [teacherId], references: [id])
+  teacher     Teacher   @relation("StudentReviewsTeacher", fields: [teacherId], references: [id])
   groupId     Int
-  group       Group    @relation("StudentReviewsGroup", fields: [groupId], references: [id])
-  rating      Int      // 1-5
-  comment     String   @db.Text
-  likes       Int      @default(0)
-  helpful     Int      @default(0)
-  isModerated Boolean  @default(false)
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  group       Group     @relation("StudentReviewsGroup", fields: [groupId], references: [id])
+  rating      Int // 1-5
+  comment     String    @db.Text
+  likes       Int       @default(0)
+  helpful     Int       @default(0)
+  isModerated Boolean   @default(false)
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
-  
-  reactions   ReviewReaction[]
+
+  reactions ReviewReaction[]
 }
 
 model ReviewReaction {
-  id       Int           @id @default(autoincrement())
-  reviewId Int
-  review   StudentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId   Int
-  user     User          @relation("UserReviewReactions", fields: [userId], references: [id])
-  type     String        // "like", "helpful"
-  createdAt DateTime     @default(now())
-  
+  id        Int           @id @default(autoincrement())
+  reviewId  Int
+  review    StudentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User          @relation("UserReviewReactions", fields: [userId], references: [id])
+  type      String // "like", "helpful"
+  createdAt DateTime      @default(now())
+
   @@unique([reviewId, userId, type])
 }
 
@@ -724,10 +738,10 @@ model RepeatPurchase {
   firstPurchase    Payment  @relation("FirstPurchase", fields: [firstPurchaseId], references: [id])
   secondPurchaseId Int
   secondPurchase   Payment  @relation("SecondPurchase", fields: [secondPurchaseId], references: [id])
-  daysBetween      Int      // Количество дней между покупками
+  daysBetween      Int // Количество дней между покупками
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  
+
   @@unique([studentId, firstPurchaseId, secondPurchaseId])
 }
 
@@ -754,18 +768,18 @@ enum QuestionType {
 model FeedbackTemplate {
   id          Int               @id @default(autoincrement())
   name        String            @unique // "student_satisfaction", "teacher_workload"
-  role        UserRole          // STUDENT, TEACHER, HR, etc.
-  title       String            // "Оценка качества обучения"
+  role        UserRole // STUDENT, TEACHER, HR, etc.
+  title       String // "Оценка качества обучения"
   description String?
-  questions   Json              // Массив вопросов с типами
+  questions   Json // Массив вопросов с типами
   isActive    Boolean           @default(true)
   frequency   FeedbackFrequency @default(MONTHLY)
   priority    Int               @default(0) // Порядок показа
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   deletedAt   DateTime?
-  
-  responses   FeedbackResponse[]
+
+  responses FeedbackResponse[]
 }
 
 model FeedbackResponse {
@@ -774,26 +788,26 @@ model FeedbackResponse {
   user        User             @relation("UserFeedbackResponses", fields: [userId], references: [id])
   templateId  Int
   template    FeedbackTemplate @relation(fields: [templateId], references: [id])
-  answers     Json             // Ответы на вопросы
+  answers     Json // Ответы на вопросы
   isCompleted Boolean          @default(false)
   submittedAt DateTime?
-  period      String?          // "2025-01", "2025-Q1" для отслеживания периода
+  period      String? // "2025-01", "2025-Q1" для отслеживания периода
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  
+
   @@unique([userId, templateId, period])
 }
 
 model UserFeedbackStatus {
-  id                    Int      @id @default(autoincrement())
-  userId                Int      @unique
-  user                  User     @relation("UserFeedbackStatus", fields: [userId], references: [id])
-  hasCompletedMandatory Boolean  @default(false)
+  id                    Int       @id @default(autoincrement())
+  userId                Int       @unique
+  user                  User      @relation("UserFeedbackStatus", fields: [userId], references: [id])
+  hasCompletedMandatory Boolean   @default(false)
   lastCompletedAt       DateTime?
-  currentPeriod         String?  // "2025-01"
+  currentPeriod         String? // "2025-01"
   nextDueDate           DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 }
 
 // --- Inventory Management ---
@@ -806,43 +820,43 @@ enum InventoryStatus {
 }
 
 model InventoryItem {
-  id                    Int                     @id @default(autoincrement())
-  name                  String
-  category              String
-  location              String
-  status                InventoryStatus         @default(ACTIVE)
-  purchaseDate          DateTime
-  lastInventory         DateTime
-  cost                  Int                     // стоимость в тенге
-  currentValue          Int                     // текущая стоимость в тенге
-  responsible           String
-  qrCode                String?                 @unique
-  barcode               String?                 @unique
-  serialNumber          String?                 @unique
-  manufacturer          String?
-  model                 String?
-  photos                String[]                // массив URL фотографий
-  warranty              Json?                   // {start, end, provider}
-  maintenanceSchedule   Json?                   // {lastMaintenance, nextMaintenance, provider}
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  deletedAt             DateTime?
-  
-  movements             InventoryMovement[]
-  maintenanceRecords    InventoryMaintenance[]
+  id                  Int             @id @default(autoincrement())
+  name                String
+  category            String
+  location            String
+  status              InventoryStatus @default(ACTIVE)
+  purchaseDate        DateTime
+  lastInventory       DateTime
+  cost                Int // стоимость в тенге
+  currentValue        Int // текущая стоимость в тенге
+  responsible         String
+  qrCode              String?         @unique
+  barcode             String?         @unique
+  serialNumber        String?         @unique
+  manufacturer        String?
+  model               String?
+  photos              String[] // массив URL фотографий
+  warranty            Json? // {start, end, provider}
+  maintenanceSchedule Json? // {lastMaintenance, nextMaintenance, provider}
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  deletedAt           DateTime?
+
+  movements          InventoryMovement[]
+  maintenanceRecords InventoryMaintenance[]
 }
 
 model InventoryMovement {
-  id             Int           @id @default(autoincrement())
-  inventoryId    Int
-  inventory      InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
-  fromLocation   String
-  toLocation     String
-  responsible    String
-  reason         String
-  date           DateTime      @default(now())
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id           Int           @id @default(autoincrement())
+  inventoryId  Int
+  inventory    InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  fromLocation String
+  toLocation   String
+  responsible  String
+  reason       String
+  date         DateTime      @default(now())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model InventoryMaintenance {
@@ -853,7 +867,7 @@ model InventoryMaintenance {
   provider            String
   description         String        @db.Text
   nextMaintenanceDate DateTime?
-  cost                Int?          // стоимость обслуживания в тенге
+  cost                Int? // стоимость обслуживания в тенге
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 }
@@ -877,44 +891,44 @@ enum SupplierStatus {
 }
 
 model PurchaseRequest {
-  id            Int                    @id @default(autoincrement())
-  requestNumber String                 @unique
-  title         String
-  description   String?                @db.Text
-  requesterId   Int
-  departmentId  Int?
-  totalAmount   Int                    // общая сумма в тенге
-  currency      String                 @default("KZT")
-  urgency       String                 @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
-  requiredDate  DateTime?
-  status        PurchaseRequestStatus  @default(DRAFT)
-  approvedBy    Int?
-  approvedAt    DateTime?
+  id              Int                   @id @default(autoincrement())
+  requestNumber   String                @unique
+  title           String
+  description     String?               @db.Text
+  requesterId     Int
+  departmentId    Int?
+  totalAmount     Int // общая сумма в тенге
+  currency        String                @default("KZT")
+  urgency         String                @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  requiredDate    DateTime?
+  status          PurchaseRequestStatus @default(DRAFT)
+  approvedBy      Int?
+  approvedAt      DateTime?
   rejectionReason String?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  deletedAt     DateTime?
-  
-  items         PurchaseRequestItem[]
-  quotes        SupplierQuote[]
-  orders        PurchaseOrder[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  deletedAt       DateTime?
+
+  items  PurchaseRequestItem[]
+  quotes SupplierQuote[]
+  orders PurchaseOrder[]
 }
 
 model PurchaseRequestItem {
-  id               Int             @id @default(autoincrement())
-  requestId        Int
-  request          PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  name             String
-  description      String?         @db.Text
-  category         String
-  quantity         Int
-  unit             String          // шт, кг, м, л и т.д.
-  estimatedPrice   Int?            // ориентировочная цена за единицу
-  specifications   String?         @db.Text
-  brand            String?
-  model            String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id             Int             @id @default(autoincrement())
+  requestId      Int
+  request        PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?         @db.Text
+  category       String
+  quantity       Int
+  unit           String // шт, кг, м, л и т.д.
+  estimatedPrice Int? // ориентировочная цена за единицу
+  specifications String?         @db.Text
+  brand          String?
+  model          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Supplier {
@@ -924,40 +938,40 @@ model Supplier {
   email         String?
   phone         String?
   address       String?        @db.Text
-  taxId         String?        // ИИН/БИН
+  taxId         String? // ИИН/БИН
   bankDetails   String?        @db.Text
   website       String?
-  rating        Float?         // рейтинг поставщика 1-5
+  rating        Float? // рейтинг поставщика 1-5
   status        SupplierStatus @default(ACTIVE)
   notes         String?        @db.Text
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   deletedAt     DateTime?
-  
-  quotes        SupplierQuote[]
-  orders        PurchaseOrder[]
-  deliveries    Delivery[]
+
+  quotes     SupplierQuote[]
+  orders     PurchaseOrder[]
+  deliveries Delivery[]
 }
 
 model SupplierQuote {
-  id               Int             @id @default(autoincrement())
-  requestId        Int
-  request          PurchaseRequest @relation(fields: [requestId], references: [id])
-  supplierId       Int
-  supplier         Supplier        @relation(fields: [supplierId], references: [id])
-  quoteNumber      String?
-  totalAmount      Int             // общая сумма предложения
-  currency         String          @default("KZT")
-  deliveryDays     Int?            // срок поставки в днях
-  validUntil       DateTime?
-  paymentTerms     String?         // условия оплаты
-  deliveryTerms    String?         // условия поставки
-  notes            String?         @db.Text
-  isSelected       Boolean         @default(false)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  
-  items            QuoteItem[]
+  id            Int             @id @default(autoincrement())
+  requestId     Int
+  request       PurchaseRequest @relation(fields: [requestId], references: [id])
+  supplierId    Int
+  supplier      Supplier        @relation(fields: [supplierId], references: [id])
+  quoteNumber   String?
+  totalAmount   Int // общая сумма предложения
+  currency      String          @default("KZT")
+  deliveryDays  Int? // срок поставки в днях
+  validUntil    DateTime?
+  paymentTerms  String? // условия оплаты
+  deliveryTerms String? // условия поставки
+  notes         String?         @db.Text
+  isSelected    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  items QuoteItem[]
 }
 
 model QuoteItem {
@@ -968,8 +982,8 @@ model QuoteItem {
   description String?       @db.Text
   quantity    Int
   unit        String
-  unitPrice   Int           // цена за единицу
-  totalPrice  Int           // общая цена позиции
+  unitPrice   Int // цена за единицу
+  totalPrice  Int // общая цена позиции
   brand       String?
   model       String?
   createdAt   DateTime      @default(now())
@@ -977,26 +991,26 @@ model QuoteItem {
 }
 
 model PurchaseOrder {
-  id              Int             @id @default(autoincrement())
-  orderNumber     String          @unique
+  id              Int              @id @default(autoincrement())
+  orderNumber     String           @unique
   requestId       Int?
   request         PurchaseRequest? @relation(fields: [requestId], references: [id])
   supplierId      Int
-  supplier        Supplier        @relation(fields: [supplierId], references: [id])
+  supplier        Supplier         @relation(fields: [supplierId], references: [id])
   totalAmount     Int
-  currency        String          @default("KZT")
-  orderDate       DateTime        @default(now())
+  currency        String           @default("KZT")
+  orderDate       DateTime         @default(now())
   expectedDate    DateTime?
-  deliveryAddress String?         @db.Text
+  deliveryAddress String?          @db.Text
   paymentTerms    String?
-  status          String          @default("CONFIRMED") // CONFIRMED, SHIPPED, DELIVERED, CANCELLED
-  notes           String?         @db.Text
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  status          String           @default("CONFIRMED") // CONFIRMED, SHIPPED, DELIVERED, CANCELLED
+  notes           String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
-  
-  items           OrderItem[]
-  deliveries      Delivery[]
+
+  items      OrderItem[]
+  deliveries Delivery[]
 }
 
 model OrderItem {
@@ -1015,36 +1029,187 @@ model OrderItem {
 }
 
 model Delivery {
-  id                Int           @id @default(autoincrement())
-  deliveryNumber    String        @unique
-  orderId           Int
-  order             PurchaseOrder @relation(fields: [orderId], references: [id])
-  supplierId        Int
-  supplier          Supplier      @relation(fields: [supplierId], references: [id])
-  deliveryDate      DateTime
-  receivedDate      DateTime?
-  receivedBy        String?       // кто принял поставку
-  status            String        @default("IN_TRANSIT") // IN_TRANSIT, DELIVERED, RETURNED
-  trackingNumber    String?
-  notes             String?       @db.Text
-  documentsChecked  Boolean       @default(false)
-  qualityChecked    Boolean       @default(false)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
-  items             DeliveryItem[]
+  id               Int           @id @default(autoincrement())
+  deliveryNumber   String        @unique
+  orderId          Int
+  order            PurchaseOrder @relation(fields: [orderId], references: [id])
+  supplierId       Int
+  supplier         Supplier      @relation(fields: [supplierId], references: [id])
+  deliveryDate     DateTime
+  receivedDate     DateTime?
+  receivedBy       String? // кто принял поставку
+  status           String        @default("IN_TRANSIT") // IN_TRANSIT, DELIVERED, RETURNED
+  trackingNumber   String?
+  notes            String?       @db.Text
+  documentsChecked Boolean       @default(false)
+  qualityChecked   Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  items DeliveryItem[]
 }
 
 model DeliveryItem {
-  id              Int      @id @default(autoincrement())
-  deliveryId      Int
-  delivery        Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  name            String
-  orderedQuantity Int
+  id                Int      @id @default(autoincrement())
+  deliveryId        Int
+  delivery          Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  name              String
+  orderedQuantity   Int
   deliveredQuantity Int
-  unit            String
-  condition       String   @default("GOOD") // GOOD, DAMAGED, MISSING
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  unit              String
+  condition         String   @default("GOOD") // GOOD, DAMAGED, MISSING
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// --- Chat System ---
+
+model ChatRoom {
+  id           Int               @id @default(autoincrement())
+  name         String? // Название группового чата
+  isGroup      Boolean           @default(false)
+  createdBy    Int
+  creator      User              @relation("CreatedChats", fields: [createdBy], references: [id])
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+}
+
+model ChatParticipant {
+  id       Int       @id @default(autoincrement())
+  userId   Int
+  user     User      @relation(fields: [userId], references: [id])
+  chatId   Int
+  chat     ChatRoom  @relation(fields: [chatId], references: [id])
+  joinedAt DateTime  @default(now())
+  isActive Boolean   @default(true)
+  lastRead DateTime?
+
+  @@unique([userId, chatId])
+}
+
+model ChatMessage {
+  id        Int           @id @default(autoincrement())
+  content   String        @db.Text
+  senderId  Int
+  sender    User          @relation("SentMessages", fields: [senderId], references: [id])
+  chatId    Int
+  chat      ChatRoom      @relation(fields: [chatId], references: [id])
+  isRead    Boolean       @default(false)
+  isEdited  Boolean       @default(false)
+  replyToId Int?
+  replyTo   ChatMessage?  @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies   ChatMessage[] @relation("MessageReplies")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+}
+
+// --- Task Management ---
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String?       @db.Text
+  status      TaskStatus    @default(PENDING)
+  priority    TaskPriority  @default(MEDIUM)
+  assigneeId  Int?
+  assignee    User?         @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  createdById Int
+  createdBy   User          @relation("CreatedTasks", fields: [createdById], references: [id])
+  dueDate     DateTime?
+  completedAt DateTime?
+  categoryId  Int?
+  category    TaskCategory? @relation(fields: [categoryId], references: [id])
+  tags        String[] // массив тегов
+  attachments String[] // массив URL файлов
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+}
+
+model TaskCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  color       String   @default("#3B82F6")
+  description String?
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// --- Calendar System ---
+
+enum EventStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+model CalendarEvent {
+  id             Int                @id @default(autoincrement())
+  title          String
+  description    String?            @db.Text
+  startDate      DateTime
+  endDate        DateTime
+  isAllDay       Boolean            @default(false)
+  location       String?
+  createdById    Int
+  createdBy      User               @relation("CreatedEvents", fields: [createdById], references: [id])
+  participants   EventParticipant[]
+  reminders      EventReminder[]
+  color          String             @default("#3B82F6")
+  isRecurring    Boolean            @default(false)
+  recurrenceRule String? // RRULE для повторяющихся событий
+  timezone       String             @default("Asia/Almaty")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+}
+
+model EventParticipant {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id])
+  eventId   Int
+  event     CalendarEvent @relation(fields: [eventId], references: [id])
+  status    EventStatus   @default(PENDING)
+  comment   String? // Комментарий участника
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([userId, eventId])
+}
+
+model EventReminder {
+  id        Int           @id @default(autoincrement())
+  eventId   Int
+  event     CalendarEvent @relation(fields: [eventId], references: [id])
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id])
+  minutes   Int // Минут до события
+  sent      Boolean       @default(false)
+  method    String        @default("email") // email, sms, push
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([eventId, userId, minutes])
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { User } from 'generated/prisma';
+import { User, UserRole } from 'generated/prisma';
 import { sign, verify, decode } from 'jsonwebtoken';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class JwtService {
                 id: payload.id,
                 email: payload.email,
                 name: payload.name,
-                role: payload.role || 'user', // Default to 'user' if no role is provided
+                role: payload.role || UserRole.STUDENT, // Default to STUDENT if no role is provided
             },
             process.env.JWT_SECRET,
             {
@@ -20,26 +20,26 @@ export class JwtService {
         );
     }
 
-    verify(token: string): { id: string; email: string; name: string; role: string } {
+    verify(token: string): { id: number; email: string; name: string; role: UserRole } {
         try {
             return verify(token, process.env.JWT_SECRET) as {
-                id: string;
+                id: number;
                 email: string;
                 name: string;
-                role: string;
+                role: UserRole;
             };
         } catch {
             throw new Error('Invalid token');
         }
     }
 
-    decode(token: string): { id: string; email: string; name: string; role: string } | null {
+    decode(token: string): { id: number; email: string; name: string; role: UserRole } | null {
         try {
             return decode(token) as {
-                id: string;
+                id: number;
                 email: string;
                 name: string;
-                role: string;
+                role: UserRole;
             };
         } catch {
             return null;

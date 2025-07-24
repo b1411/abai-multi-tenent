@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { KpiFilterDto } from './dto/kpi-filter.dto';
+import * as ExcelJS from 'exceljs';
+import * as PDFDocument from 'pdfkit';
 import {
   KpiOverviewResponseDto,
   TeacherKpiResponseDto,
@@ -489,6 +491,322 @@ export class KpiService {
       comparison,
       overallChange: Math.round(overallChange * 10) / 10,
     };
+  }
+
+  async exportKpi(filter: KpiFilterDto, format: 'xlsx' | 'csv' | 'pdf' = 'xlsx'): Promise<Buffer> {
+    // Получаем все KPI данные
+    const [overview, teacherKpi, departmentKpi, trends, goals, comparison] = await Promise.all([
+      this.getOverview(filter),
+      this.getTeacherKpi(filter),
+      this.getDepartmentKpi(filter),
+      this.getTrends(filter),
+      this.getGoals(filter),
+      this.getComparison(filter),
+    ]);
+
+    // Подготавливаем данные для экспорта
+    const exportData = [
+      // Общие метрики
+      ...overview.metrics.map(metric => ({
+        'Категория': 'Общие показатели',
+        'Показатель': metric.name,
+        'Значение': metric.value,
+        'Цель': metric.target,
+        'Единица': metric.unit,
+        'Изменение': metric.change,
+        'Статус': metric.status,
+        'Дополнительно': '',
+      })),
+      
+      // KPI преподавателей
+      ...teacherKpi.teachers.slice(0, 10).map(teacher => ({
+        'Категория': 'KPI преподавателей',
+        'Показатель': teacher.name,
+        'Значение': teacher.overallScore,
+        'Цель': 85,
+        'Единица': 'балл',
+        'Изменение': teacher.trend,
+        'Статус': teacher.overallScore >= 85 ? 'success' : teacher.overallScore >= 70 ? 'warning' : 'danger',
+        'Дополнительно': `Место: ${teacher.rank}`,
+      })),
+      
+      // KPI отделов
+      ...departmentKpi.departments.map(dept => ({
+        'Категория': 'KPI отделов',
+        'Показатель': dept.name,
+        'Значение': dept.averageKpi,
+        'Цель': 80,
+        'Единица': 'балл',
+        'Изменение': dept.trend,
+        'Статус': dept.averageKpi >= 80 ? 'success' : dept.averageKpi >= 60 ? 'warning' : 'danger',
+        'Дополнительно': `Преподавателей: ${dept.teacherCount}`,
+      })),
+      
+      // Цели
+      ...goals.goals.map(goal => ({
+        'Категория': 'Цели KPI',
+        'Показатель': goal.title,
+        'Значение': goal.current,
+        'Цель': goal.target,
+        'Единица': '',
+        'Изменение': goal.progress,
+        'Статус': goal.status,
+        'Дополнительно': `Ответственный: ${goal.responsible}`,
+      })),
+    ];
+
+    if (format === 'csv') {
+      return this.generateCSV(exportData);
+    } else if (format === 'pdf') {
+      return await this.generatePDF(exportData);
+    } else {
+      return await this.generateXLSX(exportData);
+    }
+  }
+
+  async exportTeacherReport(teacherId: number, filter: KpiFilterDto, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<Buffer> {
+    const teacherKpi = await this.getTeacherKpi(filter);
+    const teacher = teacherKpi.teachers.find(t => t.id === teacherId);
+    
+    if (!teacher) {
+      throw new NotFoundException('Преподаватель не найден');
+    }
+
+    // Получаем детальные данные преподавателя
+    const teacherData = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      include: {
+        user: true,
+        workloads: {
+          include: {
+            subjectWorkloads: true,
+            monthlyHours: true,
+            additionalActivities: true,
+          },
+        },
+        studyPlans: true,
+        schedules: true,
+      },
+    });
+
+    if (!teacherData) {
+      throw new NotFoundException('Данные преподавателя не найдены');
+    }
+
+    // Подготавливаем детальный отчет
+    const exportData = [
+      // Основная информация
+      {
+        'Раздел': 'Общая информация',
+        'Показатель': 'ФИО',
+        'Значение': `${teacherData.user.surname} ${teacherData.user.name} ${teacherData.user.middlename || ''}`.trim(),
+        'Дополнительно': '',
+      },
+      {
+        'Раздел': 'Общая информация',
+        'Показатель': 'Email',
+        'Значение': teacherData.user.email,
+        'Дополнительно': '',
+      },
+      {
+        'Раздел': 'Общая информация',
+        'Показатель': 'Общий KPI',
+        'Значение': teacher.overallScore,
+        'Дополнительно': `Место в рейтинге: ${teacher.rank}`,
+      },
+
+      // KPI показатели
+      {
+        'Раздел': 'KPI показатели',
+        'Показатель': 'Качество преподавания',
+        'Значение': teacher.teachingQuality >= 0 ? teacher.teachingQuality : 'В разработке',
+        'Дополнительно': 'Основано на количестве предметов',
+      },
+      {
+        'Раздел': 'KPI показатели',
+        'Показатель': 'Выполнение нагрузки',
+        'Значение': teacher.workloadCompliance >= 0 ? teacher.workloadCompliance : 'В разработке',
+        'Дополнительно': 'Процент выполнения плановой нагрузки',
+      },
+      {
+        'Раздел': 'KPI показатели',
+        'Показатель': 'Посещаемость занятий',
+        'Значение': teacher.classAttendance >= 0 ? teacher.classAttendance : 'В разработке',
+        'Дополнительно': 'Процент проведенных занятий',
+      },
+      {
+        'Раздел': 'KPI показатели',
+        'Показатель': 'Удовлетворенность студентов',
+        'Значение': teacher.studentSatisfaction >= 0 ? teacher.studentSatisfaction : 'В разработке',
+        'Дополнительно': 'Требуется система оценок студентами',
+      },
+      {
+        'Раздел': 'KPI показатели',
+        'Показатель': 'Профессиональное развитие',
+        'Значение': teacher.professionalDevelopment >= 0 ? teacher.professionalDevelopment : 'В разработке',
+        'Дополнительно': 'Требуется система сертификации/курсов',
+      },
+
+      // Нагрузка
+      ...teacherData.workloads.map((workload, index) => ({
+        'Раздел': 'Нагрузка',
+        'Показатель': `Учебный год ${workload.academicYear}`,
+        'Значение': `${workload.actualHours}/${workload.standardHours} часов`,
+        'Дополнительно': `Выполнение: ${Math.round((workload.actualHours / workload.standardHours) * 100)}%`,
+      })),
+
+      // Предметы
+      ...teacherData.studyPlans.map(plan => ({
+        'Раздел': 'Учебные планы',
+        'Показатель': plan.name,
+        'Значение': `${plan.normativeWorkload} часов`,
+        'Дополнительно': plan.description || '',
+      })),
+    ];
+
+    if (format === 'pdf') {
+      return await this.generatePDF(exportData);
+    } else {
+      return await this.generateXLSX(exportData);
+    }
+  }
+
+  private async generateXLSX(data: any[]): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('KPI Отчет');
+
+    if (data.length === 0) {
+      return Buffer.from('');
+    }
+
+    const headers = Object.keys(data[0]);
+    
+    // Добавляем заголовки
+    worksheet.addRow(headers);
+    
+    // Стилизуем заголовки
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4CAF50' },
+    };
+
+    // Добавляем данные
+    data.forEach(row => {
+      const values = headers.map(header => row[header] || '');
+      worksheet.addRow(values);
+    });
+
+    // Автоподгонка ширины колонок
+    headers.forEach((header, index) => {
+      const column = worksheet.getColumn(index + 1);
+      let maxLength = header.length;
+      
+      data.forEach(row => {
+        const value = String(row[header] || '');
+        if (value.length > maxLength) {
+          maxLength = value.length;
+        }
+      });
+      
+      column.width = Math.min(maxLength + 2, 50);
+    });
+
+    // Генерируем buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  private generateCSV(data: any[]): Buffer {
+    if (data.length === 0) {
+      return Buffer.from('');
+    }
+
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header] || '';
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    return Buffer.from('' + csvContent, 'utf-8');
+  }
+
+  private async generatePDF(data: any[]): Promise<Buffer> {
+    return new Promise((resolve) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers: Buffer[] = [];
+
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
+      });
+
+      // Заголовок документа
+      doc.fontSize(16).text('Отчет KPI', { align: 'center' });
+      doc.moveDown();
+
+      if (data.length === 0) {
+        doc.text('Нет данных для отображения');
+        doc.end();
+        return;
+      }
+
+      // Настройки таблицы
+      const headers = Object.keys(data[0]);
+      const startX = 50;
+      let currentY = doc.y;
+      const rowHeight = 25;
+      const colWidth = (doc.page.width - 100) / headers.length;
+
+      // Рисуем заголовки
+      doc.fontSize(10);
+      headers.forEach((header, index) => {
+        const x = startX + (index * colWidth);
+        doc.rect(x, currentY, colWidth, rowHeight).fillAndStroke('#4CAF50', '#000');
+        doc.fillColor('#fff').text(header, x + 2, currentY + 8, { 
+          width: colWidth - 4, 
+          height: rowHeight - 16,
+          ellipsis: true 
+        });
+      });
+
+      currentY += rowHeight;
+
+      // Рисуем данные
+      data.forEach((row, rowIndex) => {
+        if (currentY + rowHeight > doc.page.height - 50) {
+          doc.addPage();
+          currentY = 50;
+        }
+
+        headers.forEach((header, index) => {
+          const x = startX + (index * colWidth);
+          const value = String(row[header] || '');
+          
+          // Чередуем цвета строк
+          const fillColor = rowIndex % 2 === 0 ? '#f9f9f9' : '#ffffff';
+          doc.rect(x, currentY, colWidth, rowHeight).fillAndStroke(fillColor, '#ddd');
+          
+          doc.fillColor('#000').text(value, x + 2, currentY + 5, { 
+            width: colWidth - 4, 
+            height: rowHeight - 10,
+            ellipsis: true 
+          });
+        });
+
+        currentY += rowHeight;
+      });
+
+      doc.end();
+    });
   }
 
   /**

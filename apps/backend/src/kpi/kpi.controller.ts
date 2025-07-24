@@ -1,5 +1,6 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Res, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { KpiService } from './kpi.service';
 import { KpiFilterDto } from './dto/kpi-filter.dto';
 import {
@@ -59,5 +60,54 @@ export class KpiController {
   @ApiResponse({ status: 200, description: 'Успешно получены данные', type: KpiComparisonResponseDto })
   async getComparison(@Query() filter?: KpiFilterDto): Promise<KpiComparisonResponseDto> {
     return this.kpiService.getComparison(filter);
+  }
+
+  @Get('export')
+  @ApiOperation({ summary: 'Экспорт KPI данных' })
+  @ApiResponse({ status: 200, description: 'Файл экспорта KPI' })
+  async exportKpi(
+    @Query() filter: KpiFilterDto,
+    @Query('format') format: 'xlsx' | 'csv' | 'pdf' = 'xlsx',
+    @Res() res: Response,
+  ) {
+    const buffer = await this.kpiService.exportKpi(filter, format);
+    
+    const filename = `kpi-export-${new Date().toISOString().split('T')[0]}.${format}`;
+    const mimeType = format === 'xlsx' 
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : format === 'csv'
+      ? 'text/csv'
+      : 'application/pdf';
+    
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    
+    res.send(buffer);
+  }
+
+  @Get('teachers/:teacherId/export')
+  @ApiOperation({ summary: 'Экспорт KPI отчета по преподавателю' })
+  @ApiResponse({ status: 200, description: 'Файл отчета по преподавателю' })
+  async exportTeacherReport(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Query() filter: KpiFilterDto,
+    @Query('format') format: 'xlsx' | 'pdf' = 'xlsx',
+    @Res() res: Response,
+  ) {
+    const buffer = await this.kpiService.exportTeacherReport(teacherId, filter, format);
+    
+    const filename = `teacher-kpi-${teacherId}-${new Date().toISOString().split('T')[0]}.${format}`;
+    const mimeType = format === 'xlsx' 
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'application/pdf';
+    
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    
+    res.send(buffer);
   }
 }

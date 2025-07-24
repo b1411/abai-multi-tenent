@@ -8,8 +8,10 @@ import {
   Delete,
   Query,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Response } from 'express';
 import { WorkloadService } from './workload.service';
 import { CreateWorkloadDto } from './dto/create-workload.dto';
 import { UpdateWorkloadDto } from './dto/update-workload.dto';
@@ -18,7 +20,7 @@ import { WorkloadFilterDto } from './dto/workload-filter.dto';
 @ApiTags('workload')
 @Controller('workload')
 export class WorkloadController {
-  constructor(private readonly workloadService: WorkloadService) {}
+  constructor(private readonly workloadService: WorkloadService) { }
 
   @Post()
   @ApiOperation({ summary: 'Create teacher workload' })
@@ -113,5 +115,77 @@ export class WorkloadController {
     @Query('academicYear') academicYear: string,
   ) {
     return this.workloadService.calculateWorkloadFromSchedule(teacherId, academicYear);
+  }
+
+  @Get('export')
+  @ApiOperation({ summary: 'Export workloads' })
+  @ApiResponse({ status: 200, description: 'Workload export file' })
+  async exportWorkloads(
+    @Query() filter: WorkloadFilterDto,
+    @Query('format') format: 'xlsx' | 'csv' | 'pdf' = 'xlsx',
+    @Res() res: Response,
+  ) {
+    const buffer = await this.workloadService.exportWorkloads(filter, format);
+
+    const filename = `workload-export-${new Date().toISOString().split('T')[0]}.${format}`;
+    const mimeType = format === 'xlsx'
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : format === 'csv'
+        ? 'text/csv'
+        : 'application/pdf';
+
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    res.send(buffer);
+  }
+
+  @Get('template')
+  @ApiOperation({ summary: 'Download workload template' })
+  @ApiResponse({ status: 200, description: 'Workload template file' })
+  async downloadTemplate(
+    @Query('format') format: 'xlsx' | 'csv' = 'xlsx',
+    @Res() res: Response,
+  ) {
+    const buffer = await this.workloadService.downloadTemplate(format);
+
+    const filename = `workload-template.${format}`;
+    const mimeType = format === 'xlsx'
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'text/csv';
+
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    res.send(buffer);
+  }
+
+  @Get('teacher/:teacherId/export')
+  @ApiOperation({ summary: 'Export teacher workload' })
+  @ApiResponse({ status: 200, description: 'Teacher workload export file' })
+  async exportTeacherWorkload(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Query('format') format: 'xlsx' | 'pdf' = 'xlsx',
+    @Res() res: Response,
+    @Query('academicYear') academicYear?: string,
+
+  ) {
+    const buffer = await this.workloadService.exportTeacherWorkload(teacherId, academicYear, format);
+
+    const filename = `teacher-workload-${teacherId}-${new Date().toISOString().split('T')[0]}.${format}`;
+    const mimeType = format === 'xlsx'
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'application/pdf';
+
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    res.send(buffer);
   }
 }

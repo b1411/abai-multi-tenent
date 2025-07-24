@@ -4,6 +4,8 @@ import { CreateWorkloadDto } from './dto/create-workload.dto';
 import { UpdateWorkloadDto } from './dto/update-workload.dto';
 import { WorkloadFilterDto } from './dto/workload-filter.dto';
 import { PaginateResponseDto } from '../common/dtos/paginate.dto';
+import * as ExcelJS from 'exceljs';
+import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class WorkloadService {
@@ -22,26 +24,43 @@ export class WorkloadService {
     return await this.prisma.teacherWorkload.create({
       data: {
         ...workloadData,
-        monthlyHours: {
+        monthlyHours: monthlyHours.length > 0 ? {
           create: monthlyHours,
-        },
-        quarterlyHours: {
+        } : undefined,
+        quarterlyHours: quarterlyHours.length > 0 ? {
           create: quarterlyHours,
-        },
-        dailyHours: {
+        } : undefined,
+        dailyHours: dailyHours.length > 0 ? {
           create: dailyHours.map(dh => ({
             ...dh,
             date: new Date(dh.date),
           })),
+        } : undefined,
+        subjectWorkloads: subjectWorkloads.length > 0 ? {
+          create: subjectWorkloads,
+        } : undefined,
+        additionalActivities: additionalActivities.length > 0 ? {
+          create: additionalActivities,
+        } : undefined,
+      },
+      include: {
+        teacher: {
+          include: {
+            user: true,
+          },
+        },
+        monthlyHours: true,
+        quarterlyHours: true,
+        dailyHours: {
+          orderBy: { date: 'desc' },
         },
         subjectWorkloads: {
-          create: subjectWorkloads,
+          include: {
+            studyPlan: true,
+          },
         },
-        additionalActivities: {
-          create: additionalActivities,
-        },
+        additionalActivities: true,
       },
-      include: this.getIncludeOptions(),
     });
   }
 
@@ -528,6 +547,276 @@ export class WorkloadService {
       subjectDistribution,
       trends,
     };
+  }
+
+  async exportWorkloads(filter: WorkloadFilterDto, format: 'xlsx' | 'csv' | 'pdf' = 'xlsx'): Promise<Buffer> {
+    // Получаем данные без пагинации
+    const { page, limit, ...filters } = filter;
+    
+    const where: any = {};
+
+    if (filters.search) {
+      where.teacher = {
+        user: {
+          OR: [
+            { name: { contains: filters.search, mode: 'insensitive' } },
+            { surname: { contains: filters.search, mode: 'insensitive' } },
+            { email: { contains: filters.search, mode: 'insensitive' } },
+          ],
+        },
+      };
+    }
+
+    if (filters.academicYear) {
+      where.academicYear = filters.academicYear;
+    }
+
+    if (filters.teacherId) {
+      where.teacherId = filters.teacherId;
+    }
+
+    const workloads = await this.prisma.teacherWorkload.findMany({
+      where,
+      include: this.getIncludeOptions(),
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Подготавливаем данные для экспорта
+    const exportData = workloads.map(workload => ({
+      'ID': workload.id,
+      'Преподаватель': `${workload.teacher.user.surname} ${workload.teacher.user.name} ${workload.teacher.user.middlename || ''}`.trim(),
+      'Email': workload.teacher.user.email,
+      'Учебный год': workload.academicYear,
+      'Нормативная нагрузка': workload.standardHours,
+      'Фактическая нагрузка': workload.actualHours,
+      'Сверхурочные часы': workload.overtimeHours,
+      'Дни отпуска': workload.vacationDays,
+      'Дни больничного': workload.sickLeaveDays,
+      'Предметы': workload.subjectWorkloads.map(sw => sw.subjectName).join(', '),
+      'Дополнительные активности': workload.additionalActivities.map(aa => aa.name).join(', '),
+      'Дата создания': workload.createdAt.toLocaleDateString('ru-RU'),
+    }));
+
+    if (format === 'csv') {
+      return this.generateCSV(exportData);
+    } else if (format === 'pdf') {
+      return await this.generatePDF(exportData);
+    } else {
+      return await this.generateXLSX(exportData);
+    }
+  }
+
+  async downloadTemplate(format: 'xlsx' | 'csv' = 'xlsx'): Promise<Buffer> {
+    // Создаем шаблон с заголовками и примером данных
+    const templateData = [
+      {
+        'ID преподавателя': '1',
+        'Учебный год': '2024-2025',
+        'Нормативная нагрузка': '720',
+        'Предмет 1': 'Математика',
+        'Часы предмета 1': '120',
+        'Предмет 2': 'Алгебра',
+        'Часы предмета 2': '100',
+        'Дополнительная активность 1': 'Классное руководство',
+        'Часы активности 1': '50',
+        'Комментарий': 'Пример записи',
+      }
+    ];
+
+    if (format === 'csv') {
+      return Promise.resolve(this.generateCSV(templateData));
+    } else {
+      return Promise.resolve(this.generateXLSX(templateData));
+    }
+  }
+
+  async exportTeacherWorkload(teacherId: number, academicYear?: string, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<Buffer> {
+    const where: any = { teacherId };
+    if (academicYear) {
+      where.academicYear = academicYear;
+    }
+
+    const workloads = await this.prisma.teacherWorkload.findMany({
+      where,
+      include: this.getIncludeOptions(),
+      orderBy: { academicYear: 'desc' },
+    });
+
+    if (workloads.length === 0) {
+      throw new NotFoundException('Нагрузка преподавателя не найдена');
+    }
+
+    const teacher = workloads[0].teacher;
+    
+    // Подготавливаем детальные данные
+    const exportData = workloads.flatMap(workload => [
+      // Основная информация
+      {
+        'Тип': 'Основная информация',
+        'Преподаватель': `${teacher.user.surname} ${teacher.user.name} ${teacher.user.middlename || ''}`.trim(),
+        'Email': teacher.user.email,
+        'Учебный год': workload.academicYear,
+        'Нормативная нагрузка': workload.standardHours,
+        'Фактическая нагрузка': workload.actualHours,
+        'Отклонение': workload.actualHours - workload.standardHours,
+      },
+      // Предметы
+      ...workload.subjectWorkloads.map(subject => ({
+        'Тип': 'Предмет',
+        'Название': subject.subjectName,
+        'Часы': subject.hours,
+        'Учебный план': subject.studyPlan?.name || '',
+        'Описание': subject.studyPlan?.description || '',
+      })),
+      // Дополнительные активности
+      ...workload.additionalActivities.map(activity => ({
+        'Тип': 'Дополнительная активность',
+        'Название': activity.name,
+        'Часы': activity.hours,
+        'Описание': activity.description || '',
+      })),
+    ]);
+
+    if (format === 'pdf') {
+      return this.generatePDF(exportData);
+    } else {
+      return this.generateXLSX(exportData);
+    }
+  }
+
+  private async generateXLSX(data: any[]): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Нагрузки');
+
+    if (data.length === 0) {
+      return Buffer.from('');
+    }
+
+    const headers = Object.keys(data[0]);
+    
+    // Добавляем заголовки
+    worksheet.addRow(headers);
+    
+    // Стилизуем заголовки
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    // Добавляем данные
+    data.forEach(row => {
+      const values = headers.map(header => row[header] || '');
+      worksheet.addRow(values);
+    });
+
+    // Автоподгонка ширины колонок
+    headers.forEach((header, index) => {
+      const column = worksheet.getColumn(index + 1);
+      let maxLength = header.length;
+      
+      data.forEach(row => {
+        const value = String(row[header] || '');
+        if (value.length > maxLength) {
+          maxLength = value.length;
+        }
+      });
+      
+      column.width = Math.min(maxLength + 2, 50);
+    });
+
+    // Генерируем buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  private generateCSV(data: any[]): Buffer {
+    if (data.length === 0) {
+      return Buffer.from('');
+    }
+
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header] || '';
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    return Buffer.from('' + csvContent, 'utf-8');
+  }
+
+  private async generatePDF(data: any[]): Promise<Buffer> {
+    return new Promise((resolve) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers: Buffer[] = [];
+
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
+      });
+
+      // Заголовок документа
+      doc.fontSize(16).text('Отчет по нагрузкам преподавателей', { align: 'center' });
+      doc.moveDown();
+
+      if (data.length === 0) {
+        doc.text('Нет данных для отображения');
+        doc.end();
+        return;
+      }
+
+      // Настройки таблицы
+      const headers = Object.keys(data[0]);
+      const startX = 50;
+      let currentY = doc.y;
+      const rowHeight = 20;
+      const colWidth = (doc.page.width - 100) / headers.length;
+
+      // Рисуем заголовки
+      doc.fontSize(10);
+      headers.forEach((header, index) => {
+        const x = startX + (index * colWidth);
+        doc.rect(x, currentY, colWidth, rowHeight).stroke();
+        doc.text(header, x + 2, currentY + 5, { 
+          width: colWidth - 4, 
+          height: rowHeight - 10,
+          ellipsis: true 
+        });
+      });
+
+      currentY += rowHeight;
+
+      // Рисуем данные
+      data.forEach((row) => {
+        if (currentY + rowHeight > doc.page.height - 50) {
+          doc.addPage();
+          currentY = 50;
+        }
+
+        headers.forEach((header, index) => {
+          const x = startX + (index * colWidth);
+          const value = String(row[header] || '');
+          
+          doc.rect(x, currentY, colWidth, rowHeight).stroke();
+          doc.text(value, x + 2, currentY + 5, { 
+            width: colWidth - 4, 
+            height: rowHeight - 10,
+            ellipsis: true 
+          });
+        });
+
+        currentY += rowHeight;
+      });
+
+      doc.end();
+    });
   }
 
   private getIncludeOptions() {

@@ -140,6 +140,52 @@ const KPI: React.FC = () => {
     ];
   };
 
+  const handleExport = async () => {
+    try {
+      // Подготавливаем фильтры для экспорта
+      const filter: KpiFilter = {
+        department: selectedDepartment || undefined,
+        period: periodFilter,
+      };
+      
+      // Получаем blob файла
+      const blob = await kpiService.exportKpi(filter, 'xlsx');
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kpi-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при экспорте KPI:', error);
+      alert('Произошла ошибка при экспорте данных');
+    }
+  };
+
+  const handleExportTeacherReport = async (teacher: TeacherKpi) => {
+    try {
+      // Получаем отчет по конкретному преподавателю
+      const blob = await kpiService.exportTeacherReport(teacher.id, 'pdf');
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kpi-teacher-report-${teacher.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при экспорте отчета преподавателя:', error);
+      alert('Произошла ошибка при экспорте отчета');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -173,7 +219,10 @@ const KPI: React.FC = () => {
             <FaCog className="mr-2" />
             Настроить KPI
           </button>
-          <button className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+          <button 
+            className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            onClick={handleExport}
+          >
             <FaFileExport className="mr-2" />
             Экспорт
           </button>
@@ -549,7 +598,10 @@ const KPI: React.FC = () => {
               </div>
 
               <div className="flex justify-end pt-6 border-t mt-6">
-                <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg mr-2 hover:bg-gray-300 transition-colors">
+                <button 
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg mr-2 hover:bg-gray-300 transition-colors"
+                  onClick={() => handleExportTeacherReport(selectedTeacher)}
+                >
                   Выгрузить отчет
                 </button>
                 <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">

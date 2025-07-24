@@ -111,6 +111,33 @@ const Salaries: React.FC = () => {
     setIsRecalculating(false);
   };
 
+  const handleExport = async () => {
+    try {
+      // Подготавливаем фильтры для экспорта
+      const exportFilters: any = {};
+      
+      if (localFilters.status !== 'all') {
+        exportFilters.status = localFilters.status;
+      }
+      
+      // Получаем blob файла
+      const blob = await salaryService.exportSalaries(exportFilters, 'xlsx');
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `salaries-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при экспорте зарплат:', error);
+      alert('Произошла ошибка при экспорте данных');
+    }
+  };
+
   // Использовать реальную статистику или дефолтные значения
   const stats = statistics || {
     totalPayroll: 0,
@@ -574,7 +601,10 @@ const Salaries: React.FC = () => {
               </>
             )}
           </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center">
+          <button 
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+            onClick={handleExport}
+          >
             <FaFileExport className="mr-2" />
             Экспорт
           </button>

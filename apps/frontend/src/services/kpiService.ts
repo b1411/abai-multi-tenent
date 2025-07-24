@@ -69,4 +69,22 @@ export const kpiService = {
 
     return await apiClient.get<KpiComparisonResponse>(`/kpi/comparison?${params}`);
   },
+
+  // Экспорт KPI данных
+  exportKpi: async (filter?: KpiFilter, format: 'xlsx' | 'csv' | 'pdf' = 'xlsx'): Promise<Blob> => {
+    const params = new URLSearchParams();
+    if (filter?.department) params.append('department', filter.department);
+    if (filter?.period) params.append('period', filter.period);
+    if (filter?.teacherId) params.append('teacherId', filter.teacherId.toString());
+    if (filter?.startDate) params.append('startDate', filter.startDate);
+    if (filter?.endDate) params.append('endDate', filter.endDate);
+    params.append('format', format);
+
+    return await apiClient.getBlob(`/kpi/export?${params}`);
+  },
+
+  // Экспорт отчета по конкретному преподавателю
+  exportTeacherReport: async (teacherId: number, format: 'xlsx' | 'pdf' = 'pdf'): Promise<Blob> => {
+    return await apiClient.getBlob(`/kpi/teachers/${teacherId}/export?format=${format}`);
+  },
 };

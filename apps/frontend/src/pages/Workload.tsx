@@ -26,6 +26,7 @@ import {
 } from 'recharts';
 import { useWorkloads, useWorkloadAnalytics } from '../hooks/useWorkload';
 import { useTeachers } from '../hooks/useTeachers';
+import { workloadService } from '../services/workloadService';
 import type { TeacherWorkload, WorkloadType, AddDailyHoursData } from '../types/workload';
 import { Spinner } from '../components/ui/Spinner';
 
@@ -197,6 +198,53 @@ const WorkloadPage: React.FC = () => {
     });
   };
 
+  const handleExport = async () => {
+    try {
+      // Подготавливаем параметры для экспорта
+      const exportParams = {
+        academicYear: currentYear,
+        page: 1,
+        limit: 1000 // Экспортируем все данные
+      };
+      
+      // Получаем blob файла
+      const blob = await workloadService.exportWorkloads(exportParams, 'xlsx');
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `workload-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при экспорте нагрузок:', error);
+      alert('Произошла ошибка при экспорте данных');
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      // Получаем шаблон
+      const blob = await workloadService.downloadTemplate('xlsx');
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `workload-template.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при скачивании шаблона:', error);
+      alert('Произошла ошибка при скачивании шаблона');
+    }
+  };
+
   const getWorkloadTypeLabel = (type: WorkloadType): string => {
     switch (type) {
       case 'REGULAR': return 'Обычные';
@@ -286,11 +334,17 @@ const WorkloadPage: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center">
+          <button 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center"
+            onClick={handleDownloadTemplate}
+          >
             <FaDownload className="mr-2" />
             Загрузить шаблон
           </button>
-          <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex items-center">
+          <button 
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex items-center"
+            onClick={handleExport}
+          >
             <FaFileExport className="mr-2" />
             Экспорт
           </button>

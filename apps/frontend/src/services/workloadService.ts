@@ -65,15 +65,34 @@ export const workloadService = {
     return await apiClient.get<WorkloadAnalytics>(`/workload/analytics${queryString}`);
   },
 
-  // Экспорт данных (заглушка для будущей реализации)
-  async exportWorkloads(params?: WorkloadFilterParams): Promise<Blob> {
-    const queryString = params ? '?' + new URLSearchParams(
-      Object.entries(params).reduce((acc, [key, value]) => {
-        if (value !== undefined) acc[key] = String(value);
-        return acc;
-      }, {} as Record<string, string>)
-    ).toString() : '';
+  // Экспорт данных нагрузки
+  async exportWorkloads(params?: WorkloadFilterParams, format: 'xlsx' | 'csv' | 'pdf' = 'xlsx'): Promise<Blob> {
+    const searchParams = new URLSearchParams();
     
-    return await apiClient.getBlob(`/workload/export${queryString}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, String(value));
+        }
+      });
+    }
+    
+    searchParams.append('format', format);
+    
+    return await apiClient.getBlob(`/workload/export?${searchParams.toString()}`);
+  },
+
+  // Экспорт шаблона для загрузки
+  async downloadTemplate(format: 'xlsx' | 'csv' = 'xlsx'): Promise<Blob> {
+    return await apiClient.getBlob(`/workload/template?format=${format}`);
+  },
+
+  // Экспорт отчета по конкретному преподавателю
+  async exportTeacherWorkload(teacherId: number, academicYear?: string, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (academicYear) params.append('academicYear', academicYear);
+    params.append('format', format);
+    
+    return await apiClient.getBlob(`/workload/teacher/${teacherId}/export?${params.toString()}`);
   },
 };

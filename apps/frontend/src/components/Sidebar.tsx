@@ -31,10 +31,16 @@ import {
   Palette,
   Cog,
   Heart,
-  MessageCircle
+  MessageCircle,
+  X
 } from 'lucide-react';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout, hasAnyRole } = useAuth();
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({
     study: false,
@@ -157,11 +163,19 @@ const Sidebar: React.FC = () => {
   );
 
   return (
-    <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+      isOpen ? 'translate-x-0' : '-translate-x-full'
+    } lg:translate-x-0`}>
       <div className="flex h-full flex-col">
-        {/* Logo */}
-        <div className="flex h-16 items-center justify-center border-b border-gray-200">
+        {/* Logo and close button */}
+        <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
           <h1 className="text-xl font-bold text-primary">ABAI LMS</h1>
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1 text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -172,6 +186,7 @@ const Sidebar: React.FC = () => {
                 {item.href ? (
                   <NavLink
                     to={item.href}
+                    onClick={() => window.innerWidth < 1024 && onClose()}
                     className={({ isActive }) =>
                       `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
                         ? 'bg-primary text-white'
@@ -209,6 +224,7 @@ const Sidebar: React.FC = () => {
                             <li key={child.name}>
                               <NavLink
                                 to={child.href}
+                                onClick={() => window.innerWidth < 1024 && onClose()}
                                 className={({ isActive }) =>
                                   `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${isActive
                                     ? 'bg-primary text-white'

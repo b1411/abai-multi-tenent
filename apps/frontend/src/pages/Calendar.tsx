@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Clock, MapPin, Users, Loader, Edit, X } from 'lucide-react';
 import { formatDate } from '../utils/formatters';
 import { calendarService, CalendarEvent } from '../services/calendarService';
-// import EventForm from '../components/EventForm';
+import EventForm from '../components/EventForm';
 import EventDetailsModal from '../components/EventDetailsModal';
 
 const Calendar: React.FC = () => {
@@ -269,7 +269,10 @@ const Calendar: React.FC = () => {
                   className={`h-32 border-r border-b border-gray-100 p-2 cursor-pointer hover:bg-gray-50 ${
                     !isSameMonth(date) ? 'bg-gray-50' : ''
                   }`}
-                  onClick={() => setSelectedDate(date)}
+                  onClick={() => {
+                    setSelectedDate(date);
+                    setShowEventModal(true);
+                  }}
                 >
                   <div className={`text-sm font-medium mb-1 ${
                     isToday(date) 
@@ -425,6 +428,15 @@ const Calendar: React.FC = () => {
         event={selectedEvent}
         onEdit={handleEditEvent}
         onDelete={handleDeleteEvent}
+      />
+
+      {/* Event Form Modal */}
+      <EventForm
+        isOpen={showEventModal}
+        onClose={handleCloseModal}
+        onSubmit={handleEventSubmit}
+        event={editingEvent}
+        selectedDate={selectedDate}
       />
     </div>
   );

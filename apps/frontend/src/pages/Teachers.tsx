@@ -112,11 +112,13 @@ const Teachers: React.FC = () => {
   // Компонент таблицы преподавателей
   const TeacherTable = ({ teachers, title }: { teachers: Teacher[], title: string }) => (
     <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-        <h2 className="text-lg font-medium text-gray-900">{title} ({teachers.length})</h2>
-        <p className="text-sm text-gray-500">Всего: {teachers.length} человек</p>
+      <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 bg-gray-50 border-b border-gray-200">
+        <h2 className="text-base sm:text-lg font-medium text-gray-900">{title} ({teachers.length})</h2>
+        <p className="text-xs sm:text-sm text-gray-500">Всего: {teachers.length} человек</p>
       </div>
-      <div className="overflow-x-auto">
+      
+      {/* Desktop Table View */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
@@ -139,13 +141,13 @@ const Teachers: React.FC = () => {
             {teachers.map((teacher) => (
               <tr 
                 key={teacher.id} 
-                className="hover:bg-gray-50 cursor-pointer"
+                className="hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => setSelectedTeacher(teacher)}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-medium">
+                      <span className="text-blue-600 font-medium text-sm">
                         {teacher.user.surname.charAt(0)}{teacher.user.name.charAt(0)}
                       </span>
                     </div>
@@ -212,7 +214,7 @@ const Teachers: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end gap-2">
                     <button 
-                      className="text-gray-400 hover:text-blue-500"
+                      className="text-gray-400 hover:text-blue-500 p-1 rounded transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleChangeEmploymentType(teacher.id, teacher.employmentType);
@@ -222,7 +224,7 @@ const Teachers: React.FC = () => {
                       <FaExchangeAlt className="w-4 h-4" />
                     </button>
                     <button 
-                      className="text-gray-400 hover:text-red-500"
+                      className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteTeacher(teacher.id);
@@ -232,7 +234,7 @@ const Teachers: React.FC = () => {
                       <FaTimes className="w-4 h-4" />
                     </button>
                     <button 
-                      className="text-gray-400 hover:text-gray-500"
+                      className="text-gray-400 hover:text-gray-500 p-1 rounded transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedTeacher(teacher);
@@ -254,6 +256,105 @@ const Teachers: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden">
+        {teachers.length === 0 ? (
+          <div className="p-6 text-center text-gray-500">
+            В этой категории нет преподавателей
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {teachers.map((teacher) => (
+              <div 
+                key={teacher.id}
+                className="p-3 sm:p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => setSelectedTeacher(teacher)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-medium text-sm">
+                        {teacher.user.surname.charAt(0)}{teacher.user.name.charAt(0)}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm sm:text-base font-medium text-gray-900 truncate">
+                        {teacher.user.surname} {teacher.user.name}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-gray-500 truncate">{teacher.user.email}</p>
+                      
+                      {/* Предметы */}
+                      {teacher.studyPlans && teacher.studyPlans.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {teacher.studyPlans.slice(0, 2).map((plan) => (
+                            <span 
+                              key={plan.id}
+                              className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs"
+                            >
+                              {plan.name}
+                            </span>
+                          ))}
+                          {teacher.studyPlans.length > 2 && (
+                            <span className="text-xs text-gray-500 px-2 py-1">
+                              +{teacher.studyPlans.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Нагрузка и контакты */}
+                      <div className="mt-2 space-y-1">
+                        {teacher.studyPlans && (
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <div className="flex items-center">
+                              <FaUsers className="w-3 h-3 mr-1" />
+                              <span>{teacher.studyPlans.reduce((total, plan) => total + (plan.group?.length || 0), 0)} групп</span>
+                            </div>
+                            <div className="flex items-center">
+                              <FaClock className="w-3 h-3 mr-1" />
+                              <span>{teacher.schedules?.length || 0} ч/нед</span>
+                            </div>
+                          </div>
+                        )}
+                        {teacher.user.phone && (
+                          <div className="flex items-center text-xs text-gray-500">
+                            <FaPhone className="w-3 h-3 mr-1" />
+                            <span>{teacher.user.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1 ml-2">
+                    <button 
+                      className="text-gray-400 hover:text-blue-500 p-2 rounded transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleChangeEmploymentType(teacher.id, teacher.employmentType);
+                      }}
+                      title={teacher.employmentType === 'STAFF' ? 'Перевести в совместители' : 'Перевести в штатные'}
+                    >
+                      <FaExchangeAlt className="w-4 h-4" />
+                    </button>
+                    <button 
+                      className="text-gray-400 hover:text-red-500 p-2 rounded transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTeacher(teacher.id);
+                      }}
+                      title="Удалить преподавателя"
+                    >
+                      <FaTimes className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -266,50 +367,52 @@ const Teachers: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-3 sm:p-4 lg:p-6">
+      <div className="flex flex-col space-y-4 lg:flex-row lg:justify-between lg:items-center lg:space-y-0 mb-4 lg:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Сотрудники и преподаватели</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Сотрудники и преподаватели</h1>
           <p className="text-sm text-gray-500">Управление кадровым составом образовательного учреждения</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <button 
-            className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
             onClick={handleExport}
             disabled={actionLoading}
           >
-            <FaDownload className="w-4 h-4" />
-            Экспорт
+            <FaDownload className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Экспорт</span>
+            <span className="sm:hidden">Скачать</span>
           </button>
           <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
             onClick={() => setShowAddModal(true)}
           >
-            <FaPlus className="w-4 h-4" />
-            Добавить преподавателя
+            <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Добавить преподавателя</span>
+            <span className="sm:hidden">Добавить</span>
           </button>
         </div>
       </div>
 
       {error && (
-        <Alert variant="error" className="mb-6">
+        <Alert variant="error" className="mb-4 lg:mb-6">
           {error}
         </Alert>
       )}
 
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:gap-4 mb-4 lg:mb-6">
         <div className="flex-1 relative">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
           <input
             type="text"
             placeholder="Поиск по преподавателям..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md"
+            className="w-full pl-8 sm:pl-10 pr-4 py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             value={filters.search}
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
           />
         </div>
         <select
-          className="px-4 py-2 border border-gray-300 rounded-md bg-white"
+          className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           value={filters.employmentType}
           onChange={(e) => setFilters(prev => ({ ...prev, employmentType: e.target.value as any }))}
         >
@@ -320,7 +423,7 @@ const Teachers: React.FC = () => {
       </div>
 
       {/* Двухколоночный макет */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
         {/* Колонка штатных преподавателей */}
         <TeacherTable teachers={staffTeachers} title="🟦 Штатные преподаватели" />
         

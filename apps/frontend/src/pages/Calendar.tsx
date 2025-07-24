@@ -182,34 +182,34 @@ const Calendar: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Календарь</h1>
-          <div className="flex items-center space-x-2">
+      <div className="flex flex-col space-y-4 lg:flex-row lg:justify-between lg:items-center lg:space-y-0">
+        <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Календарь</h1>
+          <div className="flex items-center justify-center sm:justify-start space-x-2">
             <button
               onClick={() => navigateMonth('prev')}
-              className="p-2 hover:bg-gray-100 rounded-md"
+              className="p-2 hover:bg-gray-100 rounded-md transition-colors"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <h2 className="text-lg font-medium text-gray-900 min-w-[200px] text-center">
+            <h2 className="text-base sm:text-lg font-medium text-gray-900 min-w-[160px] sm:min-w-[200px] text-center">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
             <button
               onClick={() => navigateMonth('next')}
-              className="p-2 hover:bg-gray-100 rounded-md"
+              className="p-2 hover:bg-gray-100 rounded-md transition-colors"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-3">
+          <div className="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
             <button
               onClick={() => setView('month')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
+              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                 view === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
               }`}
             >
@@ -217,7 +217,7 @@ const Calendar: React.FC = () => {
             </button>
             <button
               onClick={() => setView('week')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
+              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                 view === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
               }`}
             >
@@ -225,7 +225,7 @@ const Calendar: React.FC = () => {
             </button>
             <button
               onClick={() => setView('day')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
+              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                 view === 'day' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
               }`}
             >
@@ -234,10 +234,11 @@ const Calendar: React.FC = () => {
           </div>
           <button
             onClick={() => setShowEventModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <Plus className="w-4 h-4" />
-            Новое событие
+            <span className="hidden sm:inline">Новое событие</span>
+            <span className="sm:hidden">Создать</span>
           </button>
         </div>
       </div>
@@ -248,8 +249,9 @@ const Calendar: React.FC = () => {
           {/* Days of week header */}
           <div className="grid grid-cols-7 border-b border-gray-200">
             {dayNames.map((day) => (
-              <div key={day} className="p-3 text-center text-sm font-medium text-gray-700 bg-gray-50">
-                {day}
+              <div key={day} className="p-1 sm:p-2 lg:p-3 text-center text-xs sm:text-sm font-medium text-gray-700 bg-gray-50">
+                <span className="hidden sm:inline">{day}</span>
+                <span className="sm:hidden">{day.charAt(0)}</span>
               </div>
             ))}
           </div>
@@ -258,7 +260,7 @@ const Calendar: React.FC = () => {
           <div className="grid grid-cols-7">
             {getDaysInMonth(currentDate).map((date, index) => {
               if (!date) {
-                return <div key={index} className="h-32 border-r border-b border-gray-100"></div>;
+                return <div key={index} className="h-16 sm:h-24 lg:h-32 border-r border-b border-gray-100"></div>;
               }
 
               const dayEvents = getEventsForDate(date);
@@ -266,7 +268,7 @@ const Calendar: React.FC = () => {
               return (
                 <div
                   key={date.toISOString()}
-                  className={`h-32 border-r border-b border-gray-100 p-2 cursor-pointer hover:bg-gray-50 ${
+                  className={`h-16 sm:h-24 lg:h-32 border-r border-b border-gray-100 p-1 sm:p-2 cursor-pointer hover:bg-gray-50 transition-colors ${
                     !isSameMonth(date) ? 'bg-gray-50' : ''
                   }`}
                   onClick={() => {
@@ -274,20 +276,20 @@ const Calendar: React.FC = () => {
                     setShowEventModal(true);
                   }}
                 >
-                  <div className={`text-sm font-medium mb-1 ${
+                  <div className={`text-xs sm:text-sm font-medium mb-1 ${
                     isToday(date) 
-                      ? 'bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center'
+                      ? 'bg-blue-600 text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs'
                       : !isSameMonth(date)
                       ? 'text-gray-400'
                       : 'text-gray-900'
                   }`}>
                     {date.getDate()}
                   </div>
-                  <div className="space-y-1 overflow-y-auto max-h-20">
-                    {dayEvents.slice(0, 3).map((event) => (
+                  <div className="space-y-0.5 sm:space-y-1 overflow-y-auto max-h-8 sm:max-h-12 lg:max-h-20">
+                    {dayEvents.slice(0, window.innerWidth < 640 ? 1 : window.innerWidth < 1024 ? 2 : 3).map((event) => (
                       <div
                         key={event.id}
-                        className="text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80"
+                        className="text-xs p-0.5 sm:p-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity"
                         style={{ backgroundColor: getEventColor(event) }}
                         title={event.title}
                         onClick={(e) => {
@@ -296,12 +298,13 @@ const Calendar: React.FC = () => {
                           setShowEventDetails(true);
                         }}
                       >
-                        {event.startTime} {event.title}
+                        <span className="hidden sm:inline">{event.startTime} </span>
+                        {event.title}
                       </div>
                     ))}
-                    {dayEvents.length > 3 && (
+                    {dayEvents.length > (window.innerWidth < 640 ? 1 : window.innerWidth < 1024 ? 2 : 3) && (
                       <div className="text-xs text-gray-500 text-center">
-                        +{dayEvents.length - 3} еще
+                        +{dayEvents.length - (window.innerWidth < 640 ? 1 : window.innerWidth < 1024 ? 2 : 3)} еще
                       </div>
                     )}
                   </div>
@@ -314,17 +317,17 @@ const Calendar: React.FC = () => {
 
       {/* Events sidebar for selected date */}
       {selectedDate && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 lg:p-6">
+          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">
             События на {formatDate(selectedDate)}
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {getEventsForDate(selectedDate).length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Нет событий на этот день</p>
+              <p className="text-gray-500 text-center py-6 sm:py-8">Нет событий на этот день</p>
             ) : (
               getEventsForDate(selectedDate).map((event) => (
-                <div key={event.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between">
+                <div key={event.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-2 sm:space-y-0">
                     <div 
                       className="flex-1 cursor-pointer"
                       onClick={() => {
@@ -332,48 +335,50 @@ const Calendar: React.FC = () => {
                         setShowEventDetails(true);
                       }}
                     >
-                      <h4 className="font-medium text-gray-900 hover:text-blue-600">{event.title}</h4>
+                      <h4 className="font-medium text-gray-900 hover:text-blue-600 transition-colors">{event.title}</h4>
                       {event.description && (
                         <p className="text-sm text-gray-600 mt-1">{event.description}</p>
                       )}
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                           <span>{event.startTime} - {event.endTime}</span>
                         </div>
                         {event.location && (
                           <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>{event.location}</span>
+                            <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="truncate">{event.location}</span>
                           </div>
                         )}
                         {event.attendees && event.attendees.length > 0 && (
                           <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            <span>{event.attendees.join(', ')}</span>
+                            <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="truncate">{event.attendees.join(', ')}</span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditEvent(event)}
-                        className="text-blue-600 hover:text-blue-800 p-1"
-                        title="Редактировать событие"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(event.id)}
-                        className="text-red-600 hover:text-red-800 p-1"
-                        title="Удалить событие"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center justify-between sm:justify-end space-x-2 sm:ml-2">
                       <div 
                         className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: getEventColor(event) }}
                       ></div>
+                      <div className="flex items-center space-x-1 sm:space-x-2">
+                        <button
+                          onClick={() => handleEditEvent(event)}
+                          className="text-blue-600 hover:text-blue-800 p-1 sm:p-1.5 rounded transition-colors"
+                          title="Редактировать событие"
+                        >
+                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvent(event.id)}
+                          className="text-red-600 hover:text-red-800 p-1 sm:p-1.5 rounded transition-colors"
+                          title="Удалить событие"
+                        >
+                          <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -384,35 +389,36 @@ const Calendar: React.FC = () => {
       )}
 
       {/* Today's events summary */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5" />
-          Сегодня ({formatDate(today)})
+      <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 lg:p-6">
+        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+          <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline">Сегодня ({formatDate(today)})</span>
+          <span className="sm:hidden">Сегодня</span>
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {getEventsForDate(today).length === 0 ? (
-            <p className="text-gray-500">Сегодня нет событий</p>
+            <p className="text-gray-500 text-sm sm:text-base">Сегодня нет событий</p>
           ) : (
             getEventsForDate(today).map((event) => (
               <div 
                 key={event.id} 
-                className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
+                className="flex items-center space-x-3 p-2 sm:p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => {
                   setSelectedEvent(event);
                   setShowEventDetails(true);
                 }}
               >
                 <div 
-                  className="w-3 h-3 rounded-full"
+                  className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: getEventColor(event) }}
                 ></div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-gray-900">{event.title}</h4>
-                    <span className="text-sm text-gray-500">{event.startTime} - {event.endTime}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">{event.title}</h4>
+                    <span className="text-xs sm:text-sm text-gray-500 flex-shrink-0">{event.startTime} - {event.endTime}</span>
                   </div>
                   {event.description && (
-                    <p className="text-sm text-gray-600">{event.description}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 truncate mt-1">{event.description}</p>
                   )}
                 </div>
               </div>

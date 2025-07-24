@@ -83,24 +83,24 @@ const AiChat: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Заголовок */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">AI Ассистент</h1>
-            <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white shadow-sm border-b px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+        <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">AI Ассистент</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Голосовой помощник для образовательной платформы
             </p>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
             {/* Статус подключения */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-center sm:justify-start space-x-2">
               <div className={`w-3 h-3 rounded-full ${
                 connectionState.status === 'connected' ? 'bg-green-500' : 
                 connectionState.status === 'connecting' ? 'bg-yellow-500' : 
                 connectionState.status === 'error' ? 'bg-red-500' : 'bg-gray-400'
               }`} />
-              <span className={`text-sm font-medium ${getConnectionStatusColor()}`}>
+              <span className={`text-xs sm:text-sm font-medium ${getConnectionStatusColor()}`}>
                 {getConnectionStatusText()}
               </span>
             </div>
@@ -110,30 +110,35 @@ const AiChat: React.FC = () => {
               {connectionState.status === 'connected' ? (
                 <button
                   onClick={disconnect}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center space-x-2"
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
                 >
-                  <PhoneOff size={16} />
-                  <span>Отключиться</span>
+                  <PhoneOff size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Отключиться</span>
+                  <span className="sm:hidden">Отключить</span>
                 </button>
               ) : (
                 <button
                   onClick={connect}
                   disabled={connectionState.status === 'connecting'}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
                 >
-                  <Phone size={16} />
-                  <span>
+                  <Phone size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">
                     {connectionState.status === 'connecting' ? 'Подключение...' : 'Подключиться'}
+                  </span>
+                  <span className="sm:hidden">
+                    {connectionState.status === 'connecting' ? 'Подключение...' : 'Подключить'}
                   </span>
                 </button>
               )}
 
               <button
                 onClick={clearMessages}
-                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center space-x-2"
+                className="px-3 sm:px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
                 title="Очистить чат"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Очистить</span>
               </button>
             </div>
           </div>
@@ -141,12 +146,12 @@ const AiChat: React.FC = () => {
       </div>
 
       {/* Область сообщений */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 mt-20">
-            <div className="text-6xl mb-4">🤖</div>
-            <h3 className="text-xl font-semibold mb-2">Добро пожаловать в AI чат!</h3>
-            <p className="text-gray-400">
+          <div className="text-center text-gray-500 mt-10 sm:mt-20">
+            <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🤖</div>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">Добро пожаловать в AI чат!</h3>
+            <p className="text-sm sm:text-base text-gray-400 px-4">
               Подключитесь к AI-ассистенту, чтобы начать общение голосом или текстом
             </p>
           </div>
@@ -157,7 +162,7 @@ const AiChat: React.FC = () => {
               className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 sm:px-4 py-2 rounded-lg ${
                   message.type === 'user'
                     ? 'bg-blue-500 text-white'
                     : message.type === 'assistant'
@@ -167,10 +172,10 @@ const AiChat: React.FC = () => {
               >
                 <div className="flex items-start space-x-2">
                   {message.isAudio && (
-                    <Volume2 size={16} className="mt-1 flex-shrink-0" />
+                    <Volume2 size={14} className="sm:w-4 sm:h-4 mt-1 flex-shrink-0" />
                   )}
-                  <div className="flex-1">
-                    <p className="text-sm">{message.content}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm break-words">{message.content}</p>
                     <p className={`text-xs mt-1 ${
                       message.type === 'user' ? 'text-blue-100' : 'text-gray-400'
                     }`}>
@@ -186,10 +191,10 @@ const AiChat: React.FC = () => {
         {/* Индикаторы активности */}
         {isRecording && (
           <div className="flex justify-start">
-            <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg border border-red-200">
+            <div className="bg-red-100 text-red-700 px-3 sm:px-4 py-2 rounded-lg border border-red-200">
               <div className="flex items-center space-x-2">
-                <Mic size={16} className="animate-pulse" />
-                <span className="text-sm">Идет запись...</span>
+                <Mic size={14} className="sm:w-4 sm:h-4 animate-pulse" />
+                <span className="text-xs sm:text-sm">Идет запись...</span>
               </div>
             </div>
           </div>
@@ -197,10 +202,10 @@ const AiChat: React.FC = () => {
 
         {isPlaying && (
           <div className="flex justify-start">
-            <div className="bg-green-100 text-green-700 px-4 py-2 rounded-lg border border-green-200">
+            <div className="bg-green-100 text-green-700 px-3 sm:px-4 py-2 rounded-lg border border-green-200">
               <div className="flex items-center space-x-2">
-                <Volume2 size={16} className="animate-pulse" />
-                <span className="text-sm">Воспроизведение...</span>
+                <Volume2 size={14} className="sm:w-4 sm:h-4 animate-pulse" />
+                <span className="text-xs sm:text-sm">Воспроизведение...</span>
               </div>
             </div>
           </div>
@@ -210,8 +215,8 @@ const AiChat: React.FC = () => {
       </div>
 
       {/* Область ввода */}
-      <div className="bg-white border-t px-6 py-4">
-        <div className="flex items-end space-x-4">
+      <div className="bg-white border-t px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+        <div className="flex flex-col space-y-3 sm:flex-row sm:items-end sm:space-y-0 sm:space-x-3 lg:space-x-4">
           {/* Push-to-talk кнопка */}
           <button
             onMouseDown={handlePushToTalkStart}
@@ -220,7 +225,7 @@ const AiChat: React.FC = () => {
             onTouchStart={handlePushToTalkStart}
             onTouchEnd={handlePushToTalkEnd}
             disabled={connectionState.status !== 'connected'}
-            className={`p-3 rounded-full transition-all duration-200 ${
+            className={`w-12 h-12 sm:w-auto sm:h-auto sm:p-3 rounded-full transition-all duration-200 flex items-center justify-center self-center ${
               isPushToTalkActive
                 ? 'bg-red-500 text-white scale-110 shadow-lg'
                 : connectionState.status === 'connected'
@@ -229,7 +234,7 @@ const AiChat: React.FC = () => {
             }`}
             title="Удерживайте для записи голоса"
           >
-            {isPushToTalkActive ? <Mic size={20} /> : <MicOff size={20} />}
+            {isPushToTalkActive ? <Mic size={18} className="sm:w-5 sm:h-5" /> : <MicOff size={18} className="sm:w-5 sm:h-5" />}
           </button>
 
           {/* Текстовый ввод */}
@@ -240,11 +245,13 @@ const AiChat: React.FC = () => {
               onKeyPress={handleKeyPress}
               placeholder={
                 connectionState.status === 'connected'
-                  ? 'Введите сообщение или удерживайте кнопку микрофона для записи...'
-                  : 'Подключитесь к AI-ассистенту для отправки сообщений'
+                  ? window.innerWidth < 640 
+                    ? 'Введите сообщение...'
+                    : 'Введите сообщение или удерживайте кнопку микрофона для записи...'
+                  : 'Подключитесь к AI-ассистенту'
               }
               disabled={connectionState.status !== 'connected'}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
               rows={1}
               style={{ minHeight: '44px' }}
             />
@@ -252,19 +259,19 @@ const AiChat: React.FC = () => {
             <button
               onClick={handleSendMessage}
               disabled={!textInput.trim() || connectionState.status !== 'connected'}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+              className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
             >
-              <Send size={16} />
+              <Send size={16} className="sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
 
         {/* Подсказки */}
-        <div className="mt-3 text-xs text-gray-500 space-y-1">
-          <p>💡 Удерживайте кнопку микрофона для записи голосового сообщения</p>
+        <div className="mt-2 sm:mt-3 text-xs text-gray-500 space-y-1">
+          <p className="hidden sm:block">💡 Удерживайте кнопку микрофона для записи голосового сообщения</p>
           <p>⌨️ Нажмите Enter для отправки текстового сообщения</p>
           {connectionState.status === 'connected' && (
-            <p>🔊 Ответы AI будут воспроизводиться автоматически</p>
+            <p className="hidden sm:block">🔊 Ответы AI будут воспроизводиться автоматически</p>
           )}
         </div>
       </div>

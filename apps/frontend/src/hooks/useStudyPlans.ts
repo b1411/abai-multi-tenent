@@ -135,3 +135,57 @@ export const useAvailableData = () => {
     refetch: fetchAvailableData
   };
 };
+
+export const useTeacherLessons = (teacherId?: number, startDate?: string, endDate?: string) => {
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLessons = async () => {
+    if (!teacherId || !startDate || !endDate) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Получаем учебные планы преподавателя
+      const studyPlansResponse = await studyPlanService.getStudyPlans({ teacherId });
+      
+      // Извлекаем все уроки из учебных планов в указанном диапазоне дат
+      const allLessons = studyPlansResponse.data.flatMap(plan => 
+        plan.lessons
+          .filter(lesson => {
+            const lessonDate = new Date(lesson.date);
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            return lessonDate >= start && lessonDate <= end;
+          })
+          .map(lesson => ({
+            ...lesson,
+            studyPlan: {
+              id: plan.id,
+              name: plan.name
+            },
+            group: plan.group?.[0] || null
+          }))
+      );
+      
+      setLessons(allLessons);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки уроков');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLessons();
+  }, [teacherId, startDate, endDate]);
+
+  return {
+    lessons,
+    loading,
+    error,
+    refetch: fetchLessons
+  };
+};

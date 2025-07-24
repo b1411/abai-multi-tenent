@@ -13,11 +13,13 @@ import {
   Edit,
   Trash2,
   User,
-  CalendarDays
+  CalendarDays,
+  BookOpen
 } from 'lucide-react';
 import { useVacations } from '../hooks/useVacations';
 import { useAuth } from '../hooks/useAuth';
 import { useTeachers } from '../hooks/useTeachers';
+import { useTeacherLessons } from '../hooks/useStudyPlans';
 import { vacationService } from '../services/vacationService';
 import {
   Vacation,
@@ -39,7 +41,8 @@ const VacationCard: React.FC<{
   onEdit: (vacation: Vacation) => void;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: VacationStatus) => void;
-}> = ({ vacation, currentUserId, userRole, onEdit, onDelete, onStatusChange }) => {
+  onViewDetails: (vacation: Vacation) => void;
+}> = ({ vacation, currentUserId, userRole, onEdit, onDelete, onStatusChange, onViewDetails }) => {
   const canEdit = vacationService.canEdit(vacation, currentUserId, userRole);
   const canChangeStatus = vacationService.canChangeStatus(userRole);
   
@@ -100,6 +103,13 @@ const VacationCard: React.FC<{
 
       <div className="flex justify-between items-center pt-4 border-t border-gray-200">
         <div className="flex space-x-2">
+          <button
+            onClick={() => onViewDetails(vacation)}
+            className="flex items-center space-x-1 px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors"
+          >
+            <Eye className="w-4 h-4" />
+            <span>Просмотр</span>
+          </button>
           {canEdit && (
             <button
               onClick={() => onEdit(vacation)}
@@ -149,6 +159,7 @@ const VacationForm: React.FC<{
   vacation?: Vacation | null;
   onSubmit: (data: CreateVacationRequest) => void;
 }> = ({ isOpen, onClose, vacation, onSubmit }) => {
+  const { user } = useAuth();
   const { teachers } = useTeachers();
   const [formData, setFormData] = useState<CreateVacationRequest>({
     type: VacationType.vacation,
@@ -157,10 +168,19 @@ const VacationForm: React.FC<{
     days: 0,
     substituteId: undefined,
     comment: '',
-    lectureTopics: ''
+    lectureTopics: '',
+    affectedLessons: []
   });
 
   const [errors, setErrors] = useState<string[]>([]);
+  const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
+
+  // Получаем уроки преподавателя в указанном диапазоне дат
+  const { lessons, loading: lessonsLoading } = useTeacherLessons(
+    user?.role === 'TEACHER' ? user.id : undefined,
+    formData.startDate,
+    formData.endDate
+  );
 
   useEffect(() => {
     if (vacation) {
@@ -171,8 +191,10 @@ const VacationForm: React.FC<{
         days: vacation.days,
         substituteId: vacation.substituteId || undefined,
         comment: vacation.comment || '',
-        lectureTopics: vacation.lectureTopics || ''
+        lectureTopics: vacation.lectureTopics || '',
+        affectedLessons: vacation.affectedLessons?.map(lesson => lesson.id) || []
       });
+      setSelectedLessons(vacation.affectedLessons?.map(lesson => lesson.id) || []);
     }
   }, [vacation]);
 
@@ -196,8 +218,17 @@ const VacationForm: React.FC<{
     onSubmit({
       ...formData,
       startDate: new Date(formData.startDate).toISOString(),
-      endDate: new Date(formData.endDate).toISOString()
+      endDate: new Date(formData.endDate).toISOString(),
+      affectedLessons: selectedLessons
     });
+  };
+
+  const handleLessonToggle = (lessonId: number) => {
+    setSelectedLessons(prev => 
+      prev.includes(lessonId) 
+        ? prev.filter(id => id !== lessonId)
+        : [...prev, lessonId]
+    );
   };
 
   if (!isOpen) return null;
@@ -318,18 +349,78 @@ const VacationForm: React.FC<{
           </div>
 
           {formData.substituteId && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Темы лекций для замещения
-              </label>
-              <textarea
-                value={formData.lectureTopics}
-                onChange={(e) => setFormData(prev => ({ ...prev, lectureTopics: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={2}
-                placeholder="Укажите темы, которые должен изучить замещающий преподаватель..."
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Темы лекций для замещения
+                </label>
+                <textarea
+                  value={formData.lectureTopics}
+                  onChange={(e) => setFormData(prev => ({ ...prev, lectureTopics: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={2}
+                  placeholder="Укажите темы, которые должен изучить замещающий преподаватель..."
+                />
+              </div>
+
+              {/* Выбор уроков для замещения */}
+              {formData.startDate && formData.endDate && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Уроки для замещения
+                  </label>
+                  {lessonsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Spinner size="sm" />
+                      <span className="ml-2 text-sm text-gray-600">Загрузка уроков...</span>
+                    </div>
+                  ) : lessons.length > 0 ? (
+                    <div className="border border-gray-300 rounded-md max-h-48 overflow-y-auto">
+                      {lessons.map(lesson => (
+                        <div key={lesson.id} className="p-3 border-b border-gray-200 last:border-b-0">
+                          <label className="flex items-start space-x-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedLessons.includes(lesson.id)}
+                              onChange={() => handleLessonToggle(lesson.id)}
+                              className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <BookOpen className="w-4 h-4 text-blue-600" />
+                                <span className="text-sm font-medium text-gray-900">{lesson.name}</span>
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {lesson.studyPlan && (
+                                  <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">
+                                    {lesson.studyPlan.name}
+                                  </span>
+                                )}
+                                {lesson.group && (
+                                  <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded mr-2">
+                                    {lesson.group.name}
+                                  </span>
+                                )}
+                                <span className="text-gray-500">
+                                  {new Date(lesson.date).toLocaleDateString('ru-RU')}
+                                </span>
+                              </div>
+                              {lesson.description && (
+                                <p className="text-xs text-gray-600 mt-1">{lesson.description}</p>
+                              )}
+                            </div>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-sm text-gray-600 bg-gray-50 rounded-md">
+                      В указанном периоде нет запланированных уроков
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -348,6 +439,211 @@ const VacationForm: React.FC<{
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+const VacationDetailsModal: React.FC<{
+  vacation: Vacation | null;
+  isOpen: boolean;
+  onClose: () => void;
+}> = ({ vacation, isOpen, onClose }) => {
+  if (!isOpen || !vacation) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Подробности заявки на отпуск
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <XCircle className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Основная информация */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Информация о сотруднике</h3>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium">{vacation.teacher.user.name} {vacation.teacher.user.surname}</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Email: {vacation.teacher.user.email}
+                  </div>
+                  {vacation.teacher.user.phone && (
+                    <div className="text-sm text-gray-600">
+                      Телефон: {vacation.teacher.user.phone}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Детали отпуска</h3>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Тип:</span>
+                    <span className={`px-2 py-1 rounded text-sm font-medium ${vacationService.getTypeColor(vacation.type)}`}>
+                      {VACATION_TYPE_LABELS[vacation.type]}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Статус:</span>
+                    <span className={`px-2 py-1 rounded text-sm font-medium ${VACATION_STATUS_COLORS[vacation.status]}`}>
+                      {VACATION_STATUS_LABELS[vacation.status]}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Период:</span>
+                    <span className="font-medium">
+                      {vacationService.formatPeriod(vacation.startDate, vacation.endDate)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Количество дней:</span>
+                    <span className="font-medium">{vacation.days}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Дата создания:</span>
+                    <span className="text-sm">{new Date(vacation.createdAt).toLocaleDateString('ru-RU')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {vacation.substitute && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Замещающий преподаватель</h3>
+                  <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4 text-blue-500" />
+                      <span className="font-medium">{vacation.substitute.user.name} {vacation.substitute.user.surname}</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Email: {vacation.substitute.user.email}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {vacation.lectureTopics && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Темы лекций для замещения</h3>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-700">{vacation.lectureTopics}</p>
+                  </div>
+                </div>
+              )}
+
+              {vacation.comment && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Комментарий</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-700">{vacation.comment}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Затронутые уроки */}
+          {vacation.affectedLessons && vacation.affectedLessons.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Затронутые уроки</h3>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <div className="grid grid-cols-4 gap-4 text-sm font-medium text-gray-700">
+                    <span>Урок</span>
+                    <span>Учебный план</span>
+                    <span>Группа</span>
+                    <span>Дата</span>
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {vacation.affectedLessons.map(lesson => (
+                    <div key={lesson.id} className="px-4 py-3">
+                      <div className="grid grid-cols-4 gap-4 text-sm">
+                        <div className="flex items-center space-x-2">
+                          <BookOpen className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium">{lesson.name}</span>
+                        </div>
+                        <div>
+                          <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                            {lesson.studyPlan.name}
+                          </span>
+                        </div>
+                        <div>
+                          {lesson.group && (
+                            <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                              {lesson.group.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-gray-600">
+                          {new Date(lesson.date).toLocaleDateString('ru-RU')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Документы */}
+          {vacation.documents && vacation.documents.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Прикрепленные документы</h3>
+              <div className="space-y-2">
+                {vacation.documents.map(doc => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="w-5 h-5 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{doc.file.originalName}</p>
+                        <p className="text-xs text-gray-600">
+                          {doc.type} • {(doc.file.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={doc.file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      Скачать
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-200">
+          <div className="flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -373,6 +669,7 @@ const Vacations: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<VacationStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<VacationType | ''>('');
+  const [viewingVacation, setViewingVacation] = useState<Vacation | null>(null);
 
   const handleCreateVacation = async (data: CreateVacationRequest) => {
     try {
@@ -421,6 +718,10 @@ const Vacations: React.FC = () => {
       status: statusFilter || undefined,
       type: typeFilter || undefined
     });
+  };
+
+  const handleViewDetails = (vacation: Vacation) => {
+    setViewingVacation(vacation);
   };
 
   const filteredVacations = vacations.filter(vacation => {
@@ -587,6 +888,7 @@ const Vacations: React.FC = () => {
               onEdit={handleEditVacation}
               onDelete={handleDeleteVacation}
               onStatusChange={handleStatusChange}
+              onViewDetails={handleViewDetails}
             />
           ))
         ) : (
@@ -612,6 +914,13 @@ const Vacations: React.FC = () => {
         }}
         vacation={editingVacation}
         onSubmit={handleCreateVacation}
+      />
+
+      {/* Details Modal */}
+      <VacationDetailsModal
+        vacation={viewingVacation}
+        isOpen={!!viewingVacation}
+        onClose={() => setViewingVacation(null)}
       />
     </div>
   );

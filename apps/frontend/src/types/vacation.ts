@@ -59,6 +59,19 @@ export interface Vacation {
       email: string;
     };
   };
+  affectedLessons?: {
+    id: number;
+    name: string;
+    date: string;
+    studyPlan: {
+      id: number;
+      name: string;
+    };
+    group?: {
+      id: number;
+      name: string;
+    };
+  }[];
   documents: VacationDocument[];
   createdAt: string;
   updatedAt: string;
@@ -72,6 +85,7 @@ export interface CreateVacationRequest {
   substituteId?: number;
   comment?: string;
   lectureTopics?: string;
+  affectedLessons?: number[]; // ID уроков, которые нужно замещать
 }
 
 export interface UpdateVacationRequest {
@@ -82,6 +96,7 @@ export interface UpdateVacationRequest {
   substituteId?: number;
   comment?: string;
   lectureTopics?: string;
+  affectedLessons?: number[];
 }
 
 export interface UpdateVacationStatusRequest {

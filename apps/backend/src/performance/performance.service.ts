@@ -74,16 +74,49 @@ export class PerformanceService {
       ? (lessonScores.filter(score => score >= 3).length / lessonScores.length) * 100
       : 0;
 
+    // Расчет реальных трендов за последний месяц
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const recentResults = allResults.filter(r => new Date(r.createdAt) >= oneMonthAgo);
+    const olderResults = allResults.filter(r => new Date(r.createdAt) < oneMonthAgo);
+
+    // Тренды по оценкам
+    const recentGrades = recentResults.filter(r => r.lessonScore !== null).map(r => r.lessonScore);
+    const olderGrades = olderResults.filter(r => r.lessonScore !== null).map(r => r.lessonScore);
+    const recentAvgGrade = recentGrades.length > 0 ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
+    const olderAvgGrade = olderGrades.length > 0 ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+    const gradeTrend = olderAvgGrade > 0 ? Number((recentAvgGrade - olderAvgGrade).toFixed(1)) : 0;
+
+    // Тренды по успеваемости
+    const recentPerformance = recentGrades.length > 0 ? (recentGrades.filter(g => g >= 3).length / recentGrades.length) * 100 : 0;
+    const olderPerformance = olderGrades.length > 0 ? (olderGrades.filter(g => g >= 3).length / olderGrades.length) * 100 : 0;
+    const performanceTrend = Math.round(recentPerformance - olderPerformance);
+
+    // Тренды по посещаемости
+    const recentAttendance = recentResults.filter(r => r.attendance !== null);
+    const olderAttendance = olderResults.filter(r => r.attendance !== null);
+    const recentAttendanceRate = recentAttendance.length > 0 ? (recentAttendance.filter(r => r.attendance).length / recentAttendance.length) * 100 : 0;
+    const olderAttendanceRate = olderAttendance.length > 0 ? (olderAttendance.filter(r => r.attendance).length / olderAttendance.length) * 100 : 0;
+    const attendanceTrend = Math.round(recentAttendanceRate - olderAttendanceRate);
+
+    // Тренды по заданиям
+    const recentHomework = recentResults.filter(r => r.homeworkScore !== null);
+    const olderHomework = olderResults.filter(r => r.homeworkScore !== null);
+    const recentHomeworkRate = recentHomework.length > 0 ? (recentHomework.filter(r => r.homeworkScore >= 3).length / recentHomework.length) * 100 : 0;
+    const olderHomeworkRate = olderHomework.length > 0 ? (olderHomework.filter(r => r.homeworkScore >= 3).length / olderHomework.length) * 100 : 0;
+    const assignmentsTrend = Math.round(recentHomeworkRate - olderHomeworkRate);
+
     const overview: PerformanceOverviewDto = {
       averageGrade: Number(averageGrade.toFixed(1)),
       performanceRate: Math.round(performanceRate),
       attendanceRate: Math.round(attendanceRate),
       assignmentCompletionRate: Math.round(assignmentCompletionRate),
       trends: {
-        grade: Math.round((Math.random() - 0.5) * 2 * 10) / 10, // временно случайное
-        performance: Math.round((Math.random() - 0.5) * 10),
-        attendance: Math.round((Math.random() - 0.5) * 6),
-        assignments: Math.round((Math.random() - 0.5) * 8),
+        grade: gradeTrend,
+        performance: performanceTrend,
+        attendance: attendanceTrend,
+        assignments: assignmentsTrend,
       },
     };
 
@@ -140,21 +173,50 @@ export class PerformanceService {
   }
 
   async getClasses(): Promise<ClassesResponseDto> {
-    // Получаем реальные группы из базы данных
+    // Получаем реальные группы из базы данных с результатами студентов
     const groups = await this.prisma.group.findMany({
       include: {
-        students: true,
+        students: {
+          include: {
+            lessonsResults: {
+              where: {
+                deletedAt: null,
+              },
+            },
+          },
+        },
       },
     });
 
-    const classes: ClassDataDto[] = groups.map((group, index) => ({
-      id: group.id.toString(),
-      name: group.name,
-      averageGrade: 4.0 + (index * 0.1),
-      attendance: 88 + (index * 2),
-      assignments: 82 + (index * 3),
-      studentsCount: group.students.length,
-    }));
+    const classes: ClassDataDto[] = groups.map((group) => {
+      const allResults = group.students.flatMap(s => s.lessonsResults);
+      
+      // Рассчитываем реальные метрики для группы
+      const grades = allResults.filter(r => r.lessonScore !== null).map(r => r.lessonScore);
+      const attendanceRecords = allResults.filter(r => r.attendance !== null);
+      const homeworkRecords = allResults.filter(r => r.homeworkScore !== null);
+
+      const averageGrade = grades.length > 0 
+        ? Number((grades.reduce((a, b) => a + b, 0) / grades.length).toFixed(1))
+        : 0;
+
+      const attendance = attendanceRecords.length > 0
+        ? Math.round((attendanceRecords.filter(r => r.attendance).length / attendanceRecords.length) * 100)
+        : 0;
+
+      const assignments = homeworkRecords.length > 0
+        ? Math.round((homeworkRecords.filter(r => r.homeworkScore >= 3).length / homeworkRecords.length) * 100)
+        : 0;
+
+      return {
+        id: group.id.toString(),
+        name: group.name,
+        averageGrade,
+        attendance,
+        assignments,
+        studentsCount: group.students.length,
+      };
+    });
 
     const totalStudents = classes.reduce((sum, c) => sum + c.studentsCount, 0);
     const averagePerformance = Number(
@@ -178,46 +240,97 @@ export class PerformanceService {
   async getLowPerformingStudents(
     filter: PerformanceFilterDto
   ): Promise<LowPerformingStudentsResponseDto> {
-    // Получаем реальных студентов и их данные
+    // Получаем студентов с их результатами
     const students = await this.prisma.student.findMany({
       where: {
         ...(filter.groupId && { groupId: parseInt(filter.groupId) }),
       },
       include: {
         user: true,
+        lessonsResults: {
+          where: {
+            deletedAt: null,
+            lessonScore: { not: null },
+          },
+          include: {
+            Lesson: {
+              include: {
+                studyPlan: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    // Создаем моковые данные для отстающих студентов
-    const lowPerformingStudents: StudentWithSubjectsDto[] = students
-      .slice(0, 3)
-      .map((student, index) => ({
+    // Рассчитываем средние оценки для каждого студента
+    const studentsWithGrades = students.map(student => {
+      const grades = student.lessonsResults.map(r => r.lessonScore).filter(g => g !== null);
+      const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+
+      // Расчет тренда (сравниваем последний месяц с предыдущим)
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      
+      const recentGrades = student.lessonsResults
+        .filter(r => new Date(r.createdAt) >= oneMonthAgo)
+        .map(r => r.lessonScore)
+        .filter(g => g !== null);
+      
+      const olderGrades = student.lessonsResults
+        .filter(r => new Date(r.createdAt) < oneMonthAgo)
+        .map(r => r.lessonScore)
+        .filter(g => g !== null);
+
+      const recentAvg = recentGrades.length > 0 ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
+      const olderAvg = olderGrades.length > 0 ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+      const trend = olderAvg > 0 ? Number((recentAvg - olderAvg).toFixed(1)) : 0;
+
+      // Группируем результаты по предметам
+      const subjectResults = new Map<string, number[]>();
+      student.lessonsResults.forEach(result => {
+        const subjectName = result.Lesson?.studyPlan?.name || 'Неизвестный предмет';
+        if (!subjectResults.has(subjectName)) {
+          subjectResults.set(subjectName, []);
+        }
+        subjectResults.get(subjectName)?.push(result.lessonScore);
+      });
+
+      const subjects = Array.from(subjectResults.entries()).map(([subjectName, subjectGrades]) => {
+        const subjectAvg = subjectGrades.length > 0 ? 
+          Number((subjectGrades.reduce((a, b) => a + b, 0) / subjectGrades.length).toFixed(1)) : 0;
+        
+        const recommendations = [];
+        if (subjectAvg < 3) {
+          recommendations.push('Дополнительные консультации', 'Повторение базового материала', 'Индивидуальная работа');
+        } else if (subjectAvg < 3.5) {
+          recommendations.push('Больше практических заданий', 'Регулярные проверки знаний');
+        }
+
+        return {
+          name: subjectName,
+          grade: subjectAvg,
+          recommendations,
+        };
+      });
+
+      return {
         student: {
           name: `${student.user.name} ${student.user.surname}`,
-          grade: 2.8 + (index * 0.1),
-          trend: -0.2 - (index * 0.1),
+          grade: Number(averageGrade.toFixed(1)),
+          trend,
         },
-        subjects: [
-          {
-            name: 'Математика',
-            grade: 2.5,
-            recommendations: [
-              'Больше практических заданий',
-              'Дополнительные консультации',
-              'Повторение базового материала',
-            ],
-          },
-          {
-            name: 'Физика',
-            grade: 2.8,
-            recommendations: [
-              'Работа с формулами',
-              'Решение задач',
-              'Лабораторные работы',
-            ],
-          },
-        ],
-      }));
+        subjects: subjects.slice(0, 3), // Ограничиваем 3 предметами
+        averageGrade,
+      };
+    });
+
+    // Фильтруем и сортируем отстающих студентов (средняя оценка < 3.5)
+    const lowPerformingStudents: StudentWithSubjectsDto[] = studentsWithGrades
+      .filter(s => s.averageGrade < 3.5 && s.averageGrade > 0)
+      .sort((a, b) => a.averageGrade - b.averageGrade)
+      .slice(0, 5)
+      .map(({ student, subjects }) => ({ student, subjects }));
 
     return { students: lowPerformingStudents };
   }
@@ -225,36 +338,101 @@ export class PerformanceService {
   async getHighProgressStudents(
     filter: PerformanceFilterDto
   ): Promise<HighProgressStudentsResponseDto> {
-    // Получаем реальных студентов
+    // Получаем студентов с их результатами
     const students = await this.prisma.student.findMany({
       where: {
         ...(filter.groupId && { groupId: parseInt(filter.groupId) }),
       },
       include: {
         user: true,
+        lessonsResults: {
+          where: {
+            deletedAt: null,
+            lessonScore: { not: null },
+          },
+          include: {
+            Lesson: {
+              include: {
+                studyPlan: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    // Создаем моковые данные для прогрессирующих студентов
-    const highProgressStudents: StudentWithImprovementsDto[] = students
-      .slice(0, 3)
-      .map((student, index) => ({
+    // Рассчитываем средние оценки и тренды для каждого студента
+    const studentsWithProgress = students.map(student => {
+      const grades = student.lessonsResults.map(r => r.lessonScore).filter(g => g !== null);
+      const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+
+      // Расчет тренда (сравниваем последний месяц с предыдущим)
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      
+      const recentGrades = student.lessonsResults
+        .filter(r => new Date(r.createdAt) >= oneMonthAgo)
+        .map(r => r.lessonScore)
+        .filter(g => g !== null);
+      
+      const olderGrades = student.lessonsResults
+        .filter(r => new Date(r.createdAt) < oneMonthAgo)
+        .map(r => r.lessonScore)
+        .filter(g => g !== null);
+
+      const recentAvg = recentGrades.length > 0 ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
+      const olderAvg = olderGrades.length > 0 ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+      const trend = olderAvg > 0 ? Number((recentAvg - olderAvg).toFixed(1)) : 0;
+
+      // Группируем результаты по предметам для анализа улучшений
+      const subjectResults = new Map<string, { recent: number[], older: number[] }>();
+      student.lessonsResults.forEach(result => {
+        const subjectName = result.Lesson?.studyPlan?.name || 'Неизвестный предмет';
+        if (!subjectResults.has(subjectName)) {
+          subjectResults.set(subjectName, { recent: [], older: [] });
+        }
+        
+        const subject = subjectResults.get(subjectName);
+        if (!subject) return { subject: subjectName, improvement: 0 };
+        if (new Date(result.createdAt) >= oneMonthAgo) {
+          subject.recent.push(result.lessonScore);
+        } else {
+          subject.older.push(result.lessonScore);
+        }
+      });
+
+      const improvements = Array.from(subjectResults.entries()).map(([subjectName, data]) => {
+        const recentSubjectAvg = data.recent.length > 0 ? 
+          data.recent.reduce((a, b) => a + b, 0) / data.recent.length : 0;
+        const olderSubjectAvg = data.older.length > 0 ? 
+          data.older.reduce((a, b) => a + b, 0) / data.older.length : 0;
+        
+        const improvement = olderSubjectAvg > 0 ? Number((recentSubjectAvg - olderSubjectAvg).toFixed(1)) : 0;
+
+        return {
+          subject: subjectName,
+          improvement,
+        };
+      }).filter(imp => imp.improvement > 0).slice(0, 3); // Только положительные улучшения
+
+      return {
         student: {
           name: `${student.user.name} ${student.user.surname}`,
-          grade: 4.7 + (index * 0.1),
-          trend: 0.4 + (index * 0.1),
+          grade: Number(averageGrade.toFixed(1)),
+          trend,
         },
-        improvements: [
-          {
-            subject: 'Математика',
-            improvement: 0.5,
-          },
-          {
-            subject: 'Английский',
-            improvement: 0.3,
-          },
-        ],
-      }));
+        improvements,
+        averageGrade,
+        hasPositiveTrend: trend > 0,
+      };
+    });
+
+    // Фильтруем и сортируем прогрессирующих студентов (положительный тренд и хорошие оценки)
+    const highProgressStudents: StudentWithImprovementsDto[] = studentsWithProgress
+      .filter(s => s.hasPositiveTrend && s.averageGrade >= 3.5)
+      .sort((a, b) => b.student.trend - a.student.trend)
+      .slice(0, 5)
+      .map(({ student, improvements }) => ({ student, improvements }));
 
     return { students: highProgressStudents };
   }
@@ -445,12 +623,30 @@ export class PerformanceService {
     const attendanceRate = attendance.length > 0 ? (attendance.filter(r => r.attendance).length / attendance.length) * 100 : 0;
     const assignmentRate = assignments.length > 0 ? (assignments.filter(r => r.homeworkScore >= 3).length / assignments.length) * 100 : 0;
 
+    // Получаем данные о тестах (квизах)
+    const quizResults = await this.prisma.quizSubmission.findMany({
+      where: {
+        deletedAt: null,
+        score: { not: null },
+        ...(filter.groupId && {
+          student: {
+            groupId: parseInt(filter.groupId),
+          },
+        }),
+      },
+    });
+
+    const quizScores = quizResults.map(r => r.score).filter(s => s !== null);
+    const avgQuizScore = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length : 0;
+    const maxQuizScore = quizScores.length > 0 ? Math.max(...quizScores) : 100; // Предполагаем максимум 100
+    const quizRate = maxQuizScore > 0 ? Math.round((avgQuizScore / maxQuizScore) * 100) : 0;
+
     return [
-      { subject: 'Оценки', value: Math.round(avgGrade * 20) }, // Преобразуем в проценты
+      { subject: 'Оценки', value: Math.round((avgGrade / 5) * 100) }, // Преобразуем из 5-балльной в проценты
       { subject: 'Посещаемость', value: Math.round(attendanceRate) },
       { subject: 'Домашние задания', value: Math.round(assignmentRate) },
-      { subject: 'Активность', value: Math.round(avgGrade * 18) }, // Примерная активность
-      { subject: 'Тесты', value: Math.round(assignmentRate * 0.9) }, // Примерная оценка тестов
+      { subject: 'Тесты', value: quizRate },
+      { subject: 'Общая успеваемость', value: Math.round(((avgGrade / 5) * 100 + attendanceRate + assignmentRate + quizRate) / 4) },
     ];
   }
 }

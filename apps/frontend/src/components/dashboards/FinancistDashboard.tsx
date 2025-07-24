@@ -30,39 +30,6 @@ const FinancistDashboard: React.FC = () => {
       } catch (error) {
         console.error('Error fetching financist dashboard data:', error);
         setError('Не удалось загрузить данные дэшборда');
-        
-        // Fallback to mock data if API fails
-        setStats({
-          totalRevenue: 45780000,
-          monthlyRevenue: 15780000,
-          totalExpenses: 32450000,
-          monthlyExpenses: 8450000,
-          profit: 13330000,
-          outstandingPayments: 2340000,
-          overduePayments: 450000,
-          pendingBudgetRequests: 12,
-          revenueGrowth: 15.2,
-          expenseGrowth: 8.7,
-          revenueStructure: [
-            { category: 'Оплата за обучение', amount: 11835000, percentage: 75 },
-            { category: 'Дополнительные услуги', amount: 2367000, percentage: 15 },
-            { category: 'Питание', amount: 1578000, percentage: 10 }
-          ],
-          expenseStructure: [
-            { category: 'Зарплата сотрудников', amount: 5070000, percentage: 60 },
-            { category: 'Аренда и коммунальные', amount: 1690000, percentage: 20 },
-            { category: 'Учебные материалы', amount: 1267500, percentage: 15 },
-            { category: 'Прочие расходы', amount: 422500, percentage: 5 }
-          ],
-          recentTransactions: [
-            { id: 1, type: 'income', title: 'Оплата за обучение', description: 'Поступление • Иванов А.С.', amount: 75000, date: new Date().toISOString() },
-            { id: 2, type: 'expense', title: 'Зарплата преподавателей', description: 'Расход • Январь 2025', amount: 2450000, date: new Date().toISOString() }
-          ],
-          budgetRequests: [
-            { id: 1, title: 'Закупка оборудования', description: 'Компьютерный класс', amount: 1200000, status: 'pending', priority: 'high' },
-            { id: 2, title: 'Ремонт помещений', description: 'Кабинет №205', amount: 350000, status: 'pending', priority: 'medium' }
-          ]
-        });
       } finally {
         setLoading(false);
       }

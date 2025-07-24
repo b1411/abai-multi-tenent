@@ -19,27 +19,6 @@ const StudentDashboard: React.FC = () => {
       } catch (error) {
         console.error('Error fetching student dashboard data:', error);
         setError('Не удалось загрузить данные дэшборда');
-        
-        // Fallback to mock data if API fails
-        setStats({
-          upcomingLessons: 5,
-          pendingHomework: 3,
-          averageGrade: 4.2,
-          attendance: 92,
-          todaySchedule: [
-            { id: 1, subject: 'Математика', time: '09:00 - 10:30', classroom: 'Кабинет 201' },
-            { id: 2, subject: 'Физика', time: '11:00 - 12:30', classroom: 'Кабинет 305' }
-          ],
-          pendingAssignments: [
-            { id: 1, title: 'Решение уравнений', subject: 'Математика', dueDate: 'завтра', status: 'overdue' },
-            { id: 2, title: 'Лабораторная работа №3', subject: 'Физика', dueDate: 'через 2 дня', status: 'pending' }
-          ],
-          subjectGrades: [
-            { subject: 'Математика', averageGrade: 4.5, description: 'Отличная успеваемость' },
-            { subject: 'Физика', averageGrade: 4.2, description: 'Хорошая успеваемость' },
-            { subject: 'Химия', averageGrade: 3.8, description: 'Нужно подтянуть' }
-          ]
-        });
       } finally {
         setLoading(false);
       }

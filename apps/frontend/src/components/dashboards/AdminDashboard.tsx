@@ -30,39 +30,6 @@ const AdminDashboard: React.FC = () => {
       } catch (error) {
         console.error('Error fetching admin dashboard data:', error);
         setError('Не удалось загрузить данные дэшборда');
-        
-        // Fallback to mock data if API fails
-        setStats({
-          totalStudents: 1247,
-          totalTeachers: 85,
-          totalGroups: 42,
-          monthlyRevenue: 15780000,
-          pendingApplications: 23,
-          systemAlerts: 4,
-          activeClassrooms: 18,
-          completionRate: 94.5,
-          financialSummary: {
-            income: 15780000,
-            expenses: 8450000,
-            profit: 7330000
-          },
-          recentEvents: [
-            {
-              id: 1,
-              type: 'new_teacher',
-              title: 'Новый преподаватель',
-              description: 'Иванов А.С. принят на должность учителя математики',
-              timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-            },
-            {
-              id: 2,
-              type: 'new_group',
-              title: 'Группа сформирована',
-              description: 'Создана новая группа "10Г класс" (25 студентов)',
-              timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
-            }
-          ]
-        });
       } finally {
         setLoading(false);
       }

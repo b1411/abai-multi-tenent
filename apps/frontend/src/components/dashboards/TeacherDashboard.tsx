@@ -19,31 +19,6 @@ const TeacherDashboard: React.FC = () => {
       } catch (error) {
         console.error('Error fetching teacher dashboard data:', error);
         setError('Не удалось загрузить данные дэшборда');
-        
-        // Fallback to mock data if API fails
-        setStats({
-          todayLessons: 4,
-          totalStudents: 125,
-          pendingGrading: 18,
-          upcomingDeadlines: 3,
-          completedLessons: 87,
-          monthlyWorkload: 156,
-          todaySchedule: [
-            { id: 1, subject: 'Математика', group: 'Группа 10А', time: '09:00 - 10:30', classroom: 'Кабинет 201', status: 'current' },
-            { id: 2, subject: 'Алгебра', group: 'Группа 11Б', time: '11:00 - 12:30', classroom: 'Кабинет 201', status: 'upcoming' },
-            { id: 3, subject: 'Геометрия', group: 'Группа 9В', time: '14:00 - 15:30', classroom: 'Кабинет 201', status: 'upcoming' }
-          ],
-          alerts: [
-            { id: 1, type: 'homework', title: 'Домашние задания', description: '18 работ нужно проверить до завтра', priority: 'high' },
-            { id: 2, type: 'report', title: 'Отчет по успеваемости', description: 'Срок сдачи: через 2 дня', priority: 'medium' },
-            { id: 3, type: 'lesson_plan', title: 'Планы уроков', description: 'Подготовить на следующую неделю', priority: 'low' }
-          ],
-          groupPerformance: [
-            { groupName: '10А класс', studentCount: 28, averageGrade: 4.3 },
-            { groupName: '11Б класс', studentCount: 25, averageGrade: 4.1 },
-            { groupName: '9В класс', studentCount: 30, averageGrade: 3.8 }
-          ]
-        });
       } finally {
         setLoading(false);
       }

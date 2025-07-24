@@ -30,28 +30,6 @@ const HRDashboard: React.FC = () => {
       } catch (error) {
         console.error('Error fetching HR dashboard data:', error);
         setError('Не удалось загрузить данные дэшборда');
-        
-        // No fallback data - show empty state
-        setStats({
-          totalEmployees: 0,
-          activeTeachers: 0,
-          pendingApplications: 0,
-          onVacation: 0,
-          sickLeave: 0,
-          pendingTimeoffs: 0,
-          upcomingBirthdays: 0,
-          contractsExpiring: 0,
-          averageSalary: 0,
-          turnoverRate: 0,
-          employeeStatus: {
-            working: 0,
-            vacation: 0,
-            sick: 0
-          },
-          vacationRequests: [],
-          departmentAnalytics: [],
-          upcomingEvents: []
-        });
       } finally {
         setLoading(false);
       }

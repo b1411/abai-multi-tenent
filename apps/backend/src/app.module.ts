@@ -78,10 +78,6 @@ import { DevtoolsModule } from '@nestjs/devtools-integration';
     FilesModule,
     LessonResultsModule,
     AiAssistantModule,
-    DevtoolsModule.register({
-      http: process.env.NODE_ENV !== 'production',
-      port: 3001, // Port for devtools
-    })
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, JwtService],

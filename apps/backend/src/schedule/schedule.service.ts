@@ -14,8 +14,35 @@ export class ScheduleService {
     // Проверяем конфликты расписания
     await this.checkScheduleConflicts(createScheduleDto);
 
+    // Преобразуем DTO в правильный формат для Prisma
+    const data: any = {
+      studyPlanId: createScheduleDto.studyPlanId,
+      groupId: createScheduleDto.groupId,
+      teacherId: createScheduleDto.teacherId,
+      dayOfWeek: createScheduleDto.dayOfWeek,
+      startTime: createScheduleDto.startTime,
+      endTime: createScheduleDto.endTime,
+    };
+
+    // Добавляем опциональные поля если они есть
+    if (createScheduleDto.classroomId) {
+      data.classroomId = createScheduleDto.classroomId;
+    }
+    if (createScheduleDto.lessonId) {
+      data.lessonId = createScheduleDto.lessonId;
+    }
+    if (createScheduleDto.date) {
+      data.date = createScheduleDto.date;
+    }
+    if (createScheduleDto.type) {
+      data.type = createScheduleDto.type;
+    }
+    if (createScheduleDto.status) {
+      data.status = createScheduleDto.status;
+    }
+
     return this.prisma.schedule.create({
-      data: createScheduleDto,
+      data,
       include: {
         studyPlan: true,
         group: true,
@@ -95,9 +122,25 @@ export class ScheduleService {
       await this.checkScheduleConflicts(updateScheduleDto as CreateScheduleDto, id);
     }
 
+    // Преобразуем DTO в правильный формат для Prisma
+    const data: any = {};
+    
+    // Добавляем только переданные поля
+    if (updateScheduleDto.studyPlanId !== undefined) data.studyPlanId = updateScheduleDto.studyPlanId;
+    if (updateScheduleDto.groupId !== undefined) data.groupId = updateScheduleDto.groupId;
+    if (updateScheduleDto.teacherId !== undefined) data.teacherId = updateScheduleDto.teacherId;
+    if (updateScheduleDto.classroomId !== undefined) data.classroomId = updateScheduleDto.classroomId;
+    if (updateScheduleDto.lessonId !== undefined) data.lessonId = updateScheduleDto.lessonId;
+    if (updateScheduleDto.date !== undefined) data.date = updateScheduleDto.date;
+    if (updateScheduleDto.dayOfWeek !== undefined) data.dayOfWeek = updateScheduleDto.dayOfWeek;
+    if (updateScheduleDto.startTime !== undefined) data.startTime = updateScheduleDto.startTime;
+    if (updateScheduleDto.endTime !== undefined) data.endTime = updateScheduleDto.endTime;
+    if (updateScheduleDto.type !== undefined) data.type = updateScheduleDto.type;
+    if (updateScheduleDto.status !== undefined) data.status = updateScheduleDto.status;
+
     return this.prisma.schedule.update({
       where: { id },
-      data: updateScheduleDto,
+      data,
       include: {
         studyPlan: true,
         group: true,

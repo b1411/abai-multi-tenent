@@ -116,7 +116,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
           <div className="space-y-4">
             <input
               type="range"
-              min="0"
+              
               max="100"
               value={value || 50}
               onChange={(e) => handleAnswerChange(question.id, parseInt(e.target.value))}

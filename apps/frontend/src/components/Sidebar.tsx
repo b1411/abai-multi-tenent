@@ -102,7 +102,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Списки учащихся', href: '/students', icon: GraduationCap },
         { name: 'Группы', href: '/groups', icon: Users },
         { name: 'Успеваемость', href: '/performance', icon: TrendingUp },
-        { name: 'Анализ лояльности', href: '/loyalty', icon: Heart, roles: ['ADMIN', 'TEACHER', 'HR'] },
       ]
     },
     {
@@ -163,9 +162,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
-      isOpen ? 'translate-x-0' : '-translate-x-full'
-    } lg:translate-x-0`}>
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0`}>
       <div className="flex h-full flex-col">
         {/* Logo and close button */}
         <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">

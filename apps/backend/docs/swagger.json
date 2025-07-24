@@ -899,6 +899,85 @@
         ]
       }
     },
+    "/lessons/available": {
+      "get": {
+        "description": "Возвращает список уроков из календарно-тематического планирования, которые можно добавить в расписание",
+        "operationId": "LessonsController_getAvailableLessons",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Поиск по названию урока, предмету или преподавателю",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupIds",
+            "required": false,
+            "in": "query",
+            "description": "ID групп (разделенные запятыми)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teacherIds",
+            "required": false,
+            "in": "query",
+            "description": "ID преподавателей (разделенные запятыми)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "subjectIds",
+            "required": false,
+            "in": "query",
+            "description": "ID учебных планов/предметов (разделенные запятыми)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Начальная дата в формате YYYY-MM-DD",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Конечная дата в формате YYYY-MM-DD",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список доступных уроков"
+          },
+          "400": {
+            "description": "Некорректные параметры запроса"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Получить доступные уроки для планирования в расписании",
+        "tags": [
+          "Lessons"
+        ]
+      }
+    },
     "/lessons/by-study-plan/{studyPlanId}": {
       "get": {
         "operationId": "LessonsController_findByStudyPlan",
@@ -1661,11 +1740,6 @@
             "description": "Недостаточно прав для создания группы"
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "summary": "Создать новую группу",
         "tags": [
           "Groups"
@@ -1679,11 +1753,6 @@
             "description": "Список всех групп"
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "summary": "Получить все группы",
         "tags": [
           "Groups"
@@ -1706,11 +1775,6 @@
             }
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "summary": "Получить статистику по группам",
         "tags": [
           "Groups"
@@ -5827,6 +5891,186 @@
         ]
       }
     },
+    "/workload/export": {
+      "get": {
+        "operationId": "WorkloadController_exportWorkloads",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "default": "id",
+              "example": "id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "required": true,
+            "in": "query",
+            "description": "Sort order",
+            "schema": {
+              "example": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search query",
+            "schema": {
+              "example": "search term",
+              "type": "string"
+            }
+          },
+          {
+            "name": "academicYear",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teacherId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "month",
+                "quarter",
+                "year"
+              ]
+            }
+          },
+          {
+            "name": "periodValue",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workload export file"
+          }
+        },
+        "summary": "Export workloads",
+        "tags": [
+          "workload"
+        ]
+      }
+    },
+    "/workload/template": {
+      "get": {
+        "operationId": "WorkloadController_downloadTemplate",
+        "parameters": [
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workload template file"
+          }
+        },
+        "summary": "Download workload template",
+        "tags": [
+          "workload"
+        ]
+      }
+    },
+    "/workload/teacher/{teacherId}/export": {
+      "get": {
+        "operationId": "WorkloadController_exportTeacherWorkload",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "academicYear",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Teacher workload export file"
+          }
+        },
+        "summary": "Export teacher workload",
+        "tags": [
+          "workload"
+        ]
+      }
+    },
     "/salaries": {
       "post": {
         "operationId": "SalariesController_create",
@@ -6127,6 +6371,99 @@
           }
         },
         "summary": "Отметить зарплату как выплаченную",
+        "tags": [
+          "salaries"
+        ]
+      }
+    },
+    "/salaries/export": {
+      "get": {
+        "operationId": "SalariesController_exportSalaries",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "APPROVED",
+                "PAID",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "month",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "year",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Файл экспорта зарплат"
+          }
+        },
+        "summary": "Экспорт зарплат",
+        "tags": [
+          "salaries"
+        ]
+      }
+    },
+    "/salaries/recalculate": {
+      "post": {
+        "operationId": "SalariesController_recalculateSalaries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Зарплаты пересчитаны"
+          }
+        },
+        "summary": "Пересчитать зарплаты",
         "tags": [
           "salaries"
         ]
@@ -7627,6 +7964,206 @@
         ]
       }
     },
+    "/kpi/export": {
+      "get": {
+        "operationId": "KpiController_exportKpi",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "required": false,
+            "in": "query",
+            "description": "ID преподавателя",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "departmentId",
+            "required": false,
+            "in": "query",
+            "description": "ID отдела/кафедры",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "Период анализа",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            }
+          },
+          {
+            "name": "metric",
+            "required": false,
+            "in": "query",
+            "description": "Тип метрики",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "teaching_quality",
+                "student_satisfaction",
+                "attendance",
+                "workload",
+                "professional_development"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Дата начала периода",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Дата окончания периода",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Файл экспорта KPI"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Экспорт KPI данных",
+        "tags": [
+          "KPI"
+        ]
+      }
+    },
+    "/kpi/teachers/{teacherId}/export": {
+      "get": {
+        "operationId": "KpiController_exportTeacherReport",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "teacherId",
+            "required": false,
+            "in": "query",
+            "description": "ID преподавателя",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "departmentId",
+            "required": false,
+            "in": "query",
+            "description": "ID отдела/кафедры",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "Период анализа",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            }
+          },
+          {
+            "name": "metric",
+            "required": false,
+            "in": "query",
+            "description": "Тип метрики",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "teaching_quality",
+                "student_satisfaction",
+                "attendance",
+                "workload",
+                "professional_development"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Дата начала периода",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Дата окончания периода",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Файл отчета по преподавателю"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Экспорт KPI отчета по преподавателю",
+        "tags": [
+          "KPI"
+        ]
+      }
+    },
     "/vacations": {
       "post": {
         "operationId": "VacationsController_create",
@@ -8226,12 +8763,77 @@
         ]
       }
     },
-    "/loyalty/repeat-purchases/update": {
-      "post": {
-        "operationId": "LoyaltyController_updateRepeatPurchases",
+    "/loyalty/analytics/feedback-based": {
+      "get": {
+        "operationId": "LoyaltyController_getFeedbackBasedLoyalty",
         "parameters": [],
         "responses": {
-          "201": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Loyalty"
+        ]
+      }
+    },
+    "/loyalty/analytics/emotional": {
+      "get": {
+        "operationId": "LoyaltyController_getEmotionalLoyalty",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Loyalty"
+        ]
+      }
+    },
+    "/loyalty/feedback-responses": {
+      "get": {
+        "operationId": "LoyaltyController_getFeedbackResponses",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Loyalty"
+        ]
+      }
+    },
+    "/loyalty/feedback-responses/{id}": {
+      "get": {
+        "operationId": "LoyaltyController_getFeedbackResponse",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Loyalty"
+        ]
+      }
+    },
+    "/loyalty/feedback-responses/stats": {
+      "get": {
+        "operationId": "LoyaltyController_getFeedbackResponsesStats",
+        "parameters": [],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -9789,6 +10391,601 @@
         ]
       }
     },
+    "/system/settings": {
+      "get": {
+        "operationId": "SystemController_getSystemSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "put": {
+        "operationId": "SystemController_updateSystemSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSystemSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/backup": {
+      "get": {
+        "operationId": "SystemController_downloadBackup",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/users": {
+      "get": {
+        "operationId": "SystemController_getUsers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "post": {
+        "operationId": "SystemController_createUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSystemUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/users/{id}": {
+      "get": {
+        "operationId": "SystemController_getUserById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "put": {
+        "operationId": "SystemController_updateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSystemUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "delete": {
+        "operationId": "SystemController_deleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/users/{id}/reset-password": {
+      "post": {
+        "operationId": "SystemController_resetUserPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/roles": {
+      "get": {
+        "operationId": "SystemController_getRoles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "post": {
+        "operationId": "SystemController_createRole",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/roles/{id}": {
+      "put": {
+        "operationId": "SystemController_updateRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "delete": {
+        "operationId": "SystemController_deleteRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/permissions": {
+      "get": {
+        "operationId": "SystemController_getAvailablePermissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/branding": {
+      "get": {
+        "operationId": "SystemController_getBrandingSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "put": {
+        "operationId": "SystemController_updateBrandingSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/branding/logo": {
+      "post": {
+        "operationId": "SystemController_uploadLogo",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/branding/favicon": {
+      "post": {
+        "operationId": "SystemController_uploadFavicon",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/integrations": {
+      "get": {
+        "operationId": "SystemController_getIntegrations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "post": {
+        "operationId": "SystemController_createIntegration",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/integrations/{id}": {
+      "put": {
+        "operationId": "SystemController_updateIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      },
+      "delete": {
+        "operationId": "SystemController_deleteIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/integrations/{id}/connect": {
+      "post": {
+        "operationId": "SystemController_connectIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/integrations/{id}/disconnect": {
+      "post": {
+        "operationId": "SystemController_disconnectIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/integrations/{id}/sync": {
+      "post": {
+        "operationId": "SystemController_syncIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/dashboard/student": {
+      "get": {
+        "operationId": "DashboardController_getStudentDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/teacher": {
+      "get": {
+        "operationId": "DashboardController_getTeacherDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/admin": {
+      "get": {
+        "operationId": "DashboardController_getAdminDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/parent": {
+      "get": {
+        "operationId": "DashboardController_getParentDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/financist": {
+      "get": {
+        "operationId": "DashboardController_getFinancistDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/hr": {
+      "get": {
+        "operationId": "DashboardController_getHRDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
     "/notifications": {
       "post": {
         "operationId": "NotificationsController_create",
@@ -10876,6 +12073,75 @@
           }
         ],
         "summary": "Создать ephemeral token для OpenAI Realtime API",
+        "tags": [
+          "AI Assistant"
+        ]
+      }
+    },
+    "/ai-assistant/generate-lessons": {
+      "post": {
+        "operationId": "AiAssistantController_generateLessons",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateLessonsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Уроки сгенерированы успешно",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "generatedLessons": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "summary": {
+                      "type": "object"
+                    },
+                    "analysis": {
+                      "type": "object"
+                    },
+                    "recommendations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "conflicts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Генерация календарно-тематического планирования уроков с помощью AI",
         "tags": [
           "AI Assistant"
         ]
@@ -15276,6 +16542,26 @@
           }
         }
       },
+      "UpdateSystemSettingsDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateSystemUserDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateSystemUserDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {}
+      },
       "CreateNotificationDto": {
         "type": "object",
         "properties": {
@@ -15502,6 +16788,10 @@
             "nullable": true
           }
         }
+      },
+      "GenerateLessonsDto": {
+        "type": "object",
+        "properties": {}
       }
     }
   }

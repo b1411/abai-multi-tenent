@@ -371,9 +371,9 @@ const InventoryModals: React.FC<InventoryModalsProps> = ({
                     </label>
                     <input
                       type="number"
-                      min="0"
+                      
                       value={formData.cost || 0}
-                      onChange={(e) => setFormData({ ...formData, cost: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, cost: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Сумма в тенге"
                     />
@@ -493,11 +493,11 @@ const InventoryModals: React.FC<InventoryModalsProps> = ({
                     </label>
                     <input
                       type="number"
-                      min="0"
+                      
                       required
                       disabled={isReadOnly}
                       value={formData.cost || 0}
-                      onChange={(e) => setFormData({ ...formData, cost: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, cost: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                       placeholder="Сумма в тенге"
                     />
@@ -509,10 +509,10 @@ const InventoryModals: React.FC<InventoryModalsProps> = ({
                     </label>
                     <input
                       type="number"
-                      min="0"
+                      
                       disabled={isReadOnly}
                       value={formData.currentValue || 0}
-                      onChange={(e) => setFormData({ ...formData, currentValue: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, currentValue: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                       placeholder="Сумма в тенге"
                     />

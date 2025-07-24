@@ -95,7 +95,7 @@ const WorkloadPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [newDailyRecord, setNewDailyRecord] = useState<AddDailyHoursData>({
     date: new Date().toISOString().split('T')[0],
-    hours: 0,
+    hours: '' as any,
     type: 'REGULAR',
     comment: ''
   });
@@ -192,7 +192,7 @@ const WorkloadPage: React.FC = () => {
     setShowDailyHours(false);
     setNewDailyRecord({
       date: new Date().toISOString().split('T')[0],
-      hours: 0,
+      hours: '' as any,
       type: 'REGULAR',
       comment: ''
     });
@@ -856,13 +856,13 @@ const WorkloadPage: React.FC = () => {
                 </label>
                 <input
                   type="number"
-                  min="0"
+                  
                   max="24"
                   className="w-full px-3 py-2 border rounded-md"
                   value={newDailyRecord.hours}
                   onChange={(e) => setNewDailyRecord({
                     ...newDailyRecord,
-                    hours: Number(e.target.value)
+                    hours: e.target.value === '' ? 0 : Number(e.target.value) || 0
                   })}
                 />
               </div>

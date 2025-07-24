@@ -385,7 +385,7 @@ const HomeworkSubmissionsPage: React.FC = () => {
               </label>
               <input
                 type="number"
-                min="0"
+                
                 max="100"
                 value={gradeForm.score}
                 onChange={(e) => setGradeForm(prev => ({ ...prev, score: e.target.value }))}

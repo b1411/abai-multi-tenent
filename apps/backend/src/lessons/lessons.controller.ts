@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, ParseIntPipe, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, ParseIntPipe, Req, BadRequestException } from '@nestjs/common';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
@@ -6,9 +6,10 @@ import { LessonFilterDto } from './dto/lesson-filter.dto';
 import { RolesGuard } from 'src/common/guards/role.guard';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Lesson } from './entities/lesson.entity';
 import { PaginateResponseDto } from 'src/common/dtos/paginate.dto';
+import { LessonScheduleService } from '../schedule/lesson-schedule.service';
 
 @Controller('lessons')
 @ApiTags('Lessons')
@@ -16,7 +17,10 @@ import { PaginateResponseDto } from 'src/common/dtos/paginate.dto';
 @UseGuards(AuthGuard, RolesGuard)
 @Roles("ADMIN", "TEACHER")
 export class LessonsController {
-  constructor(private readonly lessonsService: LessonsService) { }
+  constructor(
+    private readonly lessonsService: LessonsService,
+    private readonly lessonScheduleService: LessonScheduleService
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Создать новый урок' })
@@ -73,6 +77,99 @@ export class LessonsController {
     }
 
     return this.lessonsService.findStudentLessons(filters, req.user.id);
+  }
+
+  @Get('available')
+  @ApiOperation({ 
+    summary: 'Получить доступные уроки для планирования в расписании',
+    description: 'Возвращает список уроков из календарно-тематического планирования, которые можно добавить в расписание'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Список доступных уроков'
+  })
+  @ApiResponse({ status: 400, description: 'Некорректные параметры запроса' })
+  @ApiQuery({ 
+    name: 'search', 
+    required: false, 
+    description: 'Поиск по названию урока, предмету или преподавателю',
+    type: 'string'
+  })
+  @ApiQuery({ 
+    name: 'groupIds', 
+    required: false, 
+    description: 'ID групп (разделенные запятыми)',
+    type: 'string'
+  })
+  @ApiQuery({ 
+    name: 'teacherIds', 
+    required: false, 
+    description: 'ID преподавателей (разделенные запятыми)',
+    type: 'string'
+  })
+  @ApiQuery({ 
+    name: 'subjectIds', 
+    required: false, 
+    description: 'ID учебных планов/предметов (разделенные запятыми)',
+    type: 'string'
+  })
+  @ApiQuery({ 
+    name: 'startDate', 
+    required: false, 
+    description: 'Начальная дата в формате YYYY-MM-DD',
+    type: 'string'
+  })
+  @ApiQuery({ 
+    name: 'endDate', 
+    required: false, 
+    description: 'Конечная дата в формате YYYY-MM-DD',
+    type: 'string'
+  })
+  async getAvailableLessons(
+    @Query('search') search?: string,
+    @Query('groupIds') groupIds?: string,
+    @Query('teacherIds') teacherIds?: string,
+    @Query('subjectIds') subjectIds?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    try {
+      // Парсим массивы ID из строк
+      const parseIds = (idsString?: string): number[] | undefined => {
+        if (!idsString) return undefined;
+        return idsString.split(',').map(id => {
+          const parsed = parseInt(id.trim());
+          if (isNaN(parsed)) {
+            throw new BadRequestException(`Invalid ID: ${id}`);
+          }
+          return parsed;
+        });
+      };
+
+      // Валидация дат
+      if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+        throw new BadRequestException('startDate must be in YYYY-MM-DD format');
+      }
+      if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+        throw new BadRequestException('endDate must be in YYYY-MM-DD format');
+      }
+
+      const filters = {
+        search,
+        groupIds: parseIds(groupIds),
+        teacherIds: parseIds(teacherIds),
+        subjectIds: parseIds(subjectIds),
+        startDate,
+        endDate
+      };
+
+      return await this.lessonScheduleService.getAvailableLessons(filters);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Invalid query parameters');
+    }
   }
 
   @Get('by-study-plan/:studyPlanId')

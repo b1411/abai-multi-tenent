@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Building2, User, Package, FileText } from 'lucide-react';
 import { Loading } from '../ui';
-import { 
-  PurchaseRequest, 
-  Supplier, 
+import {
+  PurchaseRequest,
+  Supplier,
   PurchaseOrder,
-  CreatePurchaseRequest, 
+  CreatePurchaseRequest,
   CreateSupplier,
   CreatePurchaseRequestItem,
   PurchaseRequestItem
@@ -87,7 +87,7 @@ const SupplyModals: React.FC<SupplyModalsProps> = ({
       const dataToSave = (modalType.includes('Request') || modalType.includes('Order'))
         ? { ...formData, items }
         : formData;
-      
+
       await onSave(dataToSave);
       onClose();
     } catch (error) {
@@ -342,7 +342,6 @@ const SupplyModals: React.FC<SupplyModalsProps> = ({
                               </label>
                               <input
                                 type="number"
-                                min="0"
                                 disabled={isReadOnly}
                                 value={item.estimatedPrice || 0}
                                 onChange={(e) => updateItem(index, 'estimatedPrice', parseInt(e.target.value) || 0)}
@@ -633,7 +632,7 @@ const SupplyModals: React.FC<SupplyModalsProps> = ({
                             </label>
                             <input
                               type="number"
-                              min="0"
+
                               required
                               disabled={isReadOnly}
                               value={item.estimatedPrice || 0}

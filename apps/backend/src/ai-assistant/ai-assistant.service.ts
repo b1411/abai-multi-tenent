@@ -1,7 +1,10 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { GenerateScheduleDto } from './dto/generate-schedule.dto';
 import { AIScheduleResponseDto } from './dto/ai-schedule-response.dto';
+import { GenerateLessonsDto } from './dto/generate-lessons.dto';
+import { AILessonsResponseDto } from './dto/ai-lessons-response.dto';
 import { scheduleGenerationSchema, scheduleAnalysisSchema } from './schemas/schedule-generation.schema';
+import { lessonGenerationSchema } from './schemas/lesson-generation.schema';
 import { PrismaService } from '../prisma/prisma.service';
 import * as pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
@@ -14,7 +17,7 @@ export class AiAssistantService {
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService
-  ) {}
+  ) { }
 
   async createEphemeralToken() {
     if (!this.openaiApiKey) {
@@ -61,7 +64,7 @@ export class AiAssistantService {
 
       // Загружаем необходимые данные из базы
       const contextData = await this.loadScheduleContext(params);
-      
+
       // Создаем промпт для ChatGPT
       const systemPrompt = this.buildSystemPrompt();
       const userPrompt = this.buildUserPrompt(params, contextData);
@@ -105,10 +108,77 @@ export class AiAssistantService {
       aiResponse.algorithmVersion = this.algorithmVersion;
 
       this.logger.log(`Schedule generated successfully with ${aiResponse.generatedSchedule.length} lessons`);
-      
+
       return aiResponse;
     } catch (error) {
       this.logger.error('Error generating schedule with AI:', error);
+      throw error;
+    }
+  }
+
+  async generateLessonsWithAI(params: GenerateLessonsDto): Promise<AILessonsResponseDto> {
+    if (!this.openaiApiKey) {
+      throw new Error('OPENAI_API_KEY is not configured');
+    }
+
+    try {
+      this.logger.log(`Creating schedule from existing lessons for groups: ${params.groupIds.join(', ')}`);
+
+      // Загружаем существующие уроки из базы данных
+      const contextData = await this.loadLessonsContext(params);
+      const { existingLessons, classrooms } = contextData;
+
+      if (!existingLessons || existingLessons.length === 0) {
+        throw new Error('Не найдено уроков в базе данных для создания расписания');
+      }
+
+      // Создаем промпт для AI - теперь он работает с существующими уроками
+      const systemPrompt = this.buildScheduleFromLessonsSystemPrompt();
+      const userPrompt = this.buildScheduleFromLessonsUserPrompt(params, existingLessons, classrooms);
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'lesson_generation',
+              schema: lessonGenerationSchema,
+              strict: true
+            }
+          },
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        this.logger.error(`OpenAI API error: ${response.status} - ${error}`);
+        throw new Error(`Failed to generate lessons: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = JSON.parse(data.choices[0].message.content);
+
+      // Добавляем метаданные
+      aiResponse.generatedAt = new Date().toISOString();
+      aiResponse.aiModel = 'gpt-4o-2024-08-06';
+      aiResponse.algorithmVersion = this.algorithmVersion;
+
+      this.logger.log(`Schedule created from ${existingLessons.length} existing lessons, generated ${aiResponse.generatedLessons.length} schedule entries`);
+
+      return aiResponse;
+    } catch (error) {
+      this.logger.error('Error generating schedule from lessons:', error);
       throw error;
     }
   }
@@ -171,13 +241,13 @@ export class AiAssistantService {
     });
 
     // Загружаем преподавателей
-    const teachers = params.teacherIds ? 
+    const teachers = params.teacherIds ?
       await this.prisma.user.findMany({
-        where: { 
+        where: {
           id: { in: params.teacherIds },
           role: 'TEACHER'
         }
-      }) : 
+      }) :
       await this.prisma.user.findMany({
         where: { role: 'TEACHER' }
       });
@@ -190,7 +260,7 @@ export class AiAssistantService {
     // Загружаем предметы/учебные планы
     const studyPlans = params.subjectIds ?
       await this.prisma.studyPlan.findMany({
-        where: { 
+        where: {
           id: { in: params.subjectIds },
           deletedAt: null
         }
@@ -345,9 +415,9 @@ ${params.additionalInstructions ? `ДОПОЛНИТЕЛЬНЫЕ ИНСТРУКЦ
 - Уникальные группы: ${new Set(scheduleItems.map(s => s.groupId)).size}
 
 РАСПИСАНИЕ:
-${scheduleItems.map((item, index) => 
-  `${index + 1}. ${item.day} ${item.startTime}-${item.endTime}: ${item.subject} (${item.groupId}) - ${item.teacherName} в ${item.roomId}`
-).join('\n')}
+${scheduleItems.map((item, index) =>
+      `${index + 1}. ${item.day} ${item.startTime}-${item.endTime}: ${item.subject} (${item.groupId}) - ${item.teacherName} в ${item.roomId}`
+    ).join('\n')}
 
 Проведи детальный анализ и выдай рекомендации по улучшению.`;
   }
@@ -362,16 +432,16 @@ ${scheduleItems.map((item, index) =>
 
       // Создаем системный промпт для Neuro Abai
       const systemPrompt = this.buildNeuroAbaiSystemPrompt();
-      
+
       // Создаем пользовательский промпт
       let userPrompt = `${scenario}\n\n${message}`;
 
       // Если есть файлы, извлекаем из них текст
       if (files && files.length > 0) {
         this.logger.log(`Processing ${files.length} files`);
-        
+
         const fileContents: string[] = [];
-        
+
         for (const file of files) {
           try {
             const extractedText = await this.extractTextFromFile(file);
@@ -385,7 +455,7 @@ ${scheduleItems.map((item, index) =>
             fileContents.push(`\n\n=== ФАЙЛ: ${file.originalname} ===\n[Ошибка при обработке файла: ${error.message}]\n=== КОНЕЦ ФАЙЛА ===\n`);
           }
         }
-        
+
         if (fileContents.length > 0) {
           userPrompt += `\n\nПРИКРЕПЛЕННЫЕ ФАЙЛЫ:${fileContents.join('')}`;
         }
@@ -477,6 +547,342 @@ ${scheduleItems.map((item, index) =>
       this.logger.error(`Error extracting text from file ${file.originalname}:`, error);
       throw error;
     }
+  }
+
+  private async loadLessonsContext(params: GenerateLessonsDto) {
+    // Загружаем группы
+    const groups = await this.prisma.group.findMany({
+      where: { id: { in: params.groupIds } },
+      include: {
+        students: true,
+        _count: { select: { students: true } }
+      }
+    });
+
+    // Загружаем преподавателей
+    const teachers = params.teacherIds ?
+      await this.prisma.user.findMany({
+        where: {
+          id: { in: params.teacherIds },
+          role: 'TEACHER'
+        },
+        include: {
+          teacher: true
+        }
+      }) :
+      await this.prisma.user.findMany({
+        where: { role: 'TEACHER' },
+        include: {
+          teacher: true
+        }
+      });
+
+    // Загружаем аудитории
+    const classrooms = await this.prisma.classroom.findMany({
+      where: { deletedAt: null }
+    });
+
+    // Загружаем предметы/учебные планы
+    const studyPlans = params.subjectIds ?
+      await this.prisma.studyPlan.findMany({
+        where: {
+          id: { in: params.subjectIds },
+          deletedAt: null
+        },
+        include: {
+          teacher: {
+            include: {
+              user: true
+            }
+          }
+        }
+      }) :
+      await this.prisma.studyPlan.findMany({
+        where: { deletedAt: null },
+        include: {
+          teacher: {
+            include: {
+              user: true
+            }
+          }
+        }
+      });
+
+    // Загружаем существующие уроки в указанном периоде
+    let whereClause: any = {
+      deletedAt: null,
+      date: {
+        gte: new Date(params.startDate),
+        lte: new Date(params.endDate)
+      }
+    };
+
+    // Если указаны группы или предметы, добавляем фильтр через studyPlan
+    if (params.groupIds && params.groupIds.length > 0) {
+      whereClause.studyPlan = {
+        group: {
+          some: {
+            id: { in: params.groupIds }
+          }
+        }
+      };
+    }
+
+    if (params.subjectIds && params.subjectIds.length > 0) {
+      whereClause.studyPlan = {
+        ...whereClause.studyPlan,
+        id: { in: params.subjectIds }
+      };
+    }
+
+    if (params.teacherIds && params.teacherIds.length > 0) {
+      whereClause.studyPlan = {
+        ...whereClause.studyPlan,
+        teacherId: { in: params.teacherIds }
+      };
+    }
+
+    const existingLessons = await this.prisma.lesson.findMany({
+      where: whereClause,
+      include: {
+        studyPlan: {
+          include: {
+            teacher: {
+              include: {
+                user: true
+              }
+            },
+            group: true
+          }
+        }
+      }
+    });
+
+    // Загружаем календарные события (каникулы, праздники)
+    const excludeDates = params.excludeDates || [];
+    const calendarEvents = await this.prisma.calendarEvent.findMany({
+      where: {
+        startDate: {
+          gte: new Date(params.startDate),
+          lte: new Date(params.endDate)
+        },
+        title: {
+          contains: 'каникулы',
+          mode: 'insensitive'
+        }
+      }
+    });
+
+    return {
+      groups,
+      teachers,
+      classrooms,
+      studyPlans,
+      existingLessons,
+      calendarEvents,
+      excludeDates
+    };
+  }
+
+  private buildLessonsSystemPrompt(): string {
+    return `Ты эксперт по составлению календарно-тематического планирования для образовательных учреждений. Твоя задача - создавать последовательные уроки с конкретными датами, учитывая педагогическую логику и академический календарь.
+
+ПРИНЦИПЫ ПЛАНИРОВАНИЯ УРОКОВ:
+
+1. КАЛЕНДАРНОЕ ПЛАНИРОВАНИЕ:
+   - Генерируй уроки с конкретными датами (не дни недели)
+   - Учитывай каникулы, праздники и выходные дни
+   - Соблюдай академическую последовательность тем
+   - Планируй равномерную нагрузку по неделям
+
+2. ПЕДАГОГИЧЕСКИЕ ПРИНЦИПЫ:
+   - Логическая последовательность изучения материала
+   - От простого к сложному в рамках каждой темы
+   - Повторение и закрепление предыдущих тем
+   - Межпредметные связи где это уместно
+
+3. СТРУКТУРА УРОКОВ:
+   - Каждый урок имеет четкую цель и тему
+   - Прогрессивное увеличение сложности
+   - Практические и теоретические занятия в балансе
+   - Контрольные и проверочные работы по расписанию
+
+4. МАТЕРИАЛЫ И ДОМАШНИЕ ЗАДАНИЯ:
+   - Создавай базовые материалы для каждого урока
+   - Планируй домашние задания с реалистичными сроками
+   - Учитывай время на выполнение (не перегружай студентов)
+   - Связывай домашние задания с текущей темой
+
+5. РЕСУРСЫ И АУДИТОРИИ:
+   - Подбирай аудитории в соответствии с типом урока
+   - Учитывай специальное оборудование для практических работ
+   - Планируй использование лабораторий и компьютерных классов
+   - Избегай конфликтов расписания
+
+6. АНАЛИЗ И ОПТИМИЗАЦИЯ:
+   - Проверяй равномерность распределения нагрузки
+   - Выявляй потенциальные конфликты ресурсов
+   - Предлагай альтернативы при проблемах
+   - Давай рекомендации по улучшению планирования
+
+ВАЖНО: Создавай РЕАЛЬНЫЙ учебный план с конкретными датами, темами уроков и логической прогрессией изучения материала.`;
+  }
+
+  private buildLessonsUserPrompt(params: GenerateLessonsDto, contextData: any): string {
+    const { groups, teachers, classrooms, studyPlans, existingLessons, excludeDates } = contextData;
+
+    // Вычисляем рабочие дни в периоде
+    const startDate = new Date(params.startDate);
+    const endDate = new Date(params.endDate);
+    const workingDaysCount = this.calculateWorkingDays(startDate, endDate, excludeDates);
+
+    return `Сгенерируй календарно-тематическое планирование уроков со следующими параметрами:
+
+УЧЕБНЫЙ ПЕРИОД:
+- Начало: ${params.startDate}
+- Окончание: ${params.endDate}
+- Учебный год: ${params.academicYear}
+- Семестр: ${params.semester}
+- Рабочих дней в периоде: ${workingDaysCount}
+
+ВРЕМЕННЫЕ ПАРАМЕТРЫ:
+- Длительность урока: ${params.lessonDuration || 45} минут
+- Рабочие часы: ${params.constraints?.workingHours?.start || '08:00'} - ${params.constraints?.workingHours?.end || '18:00'}
+- Максимум уроков подряд: ${params.constraints?.maxConsecutiveHours || 6}
+
+ГРУППЫ (${groups.length}):
+${groups.map(g => `- ${g.name} (${g._count.students} студентов, курс ${g.courseNumber})`).join('\n')}
+
+ПРЕПОДАВАТЕЛИ (${teachers.length}):
+${teachers.map(t => `- ${t.name} ${t.surname} (ID: ${t.id})`).join('\n')}
+
+ПРЕДМЕТЫ И НАГРУЗКА:
+${studyPlans.map(sp => {
+      const weeklyHours = params.weeklyHoursPerSubject?.[sp.id] || 2;
+      const totalHours = Math.ceil(weeklyHours * (workingDaysCount / 5));
+      return `- ${sp.name} (${weeklyHours} ч/нед, ~${totalHours} уроков за период) - ${sp.teacher.user.name} ${sp.teacher.user.surname}`;
+    }).join('\n')}
+
+АУДИТОРИИ (${classrooms.length}):
+${classrooms.map(c => `- ${c.name} (${c.capacity} мест, тип: ${c.type})`).join('\n')}
+
+ИСКЛЮЧЕННЫЕ ДАТЫ (каникулы/праздники):
+${excludeDates.length > 0 ? excludeDates.join(', ') : 'Не указаны'}
+
+СУЩЕСТВУЮЩИЕ УРОКИ: ${existingLessons.length}
+
+ДОПОЛНИТЕЛЬНЫЕ ТРЕБОВАНИЯ:
+- Создавать только календарно-тематическое планирование уроков
+
+${params.additionalInstructions ? `ОСОБЫЕ ИНСТРУКЦИИ: ${params.additionalInstructions}` : ''}
+
+ЗАДАЧА:
+Создай последовательное календарно-тематическое планирование с:
+1. Конкретными датами для каждого урока
+2. Логической прогрессией тем по каждому предмету
+3. Правильным распределением нагрузки
+4. Учетом каникул и праздников
+5. Оптимальным использованием аудиторий
+
+ОБЯЗАТЕЛЬНЫЕ ПОЛЯ для каждого урока:
+- name: Название урока (строка)
+- date: Дата урока в формате YYYY-MM-DD
+- startTime: Время начала в формате HH:MM (например: "09:00")
+- endTime: Время окончания в формате HH:MM (например: "10:30")
+- studyPlanId: ID учебного плана (число из списка выше)
+- studyPlanName: Название предмета (строка)
+- groupId: ID группы (число из списка выше)
+- groupName: Название группы (строка)
+- teacherId: ID преподавателя (число из списка выше)
+- teacherName: Имя преподавателя (строка)
+- classroomId: ID аудитории (число из списка выше)
+- classroomName: Название аудитории (строка)
+- description: Описание урока/темы (строка)
+- lessonNumber: Порядковый номер урока (число, начиная с 1)
+- topicNumber: Номер темы в курсе (число, начиная с 1)
+- difficulty: Уровень сложности ("beginner", "intermediate" или "advanced")
+
+ВАЖНО: ВСЕ поля обязательны и должны быть заполнены для каждого урока!`;
+  }
+
+  private calculateWorkingDays(startDate: Date, endDate: Date, excludeDates: string[]): number {
+    let workingDays = 0;
+    const current = new Date(startDate);
+    const excludeSet = new Set(excludeDates);
+
+    while (current <= endDate) {
+      const dayOfWeek = current.getDay();
+      const dateString = current.toISOString().split('T')[0];
+
+      // Понедельник-пятница (1-5) и не в списке исключений
+      if (dayOfWeek >= 1 && dayOfWeek <= 5 && !excludeSet.has(dateString)) {
+        workingDays++;
+      }
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    return workingDays;
+  }
+
+  private buildScheduleFromLessonsSystemPrompt(): string {
+    return `Ты эксперт по составлению расписаний из существующих уроков. Твоя задача - взять существующие уроки из базы данных и создать для них оптимальное расписание с временем и аудиториями.
+
+ПРИНЦИПЫ:
+1. НЕ СОЗДАВАЙ новые уроки - используй ТОЛЬКО существующие из БД
+2. Каждому уроку назначь оптимальное время и аудиторию
+3. Избегай конфликтов преподавателей, групп и аудиторий
+4. Учитывай тип аудитории и предмет
+5. Соблюдай рабочие часы и перерывы
+
+ЗАДАЧА: Создать расписание, назначив каждому существующему уроку:
+- Конкретную дату (из даты урока в БД)
+- Время начала и окончания
+- Подходящую аудиторию
+
+ВАЖНО: Используй данные урока из БД (ID, название, дату, предмет, группу, преподавателя) и добавь только время и аудиторию!`;
+  }
+
+  private buildScheduleFromLessonsUserPrompt(params: GenerateLessonsDto, existingLessons: any[], classrooms: any[]): string {
+    return `Создай расписание для следующих СУЩЕСТВУЮЩИХ уроков из базы данных:
+
+ПЕРИОД: ${params.startDate} - ${params.endDate}
+РАБОЧИЕ ЧАСЫ: ${params.constraints?.workingHours?.start || '08:00'} - ${params.constraints?.workingHours?.end || '18:00'}
+
+СУЩЕСТВУЮЩИЕ УРОКИ ИЗ БД:
+${existingLessons.map(lesson => `
+- ID: ${lesson.id}
+- Название: ${lesson.name}
+- Дата: ${lesson.date.toISOString().split('T')[0]}
+- Предмет: ${lesson.studyPlan.name} (ID: ${lesson.studyPlan.id})
+- Группа: ${lesson.studyPlan.group.name} (ID: ${lesson.studyPlan.group.id})
+- Преподаватель: ${lesson.studyPlan.teacher.user.name} ${lesson.studyPlan.teacher.user.surname} (ID: ${lesson.studyPlan.teacher.id})
+`).join('')}
+
+ДОСТУПНЫЕ АУДИТОРИИ:
+${classrooms.map(room => `
+- ID: ${room.id}, Название: ${room.name}, Тип: ${room.type}, Вместимость: ${room.capacity}
+`).join('')}
+
+ЗАДАЧА: Для каждого урока из списка выше создай запись в generatedLessons с:
+- name: название урока (из БД)
+- date: дата урока (из БД)
+- startTime: время начала (назначь оптимальное)
+- endTime: время окончания (назначь оптимальное)
+- studyPlanId: ID учебного плана (из БД)
+- studyPlanName: название предмета (из БД)
+- groupId: ID группы (из БД)
+- groupName: название группы (из БД)
+- teacherId: ID преподавателя (из БД)
+- teacherName: имя преподавателя (из БД)
+- classroomId: ID аудитории (подбери подходящую)
+- classroomName: название аудитории (подбери подходящую)
+- description: описание урока (из БД)
+- lessonNumber: порядковый номер
+- topicNumber: номер темы
+- difficulty: уровень сложности
+
+НЕ ПРИДУМЫВАЙ новые уроки! Используй ТОЛЬКО те, что указаны в списке выше.`;
   }
 
   private buildNeuroAbaiSystemPrompt(): string {

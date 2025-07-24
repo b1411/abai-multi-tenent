@@ -835,4 +835,452 @@ export class StudentsService {
       totalParents: student.Parents.length,
     };
   }
+
+  // Методы для посещаемости
+  async getStudentAttendance(studentId: number, dateFrom?: string, dateTo?: string) {
+    await this.findOne(studentId); // Проверяем существование студента
+
+    const whereCondition: any = {
+      studentId,
+      deletedAt: null,
+    };
+
+    // Добавляем фильтр по датам если указаны
+    if (dateFrom || dateTo) {
+      whereCondition.Lesson = {};
+      if (dateFrom) {
+        whereCondition.Lesson.date = { gte: new Date(dateFrom) };
+      }
+      if (dateTo) {
+        whereCondition.Lesson.date = { ...whereCondition.Lesson.date, lte: new Date(dateTo) };
+      }
+    }
+
+    const lessonResults = await this.prisma.lessonResult.findMany({
+      where: whereCondition,
+      include: {
+        Lesson: {
+          include: {
+            studyPlan: {
+              include: {
+                teacher: {
+                  include: {
+                    user: {
+                      select: {
+                        name: true,
+                        surname: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        Lesson: {
+          date: 'desc',
+        },
+      },
+    });
+
+    // Вычисляем статистику посещаемости
+    const totalLessons = lessonResults.length;
+    const attendedLessons = lessonResults.filter(result => result.attendance === true).length;
+    const missedLessons = lessonResults.filter(result => result.attendance === false).length;
+    const attendanceRate = totalLessons > 0 ? Math.round((attendedLessons / totalLessons) * 100) : 0;
+
+    // Группируем по причинам отсутствия
+    const absenceReasons = lessonResults
+      .filter(result => result.attendance === false && result.absentReason)
+      .reduce((acc, result) => {
+        const reason = result.absentReason;
+        acc[reason] = (acc[reason] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+    // Группируем по предметам
+    const subjectAttendance = lessonResults.reduce((acc, result) => {
+      if (!result.Lesson) return acc;
+      
+      const subjectName = result.Lesson.studyPlan.name;
+      if (!acc[subjectName]) {
+        acc[subjectName] = {
+          total: 0,
+          attended: 0,
+          missed: 0,
+          rate: 0,
+        };
+      }
+      
+      acc[subjectName].total++;
+      if (result.attendance === true) {
+        acc[subjectName].attended++;
+      } else if (result.attendance === false) {
+        acc[subjectName].missed++;
+      }
+      
+      acc[subjectName].rate = acc[subjectName].total > 0 
+        ? Math.round((acc[subjectName].attended / acc[subjectName].total) * 100) 
+        : 0;
+      
+      return acc;
+    }, {} as Record<string, any>);
+
+    return {
+      summary: {
+        totalLessons,
+        attendedLessons,
+        missedLessons,
+        attendanceRate,
+      },
+      absenceReasons,
+      subjectAttendance,
+      details: lessonResults.map(result => ({
+        id: result.id,
+        date: result.Lesson?.date,
+        subject: result.Lesson?.studyPlan.name,
+        teacher: result.Lesson?.studyPlan.teacher 
+          ? `${result.Lesson.studyPlan.teacher.user.surname} ${result.Lesson.studyPlan.teacher.user.name}`
+          : null,
+        attendance: result.attendance,
+        absentReason: result.absentReason,
+        absentComment: result.absentComment,
+        lessonScore: result.lessonScore,
+        homeworkScore: result.homeworkScore,
+      })),
+    };
+  }
+
+  // Методы для финансовой информации (только для родителей, учителей, админов)
+  async getStudentFinances(studentId: number, currentUserRole: string, currentUserId: number) {
+    // Проверяем права доступа
+    if (!['PARENT', 'TEACHER', 'ADMIN', 'FINANCIST'].includes(currentUserRole)) {
+      throw new ForbiddenException('Only parents, teachers, admins, and financists can access financial information');
+    }
+
+    const student = await this.findOne(studentId);
+
+    // Если пользователь - родитель, проверяем, что он родитель этого студента
+    if (currentUserRole === 'PARENT') {
+      const parent = await this.prisma.parent.findUnique({
+        where: { userId: currentUserId },
+        include: {
+          students: { where: { id: studentId } },
+        },
+      });
+
+      if (!parent || parent.students.length === 0) {
+        throw new ForbiddenException('You can only access financial information of your own children');
+      }
+    }
+
+    // Получаем все платежи студента
+    const payments = await this.prisma.payment.findMany({
+      where: { studentId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Вычисляем финансовую статистику
+    const totalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const paidAmount = payments
+      .filter(payment => payment.status === 'paid')
+      .reduce((sum, payment) => sum + (payment.paidAmount || payment.amount), 0);
+    const pendingAmount = payments
+      .filter(payment => payment.status === 'unpaid')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const overdueAmount = payments
+      .filter(payment => payment.status === 'overdue')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+
+    // Группируем по типам услуг
+    const paymentsByType = payments.reduce((acc, payment) => {
+      const type = payment.serviceType;
+      if (!acc[type]) {
+        acc[type] = {
+          total: 0,
+          paid: 0,
+          pending: 0,
+          overdue: 0,
+          count: 0,
+        };
+      }
+      
+      acc[type].total += payment.amount;
+      acc[type].count++;
+      
+      if (payment.status === 'paid') {
+        acc[type].paid += payment.paidAmount || payment.amount;
+      } else if (payment.status === 'unpaid') {
+        acc[type].pending += payment.amount;
+      } else if (payment.status === 'overdue') {
+        acc[type].overdue += payment.amount;
+      }
+      
+      return acc;
+    }, {} as Record<string, any>);
+
+    return {
+      student: {
+        id: student.id,
+        name: `${student.user.surname} ${student.user.name}`,
+        group: student.group.name,
+      },
+      summary: {
+        totalAmount,
+        paidAmount,
+        pendingAmount,
+        overdueAmount,
+        paymentCount: payments.length,
+      },
+      paymentsByType,
+      recentPayments: payments.slice(0, 10).map(payment => ({
+        id: payment.id,
+        serviceType: payment.serviceType,
+        serviceName: payment.serviceName,
+        amount: payment.amount,
+        status: payment.status,
+        dueDate: payment.dueDate,
+        paymentDate: payment.paymentDate,
+        createdAt: payment.createdAt,
+      })),
+    };
+  }
+
+  // Методы для эмоционального анализа (только для родителей, учителей, админов)
+  async getStudentEmotionalState(studentId: number, currentUserRole: string, currentUserId: number) {
+    // Проверяем права доступа
+    if (!['PARENT', 'TEACHER', 'ADMIN'].includes(currentUserRole)) {
+      throw new ForbiddenException('Only parents, teachers, and admins can access emotional state information');
+    }
+
+    const student = await this.findOne(studentId);
+
+    // Если пользователь - родитель, проверяем, что он родитель этого студента
+    if (currentUserRole === 'PARENT') {
+      const parent = await this.prisma.parent.findUnique({
+        where: { userId: currentUserId },
+        include: {
+          students: { where: { id: studentId } },
+        },
+      });
+
+      if (!parent || parent.students.length === 0) {
+        throw new ForbiddenException('You can only access emotional state of your own children');
+      }
+    }
+
+    // Получаем эмоциональное состояние
+    const emotionalState = await this.prisma.emotionalState.findUnique({
+      where: { studentId },
+    });
+
+    // Получаем связанные данные из feedback
+    const feedbackResponses = await this.prisma.feedbackResponse.findMany({
+      where: {
+        userId: student.userId,
+        isCompleted: true,
+      },
+      include: {
+        template: true,
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 5, // Последние 5 ответов
+    });
+
+    // Анализируем эмоциональные данные из feedback
+    const emotionalFeedback = feedbackResponses
+      .filter(response => {
+        const answers = response.answers as any;
+        return answers.mood_today || answers.stress_level || answers.concentration_level;
+      })
+      .map(response => {
+        const answers = response.answers as any;
+        return {
+          date: response.submittedAt,
+          period: response.period,
+          mood: answers.mood_today,
+          stress: answers.stress_level,
+          concentration: answers.concentration_level,
+          motivation: answers.motivation_level,
+          socialization: answers.socialization_level,
+          template: response.template.title,
+        };
+      });
+
+    // Вычисляем тренды если есть данные
+    const trends = this.calculateEmotionalTrends(emotionalFeedback);
+
+    return {
+      student: {
+        id: student.id,
+        name: `${student.user.surname} ${student.user.name}`,
+        group: student.group.name,
+      },
+      currentState: emotionalState ? {
+        mood: {
+          value: emotionalState.mood,
+          description: emotionalState.moodDesc,
+          trend: emotionalState.moodTrend,
+        },
+        concentration: {
+          value: emotionalState.concentration,
+          description: emotionalState.concentrationDesc,
+          trend: emotionalState.concentrationTrend,
+        },
+        socialization: {
+          value: emotionalState.socialization,
+          description: emotionalState.socializationDesc,
+          trend: emotionalState.socializationTrend,
+        },
+        motivation: {
+          value: emotionalState.motivation,
+          description: emotionalState.motivationDesc,
+          trend: emotionalState.motivationTrend,
+        },
+        lastUpdated: emotionalState.updatedAt,
+      } : null,
+      feedbackHistory: emotionalFeedback,
+      trends,
+      recommendations: this.generateEmotionalRecommendations(emotionalState, emotionalFeedback),
+    };
+  }
+
+  // Комплексный отчет студента (с проверкой прав доступа)
+  async getStudentCompleteReport(studentId: number, currentUserRole: string, currentUserId: number) {
+    const student = await this.findOne(studentId);
+
+    // Получаем базовую информацию (доступна всем ролям)
+    const attendance = await this.getStudentAttendance(studentId);
+    const grades = await this.getStudentGrades(studentId);
+
+    let finances = null;
+    let emotionalState = null;
+
+    // Финансы и эмоциональное состояние только для разрешенных ролей
+    if (['PARENT', 'TEACHER', 'ADMIN', 'FINANCIST'].includes(currentUserRole)) {
+      try {
+        finances = await this.getStudentFinances(studentId, currentUserRole, currentUserId);
+      } catch (error) {
+        // Если нет доступа, игнорируем
+      }
+    }
+
+    if (['PARENT', 'TEACHER', 'ADMIN'].includes(currentUserRole)) {
+      try {
+        emotionalState = await this.getStudentEmotionalState(studentId, currentUserRole, currentUserId);
+      } catch (error) {
+        // Если нет доступа, игнорируем
+      }
+    }
+
+    return {
+      student: {
+        id: student.id,
+        name: `${student.user.surname} ${student.user.name}`,
+        email: student.user.email,
+        phone: student.user.phone,
+        group: student.group,
+        parents: student.Parents?.map(parent => ({
+          name: `${parent.user.surname} ${parent.user.name}`,
+          phone: parent.user.phone,
+          email: parent.user.email,
+        })) || [],
+      },
+      attendance,
+      grades,
+      finances,
+      emotionalState,
+      accessLevel: {
+        canViewFinances: ['PARENT', 'TEACHER', 'ADMIN', 'FINANCIST'].includes(currentUserRole),
+        canViewEmotionalState: ['PARENT', 'TEACHER', 'ADMIN'].includes(currentUserRole),
+      },
+    };
+  }
+
+  // Вспомогательные методы
+  private calculateEmotionalTrends(feedbackData: any[]) {
+    if (feedbackData.length < 2) {
+      return {
+        mood: 'insufficient_data',
+        concentration: 'insufficient_data',
+        motivation: 'insufficient_data',
+        socialization: 'insufficient_data',
+      };
+    }
+
+    const latest = feedbackData[0];
+    const previous = feedbackData[1];
+
+    const calculateTrend = (current: number, prev: number) => {
+      if (!current || !prev) return 'neutral';
+      const diff = current - prev;
+      if (diff > 10) return 'up';
+      if (diff < -10) return 'down';
+      return 'neutral';
+    };
+
+    return {
+      mood: calculateTrend(latest.mood, previous.mood),
+      concentration: calculateTrend(latest.concentration, previous.concentration),
+      motivation: calculateTrend(latest.motivation, previous.motivation),
+      socialization: calculateTrend(latest.socialization, previous.socialization),
+    };
+  }
+
+  private generateEmotionalRecommendations(currentState: any, feedbackHistory: any[]) {
+    const recommendations = [];
+
+    if (currentState) {
+      if (currentState.mood < 40) {
+        recommendations.push({
+          type: 'mood',
+          priority: 'high',
+          message: 'Рекомендуется обратить внимание на настроение студента. Возможно, требуется беседа с психологом.',
+        });
+      }
+
+      if (currentState.concentration < 40) {
+        recommendations.push({
+          type: 'concentration',
+          priority: 'medium',
+          message: 'Низкий уровень концентрации. Рекомендуется пересмотреть режим занятий и отдыха.',
+        });
+      }
+
+      if (currentState.motivation < 40) {
+        recommendations.push({
+          type: 'motivation',
+          priority: 'high',
+          message: 'Низкая мотивация к обучению. Требуется работа с преподавателями и родителями.',
+        });
+      }
+
+      if (currentState.socialization < 40) {
+        recommendations.push({
+          type: 'socialization',
+          priority: 'medium',
+          message: 'Проблемы с социализацией. Рекомендуется участие в групповых активностях.',
+        });
+      }
+    }
+
+    // Анализируем тренды
+    if (feedbackHistory.length >= 3) {
+      const recentMoods = feedbackHistory.slice(0, 3).map(f => f.mood).filter(m => m);
+      const isDecreasingMood = recentMoods.length >= 3 && 
+        recentMoods[0] < recentMoods[1] && recentMoods[1] < recentMoods[2];
+
+      if (isDecreasingMood) {
+        recommendations.push({
+          type: 'trend',
+          priority: 'high',
+          message: 'Наблюдается устойчивое снижение настроения. Требуется вмешательство специалистов.',
+        });
+      }
+    }
+
+    return recommendations;
+  }
 }

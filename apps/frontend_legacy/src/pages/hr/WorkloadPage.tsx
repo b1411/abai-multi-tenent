@@ -1075,7 +1075,7 @@ const WorkloadPage: React.FC = () => {
                           </label>
                           <input
                             type="number"
-                            min="0"
+                            
                             max="24"
                             className="w-full px-3 py-2 border rounded-md"
                             value={newDailyRecord.hours}

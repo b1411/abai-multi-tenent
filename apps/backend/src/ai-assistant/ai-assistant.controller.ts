@@ -1,6 +1,7 @@
 import { Controller, Post, UseGuards, UseInterceptors, UploadedFiles, Body } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AiAssistantService } from './ai-assistant.service';
+import { GenerateLessonsDto } from './dto/generate-lessons.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -34,6 +35,31 @@ export class AiAssistantController {
   @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
   async createSession() {
     return this.aiAssistantService.createEphemeralToken();
+  }
+
+  @Post('generate-lessons')
+  @ApiOperation({ summary: 'Генерация календарно-тематического планирования уроков с помощью AI' })
+  @ApiResponse({
+    status: 201,
+    description: 'Уроки сгенерированы успешно',
+    schema: {
+      type: 'object',
+      properties: {
+        generatedLessons: {
+          type: 'array',
+          items: { type: 'object' }
+        },
+        summary: { type: 'object' },
+        analysis: { type: 'object' },
+        recommendations: { type: 'array', items: { type: 'string' } },
+        conflicts: { type: 'array', items: { type: 'string' } },
+        warnings: { type: 'array', items: { type: 'string' } }
+      }
+    }
+  })
+  @Roles('ADMIN', 'TEACHER')
+  async generateLessons(@Body() generateLessonsDto: GenerateLessonsDto) {
+    return await this.aiAssistantService.generateLessonsWithAI(generateLessonsDto);
   }
 
   @Post('openai-responses')

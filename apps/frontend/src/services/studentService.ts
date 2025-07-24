@@ -122,6 +122,62 @@ export interface StudentStatistics {
   recentStudents: Student[];
 }
 
+export interface AttendanceData {
+  summary: {
+    totalLessons: number;
+    attendedLessons: number;
+    missedLessons: number;
+    attendanceRate: number;
+  };
+  absenceReasons: Record<string, number>;
+  subjectAttendance: Record<string, any>;
+  details: any[];
+}
+
+export interface FinanceData {
+  student: any;
+  summary: {
+    totalAmount: number;
+    paidAmount: number;
+    pendingAmount: number;
+    overdueAmount: number;
+    paymentCount: number;
+  };
+  paymentsByType: Record<string, any>;
+  recentPayments: any[];
+}
+
+export interface EmotionalData {
+  student: any;
+  currentState: {
+    mood: { value: number; description: string; trend: string };
+    concentration: { value: number; description: string; trend: string };
+    socialization: { value: number; description: string; trend: string };
+    motivation: { value: number; description: string; trend: string };
+    lastUpdated: string;
+  } | null;
+  feedbackHistory: any[];
+  trends: Record<string, string>;
+  recommendations: Array<{
+    type: string;
+    priority: string;
+    message: string;
+  }>;
+}
+
+export interface CompleteStudentReport {
+  student: Student;
+  basicInfo: any;
+  attendance: AttendanceData;
+  grades: StudentGrades;
+  finances?: FinanceData;
+  emotionalState?: EmotionalData;
+  accessLevel: {
+    canViewFinances: boolean;
+    canViewEmotionalState: boolean;
+  };
+}
+
 export interface CreateFullStudentData {
   email: string;
   name: string;
@@ -203,5 +259,32 @@ export const studentService = {
   // Отчислить студента
   async removeStudent(id: number) {
     return await apiClient.delete(`/students/${id}`);
+  },
+
+  // Получить данные посещаемости студента
+  async getStudentAttendance(studentId: number, dateFrom?: string, dateTo?: string): Promise<AttendanceData> {
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
+    
+    const queryString = params.toString();
+    const url = `/students/${studentId}/attendance${queryString ? `?${queryString}` : ''}`;
+    
+    return await apiClient.get<AttendanceData>(url);
+  },
+
+  // Получить финансовые данные студента
+  async getStudentFinances(studentId: number): Promise<FinanceData> {
+    return await apiClient.get<FinanceData>(`/students/${studentId}/finances`);
+  },
+
+  // Получить эмоциональное состояние студента
+  async getStudentEmotionalState(studentId: number): Promise<EmotionalData> {
+    return await apiClient.get<EmotionalData>(`/students/${studentId}/emotional-state`);
+  },
+
+  // Получить полный отчет по студенту
+  async getStudentCompleteReport(studentId: number): Promise<CompleteStudentReport> {
+    return await apiClient.get<CompleteStudentReport>(`/students/${studentId}/complete-report`);
   }
 };

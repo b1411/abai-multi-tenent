@@ -14,6 +14,10 @@ import { CreateSalaryDto, BonusType, Salary } from '../types/salary';
 import { Teacher } from '../types/teacher';
 import { formatCurrency } from '../utils/formatters';
 
+interface SalaryFormData extends Omit<CreateSalaryDto, 'baseSalary'> {
+  baseSalary: string | number;
+}
+
 interface SalaryFormProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,9 +35,9 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
   editingSalary,
   isLoading = false
 }) => {
-  const [formData, setFormData] = useState<CreateSalaryDto>({
+  const [formData, setFormData] = useState<SalaryFormData>({
     teacherId: 0,
-    baseSalary: 0,
+    baseSalary: '' as any,
     bonuses: [],
     deductions: [],
     month: new Date().getMonth() + 1,
@@ -53,7 +57,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
     if (editingSalary) {
       setFormData({
         teacherId: editingSalary.teacherId,
-        baseSalary: editingSalary.baseSalary,
+        baseSalary: editingSalary.baseSalary || '',
         bonuses: editingSalary.bonuses?.map(b => ({
           type: b.type,
           name: b.name,
@@ -73,7 +77,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
       // Сброс формы для создания новой зарплаты
       setFormData({
         teacherId: 0,
-        baseSalary: 0,
+        baseSalary: '' as any,
         bonuses: [],
         deductions: [],
         month: new Date().getMonth() + 1,
@@ -87,7 +91,8 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
   useEffect(() => {
     const totalBonuses = formData.bonuses?.reduce((sum, bonus) => sum + bonus.amount, 0) || 0;
     const totalDeductions = formData.deductions?.reduce((sum, deduction) => sum + deduction.amount, 0) || 0;
-    const totalGross = formData.baseSalary + totalBonuses;
+    const baseSalary = typeof formData.baseSalary === 'string' ? (parseFloat(formData.baseSalary) || 0) : formData.baseSalary;
+    const totalGross = baseSalary + totalBonuses;
     const totalNet = totalGross - totalDeductions;
 
     setCalculatedTotals({
@@ -98,7 +103,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
     });
   }, [formData]);
 
-  const handleInputChange = (field: keyof CreateSalaryDto, value: any) => {
+  const handleInputChange = (field: keyof SalaryFormData, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -168,8 +173,12 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.teacherId && formData.baseSalary >= 0) {
-      onSubmit(formData);
+    const baseSalary = typeof formData.baseSalary === 'string' ? (parseFloat(formData.baseSalary) || 0) : formData.baseSalary;
+    if (formData.teacherId && baseSalary >= 0) {
+      onSubmit({
+        ...formData,
+        baseSalary: baseSalary
+      });
     }
   };
 
@@ -191,6 +200,8 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
   };
 
   if (!isOpen) return null;
+
+  const baseSalary = typeof formData.baseSalary === 'string' ? (parseFloat(formData.baseSalary) || 0) : formData.baseSalary;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -246,9 +257,9 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                 <input
                   type="number"
                   value={formData.baseSalary}
-                  onChange={(e) => handleInputChange('baseSalary', parseInt(e.target.value) || 0)}
+                  onChange={(e) => handleInputChange('baseSalary', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  min="0"
+                  
                   required
                 />
               </div>
@@ -282,7 +293,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                 <input
                   type="number"
                   value={formData.year}
-                  onChange={(e) => handleInputChange('year', parseInt(e.target.value) || new Date().getFullYear())}
+                  onChange={(e) => handleInputChange('year', e.target.value === '' ? new Date().getFullYear() : parseInt(e.target.value) || new Date().getFullYear())}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="2020"
                   max="2030"
@@ -340,9 +351,9 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                       <input
                         type="number"
                         value={bonus.amount}
-                        onChange={(e) => updateBonus(index, 'amount', parseInt(e.target.value) || 0)}
+                        onChange={(e) => updateBonus(index, 'amount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
                         className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                        min="0"
+                        
                       />
                     </div>
                     <div className="flex items-end">
@@ -404,9 +415,9 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                       <input
                         type="number"
                         value={deduction.amount}
-                        onChange={(e) => updateDeduction(index, 'amount', parseInt(e.target.value) || 0)}
+                        onChange={(e) => updateDeduction(index, 'amount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
                         className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                        min="0"
+                        
                       />
                     </div>
                     <div className="flex items-end">
@@ -442,7 +453,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-3 rounded-lg border">
                   <div className="text-sm text-gray-600">Базовая зарплата</div>
-                  <div className="text-lg font-bold text-gray-900">{formatCurrency(formData.baseSalary)}</div>
+                  <div className="text-lg font-bold text-gray-900">{formatCurrency(baseSalary)}</div>
                 </div>
                 <div className="bg-white p-3 rounded-lg border">
                   <div className="text-sm text-gray-600">Всего премий</div>
@@ -485,7 +496,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isLoading || !formData.teacherId || formData.baseSalary < 0}
+              disabled={isLoading || !formData.teacherId || baseSalary < 0}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               {isLoading ? (

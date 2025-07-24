@@ -192,7 +192,7 @@ const SystemSettingsPage: React.FC = () => {
                       type="number"
                       className="w-full p-2 border rounded-lg"
                       value={formData.maxUploadSize || ''}
-                      onChange={(e) => handleSettingChange('maxUploadSize', parseInt(e.target.value))}
+                      onChange={(e) => handleSettingChange('maxUploadSize', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                     />
                   </div>
                 </div>
@@ -290,7 +290,7 @@ const SystemSettingsPage: React.FC = () => {
                       type="number"
                       className="w-full p-2 border rounded-lg"
                       value={formData.sessionTimeout || ''}
-                      onChange={(e) => handleSettingChange('sessionTimeout', parseInt(e.target.value))}
+                      onChange={(e) => handleSettingChange('sessionTimeout', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                     />
                   </div>
                 </div>

@@ -256,7 +256,7 @@ className="bg-white rounded-lg p-6 w-full max-w-xs sm:max-w-md md:max-w-lg"
                   </label>
                   <input
                     type="number"
-                    min="0"
+                    
                     max="100"
                     value={classworkGrade.value}
                     onChange={(e) => setClassworkGrade({ ...classworkGrade, value: Number(e.target.value) })}
@@ -304,7 +304,7 @@ className="bg-white rounded-lg p-6 w-full max-w-xs sm:max-w-md md:max-w-lg"
                   </label>
                   <input
                     type="number"
-                    min="0"
+                    
                     max="100"
                     value={homeworkGrade.value}
                     onChange={(e) => setHomeworkGrade({ ...homeworkGrade, value: Number(e.target.value) })}

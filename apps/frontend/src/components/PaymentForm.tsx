@@ -44,7 +44,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [formData, setFormData] = useState<CreatePaymentDto>({
     studentId: 0,
     type: 'TUITION',
-    amount: 0,
+    amount: '' as any,
     method: 'CASH',
     dueDate: '',
     description: ''
@@ -86,7 +86,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       return;
     }
     
-    if (formData.amount <= 0) {
+    if (!formData.amount || parseFloat(formData.amount.toString()) <= 0) {
       setError('Сумма должна быть больше 0');
       return;
     }
@@ -104,7 +104,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     setFormData({
       studentId: 0,
       type: 'TUITION',
-      amount: 0,
+      amount: '' as any,
       method: 'CASH',
       dueDate: '',
       description: ''
@@ -153,7 +153,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
-                <option value="">Выберите студента</option>
+                <option value={0}>Выберите студента</option>
                 {students.map((student) => (
                   <option key={student.id} value={student.id}>
                     {student.user.name} {student.user.surname} ({student.group.name})
@@ -190,8 +190,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             <input
               type="number"
               value={formData.amount}
-              onChange={(e) => handleInputChange('amount', parseFloat(e.target.value) || 0)}
-              min="0"
+              onChange={(e) => handleInputChange('amount', e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+              
               step="0.01"
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required

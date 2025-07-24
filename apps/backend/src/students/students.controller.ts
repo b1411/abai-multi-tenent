@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateFullStudentDto } from './dto/create-full-student.dto';
@@ -177,5 +177,88 @@ export class StudentsController {
   @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
   getStudentParents(@Param('id') id: string) {
     return this.studentsService.getStudentParents(+id);
+  }
+
+  // === НОВЫЕ МЕТОДЫ ДЛЯ ПОСЕЩАЕМОСТИ, ФИНАНСОВ И ЭМОЦИОНАЛЬНОГО АНАЛИЗА ===
+
+  @Get(':id/attendance')
+  @ApiOperation({ 
+    summary: 'Получить данные о посещаемости студента',
+    description: 'Получает полную статистику посещаемости студента с возможностью фильтрации по датам'
+  })
+  @ApiResponse({ status: 200, description: 'Статистика посещаемости студента' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  getStudentAttendance(
+    @Param('id') id: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string
+  ) {
+    return this.studentsService.getStudentAttendance(+id, dateFrom, dateTo);
+  }
+
+  @Get(':id/finances')
+  @ApiOperation({ 
+    summary: 'Получить финансовую информацию студента',
+    description: `
+Получает полную финансовую информацию студента включая платежи, задолженности и статистику.
+
+**Доступ ограничен:**
+- Родители: только для своих детей
+- Учителя: для всех студентов
+- Админы и финансисты: для всех студентов
+    `
+  })
+  @ApiResponse({ status: 200, description: 'Финансовая информация студента' })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав доступа' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER', 'PARENT', 'FINANCIST')
+  getStudentFinances(@Param('id') id: string, @Request() req) {
+    return this.studentsService.getStudentFinances(+id, req.user?.role, req.user?.id);
+  }
+
+  @Get(':id/emotional-state')
+  @ApiOperation({ 
+    summary: 'Получить эмоциональное состояние студента',
+    description: `
+Получает данные об эмоциональном состоянии студента на основе feedback форм и отдельных записей.
+
+**Доступ ограничен:**
+- Родители: только для своих детей
+- Учителя: для всех студентов
+- Админы: для всех студентов
+    `
+  })
+  @ApiResponse({ status: 200, description: 'Эмоциональное состояние студента с трендами и рекомендациями' })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав доступа' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER', 'PARENT')
+  getStudentEmotionalState(@Param('id') id: string, @Request() req) {
+    return this.studentsService.getStudentEmotionalState(+id, req.user?.role, req.user?.id);
+  }
+
+  @Get(':id/complete-report')
+  @ApiOperation({ 
+    summary: 'Получить полный отчет по студенту',
+    description: `
+Получает комплексный отчет включающий:
+- Базовую информацию (всем ролям)
+- Посещаемость (всем ролям)  
+- Оценки (всем ролям)
+- Финансы (только родителям, учителям, админам, финансистам)
+- Эмоциональное состояние (только родителям, учителям, админам)
+
+Доступ к разным разделам автоматически контролируется в зависимости от роли пользователя.
+    `
+  })
+  @ApiResponse({ status: 200, description: 'Полный отчет по студенту с учетом прав доступа' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT', 'FINANCIST')
+  getStudentCompleteReport(@Param('id') id: string, @Request() req) {
+    return this.studentsService.getStudentCompleteReport(+id, req.user?.role, req.user?.id);
   }
 }

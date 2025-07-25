@@ -150,6 +150,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       children: [
         { name: 'Digital инвентаризация', href: '/app/erp/inventory', icon: Package },
         { name: 'Запросы на снабжение', href: '/app/erp/supply', icon: ShoppingCart },
+        { name: 'Безопасность', href: '/app/erp/security', icon: Lock },
       ]
     },
     {

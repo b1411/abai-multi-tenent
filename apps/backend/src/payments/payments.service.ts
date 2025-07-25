@@ -4,12 +4,15 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentFilterDto } from './dto/payment-filter.dto';
+import { GenerateInvoiceDto, GenerateSummaryInvoiceDto } from './dto/invoice-generation.dto';
+import { InvoiceGeneratorService } from './invoice-generator.service';
 
 @Injectable()
 export class PaymentsService {
   constructor(
     private prisma: PrismaService,
-    private notificationsService: NotificationsService
+    private notificationsService: NotificationsService,
+    private invoiceGeneratorService: InvoiceGeneratorService
   ) { }
 
   async create(createPaymentDto: CreatePaymentDto) {
@@ -311,36 +314,12 @@ export class PaymentsService {
     };
   }
 
-  async generateInvoice(id: number, user?: any) {
-    // Если пользователь родитель, проверяем что платеж относится к его ребенку
-    if (user && user.role === 'PARENT') {
-      const parent = await this.prisma.parent.findUnique({
-        where: { userId: user.id },
-        include: {
-          students: {
-            select: { id: true }
-          }
-        }
-      });
+  async generateInvoice(id: number, generateDto: GenerateInvoiceDto, user?: any) {
+    return this.invoiceGeneratorService.generateInvoice(id, generateDto, user);
+  }
 
-      const payment = await this.prisma.payment.findUnique({
-        where: { id },
-        select: { studentId: true }
-      });
-
-      if (!payment) {
-        throw new Error('Payment not found');
-      }
-
-      const studentIds = parent?.students.map(student => student.id) || [];
-      if (!studentIds.includes(payment.studentId)) {
-        // Родитель пытается сгенерировать счет для не своего ребенка
-        throw new Error('Access denied: You can only generate invoices for your own children');
-      }
-    }
-
-    // Здесь будет логика генерации квитанции
-    return { message: 'Invoice generated successfully' };
+  async generateSummaryInvoice(studentId: number, generateDto: GenerateSummaryInvoiceDto, user?: any) {
+    return this.invoiceGeneratorService.generateSummaryInvoice(studentId, generateDto, user);
   }
 
   private getServiceName(type: string): string {

@@ -10,15 +10,18 @@ import {
   Calendar,
   PieChart,
   BarChart3,
-  Target
+  Target,
+  Download
 } from 'lucide-react';
 import dashboardService, { FinancistDashboardStats } from '../../services/dashboardService';
+import InvoiceGenerator from '../InvoiceGenerator';
 
 const FinancistDashboard: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<FinancistDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showInvoiceGenerator, setShowInvoiceGenerator] = useState(false);
 
   useEffect(() => {
     const fetchFinancistData = async () => {
@@ -296,10 +299,13 @@ const FinancistDashboard: React.FC = () => {
             <p className="font-medium text-orange-900">Бюджетные заявки</p>
             <p className="text-sm text-orange-600">Рассмотреть заявления</p>
           </button>
-          <button className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-center">
-            <BarChart3 className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <p className="font-medium text-purple-900">Аналитика</p>
-            <p className="text-sm text-purple-600">Углубленный анализ</p>
+          <button 
+            className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-center"
+            onClick={() => setShowInvoiceGenerator(true)}
+          >
+            <Download className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+            <p className="font-medium text-purple-900">Генерация отчетов</p>
+            <p className="text-sm text-purple-600">Квитанции и документы</p>
           </button>
         </div>
       </div>
@@ -309,6 +315,13 @@ const FinancistDashboard: React.FC = () => {
           <p className="text-yellow-800">{error}</p>
         </div>
       )}
+
+      {/* Генератор квитанций */}
+      <InvoiceGenerator
+        isOpen={showInvoiceGenerator}
+        onClose={() => setShowInvoiceGenerator(false)}
+        mode="summary"
+      />
     </div>
   );
 };

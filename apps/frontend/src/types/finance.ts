@@ -97,11 +97,10 @@ export type PaymentMethod = 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'ONLINE' | 'MOBI
 
 export interface CreatePaymentDto {
   studentId: number;
-  type: PaymentType;
+  type: string;
   amount: number;
-  method: PaymentMethod;
   dueDate: string;
-  description?: string;
+  serviceName?: string;
 }
 
 export interface CreateBudgetItemDto {

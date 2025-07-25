@@ -11,16 +11,14 @@ import {
 } from 'react-icons/fa';
 import { Alert } from '../components/ui';
 import {
-  Payment,
-  PaymentSummary,
   SERVICE_TYPE_LABELS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
-  PaymentFilters,
   CreatePaymentDto
 } from '../types/finance';
-import { financeService } from '../services/financeService';
+import paymentsService, { Payment, PaymentSummary, PaymentFilters } from '../services/paymentsService';
 import PaymentForm from '../components/PaymentForm';
+import InvoiceGenerator from '../components/InvoiceGenerator';
 import { useAuth } from '../hooks/useAuth';
 
 const PaymentsPage: React.FC = () => {
@@ -38,6 +36,11 @@ const PaymentsPage: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCreatePaymentModal, setShowCreatePaymentModal] = useState(false);
   const [createPaymentLoading, setCreatePaymentLoading] = useState(false);
+  const [showInvoiceGenerator, setShowInvoiceGenerator] = useState(false);
+  const [invoicePaymentId, setInvoicePaymentId] = useState<string | null>(null);
+  const [invoiceStudentId, setInvoiceStudentId] = useState<string | null>(null);
+  const [invoiceMode, setInvoiceMode] = useState<'single' | 'summary'>('single');
+  const [invoiceStudentName, setInvoiceStudentName] = useState<string>('');
   const [stats, setStats] = useState<PaymentSummary>({
     totalDue: 0,
     totalPaid: 0,
@@ -56,7 +59,7 @@ const PaymentsPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await financeService.getPayments(filters);
+        const response = await paymentsService.getPayments(filters);
         setPayments(response.payments);
         setStats(response.summary);
       } catch (err) {
@@ -117,7 +120,7 @@ const PaymentsPage: React.FC = () => {
 
   const handleSendReminder = async (id: string) => {
     try {
-      await financeService.sendPaymentReminder(id, {
+      await paymentsService.sendPaymentReminder(id, {
         method: 'email',
         message: 'Напоминание об оплате'
       });
@@ -128,26 +131,32 @@ const PaymentsPage: React.FC = () => {
     }
   };
 
-  const handleGenerateInvoice = async (id: string) => {
-    try {
-      const blob = await financeService.generateInvoice(id, 'pdf');
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoice-${id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Ошибка при генерации квитанции:', err);
-      setError('Ошибка при генерации квитанции');
-    }
+  const handleGenerateInvoice = (payment: Payment) => {
+    setInvoicePaymentId(payment.id);
+    setInvoiceStudentId(payment.studentId);
+    setInvoiceStudentName(payment.studentName);
+    setInvoiceMode('single');
+    setShowInvoiceGenerator(true);
+  };
+
+  const handleGenerateSummaryInvoice = (payment: Payment) => {
+    setInvoicePaymentId(null);
+    setInvoiceStudentId(payment.studentId);
+    setInvoiceStudentName(payment.studentName);
+    setInvoiceMode('summary');
+    setShowInvoiceGenerator(true);
+  };
+
+  const handleCloseInvoiceGenerator = () => {
+    setShowInvoiceGenerator(false);
+    setInvoicePaymentId(null);
+    setInvoiceStudentId(null);
+    setInvoiceStudentName('');
   };
 
   const handleExport = async () => {
     try {
-      const blob = await financeService.exportPayments(filters, 'xlsx');
+      const blob = await paymentsService.exportPayments(filters, 'xlsx');
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -165,10 +174,10 @@ const PaymentsPage: React.FC = () => {
   const handleCreatePayment = async (paymentData: CreatePaymentDto) => {
     try {
       setCreatePaymentLoading(true);
-      await financeService.createPayment(paymentData);
+      await paymentsService.createPayment(paymentData);
       setShowCreatePaymentModal(false);
       // Перезагружаем данные
-      const response = await financeService.getPayments(filters);
+      const response = await paymentsService.getPayments(filters);
       setPayments(response.payments);
       setStats(response.summary);
       alert('Платеж успешно создан');
@@ -190,7 +199,7 @@ const PaymentsPage: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
           <select
             className="w-full border border-gray-300 rounded-md p-2"
-            value={filters.grade}
+            value={filters.grade || ''}
             onChange={(e) => handleFilterChange('grade', e.target.value)}
           >
             <option value="">Все классы</option>
@@ -206,7 +215,7 @@ const PaymentsPage: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-1">Тип услуги</label>
           <select
             className="w-full border border-gray-300 rounded-md p-2"
-            value={filters.serviceType}
+            value={filters.serviceType || ''}
             onChange={(e) => handleFilterChange('serviceType', e.target.value)}
           >
             <option value="">Все услуги</option>
@@ -221,7 +230,7 @@ const PaymentsPage: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
           <select
             className="w-full border border-gray-300 rounded-md p-2"
-            value={filters.status}
+            value={filters.status || ''}
             onChange={(e) => handleFilterChange('status', e.target.value)}
           >
             <option value="">Все статусы</option>
@@ -279,7 +288,7 @@ const PaymentsPage: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Тип услуги</p>
-              <p className="font-medium">{SERVICE_TYPE_LABELS[selectedPayment.serviceType]}</p>
+              <p className="font-medium">{SERVICE_TYPE_LABELS[selectedPayment.serviceType as keyof typeof SERVICE_TYPE_LABELS] || selectedPayment.serviceType}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Сумма</p>
@@ -291,8 +300,8 @@ const PaymentsPage: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Статус</p>
-              <span className={`inline-block px-2 py-1 rounded-full text-xs ${PAYMENT_STATUS_COLORS[selectedPayment.status]}`}>
-                {PAYMENT_STATUS_LABELS[selectedPayment.status]}
+              <span className={`inline-block px-2 py-1 rounded-full text-xs ${PAYMENT_STATUS_COLORS[selectedPayment.status as keyof typeof PAYMENT_STATUS_COLORS] || 'bg-gray-100 text-gray-800'}`}>
+                {PAYMENT_STATUS_LABELS[selectedPayment.status as keyof typeof PAYMENT_STATUS_LABELS] || selectedPayment.status}
               </span>
             </div>
             <div>
@@ -328,8 +337,15 @@ const PaymentsPage: React.FC = () => {
               <FaBell className="mr-2" /> Отправить напоминание
             </button>
             <button
+              className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md text-sm flex items-center"
+              onClick={() => handleGenerateSummaryInvoice(selectedPayment)}
+              disabled={loading}
+            >
+              <FaDownload className="mr-2" /> Сводная квитанция
+            </button>
+            <button
               className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm flex items-center"
-              onClick={() => handleGenerateInvoice(selectedPayment.id)}
+              onClick={() => handleGenerateInvoice(selectedPayment)}
               disabled={loading}
             >
               <FaDownload className="mr-2" /> Сформировать квитанцию
@@ -476,7 +492,7 @@ const PaymentsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{payment.serviceName}</div>
-                    <div className="text-sm text-gray-500">{SERVICE_TYPE_LABELS[payment.serviceType]}</div>
+                    <div className="text-sm text-gray-500">{SERVICE_TYPE_LABELS[payment.serviceType as keyof typeof SERVICE_TYPE_LABELS] || payment.serviceType}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{payment.amount.toLocaleString()} {payment.currency}</div>
@@ -488,29 +504,43 @@ const PaymentsPage: React.FC = () => {
                     <div className="text-sm text-gray-900">{new Date(payment.dueDate).toLocaleDateString()}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${PAYMENT_STATUS_COLORS[payment.status]}`}>
-                      {PAYMENT_STATUS_LABELS[payment.status]}
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${PAYMENT_STATUS_COLORS[payment.status as keyof typeof PAYMENT_STATUS_COLORS] || 'bg-gray-100 text-gray-800'}`}>
+                      {PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] || payment.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSendReminder(payment.id);
-                      }}
-                    >
-                      <FaBell />
-                    </button>
-                    <button 
-                      className="text-green-600 hover:text-green-900"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleGenerateInvoice(payment.id);
-                      }}
-                    >
-                      <FaDownload />
-                    </button>
+                    <div className="flex justify-end space-x-2">
+                      <button 
+                        className="text-blue-600 hover:text-blue-900 p-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSendReminder(payment.id);
+                        }}
+                        title="Отправить напоминание"
+                      >
+                        <FaBell />
+                      </button>
+                      <button 
+                        className="text-purple-600 hover:text-purple-900 p-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGenerateSummaryInvoice(payment);
+                        }}
+                        title="Сводная квитанция"
+                      >
+                        <FaFileExport />
+                      </button>
+                      <button 
+                        className="text-green-600 hover:text-green-900 p-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGenerateInvoice(payment);
+                        }}
+                        title="Квитанция"
+                      >
+                        <FaDownload />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -530,6 +560,16 @@ const PaymentsPage: React.FC = () => {
         onClose={() => setShowCreatePaymentModal(false)}
         onSubmit={handleCreatePayment}
         isLoading={createPaymentLoading}
+      />
+
+      {/* Генератор квитанций */}
+      <InvoiceGenerator
+        isOpen={showInvoiceGenerator}
+        onClose={handleCloseInvoiceGenerator}
+        paymentId={invoicePaymentId || undefined}
+        studentId={invoiceStudentId || undefined}
+        mode={invoiceMode}
+        studentName={invoiceStudentName}
       />
     </div>
   );

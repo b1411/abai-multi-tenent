@@ -53,9 +53,6 @@ import DocumentDetailPage from './pages/DocumentDetail';
 import FakePositions from './pages/FakePositions';
 import News from './pages/News';
 import Security from './pages/Security';
-import EdoPage from './pages/EDO';
-import DocumentCreatePage from './pages/DocumentCreate';
-import DocumentDetailPage from './pages/DocumentDetail';
 
 const App: React.FC = () => {
   return (

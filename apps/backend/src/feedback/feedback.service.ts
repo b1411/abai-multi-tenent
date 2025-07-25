@@ -99,7 +99,13 @@ export class FeedbackService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      console.error(`User with id ${userId} not found in checkMandatoryFeedback`);
+      return {
+        hasCompletedMandatory: false,
+        pendingTemplates: [],
+        currentPeriod: this.getCurrentPeriod(),
+        error: 'User not found',
+      };
     }
 
     const currentPeriod = this.getCurrentPeriod();

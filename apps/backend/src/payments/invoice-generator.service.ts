@@ -7,12 +7,12 @@ import * as path from 'path';
 
 @Injectable()
 export class InvoiceGeneratorService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async generateInvoice(paymentId: number, generateDto: GenerateInvoiceDto, user?: any) {
     // Получаем данные о платеже
     const payment = await this.getPaymentData(paymentId, user);
-    
+
     if (!payment) {
       throw new Error('Payment not found or access denied');
     }
@@ -30,7 +30,7 @@ export class InvoiceGeneratorService {
 
     // Генерируем PDF
     const pdfBuffer = await this.generatePdf(htmlContent);
-    
+
     return {
       content: pdfBuffer,
       filename: `invoice_${paymentId}_${Date.now()}.pdf`,
@@ -41,7 +41,7 @@ export class InvoiceGeneratorService {
   async generateSummaryInvoice(studentId: number, generateDto: GenerateSummaryInvoiceDto, user?: any) {
     // Получаем все платежи студента за период
     const payments = await this.getStudentPayments(studentId, generateDto, user);
-    
+
     if (!payments || payments.length === 0) {
       throw new Error('No payments found for the specified period');
     }
@@ -59,7 +59,7 @@ export class InvoiceGeneratorService {
 
     // Генерируем PDF
     const pdfBuffer = await this.generatePdf(htmlContent);
-    
+
     return {
       content: pdfBuffer,
       filename: `summary_invoice_${studentId}_${Date.now()}.pdf`,
@@ -156,7 +156,7 @@ export class InvoiceGeneratorService {
     const currentDate = new Date().toLocaleDateString('ru-RU');
     const statusClass = this.getStatusClass(payment.status);
     const statusText = this.getStatusText(payment.status);
-    
+
     const qrCodeSection = generateDto.includeQrCode ? `
       <div class="qr-section">
         <div class="qr-placeholder">
@@ -380,13 +380,13 @@ export class InvoiceGeneratorService {
 
   private generateSummaryHtmlContent(payments: any[], generateDto: GenerateSummaryInvoiceDto): string {
     if (payments.length === 0) return '';
-    
+
     const student = payments[0].student;
     const currentDate = new Date().toLocaleDateString('ru-RU');
     const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
     const totalPaid = payments.reduce((sum, p) => sum + (p.paidAmount || 0), 0);
     const totalDebt = totalAmount - totalPaid;
-    
+
     const paymentRows = payments.map(payment => {
       const statusClass = this.getStatusClass(payment.status);
       const statusText = this.getStatusText(payment.status);
@@ -568,7 +568,7 @@ export class InvoiceGeneratorService {
     try {
       const page = await browser.newPage();
       await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-      
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,

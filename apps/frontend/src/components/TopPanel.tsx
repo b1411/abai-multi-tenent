@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Search, Menu } from 'lucide-react';
 import { NotificationPanel } from './NotificationPanel';
+import { ActivityIndicator, ActivityStatusBadge } from './activity-monitoring/ActivityIndicator';
 
 interface TopPanelProps {
   onToggleSidebar: () => void;
@@ -35,6 +36,12 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
         </div>
 
         <div className="flex items-center space-x-2 lg:space-x-4">
+          {/* Индикатор активности для всех пользователей */}
+          <ActivityIndicator showDetails={false} className="hidden sm:flex" />
+          
+          {/* Статус бейдж для админов */}
+          <ActivityStatusBadge />
+          
           <NotificationPanel />
 
           <div className="flex items-center space-x-2 lg:space-x-3">

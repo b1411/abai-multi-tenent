@@ -124,11 +124,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: ['ADMIN', 'FINANCIST', 'PARENT'],
       key: 'finance',
       children: [
-        { name: 'Оплаты и задолженности', href: '/finance/payments', icon: CreditCard },
-        { name: 'Финансовые отчеты', href: '/finance/reports', icon: FileText },
-        { name: 'Бюджет и прогноз', href: '/finance/budget', icon: BarChart3 },
-        { name: 'Анализ лояльности', href: '/finance/acl', icon: TrendingUp },
-        { name: 'Управление зарплатой', href: '/finance/payroll', icon: Briefcase },
+        { name: 'Оплаты и задолженности', href: '/finance/payments', icon: CreditCard, roles: ['ADMIN', 'FINANCIST', 'PARENT'] },
+        { name: 'Финансовые отчеты', href: '/finance/reports', icon: FileText, roles: ['ADMIN', 'FINANCIST'] },
+        { name: 'Бюджет и прогноз', href: '/finance/budget', icon: BarChart3, roles: ['ADMIN', 'FINANCIST'] },
+        { name: 'Анализ лояльности', href: '/finance/acl', icon: TrendingUp, roles: ['ADMIN', 'FINANCIST'] },
+        { name: 'Управление зарплатой', href: '/finance/payroll', icon: Briefcase, roles: ['ADMIN', 'FINANCIST'] },
       ]
     },
     {

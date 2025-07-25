@@ -7,20 +7,26 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { BudgetService } from './budget.service';
 import { CreateBudgetItemDto } from './dto/create-budget-item.dto';
 import { UpdateBudgetItemDto } from './dto/update-budget-item.dto';
 import { BudgetItem } from './entities/budget-item.entity';
+import { AuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/role.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('budget')
 @ApiBearerAuth()
 @Controller('budget')
+@UseGuards(AuthGuard, RolesGuard)
 export class BudgetController {
   constructor(private readonly budgetService: BudgetService) {}
 
   @Post()
+  @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Создать статью бюджета' })
   @ApiResponse({ status: 201, description: 'Статья бюджета создана', type: BudgetItem })
   async create(@Body() createBudgetItemDto: CreateBudgetItemDto) {
@@ -28,6 +34,7 @@ export class BudgetController {
   }
 
   @Get()
+  @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Получить список статей бюджета' })
   @ApiResponse({ status: 200, description: 'Список статей бюджета' })
   async findAll(
@@ -47,6 +54,7 @@ export class BudgetController {
   }
 
   @Get('analytics/:period')
+  @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Получить аналитику по бюджету' })
   @ApiResponse({ status: 200, description: 'Аналитика бюджета' })
   async getAnalytics(@Param('period') period: string) {
@@ -54,6 +62,7 @@ export class BudgetController {
   }
 
   @Get(':id')
+  @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Получить статью бюджета по ID' })
   @ApiResponse({ status: 200, description: 'Статья бюджета', type: BudgetItem })
   @ApiResponse({ status: 404, description: 'Статья бюджета не найдена' })
@@ -62,6 +71,7 @@ export class BudgetController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Обновить статью бюджета' })
   @ApiResponse({ status: 200, description: 'Статья бюджета обновлена', type: BudgetItem })
   @ApiResponse({ status: 404, description: 'Статья бюджета не найдена' })
@@ -73,6 +83,7 @@ export class BudgetController {
   }
 
   @Delete(':id')
+  @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Удалить статью бюджета' })
   @ApiResponse({ status: 200, description: 'Статья бюджета удалена' })
   @ApiResponse({ status: 404, description: 'Статья бюджета не найдена' })
@@ -81,6 +92,7 @@ export class BudgetController {
   }
 
   @Post('periods/:period/close')
+  @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Закрыть период бюджета' })
   @ApiResponse({ status: 200, description: 'Период закрыт' })
   async closePeriod(

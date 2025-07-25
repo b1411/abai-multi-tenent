@@ -11,7 +11,13 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.13.12",
+    "emoji-picker-react": "^4.13.2",
+    "framer-motion": "^12.23.9",
+    "react-dropzone": "^14.3.8",
+    "react-intersection-observer": "^9.16.0"
+  },
   "devDependencies": {
     "lerna": "^8.2.2"
   }

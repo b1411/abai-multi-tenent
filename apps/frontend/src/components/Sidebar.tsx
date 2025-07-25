@@ -35,7 +35,8 @@ import {
   X,
   FolderOpen,
   Plus,
-  CheckCircle
+  CheckCircle,
+  Newspaper
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -68,6 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: 'Главная',
       href: '/',
       icon: Home,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
+    },
+    {
+      name: 'Новости',
+      href: '/news',
+      icon: Newspaper,
       roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
     },
     {

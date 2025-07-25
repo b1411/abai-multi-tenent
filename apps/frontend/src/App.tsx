@@ -50,6 +50,9 @@ import { ActivityMonitoring } from './pages/ActivityMonitoring';
 import EdoPage from './pages/EDO';
 import DocumentCreatePage from './pages/DocumentCreate';
 import DocumentDetailPage from './pages/DocumentDetail';
+import FakePositions from './pages/FakePositions';
+import News from './pages/News';
+import Security from './pages/Security';
 
 const App: React.FC = () => {
   return (
@@ -71,6 +74,9 @@ const App: React.FC = () => {
                   }
                 >
                   <Route index element={<Dashboard />} />
+
+                  {/* News route */}
+                  <Route path="news" element={<News />} />
 
                   {/* Study Plans routes */}
                   <Route path="study-plans" element={<StudyPlansPage />} />
@@ -118,7 +124,7 @@ const App: React.FC = () => {
                     <Route path="kpi" element={<KPIPage />} />
                     <Route path="vacation" element={<VacationsPage />} />
                     <Route path="substitutions" element={<SubstitutionsPage />} />
-                    <Route path="fake-positions" element={<div>Fake Positions Page</div>} />
+                    <Route path="fake-positions" element={<FakePositions />} />
                   </Route>
 
                   {/* Finance routes */}
@@ -146,6 +152,7 @@ const App: React.FC = () => {
                       <Route path="inventory" element={<Inventory />} />
                       <Route path="inventory-analytics" element={<InventoryAnalytics />} />
                       <Route path="supply" element={<Supply />} />
+                      <Route path="security" element={<Security />} />
                     </Route>
                   </Route>
 

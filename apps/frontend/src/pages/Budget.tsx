@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { 
-  BudgetItem, 
-  BudgetResponse, 
-  BudgetAnalytics, 
-  CreateBudgetItemDto, 
+import {
+  BudgetItem,
+  BudgetResponse,
+  BudgetAnalytics,
+  CreateBudgetItemDto,
   BudgetFilters,
   BUDGET_TYPE_LABELS,
   BUDGET_STATUS_LABELS,
@@ -86,7 +86,7 @@ const Budget: React.FC = () => {
 
   const handleUpdateBudgetItem = async (data: CreateBudgetItemDto) => {
     if (!editingItem) return;
-    
+
     try {
       await financeService.updateBudgetItem(editingItem.id, data);
       setEditingItem(null);
@@ -99,7 +99,7 @@ const Budget: React.FC = () => {
 
   const handleDeleteBudgetItem = async (id: number) => {
     if (!confirm('Вы уверены, что хотите удалить эту статью бюджета?')) return;
-    
+
     try {
       await financeService.deleteBudgetItem(id);
       loadBudgetData();
@@ -348,7 +348,7 @@ const Budget: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Статьи бюджета</h3>
         </div>
-        
+
         {budgetData?.items && budgetData.items.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -394,9 +394,8 @@ const Budget: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        item.type === 'INCOME' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.type === 'INCOME' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
                         {BUDGET_TYPE_LABELS[item.type]}
                       </span>
                     </td>
@@ -504,7 +503,7 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
     }
     return '2024';
   });
-  
+
   const [formQuarter, setFormQuarter] = useState(() => {
     if (item?.period) {
       return item.period.split(' ')[1] || 'Q4';
@@ -530,7 +529,7 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             {item ? 'Редактировать статью бюджета' : 'Создать статью бюджета'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -580,7 +579,7 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
                 <input
                   type="number"
                   required
-                  
+
                   value={formData.plannedAmount}
                   onChange={(e) => setFormData({ ...formData, plannedAmount: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -593,7 +592,7 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
                 </label>
                 <input
                   type="number"
-                  
+
                   value={formData.actualAmount}
                   onChange={(e) => setFormData({ ...formData, actualAmount: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"

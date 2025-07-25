@@ -32,7 +32,8 @@ import {
   Cog,
   Heart,
   MessageCircle,
-  X
+  X,
+  Newspaper
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -64,6 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: 'Главная',
       href: '/',
       icon: Home,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
+    },
+    {
+      name: 'Новости',
+      href: '/news',
+      icon: Newspaper,
       roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
     },
     {
@@ -139,6 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       children: [
         { name: 'Digital инвентаризация', href: '/app/erp/inventory', icon: Package },
         { name: 'Запросы на снабжение', href: '/app/erp/supply', icon: ShoppingCart },
+        { name: 'Безопасность', href: '/app/erp/security', icon: Lock },
       ]
     },
     {

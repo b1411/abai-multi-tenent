@@ -52,7 +52,7 @@ export const useActivityMonitoring = () => {
 
   // Инициализация WebSocket соединения
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('token');
     if (!token) {
       setError('Токен аутентификации не найден');
       return;
@@ -154,7 +154,7 @@ export const useActivityMonitoring = () => {
   // Экспорт данных активности
   const exportActivities = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('Токен не найден');
       }

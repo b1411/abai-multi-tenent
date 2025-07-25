@@ -171,10 +171,11 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
       
       console.log('🔄 Fetching online users from API...');
-      const response = await fetch(`${apiUrl}/activity-monitoring/online-users`, {
+      const response = await fetch(`${apiUrl}activity-monitoring/online-users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

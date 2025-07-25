@@ -184,14 +184,27 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
 
       this.logger.log(`📍 User ${client.data.user.email} (ID: ${client.data.user.id}) navigated to page: ${data.page}`);
 
-      // Обновляем активность сессии с текущей страницей
+      // Получаем токен и находим соответствующую сессию
       const sessionToken = client.handshake.auth?.token || client.handshake.query?.token;
+      let sessionId = null;
+      
       if (sessionToken) {
+        // Обновляем активность сессии с текущей страницей
         await this.activityMonitoringService.updateSessionActivity(sessionToken as string, data.page);
+        
+        // Находим ID сессии по токену для логирования
+        const session = await this.prisma.userSession.findUnique({
+          where: { sessionToken: sessionToken as string },
+          select: { id: true }
+        });
+        
+        if (session) {
+          sessionId = session.id;
+        }
       }
 
       // Логируем смену страницы как активность
-      await this.activityMonitoringService.logActivity(client.data.user.id, sessionToken as string, {
+      await this.activityMonitoringService.logActivity(client.data.user.id, sessionId, {
         type: 'PAGE_VIEW' as any,
         action: 'page_navigation',
         description: `Пользователь перешел на страницу ${data.page}`,
@@ -200,8 +213,10 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
       });
 
       // Уведомляем других админов об обновлении онлайн пользователей
-      const onlineUsers = await this.activityMonitoringService.getOnlineUsers(client.data.user.id);
-      this.server.to('admins').emit('online-users-update', onlineUsers);
+      if (client.data.user.role === UserRole.ADMIN) {
+        const onlineUsers = await this.activityMonitoringService.getOnlineUsers(client.data.user.id);
+        this.server.to('admins').emit('online-users-update', onlineUsers);
+      }
 
       return { success: true };
     } catch (error) {

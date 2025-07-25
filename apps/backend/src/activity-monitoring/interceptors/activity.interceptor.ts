@@ -7,12 +7,16 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { ActivityMonitoringService } from '../activity-monitoring.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityType } from '../../../generated/prisma';
 import { Request } from 'express';
 
 @Injectable()
 export class ActivityInterceptor implements NestInterceptor {
-  constructor(private activityMonitoringService: ActivityMonitoringService) {}
+  constructor(
+    private activityMonitoringService: ActivityMonitoringService,
+    private prisma: PrismaService,
+  ) { }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -83,13 +87,25 @@ export class ActivityInterceptor implements NestInterceptor {
         action = `view_${this.getEntityFromUrl(url)}`;
       }
 
-      // Обновляем активность сессии
+      // Получаем sessionId по токену
+      let sessionId = null;
       if (sessionToken) {
+        // Обновляем активность сессии
         await this.activityMonitoringService.updateSessionActivity(sessionToken, url);
+
+        // Находим ID сессии по токену для логирования
+        const session = await this.prisma.userSession.findUnique({
+          where: { sessionToken },
+          select: { id: true }
+        });
+
+        if (session) {
+          sessionId = session.id;
+        }
       }
 
       // Логируем активность
-      await this.activityMonitoringService.logActivity(userId, sessionToken, {
+      await this.activityMonitoringService.logActivity(userId, sessionId, {
         type: activityType,
         action,
         description: this.getActionDescription(method, url, success),
@@ -141,7 +157,7 @@ export class ActivityInterceptor implements NestInterceptor {
   private getActionDescription(method: string, url: string, success: boolean): string {
     const entity = this.getEntityFromUrl(url);
     const status = success ? 'успешно' : 'с ошибкой';
-    
+
     switch (method) {
       case 'POST':
         return `Создание ${entity} ${status}`;
@@ -159,7 +175,7 @@ export class ActivityInterceptor implements NestInterceptor {
 
   private sanitizeRequestData(request: Request): any {
     const { body, query, params } = request;
-    
+
     // Удаляем чувствительные данные
     const sanitized = {
       body: this.removeSensitiveFields(body),
@@ -167,39 +183,39 @@ export class ActivityInterceptor implements NestInterceptor {
       params,
     };
 
-    return Object.keys(sanitized).some(key => 
+    return Object.keys(sanitized).some(key =>
       sanitized[key] && Object.keys(sanitized[key]).length > 0
     ) ? sanitized : undefined;
   }
 
   private sanitizeResponseData(data: any): any {
     if (!data || typeof data !== 'object') return undefined;
-    
+
     // Ограничиваем размер логируемых данных
     const stringified = JSON.stringify(data);
     if (stringified.length > 1000) {
       return { _truncated: true, _size: stringified.length };
     }
-    
+
     return this.removeSensitiveFields(data);
   }
 
   private removeSensitiveFields(obj: any): any {
     if (!obj || typeof obj !== 'object') return obj;
-    
+
     const sensitiveFields = [
-      'password', 'hashedPassword', 'token', 'secret', 
+      'password', 'hashedPassword', 'token', 'secret',
       'apiKey', 'privateKey', 'creditCard', 'ssn'
     ];
-    
+
     const cleaned = { ...obj };
-    
+
     for (const field of sensitiveFields) {
       if (cleaned[field]) {
         cleaned[field] = '[REDACTED]';
       }
     }
-    
+
     return cleaned;
   }
 }

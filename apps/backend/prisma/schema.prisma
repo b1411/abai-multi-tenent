@@ -23,6 +23,29 @@ enum UserRole {
   HR
 }
 
+// ЭДО типы и статусы
+enum DocumentType {
+  STUDENT_CERTIFICATE    // Справка об обучении
+  ADMINISTRATIVE_ORDER   // Административный приказ  
+  FINANCIAL_CONTRACT     // Финансовый договор
+  ENROLLMENT_ORDER       // Приказ о зачислении
+  ACADEMIC_TRANSCRIPT    // Академическая справка
+}
+
+enum DocumentStatus {
+  DRAFT         // Черновик
+  IN_PROGRESS   // На согласовании
+  APPROVED      // Согласован
+  REJECTED      // Отклонен
+  COMPLETED     // Завершен
+}
+
+enum ApprovalStatus {
+  PENDING   // Ожидает
+  APPROVED  // Согласован
+  REJECTED  // Отклонен
+}
+
 enum AbsentReason {
   SICK
   FAMILY
@@ -86,6 +109,13 @@ model User {
   sessions      UserSession[]
   activityLogs  ActivityLog[]
   onlineStatus  UserOnlineStatus?
+
+  // EDO relations
+  createdDocuments     Document[] @relation("CreatedDocuments")
+  responsibleDocuments Document[] @relation("ResponsibleDocuments")
+  documentApprovals    DocumentApproval[]
+  documentComments     DocumentComment[]
+  documentTemplates    DocumentTemplate[]
 }
 
 model Student {
@@ -106,6 +136,7 @@ model Student {
   Payment            Payment[]
   reviews            StudentReview[]
   repeatPurchases    RepeatPurchase[]
+  documents          Document[]
 }
 
 model LessonResult {
@@ -258,6 +289,7 @@ model File {
   Homework           Homework?           @relation(fields: [homeworkId], references: [id])
   homeworkId         Int?
   VacationDocument   VacationDocument[]
+  DocumentFile       DocumentFile[]
 }
 
 model Quiz {
@@ -1504,4 +1536,95 @@ model ActivityMonitoringSettings {
   maskSensitiveData     Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+// --- ЭДО (Электронный документооборот) ---
+
+// Основная модель документа
+model Document {
+  id            String @id @default(uuid())
+  title         String
+  number        String? @unique
+  type          DocumentType
+  status        DocumentStatus @default(DRAFT)
+  content       String? @db.Text
+  
+  // Создатель и ответственный
+  createdById   Int
+  createdBy     User @relation("CreatedDocuments", fields: [createdById], references: [id])
+  responsibleId Int?
+  responsible   User? @relation("ResponsibleDocuments", fields: [responsibleId], references: [id])
+  
+  // Связи с сущностями
+  studentId     Int?
+  student       Student? @relation(fields: [studentId], references: [id])
+  
+  // Файлы и согласования
+  files         DocumentFile[]
+  approvals     DocumentApproval[]
+  comments      DocumentComment[]
+  
+  // Сроки
+  deadline      DateTime?
+  completedAt   DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Согласования
+model DocumentApproval {
+  id          String @id @default(uuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id])
+  approverId  Int
+  approver    User @relation(fields: [approverId], references: [id])
+  
+  status      ApprovalStatus @default(PENDING)
+  comment     String?
+  order       Int // Порядок согласования
+  deadline    DateTime?
+  completedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Файлы документов
+model DocumentFile {
+  id         String @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  fileId     Int
+  file       File @relation(fields: [fileId], references: [id])
+  
+  createdAt  DateTime @default(now())
+}
+
+// Комментарии
+model DocumentComment {
+  id         String @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  authorId   Int
+  author     User @relation(fields: [authorId], references: [id])
+  content    String @db.Text
+  
+  createdAt  DateTime @default(now())
+}
+
+// Шаблоны документов
+model DocumentTemplate {
+  id          String @id @default(uuid())
+  name        String
+  type        DocumentType
+  content     String @db.Text // HTML шаблон
+  variables   Json? // Список переменных
+  isActive    Boolean @default(true)
+  
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

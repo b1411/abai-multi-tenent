@@ -32,7 +32,10 @@ import {
   Cog,
   Heart,
   MessageCircle,
-  X
+  X,
+  FolderOpen,
+  Plus,
+  CheckCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -49,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     finance: false,
     app: false,
     erp: false,
+    edo: false,
     settings: false
   });
 
@@ -139,6 +143,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       children: [
         { name: 'Digital инвентаризация', href: '/app/erp/inventory', icon: Package },
         { name: 'Запросы на снабжение', href: '/app/erp/supply', icon: ShoppingCart },
+      ]
+    },
+    {
+      name: 'ЭДО',
+      icon: FolderOpen,
+      roles: ['ADMIN', 'HR', 'TEACHER'],
+      key: 'edo',
+      children: [
+        { name: 'Документы', href: '/edo', icon: FileText },
+        { name: 'Создать документ', href: '/edo/create', icon: Plus },
+        { name: 'На согласовании', href: '/edo?status=IN_PROGRESS', icon: CheckCircle },
       ]
     },
     {

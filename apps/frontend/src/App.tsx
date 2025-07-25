@@ -47,6 +47,9 @@ import PermissionsPage from './pages/Permissions';
 import BrandingPage from './pages/Branding';
 import IntegrationsPage from './pages/Integrations';
 import { ActivityMonitoring } from './pages/ActivityMonitoring';
+import EdoPage from './pages/EDO';
+import DocumentCreatePage from './pages/DocumentCreate';
+import DocumentDetailPage from './pages/DocumentDetail';
 
 const App: React.FC = () => {
   return (
@@ -144,6 +147,13 @@ const App: React.FC = () => {
                       <Route path="inventory-analytics" element={<InventoryAnalytics />} />
                       <Route path="supply" element={<Supply />} />
                     </Route>
+                  </Route>
+
+                  {/* EDO routes */}
+                  <Route path="edo">
+                    <Route index element={<EdoPage />} />
+                    <Route path="create" element={<DocumentCreatePage />} />
+                    <Route path=":id" element={<DocumentDetailPage />} />
                   </Route>
 
                   {/* Settings routes */}

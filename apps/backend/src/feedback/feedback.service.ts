@@ -12,7 +12,10 @@ export class FeedbackService {
   async createTemplate(createTemplateDto: CreateFeedbackTemplateDto) {
     try {
       return await this.prisma.feedbackTemplate.create({
-        data: createTemplateDto,
+        data: {
+          ...createTemplateDto,
+          questions: createTemplateDto.questions as any, // Приводим к JSON типу для Prisma
+        },
       });
     } catch (error) {
       if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
@@ -51,6 +54,63 @@ export class FeedbackService {
         { priority: 'asc' },
       ],
     });
+  }
+
+  // Валидация ответа на основе шаблона
+  async validateResponse(responseDto: CreateFeedbackResponseDto) {
+    const template = await this.prisma.feedbackTemplate.findUnique({
+      where: { id: responseDto.templateId },
+    });
+
+    if (!template) {
+      throw new Error('Шаблон не найден');
+    }
+
+    if (!template.isActive) {
+      throw new Error('Шаблон неактивен');
+    }
+
+    const questions = template.questions as any[];
+    const answers = responseDto.answers;
+
+    // Проверяем обязательные вопросы
+    for (const question of questions) {
+      if (question.required !== false) {
+        const answer = answers[question.id];
+        if (answer === undefined || answer === null || answer === '') {
+          throw new Error(`Обязательный вопрос "${question.question}" не заполнен`);
+        }
+
+        // Валидация по типу вопроса
+        switch (question.type) {
+          case 'RATING_1_5':
+            if (typeof answer !== 'number' || answer < 1 || answer > 5) {
+              throw new Error(`Неверное значение рейтинга для вопроса "${question.question}"`);
+            }
+            break;
+          case 'RATING_1_10':
+            if (typeof answer !== 'number' || answer < 1 || answer > 10) {
+              throw new Error(`Неверное значение рейтинга для вопроса "${question.question}"`);
+            }
+            break;
+          case 'EMOTIONAL_SCALE':
+            if (typeof answer !== 'number' || answer < 0 || answer > 100) {
+              throw new Error(`Неверное значение эмоциональной шкалы для вопроса "${question.question}"`);
+            }
+            break;
+          case 'YES_NO':
+            if (typeof answer !== 'boolean') {
+              throw new Error(`Неверное значение Да/Нет для вопроса "${question.question}"`);
+            }
+            break;
+          case 'TEXT':
+            if (typeof answer !== 'string' || answer.length > 5000) {
+              throw new Error(`Неверный текстовый ответ для вопроса "${question.question}"`);
+            }
+            break;
+        }
+      }
+    }
   }
 
   // Ответы на формы

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { feedbackService, FeedbackTemplate } from '../services/feedbackService';
 import { Alert } from '../components/ui/Alert';
 import { Spinner } from '../components/ui/Spinner';
+import { useToastContext } from '../hooks/useToastContext';
 
 const FeedbackAdmin: React.FC = () => {
   const [templates, setTemplates] = useState<FeedbackTemplate[]>([]);
@@ -10,6 +11,7 @@ const FeedbackAdmin: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<FeedbackTemplate | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [statistics, setStatistics] = useState<any>(null);
+  const toast = useToastContext();
 
   useEffect(() => {
     loadData();
@@ -35,8 +37,9 @@ const FeedbackAdmin: React.FC = () => {
     try {
       await feedbackService.toggleTemplateActive(id);
       await loadData();
+      toast.success('Статус шаблона изменен');
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Ошибка при изменении статуса шаблона');
     }
   };
 
@@ -46,8 +49,9 @@ const FeedbackAdmin: React.FC = () => {
     try {
       await feedbackService.deleteTemplate(id);
       await loadData();
+      toast.success('Шаблон успешно удален');
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Ошибка при удалении шаблона');
     }
   };
 
@@ -55,8 +59,9 @@ const FeedbackAdmin: React.FC = () => {
     try {
       await feedbackService.createDefaultTemplates();
       await loadData();
+      toast.success('Стандартные шаблоны созданы');
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Ошибка при создании стандартных шаблонов');
     }
   };
 
@@ -328,6 +333,7 @@ const CreateTemplateModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ onClose, onSuccess }) => {
+  const toast = useToastContext();
   const [formData, setFormData] = useState({
     name: '',
     title: '',
@@ -357,8 +363,9 @@ const CreateTemplateModal: React.FC<{
 
       await feedbackService.createTemplate(templateData);
       onSuccess();
-    } catch (error) {
-      console.error('Error creating template:', error);
+      toast.success('Шаблон успешно создан');
+    } catch (error: any) {
+      toast.error(error.message || 'Ошибка при создании шаблона');
     }
   };
 

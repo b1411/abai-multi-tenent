@@ -9,22 +9,43 @@ import {
   Query,
   UseGuards,
   Request,
+  ParseIntPipe,
+  ValidationPipe,
+  HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 import { CreateFeedbackTemplateDto } from './dto/create-feedback-template.dto';
 import { UpdateFeedbackTemplateDto } from './dto/update-feedback-template.dto';
 import { CreateFeedbackResponseDto } from './dto/create-feedback-response.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/role.guard';
+import { ThrottleGuard } from '../common/guards/throttle.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Throttle } from '../common/decorators/throttle.decorator';
+import { UserRole } from 'generated/prisma';
 
 @Controller('feedback')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard, ThrottleGuard)
 export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) {}
 
   // Создание шаблона (только для админов)
   @Post('templates')
-  async createTemplate(@Body() createTemplateDto: CreateFeedbackTemplateDto) {
-    return await this.feedbackService.createTemplate(createTemplateDto);
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  @Throttle(300, 10) // 10 запросов в 5 минут
+  async createTemplate(
+    @Body(ValidationPipe) createTemplateDto: CreateFeedbackTemplateDto,
+    @Request() req,
+  ) {
+    try {
+      return await this.feedbackService.createTemplate(createTemplateDto);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при создании шаблона',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   // Получение шаблонов для текущего пользователя
@@ -35,8 +56,16 @@ export class FeedbackController {
 
   // Получение всех активных шаблонов (для админов)
   @Get('templates')
+  @Roles(UserRole.ADMIN, UserRole.HR)
   async getActiveTemplates() {
-    return await this.feedbackService.getActiveTemplates();
+    try {
+      return await this.feedbackService.getActiveTemplates();
+    } catch (error) {
+      throw new HttpException(
+        'Ошибка при получении шаблонов',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   // Проверка обязательных форм для текущего пользователя
@@ -47,70 +76,150 @@ export class FeedbackController {
 
   // Отправка ответа на форму
   @Post('responses')
+  @Throttle(60, 5) // 5 запросов в минуту
   async submitResponse(
-    @Body() responseDto: CreateFeedbackResponseDto,
+    @Body(ValidationPipe) responseDto: CreateFeedbackResponseDto,
     @Request() req,
   ) {
-    return await this.feedbackService.submitResponse(req.user.id, responseDto);
+    try {
+      // Валидация ответов на основе шаблона
+      await this.feedbackService.validateResponse(responseDto);
+      return await this.feedbackService.submitResponse(req.user.id, responseDto);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при отправке ответа',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   // Получение конкретного шаблона
   @Get('templates/:id')
-  async getTemplate(@Param('id') id: string) {
-    return await this.feedbackService.getTemplate(parseInt(id));
+  async getTemplate(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const template = await this.feedbackService.getTemplate(id);
+      if (!template) {
+        throw new HttpException('Шаблон не найден', HttpStatus.NOT_FOUND);
+      }
+      return template;
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        'Ошибка при получении шаблона',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   // Обновление шаблона (только для админов)
   @Put('templates/:id')
+  @Roles(UserRole.ADMIN, UserRole.HR)
   async updateTemplate(
-    @Param('id') id: string,
-    @Body() updateTemplateDto: UpdateFeedbackTemplateDto,
+    @Param('id', ParseIntPipe) id: number,
+    @Body(ValidationPipe) updateTemplateDto: UpdateFeedbackTemplateDto,
   ) {
-    return await this.feedbackService.updateTemplate(parseInt(id), updateTemplateDto);
+    try {
+      return await this.feedbackService.updateTemplate(id, updateTemplateDto);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при обновлении шаблона',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   // Удаление шаблона (только для админов)
   @Delete('templates/:id')
-  async deleteTemplate(@Param('id') id: string) {
-    return await this.feedbackService.deleteTemplate(parseInt(id));
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  async deleteTemplate(@Param('id', ParseIntPipe) id: number) {
+    try {
+      await this.feedbackService.deleteTemplate(id);
+      return { message: 'Шаблон успешно удален' };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при удалении шаблона',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
-  // Активация/деактивация шаблона
+  // Активация/деактивация шаблона (только для админов)
   @Put('templates/:id/toggle-active')
-  async toggleTemplateActive(@Param('id') id: string) {
-    return await this.feedbackService.toggleTemplateActive(parseInt(id));
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  async toggleTemplateActive(@Param('id', ParseIntPipe) id: number) {
+    try {
+      return await this.feedbackService.toggleTemplateActive(id);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при изменении статуса шаблона',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   // Получение ответов на шаблон (для аналитики)
   @Get('templates/:id/responses')
+  @Roles(UserRole.ADMIN, UserRole.HR)
   async getTemplateResponses(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Query('period') period?: string,
   ) {
-    return await this.feedbackService.getTemplateResponses(parseInt(id), period);
+    try {
+      return await this.feedbackService.getTemplateResponses(id, period);
+    } catch (error) {
+      throw new HttpException(
+        'Ошибка при получении ответов',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   // Сброс статуса обязательной формы для пользователя (только для админов)
   @Put('users/:userId/reset-mandatory')
-  async resetMandatoryStatus(@Param('userId') userId: string) {
-    return await this.feedbackService.resetMandatoryStatus(parseInt(userId));
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  async resetMandatoryStatus(@Param('userId', ParseIntPipe) userId: number) {
+    try {
+      await this.feedbackService.resetMandatoryStatus(userId);
+      return { message: 'Статус обязательной формы сброшен' };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при сбросе статуса',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
-  // Получение статистики по заполнению форм
+  // Получение статистики по заполнению форм (только для админов)
   @Get('statistics')
+  @Roles(UserRole.ADMIN, UserRole.HR)
   async getFeedbackStatistics(@Query('period') period?: string) {
-    return await this.feedbackService.getFeedbackStatistics(period);
+    try {
+      return await this.feedbackService.getFeedbackStatistics(period);
+    } catch (error) {
+      throw new HttpException(
+        'Ошибка при получении статистики',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
-  // Получение аналитики по формам обратной связи
+  // Получение аналитики по формам обратной связи (только для админов)
   @Get('analytics')
+  @Roles(UserRole.ADMIN, UserRole.HR)
   async getFeedbackAnalytics(
     @Query('templateId') templateId?: string,
     @Query('period') period?: string,
   ) {
-    return await this.feedbackService.getFeedbackAnalytics(
-      templateId ? parseInt(templateId) : undefined,
-      period,
-    );
+    try {
+      return await this.feedbackService.getFeedbackAnalytics(
+        templateId ? parseInt(templateId) : undefined,
+        period,
+      );
+    } catch (error) {
+      throw new HttpException(
+        'Ошибка при получении аналитики',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

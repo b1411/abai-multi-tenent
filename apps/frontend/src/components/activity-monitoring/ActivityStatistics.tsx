@@ -90,7 +90,7 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
     }, {} as Record<string, number>);
 
     const topUsers = Object.entries(userActivity)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([name, count]) => ({ name, count }));
 
@@ -124,9 +124,9 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
 
   return (
     <div className="space-y-8">
-        {/* Дополнительная статистика в карточках */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 md:p-6 rounded-lg text-white">
+      {/* Дополнительная статистика в карточках */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 md:p-6 rounded-lg text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100">Всего сессий</p>
@@ -167,7 +167,7 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
             <div>
               <p className="text-orange-100">Пиковый час</p>
               <p className="text-2xl font-bold">
-                {chartData.hourlyData.reduce((max, curr) => 
+                {chartData.hourlyData.reduce((max, curr) =>
                   curr.count > max.count ? curr : max
                 ).hour}
               </p>
@@ -188,11 +188,11 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip />
-              <Area 
-                type="monotone" 
-                dataKey="count" 
-                stroke="#3B82F6" 
-                fill="#3B82F6" 
+              <Area
+                type="monotone"
+                dataKey="count"
+                stroke="#3B82F6"
+                fill="#3B82F6"
                 fillOpacity={0.3}
               />
             </AreaChart>
@@ -244,9 +244,9 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
             <BarChart data={chartData.topUsers} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              <YAxis 
-                type="category" 
-                dataKey="name" 
+              <YAxis
+                type="category"
+                dataKey="name"
                 width={120}
                 tick={{ fontSize: 12 }}
               />
@@ -298,7 +298,7 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
                 <div className="flex justify-between">
                   <span className="text-gray-600">Пик активности:</span>
                   <span className="font-medium">
-                    {chartData.hourlyData.reduce((max, curr) => 
+                    {chartData.hourlyData.reduce((max, curr) =>
                       curr.count > max.count ? curr : max
                     ).hour}
                   </span>

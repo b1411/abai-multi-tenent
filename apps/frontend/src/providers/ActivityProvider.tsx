@@ -175,7 +175,7 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
       apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
       
       console.log('🔄 Fetching online users from API...');
-      const response = await fetch(`${apiUrl}activity-monitoring/online-users`, {
+      const response = await fetch(`${apiUrl}/activity-monitoring/online-users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -202,7 +202,8 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
       
       const params = new URLSearchParams({
         limit: '50',
@@ -238,7 +239,8 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
       
       console.log('🔄 Fetching stats from API...', { days });
       const response = await fetch(`${apiUrl}/activity-monitoring/stats?days=${days}`, {
@@ -269,7 +271,9 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
         throw new Error('Токен не найден');
       }
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
+      
       const response = await fetch(`${apiUrl}/activity-monitoring/user-activity?limit=1000`, {
         headers: {
           'Authorization': `Bearer ${token}`,

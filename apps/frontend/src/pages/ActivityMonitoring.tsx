@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Activity, Clock, BarChart3, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useActivity } from '../contexts/ActivityContext';
 import { ActivityFilters } from '../components/activity-monitoring/ActivityFilters';
+import { ActivityStatistics } from '../components/activity-monitoring/ActivityStatistics';
 import { ActivityTestPanel } from '../components/ActivityTestPanel';
 
 export const ActivityMonitoring: React.FC = () => {
@@ -255,10 +256,11 @@ export const ActivityMonitoring: React.FC = () => {
           )}
 
           {activeTab === 'stats' && (
-            <div>
-              <h3 className="text-lg font-medium mb-4">Подробная статистика</h3>
-              <p className="text-gray-500">Графики и детальная аналитика будут добавлены позже</p>
-            </div>
+            <ActivityStatistics
+              stats={stats}
+              activities={activities}
+              loading={loading}
+            />
           )}
         </div>
       </div>

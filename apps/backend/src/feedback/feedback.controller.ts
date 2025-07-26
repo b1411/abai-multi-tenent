@@ -222,4 +222,35 @@ export class FeedbackController {
       );
     }
   }
+
+  // Получение эмоционального состояния студента на основе фидбеков
+  @Get('students/:studentId/emotional-state')
+  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
+  async getStudentEmotionalState(@Param('studentId', ParseIntPipe) studentId: number) {
+    try {
+      return await this.feedbackService.getStudentEmotionalStateFromFeedbacks(studentId);
+    } catch (error) {
+      throw new HttpException(
+        'Ошибка при получении эмоционального состояния',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Получение истории эмоциональных ответов студента
+  @Get('students/:studentId/emotional-history')
+  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
+  async getStudentEmotionalHistory(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Query('period') period?: string,
+  ) {
+    try {
+      return await this.feedbackService.getStudentEmotionalHistory(studentId, period);
+    } catch (error) {
+      throw new HttpException(
+        'Ошибка при получении истории эмоционального состояния',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

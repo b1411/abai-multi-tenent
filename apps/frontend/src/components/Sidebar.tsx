@@ -36,7 +36,8 @@ import {
   FolderOpen,
   Plus,
   CheckCircle,
-  Newspaper
+  Newspaper,
+  Activity
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -161,7 +162,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       children: [
         { name: 'Документы', href: '/edo', icon: FileText },
         { name: 'Создать документ', href: '/edo/create', icon: Plus },
-        { name: 'На согласовании', href: '/edo?status=IN_PROGRESS', icon: CheckCircle },
       ]
     },
     {
@@ -176,6 +176,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Брендинг', href: '/settings/branding', icon: Palette },
         { name: 'Система', href: '/settings/system', icon: Settings },
         { name: 'Обратная связь', href: '/settings/feedback', icon: MessageCircle },
+        { name: 'Мониторинг активности', href: '/settings/activity-monitoring', icon: Activity },
       ]
     },
   ];

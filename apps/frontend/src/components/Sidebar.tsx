@@ -117,6 +117,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       ]
     },
     {
+      name: 'Alumni',
+      href: '/alumni',
+      icon: GraduationCap,
+      roles: ['ADMIN', 'TEACHER', 'HR']
+    },
+    {
       name: 'HR (Персонал)',
       icon: Users,
       roles: ['ADMIN', 'HR', 'TEACHER', 'FINANCIST'],

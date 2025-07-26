@@ -54,6 +54,8 @@ import DocumentDetailPage from './pages/DocumentDetail';
 import FakePositions from './pages/FakePositions';
 import News from './pages/News';
 import Security from './pages/Security';
+import AlumniList from './alumni/pages/AlumniList';
+import AlumniDetail from './alumni/pages/AlumniDetail';
 
 const App: React.FC = () => {
   return (
@@ -115,6 +117,10 @@ const App: React.FC = () => {
                     <Route path="groups" element={<GroupsPage />} />
                     <Route path="performance" element={<PerformancePage />} />
                     <Route path="loyalty" element={<LoyaltyPage />} />
+
+                    {/* Alumni routes */}
+                    <Route path="alumni" element={<AlumniList />} />
+                    <Route path="alumni/:id" element={<AlumniDetail />} />
 
                     {/* Quiz routes */}
                     <Route path="quiz/:quizId/statistics" element={<div>Quiz Statistics Page</div>} />

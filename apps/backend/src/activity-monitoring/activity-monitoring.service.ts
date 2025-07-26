@@ -173,10 +173,25 @@ export class ActivityMonitoringService {
         return;
       }
 
+      // Проверяем, существует ли сессия (если sessionId передан)
+      let validSessionId = null;
+      if (sessionId) {
+        const sessionExists = await this.prisma.userSession.findUnique({
+          where: { id: sessionId },
+          select: { id: true }
+        });
+        
+        if (sessionExists) {
+          validSessionId = sessionId;
+        } else {
+          console.warn(`Activity logging: Session with ID ${sessionId} not found, logging without session`);
+        }
+      }
+
       await this.prisma.activityLog.create({
         data: {
           userId,
-          sessionId,
+          sessionId: validSessionId,
           type: data.type,
           action: data.action,
           description: data.description,

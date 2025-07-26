@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Alert } from './ui/Alert';
 import { Spinner } from './ui/Spinner';
 import { feedbackService, FeedbackTemplate, Question } from '../services/feedbackService';
@@ -18,18 +18,67 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const currentTemplate = templates[currentTemplateIndex];
   const isLastTemplate = currentTemplateIndex === templates.length - 1;
 
+  // Автосохранение черновиков
+  const saveDeaft = useCallback(async (templateId: number, currentAnswers: Record<string, any>) => {
+    if (Object.keys(currentAnswers).length === 0) return;
+    
+    setAutoSaving(true);
+    try {
+      await feedbackService.submitResponse({
+        templateId,
+        answers: currentAnswers,
+        isCompleted: false,
+      });
+      setLastSaved(new Date());
+    } catch (err) {
+      console.error('Error saving draft:', err);
+    } finally {
+      setAutoSaving(false);
+    }
+  }, []);
+
+  // Загрузка сохраненного черновика
   useEffect(() => {
     if (isOpen && templates.length > 0) {
-      // Сбрасываем состояние при открытии
+      const loadDraft = async () => {
+        try {
+          // Попытка загрузить черновик для текущего шаблона
+          const template = templates[currentTemplateIndex];
+          if (template) {
+            // Здесь можно добавить API для получения черновика
+            // const draft = await feedbackService.getDraft(template.id);
+            // if (draft && !draft.isCompleted) {
+            //   setAnswers(draft.answers);
+            // }
+          }
+        } catch (err) {
+          console.error('Error loading draft:', err);
+        }
+      };
+      
       setCurrentTemplateIndex(0);
       setAnswers({});
       setError(null);
+      loadDraft();
     }
-  }, [isOpen, templates]);
+  }, [isOpen, templates, currentTemplateIndex]);
+
+  // Автосохранение при изменении ответов
+  useEffect(() => {
+    if (currentTemplate && Object.keys(answers).length > 0) {
+      const timeoutId = setTimeout(() => {
+        saveDeaft(currentTemplate.id, answers);
+      }, 2000); // Сохраняем через 2 секунды после последнего изменения
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [answers, currentTemplate, saveDeaft]);
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({
@@ -181,6 +230,19 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
               <p className="text-sm text-gray-600 mt-1">
                 Форма {currentTemplateIndex + 1} из {templates.length}
               </p>
+              {/* Индикатор автосохранения */}
+              <div className="flex items-center mt-1 text-xs">
+                {autoSaving ? (
+                  <span className="text-blue-600 flex items-center">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                    Сохранение...
+                  </span>
+                ) : lastSaved ? (
+                  <span className="text-green-600">
+                    Сохранено {lastSaved.toLocaleTimeString()}
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="text-right">
               <div className="w-16 h-2 bg-gray-200 rounded-full">

@@ -33,7 +33,11 @@ import {
   Heart,
   MessageCircle,
   X,
-  Newspaper
+  FolderOpen,
+  Plus,
+  CheckCircle,
+  Newspaper,
+  Activity
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -50,6 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     finance: false,
     app: false,
     erp: false,
+    edo: false,
     settings: false
   });
 
@@ -112,6 +117,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       ]
     },
     {
+      name: 'Alumni',
+      href: '/alumni',
+      icon: GraduationCap,
+      roles: ['ADMIN', 'TEACHER', 'HR']
+    },
+    {
       name: 'HR (Персонал)',
       icon: Users,
       roles: ['ADMIN', 'HR', 'TEACHER', 'FINANCIST'],
@@ -150,6 +161,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       ]
     },
     {
+      name: 'ЭДО',
+      icon: FolderOpen,
+      roles: ['ADMIN', 'HR', 'TEACHER'],
+      key: 'edo',
+      children: [
+        { name: 'Документы', href: '/edo', icon: FileText },
+        { name: 'Создать документ', href: '/edo/create', icon: Plus },
+      ]
+    },
+    {
       name: 'Настройки',
       icon: Settings,
       roles: ['ADMIN'],
@@ -161,6 +182,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Брендинг', href: '/settings/branding', icon: Palette },
         { name: 'Система', href: '/settings/system', icon: Settings },
         { name: 'Обратная связь', href: '/settings/feedback', icon: MessageCircle },
+        { name: 'Мониторинг активности', href: '/settings/activity-monitoring', icon: Activity },
       ]
     },
   ];

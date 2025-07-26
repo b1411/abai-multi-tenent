@@ -12,7 +12,10 @@ export class FeedbackService {
   async createTemplate(createTemplateDto: CreateFeedbackTemplateDto) {
     try {
       return await this.prisma.feedbackTemplate.create({
-        data: createTemplateDto,
+        data: {
+          ...createTemplateDto,
+          questions: createTemplateDto.questions as any, // Приводим к JSON типу для Prisma
+        },
       });
     } catch (error) {
       if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
@@ -51,6 +54,63 @@ export class FeedbackService {
         { priority: 'asc' },
       ],
     });
+  }
+
+  // Валидация ответа на основе шаблона
+  async validateResponse(responseDto: CreateFeedbackResponseDto) {
+    const template = await this.prisma.feedbackTemplate.findUnique({
+      where: { id: responseDto.templateId },
+    });
+
+    if (!template) {
+      throw new Error('Шаблон не найден');
+    }
+
+    if (!template.isActive) {
+      throw new Error('Шаблон неактивен');
+    }
+
+    const questions = template.questions as any[];
+    const answers = responseDto.answers;
+
+    // Проверяем обязательные вопросы
+    for (const question of questions) {
+      if (question.required !== false) {
+        const answer = answers[question.id];
+        if (answer === undefined || answer === null || answer === '') {
+          throw new Error(`Обязательный вопрос "${question.question}" не заполнен`);
+        }
+
+        // Валидация по типу вопроса
+        switch (question.type) {
+          case 'RATING_1_5':
+            if (typeof answer !== 'number' || answer < 1 || answer > 5) {
+              throw new Error(`Неверное значение рейтинга для вопроса "${question.question}"`);
+            }
+            break;
+          case 'RATING_1_10':
+            if (typeof answer !== 'number' || answer < 1 || answer > 10) {
+              throw new Error(`Неверное значение рейтинга для вопроса "${question.question}"`);
+            }
+            break;
+          case 'EMOTIONAL_SCALE':
+            if (typeof answer !== 'number' || answer < 0 || answer > 100) {
+              throw new Error(`Неверное значение эмоциональной шкалы для вопроса "${question.question}"`);
+            }
+            break;
+          case 'YES_NO':
+            if (typeof answer !== 'boolean') {
+              throw new Error(`Неверное значение Да/Нет для вопроса "${question.question}"`);
+            }
+            break;
+          case 'TEXT':
+            if (typeof answer !== 'string' || answer.length > 5000) {
+              throw new Error(`Неверный текстовый ответ для вопроса "${question.question}"`);
+            }
+            break;
+        }
+      }
+    }
   }
 
   // Ответы на формы
@@ -214,35 +274,75 @@ export class FeedbackService {
     });
 
     if (student) {
+      // Получаем предыдущее состояние для расчета трендов
+      const previousState = await this.prisma.emotionalState.findUnique({
+        where: { studentId: student.id },
+      });
+
+      // Нормализуем значения к шкале 0-100
+      const normalizedMood = this.normalizeToScale(answers.mood_today || answers.overall_satisfaction, 100);
+      const normalizedConcentration = this.normalizeToScale(answers.concentration_level, 100);
+      const normalizedSocialization = this.normalizeToScale(answers.socialization_level, 100);
+      const normalizedMotivation = this.normalizeToScale(answers.motivation_level, 100);
+
+      // Рассчитываем тренды
+      const moodTrend = previousState ? this.calculateTrendChange(previousState.mood, normalizedMood) : 'neutral';
+      const concentrationTrend = previousState ? this.calculateTrendChange(previousState.concentration, normalizedConcentration) : 'neutral';
+      const socializationTrend = previousState ? this.calculateTrendChange(previousState.socialization, normalizedSocialization) : 'neutral';
+      const motivationTrend = previousState ? this.calculateTrendChange(previousState.motivation, normalizedMotivation) : 'neutral';
+
       await this.prisma.emotionalState.upsert({
         where: { studentId: student.id },
         create: {
           studentId: student.id,
-          mood: answers.mood_today || 50,
-          moodDesc: this.getMoodDescription(answers.mood_today),
-          moodTrend: 'neutral',
-          concentration: answers.concentration_level || 50,
-          concentrationDesc: this.getConcentrationDescription(answers.concentration_level),
-          concentrationTrend: 'neutral',
-          socialization: answers.socialization_level || 50,
-          socializationDesc: this.getSocializationDescription(answers.socialization_level),
-          socializationTrend: 'neutral',
-          motivation: answers.motivation_level || 50,
-          motivationDesc: this.getMotivationDescription(answers.motivation_level),
-          motivationTrend: 'neutral',
+          mood: normalizedMood,
+          moodDesc: this.getMoodDescription(normalizedMood),
+          moodTrend: moodTrend as any,
+          concentration: normalizedConcentration,
+          concentrationDesc: this.getConcentrationDescription(normalizedConcentration),
+          concentrationTrend: concentrationTrend as any,
+          socialization: normalizedSocialization,
+          socializationDesc: this.getSocializationDescription(normalizedSocialization),
+          socializationTrend: socializationTrend as any,
+          motivation: normalizedMotivation,
+          motivationDesc: this.getMotivationDescription(normalizedMotivation),
+          motivationTrend: motivationTrend as any,
         },
         update: {
-          mood: answers.mood_today || 50,
-          moodDesc: this.getMoodDescription(answers.mood_today),
-          concentration: answers.concentration_level || 50,
-          concentrationDesc: this.getConcentrationDescription(answers.concentration_level),
-          socialization: answers.socialization_level || 50,
-          socializationDesc: this.getSocializationDescription(answers.socialization_level),
-          motivation: answers.motivation_level || 50,
-          motivationDesc: this.getMotivationDescription(answers.motivation_level),
+          mood: normalizedMood,
+          moodDesc: this.getMoodDescription(normalizedMood),
+          moodTrend: moodTrend as any,
+          concentration: normalizedConcentration,
+          concentrationDesc: this.getConcentrationDescription(normalizedConcentration),
+          concentrationTrend: concentrationTrend as any,
+          socialization: normalizedSocialization,
+          socializationDesc: this.getSocializationDescription(normalizedSocialization),
+          socializationTrend: socializationTrend as any,
+          motivation: normalizedMotivation,
+          motivationDesc: this.getMotivationDescription(normalizedMotivation),
+          motivationTrend: motivationTrend as any,
         },
       });
+
+      // Создаем запись в истории эмоциональных состояний
+      this.createEmotionalStateHistory(student.id, answers);
     }
+  }
+
+  // Метод для создания записи в истории эмоциональных состояний
+  private createEmotionalStateHistory(studentId: number, answers: any) {
+    // Создаем запись в истории через таблицу FeedbackResponse
+    // Эта информация уже сохраняется в ответах на фидбеки
+    // и может быть использована для построения истории изменений
+    console.log(`Emotional state history for student ${studentId} recorded in feedback responses`);
+  }
+
+  // Метод для расчета изменения тренда
+  private calculateTrendChange(previousValue: number, currentValue: number): string {
+    const diff = currentValue - previousValue;
+    if (diff > 5) return 'up';
+    if (diff < -5) return 'down';
+    return 'neutral';
   }
 
   private async updateKPIMetrics(response: any) {
@@ -489,5 +589,239 @@ export class FeedbackService {
     });
 
     return totalUsers > 0 ? Math.round((completedUsers / totalUsers) * 100) : 0;
+  }
+
+  // Получение эмоционального состояния студента на основе фидбеков
+  async getStudentEmotionalStateFromFeedbacks(studentId: number) {
+    // Находим студента по ID
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: true },
+    });
+
+    if (!student) {
+      throw new Error('Student not found');
+    }
+
+    // Получаем последние ответы на эмоциональные опросы
+    const recentResponses = await this.prisma.feedbackResponse.findMany({
+      where: {
+        userId: student.userId,
+        isCompleted: true,
+      },
+      include: {
+        template: true,
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 10,
+    });
+
+    // Анализируем ответы для получения эмоционального состояния
+    const emotionalMetrics = this.analyzeEmotionalResponses(recentResponses);
+
+    return {
+      studentId,
+      currentState: emotionalMetrics,
+      lastUpdated: recentResponses[0]?.submittedAt || null,
+      trends: this.calculateEmotionalTrends(recentResponses),
+      recommendations: emotionalMetrics ? this.generateEmotionalRecommendations(emotionalMetrics) : [],
+    };
+  }
+
+  // Получение истории эмоциональных ответов студента
+  async getStudentEmotionalHistory(studentId: number, period?: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: true },
+    });
+
+    if (!student) {
+      throw new Error('Student not found');
+    }
+
+    const where: any = {
+      userId: student.userId,
+      isCompleted: true,
+    };
+
+    if (period) {
+      where.period = period;
+    }
+
+    const responses = await this.prisma.feedbackResponse.findMany({
+      where,
+      include: {
+        template: true,
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    return {
+      studentId,
+      history: responses.map(response => ({
+        date: response.submittedAt,
+        period: response.period,
+        template: response.template.title,
+        emotionalData: this.extractEmotionalData(response.answers),
+      })),
+      period,
+    };
+  }
+
+  // Анализ эмоциональных ответов
+  private analyzeEmotionalResponses(responses: any[]) {
+    const emotionalAnswers = responses.flatMap(response => 
+      this.extractEmotionalData(response.answers)
+    ).filter(data => data !== null);
+
+    if (emotionalAnswers.length === 0) {
+      return null; // Возвращаем null если нет данных
+    }
+
+    const avgMood = this.calculateAverage(emotionalAnswers, 'mood');
+    const avgConcentration = this.calculateAverage(emotionalAnswers, 'concentration');
+    const avgSocialization = this.calculateAverage(emotionalAnswers, 'socialization');
+    const avgMotivation = this.calculateAverage(emotionalAnswers, 'motivation');
+
+    return {
+      mood: {
+        value: avgMood,
+        description: this.getMoodDescription(avgMood),
+        trend: this.calculateTrend(emotionalAnswers, 'mood'),
+      },
+      concentration: {
+        value: avgConcentration,
+        description: this.getConcentrationDescription(avgConcentration),
+        trend: this.calculateTrend(emotionalAnswers, 'concentration'),
+      },
+      socialization: {
+        value: avgSocialization,
+        description: this.getSocializationDescription(avgSocialization),
+        trend: this.calculateTrend(emotionalAnswers, 'socialization'),
+      },
+      motivation: {
+        value: avgMotivation,
+        description: this.getMotivationDescription(avgMotivation),
+        trend: this.calculateTrend(emotionalAnswers, 'motivation'),
+      },
+    };
+  }
+
+  // Извлечение эмоциональных данных из ответов
+  private extractEmotionalData(answers: any) {
+    const emotional: any = {};
+
+    // Ищем эмоциональные вопросы в ответах
+    for (const [key, value] of Object.entries(answers)) {
+      if (key.includes('mood') || key.includes('настроение')) {
+        emotional.mood = this.normalizeToScale(value, 100);
+      }
+      if (key.includes('concentration') || key.includes('концентрация')) {
+        emotional.concentration = this.normalizeToScale(value, 100);
+      }
+      if (key.includes('social') || key.includes('общение')) {
+        emotional.socialization = this.normalizeToScale(value, 100);
+      }
+      if (key.includes('motivation') || key.includes('мотивация')) {
+        emotional.motivation = this.normalizeToScale(value, 100);
+      }
+      if (key.includes('satisfaction') || key.includes('удовлетворенность')) {
+        emotional.mood = this.normalizeToScale(value, 100);
+      }
+    }
+
+    return Object.keys(emotional).length > 0 ? emotional : null;
+  }
+
+  // Нормализация значений к шкале 0-100
+  private normalizeToScale(value: any, targetScale: number): number {
+    if (typeof value === 'number') {
+      if (value <= 5) {
+        // Шкала 1-5 к 0-100
+        return Math.round(((value - 1) / 4) * targetScale);
+      } else if (value <= 10) {
+        // Шкала 1-10 к 0-100
+        return Math.round(((value - 1) / 9) * targetScale);
+      } else {
+        // Уже на шкале 0-100
+        return Math.min(Math.max(value, 0), targetScale);
+      }
+    }
+    if (typeof value === 'boolean') {
+      return value ? targetScale : 0;
+    }
+    return 50; // Нейтральное значение по умолчанию
+  }
+
+  // Расчет среднего значения
+  private calculateAverage(data: any[], field: string): number {
+    const values = data.map(item => item[field]).filter(val => val !== undefined);
+    return values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 50;
+  }
+
+  // Расчет тренда
+  private calculateTrend(data: any[], field: string): 'up' | 'down' | 'neutral' {
+    const values = data.map(item => item[field]).filter(val => val !== undefined);
+    if (values.length < 2) return 'neutral';
+
+    const recent = values.slice(0, Math.ceil(values.length / 2));
+    const older = values.slice(Math.ceil(values.length / 2));
+
+    const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+    const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
+
+    const diff = recentAvg - olderAvg;
+    if (diff > 5) return 'up';
+    if (diff < -5) return 'down';
+    return 'neutral';
+  }
+
+  // Расчет эмоциональных трендов
+  private calculateEmotionalTrends(responses: any[]) {
+    const timeline = responses.map(response => ({
+      date: response.submittedAt,
+      data: this.extractEmotionalData(response.answers),
+    })).filter(item => item.data).slice(0, 10);
+
+    return timeline;
+  }
+
+  // Генерация рекомендаций
+  private generateEmotionalRecommendations(metrics: any) {
+    const recommendations = [];
+
+    if (metrics.mood.value < 40) {
+      recommendations.push({
+        type: 'mood',
+        priority: 'high',
+        message: 'Низкое настроение требует внимания. Рекомендуется консультация с психологом.',
+      });
+    }
+
+    if (metrics.concentration.value < 30) {
+      recommendations.push({
+        type: 'concentration',
+        priority: 'high',
+        message: 'Проблемы с концентрацией. Рассмотрите возможность изменения учебной нагрузки.',
+      });
+    }
+
+    if (metrics.motivation.value < 40) {
+      recommendations.push({
+        type: 'motivation',
+        priority: 'medium',
+        message: 'Снижение мотивации. Рекомендуется беседа с куратором.',
+      });
+    }
+
+    if (metrics.socialization.value < 30) {
+      recommendations.push({
+        type: 'socialization',
+        priority: 'medium',
+        message: 'Проблемы с социализацией. Рекомендуется участие в групповых активностях.',
+      });
+    }
+
+    return recommendations;
   }
 }

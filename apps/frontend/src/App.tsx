@@ -56,6 +56,8 @@ import News from './pages/News';
 import Security from './pages/Security';
 import AlumniList from './alumni/pages/AlumniList';
 import AlumniDetail from './alumni/pages/AlumniDetail';
+import JasLife from './pages/JasLife';
+import EducationalReports from './pages/EducationalReports';
 
 const App: React.FC = () => {
   return (
@@ -111,6 +113,9 @@ const App: React.FC = () => {
                     {/* Standalone classrooms route */}
                     <Route path="classrooms" element={<ClassroomsPage />} />
 
+                    {/* Educational Reports route */}
+                    <Route path="educational-reports" element={<EducationalReports />} />
+
                     {/* Students routes */}
                     <Route path="students" element={<StudentsPage />} />
                     <Route path="students/:id" element={<StudentDetailPage />} />
@@ -121,6 +126,9 @@ const App: React.FC = () => {
                     {/* Alumni routes */}
                     <Route path="alumni" element={<AlumniList />} />
                     <Route path="alumni/:id" element={<AlumniDetail />} />
+
+                    {/* JAS.LIFE route */}
+                    <Route path="jas-life" element={<JasLife />} />
 
                     {/* Quiz routes */}
                     <Route path="quiz/:quizId/statistics" element={<div>Quiz Statistics Page</div>} />

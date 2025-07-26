@@ -37,7 +37,8 @@ import {
   Plus,
   CheckCircle,
   Newspaper,
-  Activity
+  Activity,
+  Zap
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -103,6 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen },
         { name: 'Расписание', href: '/academic/schedule', icon: Calendar },
         { name: 'Аудитории', href: '/classrooms', icon: Building },
+        { name: 'Отчеты', href: '/educational-reports', icon: BarChart3 },
       ]
     },
     {
@@ -121,6 +123,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       href: '/alumni',
       icon: GraduationCap,
       roles: ['ADMIN', 'TEACHER', 'HR']
+    },
+    {
+      name: 'JAS.LIFE',
+      href: '/jas-life',
+      icon: Zap,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
     },
     {
       name: 'HR (Персонал)',

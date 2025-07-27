@@ -26,17 +26,17 @@ const Dashboard: React.FC = () => {
         return <HRDashboard />;
       default:
         return (
-          <div className="p-6">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
+          <div className="p-3 md:p-6">
+            <div className="mb-4 md:mb-6">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">
                 Добро пожаловать, {user?.name} {user?.surname}
               </h1>
-              <p className="text-gray-600">Роль: {user?.role}</p>
+              <p className="text-sm md:text-base text-gray-600">Роль: {user?.role}</p>
             </div>
             
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4 md:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Дэшборд не настроен</h2>
-              <p className="text-gray-600">Дэшборд для вашей роли еще не настроен. Обратитесь к администратору.</p>
+              <p className="text-sm md:text-base text-gray-600">Дэшборд для вашей роли еще не настроен. Обратитесь к администратору.</p>
             </div>
           </div>
         );
@@ -44,7 +44,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 md:p-6">
       {renderDashboard()}
     </div>
   );

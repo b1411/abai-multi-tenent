@@ -167,13 +167,13 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
 
   const refreshOnlineUsers = useCallback(async () => {
     if (!isAdmin) return;
-    
+
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
-      
+
       console.log('🔄 Fetching online users from API...');
       const response = await fetch(`${apiUrl}activity-monitoring/online-users`, {
         headers: {
@@ -198,19 +198,19 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
 
   const refreshActivities = useCallback(async (filters?: any) => {
     if (!isAdmin) return;
-    
+
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
-      
+
       const params = new URLSearchParams({
         limit: '50',
         offset: '0',
         ...(filters?.userId && { userId: filters.userId.toString() }),
       });
-      
+
       console.log('🔄 Fetching activities from API...', { filters });
       const response = await fetch(`${apiUrl}/activity-monitoring/user-activity?${params}`, {
         headers: {
@@ -235,13 +235,13 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
 
   const refreshStats = useCallback(async (days: number = 7) => {
     if (!isAdmin) return;
-    
+
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
-      
+
       console.log('🔄 Fetching stats from API...', { days });
       const response = await fetch(`${apiUrl}/activity-monitoring/stats?days=${days}`, {
         headers: {
@@ -273,7 +273,7 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
 
       let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl; // Удаляем слеш в конце
-      
+
       const response = await fetch(`${apiUrl}/activity-monitoring/user-activity?limit=1000`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -313,7 +313,7 @@ export const ActivityProvider: React.FC<ActivityProviderProps> = ({ children }) 
     const handleRouteChange = () => {
       const currentPath = window.location.pathname;
       console.log('ActivityProvider: Route changed to:', currentPath);
-      
+
       if (connected && socket) {
         updateCurrentPage(currentPath);
       } else {

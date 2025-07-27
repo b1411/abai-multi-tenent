@@ -7,6 +7,8 @@ import { formatDate } from '../utils';
 import { StudyPlan } from '../types/studyPlan';
 import { studyPlanService } from '../services/studyPlanService';
 import StudyPlanForm, { StudyPlanFormData } from '../components/StudyPlanForm';
+import KtpTreeView from '../components/KtpTreeView';
+import { getKtpByStudyPlanId } from '../data/mockKtpData';
 
 const StudyPlansPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,8 +16,9 @@ const StudyPlansPage: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<StudyPlan | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingPlan, setEditingPlan] = useState<StudyPlan | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
-  const [, setLoading] = useState(false);
+const [formLoading, setFormLoading] = useState(false);
+const [, setLoading] = useState(false);
+const [showKtpModal, setShowKtpModal] = useState(false);
 
   const {
     studyPlans,
@@ -130,43 +133,48 @@ const StudyPlansPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Учебные планы</h1>
-        <div className="flex space-x-3">
+    <div className="p-3 md:p-6 max-w-[1600px] mx-auto">
+      {/* Header - мобильная адаптация */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6 space-y-3 sm:space-y-0">
+        <h1 className="text-xl md:text-2xl font-bold">Учебные планы</h1>
+        
+        {/* Мобильные кнопки */}
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           {(hasRole('ADMIN') || hasRole('TEACHER')) && (
             <button
               onClick={() => setShowCreateForm(true)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center button-hover"
+              className="w-full sm:w-auto px-3 md:px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center button-hover text-sm md:text-base"
             >
-              <FaPlus className="mr-2" />
-              Создать учебный план
+              <FaPlus className="mr-2 text-xs md:text-sm" />
+              <span className="hidden sm:inline">Создать учебный план</span>
+              <span className="sm:hidden">Создать план</span>
             </button>
           )}
-          <button className="px-4 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 flex items-center button-hover">
-            <FaDownload className="mr-2" />
-            Скачать в Excel
+          <button className="w-full sm:w-auto px-3 md:px-4 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 flex items-center justify-center button-hover text-sm md:text-base">
+            <FaDownload className="mr-2 text-xs md:text-sm" />
+            <span className="hidden sm:inline">Скачать в Excel</span>
+            <span className="sm:hidden">Excel</span>
           </button>
         </div>
       </div>
 
-      {/* Фильтры */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-3 gap-4">
-          <div>
+      {/* Фильтры - адаптивная сетка */}
+      <div className="bg-white p-3 md:p-4 rounded-lg shadow mb-4 md:mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          <div className="col-span-1 md:col-span-1">
             <input
               type="text"
-              placeholder="Поиск по названию или описанию..."
+              placeholder="Поиск по названию..."
               value={filters.search || ''}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          <div>
+          <div className="col-span-1 md:col-span-1">
             <select
               value={filters.groupId?.toString() || ''}
               onChange={(e) => handleGroupFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">Все группы</option>
               {groups.map(group => (
@@ -176,11 +184,11 @@ const StudyPlansPage: React.FC = () => {
               ))}
             </select>
           </div>
-          <div>
+          <div className="col-span-1 md:col-span-1">
             <select
               value={filters.teacherId?.toString() || ''}
               onChange={(e) => handleTeacherFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">Все преподаватели</option>
               {teachers.map(teacher => (
@@ -206,112 +214,236 @@ const StudyPlansPage: React.FC = () => {
         </div>
       )}
 
-      {/* Таблица учебных планов */}
+      {/* Таблица учебных планов - Desktop версия */}
       {!plansLoading && !error && (
-        <div className="bg-white rounded-lg shadow-notion overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">№</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Название</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Группы</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Преподаватель</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Кол-во уроков</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Обновлено</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Действия</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {studyPlans.map((plan, index) => (
-                <tr
-                  key={plan.id}
-                  className="hover:bg-gray-50 cursor-pointer animate-fadeIn"
-                  onClick={() => loadDetailedPlan(plan.id)}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {(pagination.page - 1) * pagination.limit + index + 1}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        <>
+          {/* Desktop Table */}
+          <div className="hidden md:block bg-white rounded-lg shadow-notion overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">№</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Название</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Группы</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Преподаватель</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Уроков</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Обновлено</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Действия</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {studyPlans.map((plan, index) => (
+                    <tr
+                      key={plan.id}
+                      className="hover:bg-gray-50 cursor-pointer animate-fadeIn"
+                      onClick={() => loadDetailedPlan(plan.id)}
+                    >
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {(pagination.page - 1) * pagination.limit + index + 1}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/lessons?studyPlanId=${plan.id}`);
+                          }}
+                          className="text-corporate-primary hover:text-purple-800 hover:underline font-medium text-left"
+                        >
+                          {plan.name}
+                        </button>
+                        {plan.description && (
+                          <div className="text-xs text-gray-500 mt-1 hidden lg:block">{plan.description}</div>
+                        )}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                        {plan.group && plan.group.length > 0 ? (
+                          <div className="space-y-1">
+                            {plan.group.map((group: any) => (
+                              <span key={group.id} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1">
+                                {group.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                        {plan.teacher ? (
+                          <div>
+                            <div className="font-medium">{plan.teacher.user.name} {plan.teacher.user.surname}</div>
+                            <div className="text-xs text-gray-500 hidden lg:block">{plan.teacher.user.email}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {plan._count?.lessons || 0}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden lg:table-cell">
+                        {formatDate(plan.updatedAt)}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user.id === user?.id)) ? (
+                          <div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
+                            <button
+                              className="text-blue-600 hover:text-blue-800 flex items-center button-hover text-xs lg:text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingPlan(plan);
+                              }}
+                            >
+                              <FaEdit className="mr-1" />
+                              <span className="hidden lg:inline">Редактировать</span>
+                              <span className="lg:hidden">Ред.</span>
+                            </button>
+                            <button
+                              className="text-green-600 hover:text-green-800 flex items-center button-hover text-xs lg:text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/lessons?studyPlanId=${plan.id}`);
+                              }}
+                            >
+                              <FaEdit className="mr-1" />
+                              Уроки
+                            </button>
+                            <button
+                              className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPlan(plan);
+                                setShowKtpModal(true);
+                              }}
+                            >
+                              <FaPlus className="mr-1" />
+                              КТП
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Нет доступа</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {studyPlans.map((plan, index) => (
+              <div
+                key={plan.id}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 animate-fadeIn"
+                onClick={() => loadDetailedPlan(plan.id)}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-500">
+                        #{(pagination.page - 1) * pagination.limit + index + 1}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {formatDate(plan.updatedAt)}
+                      </span>
+                    </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(`/lessons?studyPlanId=${plan.id}`);
                       }}
-                      className="text-corporate-primary hover:text-purple-800 hover:underline font-medium text-left"
+                      className="text-corporate-primary hover:text-purple-800 font-medium text-left text-base mb-2 block"
                     >
                       {plan.name}
                     </button>
                     {plan.description && (
-                      <div className="text-xs text-gray-500 mt-1">{plan.description}</div>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{plan.description}</p>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {plan.group && plan.group.length > 0 ? (
-                      <div className="space-y-1">
-                        {plan.group.map((group: any) => (
-                          <span key={group.id} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1">
+                  </div>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  {/* Группы */}
+                  <div className="flex flex-wrap items-center">
+                    <span className="text-xs text-gray-500 font-medium mr-2 min-w-0">Группы:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {plan.group && plan.group.length > 0 ? (
+                        plan.group.map((group: any) => (
+                          <span key={group.id} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
                             {group.name}
                           </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">Не назначены</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ))
+                      ) : (
+                        <span className="text-gray-400 text-xs">Не назначены</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Преподаватель */}
+                  <div className="flex items-center">
+                    <span className="text-xs text-gray-500 font-medium mr-2">Преподаватель:</span>
                     {plan.teacher ? (
-                      <div>
-                        <div className="font-medium">{plan.teacher.user.name} {plan.teacher.user.surname}</div>
-                        <div className="text-xs text-gray-500">{plan.teacher.user.email}</div>
-                      </div>
+                      <span className="text-sm text-gray-900">
+                        {plan.teacher.user.name} {plan.teacher.user.surname}
+                      </span>
                     ) : (
-                      <span className="text-gray-400">Не назначен</span>
+                      <span className="text-gray-400 text-sm">Не назначен</span>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className="flex items-center">
-                      {plan._count?.lessons || 0} уроков
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(plan.updatedAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user.id === user?.id)) ? (
-                      <div className="flex space-x-2">
-                        <button
-                          className="text-blue-600 hover:text-blue-800 flex items-center button-hover"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingPlan(plan);
-                          }}
-                        >
-                          <FaEdit className="mr-1" />
-                          Редактировать
-                        </button>
-                        <button
-                          className="text-green-600 hover:text-green-800 flex items-center button-hover"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/lessons?studyPlanId=${plan.id}`);
-                          }}
-                        >
-                          <FaEdit className="mr-1" />
-                          Уроки
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">Нет доступа</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+
+                  {/* Количество уроков */}
+                  <div className="flex items-center">
+                    <span className="text-xs text-gray-500 font-medium mr-2">Уроков:</span>
+                    <span className="text-sm text-gray-900">{plan._count?.lessons || 0}</span>
+                  </div>
+                </div>
+
+                {/* Действия */}
+                {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user.id === user?.id)) && (
+                  <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                    <button
+                      className="flex-1 min-w-[80px] px-3 py-2 text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-md flex items-center justify-center button-hover text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingPlan(plan);
+                      }}
+                    >
+                      <FaEdit className="mr-1" />
+                      Изменить
+                    </button>
+                    <button
+                      className="flex-1 min-w-[80px] px-3 py-2 text-green-600 hover:bg-green-50 border border-green-200 rounded-md flex items-center justify-center button-hover text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/lessons?studyPlanId=${plan.id}`);
+                      }}
+                    >
+                      <FaEdit className="mr-1" />
+                      Уроки
+                    </button>
+                    <button
+                      className="flex-1 min-w-[80px] px-3 py-2 text-purple-600 hover:bg-purple-50 border border-purple-200 rounded-md flex items-center justify-center button-hover text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPlan(plan);
+                        setShowKtpModal(true);
+                      }}
+                    >
+                      <FaPlus className="mr-1" />
+                      КТП
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
 
           {/* Пагинация */}
           {pagination.totalPages > 1 && (
-            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 mt-4 rounded-b-lg">
               <div className="flex-1 flex justify-between sm:hidden">
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
@@ -361,11 +493,34 @@ const StudyPlansPage: React.FC = () => {
               </div>
             </div>
           )}
+        </>
+      )}
+
+      {/* Модальное окно КТП */}
+      {showKtpModal && selectedPlan && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col animate-fadeIn">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">Календарно-тематическое планирование</h2>
+              <button
+                onClick={() => {
+                  setShowKtpModal(false);
+                  setSelectedPlan(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors button-hover"
+              >
+                <FaTimes className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 p-6 overflow-auto">
+              <KtpTreeView ktpData={getKtpByStudyPlanId(selectedPlan.id)} />
+            </div>
+          </div>
         </div>
       )}
 
       {/* Модальное окно детального просмотра */}
-      {selectedPlan && (
+      {selectedPlan && !showKtpModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col animate-fadeIn">
             {/* Шапка модального окна */}

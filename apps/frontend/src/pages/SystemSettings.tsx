@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+зimport React, { useState } from 'react';
 import { FaCog, FaSave, FaEnvelope, FaBell, FaLock, FaServer, FaDownload } from 'react-icons/fa';
 import { useSystemSettings } from '../hooks/useSystem';
 import { SystemSettings } from '../types/system';
@@ -63,29 +63,85 @@ const SystemSettingsPage: React.FC = () => {
       }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Системные настройки</h1>
-        <div className="flex gap-2">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      {/* Header - мобильная адаптация */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6 space-y-3 sm:space-y-0">
+        <h1 className="text-xl md:text-2xl font-bold">Системные настройки</h1>
+        <div className="flex flex-col sm:flex-row gap-2">
           {saveMessage && (
             <Alert 
               variant={saveMessage.includes('Ошибка') ? 'error' : 'success'} 
               message={saveMessage}
-              className="mr-4"
+              className="mb-2 sm:mb-0 sm:mr-4"
             />
           )}
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-3 md:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm md:text-base"
           >
-            {isSaving ? <Spinner size="sm" /> : <FaSave />}
-            Сохранить изменения
+            {isSaving ? <Spinner size="sm" /> : <FaSave className="text-sm md:text-base" />}
+            <span className="hidden sm:inline">Сохранить изменения</span>
+            <span className="sm:hidden">Сохранить</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-6">
+      {/* Mobile Tabs */}
+      <div className="md:hidden mb-4">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="flex overflow-x-auto">
+            <button
+              className={`flex-shrink-0 px-4 py-3 flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                activeTab === 'general' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('general')}
+            >
+              <FaCog className="text-xs" />
+              <span>Общие</span>
+            </button>
+            <button
+              className={`flex-shrink-0 px-4 py-3 flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                activeTab === 'email' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('email')}
+            >
+              <FaEnvelope className="text-xs" />
+              <span>Почта</span>
+            </button>
+            <button
+              className={`flex-shrink-0 px-4 py-3 flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                activeTab === 'notifications' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('notifications')}
+            >
+              <FaBell className="text-xs" />
+              <span>Уведомления</span>
+            </button>
+            <button
+              className={`flex-shrink-0 px-4 py-3 flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                activeTab === 'security' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('security')}
+            >
+              <FaLock className="text-xs" />
+              <span>Безопасность</span>
+            </button>
+            <button
+              className={`flex-shrink-0 px-4 py-3 flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                activeTab === 'maintenance' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('maintenance')}
+            >
+              <FaServer className="text-xs" />
+              <span>Обслуживание</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:grid md:grid-cols-4 gap-6">
         <div className="col-span-1">
           <div className="bg-white rounded-lg shadow">
             <button
@@ -141,13 +197,13 @@ const SystemSettingsPage: React.FC = () => {
             {activeTab === 'general' && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">Общие настройки</h2>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Часовой пояс
                     </label>
                     <select
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.timezone || ''}
                       onChange={(e) => handleSettingChange('timezone', e.target.value)}
                     >
@@ -161,7 +217,7 @@ const SystemSettingsPage: React.FC = () => {
                       Формат даты
                     </label>
                     <select
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.dateFormat || ''}
                       onChange={(e) => handleSettingChange('dateFormat', e.target.value)}
                     >
@@ -175,7 +231,7 @@ const SystemSettingsPage: React.FC = () => {
                       Язык по умолчанию
                     </label>
                     <select
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.defaultLanguage || ''}
                       onChange={(e) => handleSettingChange('defaultLanguage', e.target.value)}
                     >
@@ -190,7 +246,7 @@ const SystemSettingsPage: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.maxUploadSize || ''}
                       onChange={(e) => handleSettingChange('maxUploadSize', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                     />
@@ -202,14 +258,14 @@ const SystemSettingsPage: React.FC = () => {
             {activeTab === 'email' && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">Настройки почты</h2>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       SMTP сервер
                     </label>
                     <input
                       type="text"
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.emailServer || ''}
                       onChange={(e) => handleSettingChange('emailServer', e.target.value)}
                     />
@@ -220,17 +276,17 @@ const SystemSettingsPage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.emailPort || ''}
                       onChange={(e) => handleSettingChange('emailPort', e.target.value)}
                     />
                   </div>
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Шифрование
                     </label>
                     <select
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.emailEncryption || ''}
                       onChange={(e) => handleSettingChange('emailEncryption', e.target.value)}
                     >
@@ -247,32 +303,32 @@ const SystemSettingsPage: React.FC = () => {
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">Настройки уведомлений</h2>
                 <div className="space-y-4">
-                  <label className="flex items-center">
+                  <label className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <input
                       type="checkbox"
-                      className="mr-2"
+                      className="mr-3 w-4 h-4"
                       checked={formData.notificationsEnabled || false}
                       onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
                     />
-                    <span>Включить уведомления</span>
+                    <span className="text-sm">Включить уведомления</span>
                   </label>
-                  <label className="flex items-center">
+                  <label className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <input
                       type="checkbox"
-                      className="mr-2"
+                      className="mr-3 w-4 h-4"
                       checked={formData.pushNotifications || false}
                       onChange={(e) => handleSettingChange('pushNotifications', e.target.checked)}
                     />
-                    <span>Push-уведомления</span>
+                    <span className="text-sm">Push-уведомления</span>
                   </label>
-                  <label className="flex items-center">
+                  <label className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <input
                       type="checkbox"
-                      className="mr-2"
+                      className="mr-3 w-4 h-4"
                       checked={formData.emailNotifications || false}
                       onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
                     />
-                    <span>Email-уведомления</span>
+                    <span className="text-sm">Email-уведомления</span>
                   </label>
                 </div>
               </div>
@@ -281,14 +337,14 @@ const SystemSettingsPage: React.FC = () => {
             {activeTab === 'security' && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">Настройки безопасности</h2>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Тайм-аут сессии (минуты)
                     </label>
                     <input
                       type="number"
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.sessionTimeout || ''}
                       onChange={(e) => handleSettingChange('sessionTimeout', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                     />
@@ -301,39 +357,39 @@ const SystemSettingsPage: React.FC = () => {
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">Обслуживание системы</h2>
                 <div className="space-y-4">
-                  <label className="flex items-center">
+                  <label className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <input
                       type="checkbox"
-                      className="mr-2"
+                      className="mr-3 w-4 h-4"
                       checked={formData.maintenance || false}
                       onChange={(e) => handleSettingChange('maintenance', e.target.checked)}
                     />
-                    <span>Режим обслуживания</span>
+                    <span className="text-sm">Режим обслуживания</span>
                   </label>
-                  <label className="flex items-center">
+                  <label className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <input
                       type="checkbox"
-                      className="mr-2"
+                      className="mr-3 w-4 h-4"
                       checked={formData.debugMode || false}
                       onChange={(e) => handleSettingChange('debugMode', e.target.checked)}
                     />
-                    <span>Режим отладки</span>
+                    <span className="text-sm">Режим отладки</span>
                   </label>
-                  <label className="flex items-center">
+                  <label className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <input
                       type="checkbox"
-                      className="mr-2"
+                      className="mr-3 w-4 h-4"
                       checked={formData.backupEnabled || false}
                       onChange={(e) => handleSettingChange('backupEnabled', e.target.checked)}
                     />
-                    <span>Автоматическое резервное копирование</span>
+                    <span className="text-sm">Автоматическое резервное копирование</span>
                   </label>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Частота резервного копирования
                     </label>
                     <select
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border rounded-lg text-sm"
                       value={formData.backupFrequency || ''}
                       onChange={(e) => handleSettingChange('backupFrequency', e.target.value)}
                     >
@@ -345,14 +401,234 @@ const SystemSettingsPage: React.FC = () => {
                   </div>
                   <button 
                     onClick={handleDownloadBackup}
-                    className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg flex items-center gap-2"
+                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm"
                   >
-                    <FaDownload /> Скачать резервную копию
+                    <FaDownload className="text-xs" /> 
+                    <span>Скачать резервную копию</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Content */}
+      <div className="md:hidden">
+        <div className="bg-white rounded-lg shadow p-4">
+          {activeTab === 'general' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Общие настройки</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Часовой пояс
+                  </label>
+                  <select
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.timezone || ''}
+                    onChange={(e) => handleSettingChange('timezone', e.target.value)}
+                  >
+                    <option value="Asia/Almaty">Алматы (UTC+6)</option>
+                    <option value="Asia/Nur-Sultan">Нур-Султан (UTC+6)</option>
+                    <option value="Europe/Moscow">Москва (UTC+3)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Формат даты
+                  </label>
+                  <select
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.dateFormat || ''}
+                    onChange={(e) => handleSettingChange('dateFormat', e.target.value)}
+                  >
+                    <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Язык по умолчанию
+                  </label>
+                  <select
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.defaultLanguage || ''}
+                    onChange={(e) => handleSettingChange('defaultLanguage', e.target.value)}
+                  >
+                    <option value="ru">Русский</option>
+                    <option value="kk">Қазақша</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Максимальный размер загрузки (МБ)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.maxUploadSize || ''}
+                    onChange={(e) => handleSettingChange('maxUploadSize', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'email' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Настройки почты</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    SMTP сервер
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.emailServer || ''}
+                    onChange={(e) => handleSettingChange('emailServer', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    SMTP порт
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.emailPort || ''}
+                    onChange={(e) => handleSettingChange('emailPort', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Шифрование
+                  </label>
+                  <select
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.emailEncryption || ''}
+                    onChange={(e) => handleSettingChange('emailEncryption', e.target.value)}
+                  >
+                    <option value="none">Нет</option>
+                    <option value="tls">TLS</option>
+                    <option value="ssl">SSL</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'notifications' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Настройки уведомлений</h2>
+              <div className="space-y-3">
+                <label className="flex items-center p-4 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    className="mr-3 w-5 h-5"
+                    checked={formData.notificationsEnabled || false}
+                    onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">Включить уведомления</span>
+                </label>
+                <label className="flex items-center p-4 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    className="mr-3 w-5 h-5"
+                    checked={formData.pushNotifications || false}
+                    onChange={(e) => handleSettingChange('pushNotifications', e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">Push-уведомления</span>
+                </label>
+                <label className="flex items-center p-4 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    className="mr-3 w-5 h-5"
+                    checked={formData.emailNotifications || false}
+                    onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">Email-уведомления</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Настройки безопасности</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Тайм-аут сессии (минуты)
+                </label>
+                <input
+                  type="number"
+                  className="w-full p-3 border rounded-lg text-sm"
+                  value={formData.sessionTimeout || ''}
+                  onChange={(e) => handleSettingChange('sessionTimeout', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'maintenance' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Обслуживание системы</h2>
+              <div className="space-y-3">
+                <label className="flex items-center p-4 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    className="mr-3 w-5 h-5"
+                    checked={formData.maintenance || false}
+                    onChange={(e) => handleSettingChange('maintenance', e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">Режим обслуживания</span>
+                </label>
+                <label className="flex items-center p-4 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    className="mr-3 w-5 h-5"
+                    checked={formData.debugMode || false}
+                    onChange={(e) => handleSettingChange('debugMode', e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">Режим отладки</span>
+                </label>
+                <label className="flex items-center p-4 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    className="mr-3 w-5 h-5"
+                    checked={formData.backupEnabled || false}
+                    onChange={(e) => handleSettingChange('backupEnabled', e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">Автоматическое резервное копирование</span>
+                </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Частота резервного копирования
+                  </label>
+                  <select
+                    className="w-full p-3 border rounded-lg text-sm"
+                    value={formData.backupFrequency || ''}
+                    onChange={(e) => handleSettingChange('backupFrequency', e.target.value)}
+                  >
+                    <option value="hourly">Каждый час</option>
+                    <option value="daily">Ежедневно</option>
+                    <option value="weekly">Еженедельно</option>
+                    <option value="monthly">Ежемесячно</option>
+                  </select>
+                </div>
+                <button 
+                  onClick={handleDownloadBackup}
+                  className="w-full bg-gray-100 hover:bg-gray-200 px-4 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
+                >
+                  <FaDownload className="text-sm" /> 
+                  <span>Скачать резервную копию</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

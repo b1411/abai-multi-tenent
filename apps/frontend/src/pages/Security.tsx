@@ -202,34 +202,36 @@ const Security: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
-      {/* Заголовок */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
+      {/* Заголовок - мобильная адаптация */}
+      <div className="mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Shield className="h-8 w-8 text-primary" />
-              Система физической безопасности
+            <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 md:gap-3">
+              <Shield className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+              <span className="hidden sm:inline">Система физической безопасности</span>
+              <span className="sm:hidden">Безопасность</span>
             </h1>
-            <p className="text-gray-600 mt-2">
+            <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">
               Централизованный дашборд управления безопасностью школы
             </p>
           </div>
           <button
             onClick={handleRefreshData}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto px-3 md:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 text-sm md:text-base"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Обновить
+            <span className="hidden sm:inline">Обновить</span>
+            <span className="sm:hidden">Обновить</span>
           </button>
         </div>
       </div>
 
-      {/* Основная сетка компонентов */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Левая колонка - Тревоги и видеопоток */}
-        <div className="lg:col-span-4 space-y-6">
+      {/* Основная сетка компонентов - мобильная адаптация */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6">
+        {/* Левая колонка - Тревоги */}
+        <div className="md:col-span-1 lg:col-span-4 space-y-4 md:space-y-6">
           {/* Лента тревог */}
           <AlertsFeed
             alerts={alerts}
@@ -239,7 +241,7 @@ const Security: React.FC = () => {
         </div>
 
         {/* Центральная колонка - Видеопоток и метрики */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="md:col-span-1 lg:col-span-4 space-y-4 md:space-y-6">
           {/* Видеопоток с ИИ */}
           <CameraStream
             camera={cameras[0]}
@@ -253,7 +255,7 @@ const Security: React.FC = () => {
         </div>
 
         {/* Правая колонка - Экстренные кнопки */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="md:col-span-2 lg:col-span-4 space-y-4 md:space-y-6">
           {/* Экстренные кнопки */}
           <EmergencyButtons
             onEmergencyCall={handleEmergencyCall}
@@ -263,7 +265,7 @@ const Security: React.FC = () => {
       </div>
 
       {/* Нижний ряд - Журналы и управление */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-6">
         {/* Журнал Face ID */}
         <FaceIDLog
           entries={faceIDEntries}
@@ -347,32 +349,6 @@ const Security: React.FC = () => {
         </div>
       )}
 
-      {/* Мобильная адаптивность */}
-      <style>{`
-        @media (max-width: 1024px) {
-          .grid.lg\\:grid-cols-12 {
-            grid-template-columns: 1fr;
-          }
-          
-          .lg\\:col-span-4 {
-            grid-column: span 1;
-          }
-        }
-        
-        @media (max-width: 768px) {
-          .grid.lg\\:grid-cols-2 {
-            grid-template-columns: 1fr;
-          }
-          
-          .p-6 {
-            padding: 1rem;
-          }
-          
-          .text-3xl {
-            font-size: 1.5rem;
-          }
-        }
-      `}</style>
     </div>
   );
 };

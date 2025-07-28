@@ -20,9 +20,10 @@ import paymentsService, { Payment, PaymentSummary, PaymentFilters } from '../ser
 import PaymentForm from '../components/PaymentForm';
 import InvoiceGenerator from '../components/InvoiceGenerator';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 const PaymentsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +50,7 @@ const PaymentsPage: React.FC = () => {
     collectionRate: 0
   });
 
-  // Проверка прав доступа
-  const isParent = user?.role === 'PARENT';
-  const canCreatePayments = ['ADMIN', 'FINANCIST'].includes(user?.role || '');
+  // Эти переменные теперь не нужны - используем hasPermission напрямую
 
   // Загрузка данных
   useEffect(() => {
@@ -329,27 +328,33 @@ const PaymentsPage: React.FC = () => {
           </div>
           
           <div className="flex justify-end space-x-3">
-            <button
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm flex items-center"
-              onClick={() => handleSendReminder(selectedPayment.id)}
-              disabled={loading}
-            >
-              <FaBell className="mr-2" /> Отправить напоминание
-            </button>
-            <button
-              className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md text-sm flex items-center"
-              onClick={() => handleGenerateSummaryInvoice(selectedPayment)}
-              disabled={loading}
-            >
-              <FaDownload className="mr-2" /> Сводная квитанция
-            </button>
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm flex items-center"
-              onClick={() => handleGenerateInvoice(selectedPayment)}
-              disabled={loading}
-            >
-              <FaDownload className="mr-2" /> Сформировать квитанцию
-            </button>
+            <PermissionGuard module="notifications" action="create">
+              <button
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm flex items-center"
+                onClick={() => handleSendReminder(selectedPayment.id)}
+                disabled={loading}
+              >
+                <FaBell className="mr-2" /> Отправить напоминание
+              </button>
+            </PermissionGuard>
+            <PermissionGuard module="reports" action="read">
+              <button
+                className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md text-sm flex items-center"
+                onClick={() => handleGenerateSummaryInvoice(selectedPayment)}
+                disabled={loading}
+              >
+                <FaDownload className="mr-2" /> Сводная квитанция
+              </button>
+            </PermissionGuard>
+            <PermissionGuard module="reports" action="read">
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm flex items-center"
+                onClick={() => handleGenerateInvoice(selectedPayment)}
+                disabled={loading}
+              >
+                <FaDownload className="mr-2" /> Сформировать квитанцию
+              </button>
+            </PermissionGuard>
           </div>
         </div>
       </div>
@@ -391,7 +396,7 @@ const PaymentsPage: React.FC = () => {
           </button>
         </div>
         <div className="flex items-center space-x-3">
-          {canCreatePayments && (
+          <PermissionGuard module="payments" action="create">
             <button 
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
               onClick={() => setShowCreatePaymentModal(true)}
@@ -399,14 +404,16 @@ const PaymentsPage: React.FC = () => {
               <FaMoneyBill className="mr-2" />
               Добавить оплату
             </button>
-          )}
-          <button 
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
-            onClick={handleExport}
-          >
-            <FaFileExport className="mr-2" />
-            Экспорт
-          </button>
+          </PermissionGuard>
+          <PermissionGuard module="reports" action="read">
+            <button 
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+              onClick={handleExport}
+            >
+              <FaFileExport className="mr-2" />
+              Экспорт
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -510,36 +517,42 @@ const PaymentsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
-                      <button 
-                        className="text-blue-600 hover:text-blue-900 p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSendReminder(payment.id);
-                        }}
-                        title="Отправить напоминание"
-                      >
-                        <FaBell />
-                      </button>
-                      <button 
-                        className="text-purple-600 hover:text-purple-900 p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleGenerateSummaryInvoice(payment);
-                        }}
-                        title="Сводная квитанция"
-                      >
-                        <FaFileExport />
-                      </button>
-                      <button 
-                        className="text-green-600 hover:text-green-900 p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleGenerateInvoice(payment);
-                        }}
-                        title="Квитанция"
-                      >
-                        <FaDownload />
-                      </button>
+                      <PermissionGuard module="notifications" action="create">
+                        <button 
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSendReminder(payment.id);
+                          }}
+                          title="Отправить напоминание"
+                        >
+                          <FaBell />
+                        </button>
+                      </PermissionGuard>
+                      <PermissionGuard module="reports" action="read">
+                        <button 
+                          className="text-purple-600 hover:text-purple-900 p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateSummaryInvoice(payment);
+                          }}
+                          title="Сводная квитанция"
+                        >
+                          <FaFileExport />
+                        </button>
+                      </PermissionGuard>
+                      <PermissionGuard module="reports" action="read">
+                        <button 
+                          className="text-green-600 hover:text-green-900 p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateInvoice(payment);
+                          }}
+                          title="Квитанция"
+                        >
+                          <FaDownload />
+                        </button>
+                      </PermissionGuard>
                     </div>
                   </td>
                 </tr>

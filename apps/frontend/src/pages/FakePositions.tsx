@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { useFakePositions } from '../hooks/useFakePositions';
 import { FakePositionsFilters, AttendanceRecord } from '../types/fakePositions';
 
@@ -14,7 +15,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 
 const FakePositions: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [filters, setFilters] = useState<FakePositionsFilters>({
     dateFrom: new Date().toISOString().split('T')[0],
     dateTo: new Date().toISOString().split('T')[0],
@@ -35,8 +36,8 @@ const FakePositions: React.FC = () => {
   const [disputeRecord, setDisputeRecord] = useState<AttendanceRecord | null>(null);
   const [scanRecord, setScanRecord] = useState<AttendanceRecord | null>(null);
 
-  // Check user access
-  if (!user || !['ADMIN', 'HR', 'TEACHER'].includes(user.role)) {
+  // Check user access with RBAC
+  if (!user || !hasPermission('attendance', 'read')) {
     return (
       <div className="p-6">
         <Alert variant="error">
@@ -63,7 +64,7 @@ const FakePositions: React.FC = () => {
   };
 
   const isTeacher = user.role === 'TEACHER';
-  const canViewAnalytics = ['ADMIN', 'HR'].includes(user.role);
+  const canViewAnalytics = hasPermission('attendance', 'read', { scope: 'ALL' });
 
   if (loading && data.length === 0) {
     return (

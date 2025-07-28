@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaSearch, FaUserGraduate, FaPhone, FaEnvelope, FaUsers, FaFilter, FaPlus } from 'react-icons/fa';
 import { useStudents } from '../hooks/useStudents';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { Student } from '../services/studentService';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
@@ -10,7 +11,7 @@ import { CreateStudentForm } from '../components/CreateStudentForm';
 
 const Students: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { students, loading, error } = useStudents();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,51 +39,60 @@ const Students: React.FC = () => {
   }, [students, searchQuery, selectedGroup]);
 
   const handleStudentClick = (student: Student) => {
-    // Проверяем права доступа
-    if (user?.role === 'STUDENT' && student.userId !== user.id) {
-      setSelectedStudent(student);
+    // Проверяем права доступа через RBAC
+    if (hasPermission('students', 'read', { scope: 'ALL' })) {
+      // Полный доступ - можем открыть профиль
+      navigate(`/students/${student.id}`);
       return;
     }
     
-    if (user?.role === 'PARENT') {
-      const isParent = student.Parents?.some(parent => parent.user.id === user.id);
-      if (!isParent) {
-        setSelectedStudent(student);
-        return;
-      }
+    if (hasPermission('students', 'read', { scope: 'OWN' }) && student.userId === user?.id) {
+      // Доступ к собственному профилю
+      navigate(`/students/${student.id}`);
+      return;
     }
     
-    navigate(`/students/${student.id}`);
+    if (hasPermission('students', 'read', { scope: 'GROUP' })) {
+      // Доступ к студентам группы (для учителей)
+      navigate(`/students/${student.id}`);
+      return;
+    }
+    
+    // Ограниченный доступ - показываем модальное окно
+    setSelectedStudent(student);
   };
 
   const getAccessLevelInfo = (student: Student) => {
     if (!user) return null;
     
-    switch (user.role) {
-      case 'STUDENT':
-        if (student.userId === user.id) {
-          return { level: 'full', text: 'Ваш профиль' };
-        }
-        return { level: 'basic', text: 'Одногруппник' };
-      
-      case 'PARENT': {
-        const isParent = student.Parents?.some(parent => parent.user.id === user.id);
-        if (isParent) {
-          return { level: 'full', text: 'Ваш ребенок' };
-        }
-        return { level: 'none', text: 'Ограниченный доступ' };
-      }
-      
-      case 'TEACHER':
-        return { level: 'full', text: 'Ученик' };
-      
-      case 'ADMIN':
-      case 'HR':
-        return { level: 'full', text: 'Полный доступ' };
-      
-      default:
-        return null;
+    // Используем RBAC для определения уровня доступа
+    if (hasPermission('students', 'read', { scope: 'ALL' })) {
+      return { level: 'full', text: 'Полный доступ' };
     }
+    
+    if (hasPermission('students', 'read', { scope: 'OWN' }) && student.userId === user.id) {
+      return { level: 'full', text: 'Ваш профиль' };
+    }
+    
+    if (hasPermission('students', 'read', { scope: 'GROUP' })) {
+      return { level: 'full', text: 'Доступ к группе' };
+    }
+    
+    if (hasPermission('students', 'read', { scope: 'ASSIGNED' })) {
+      // Для родителей - проверяем связь с ребенком
+      const isParent = student.Parents?.some(parent => parent.user.id === user.id);
+      if (isParent) {
+        return { level: 'full', text: 'Ваш ребенок' };
+      }
+      return { level: 'basic', text: 'Назначенный студент' };
+    }
+    
+    // Если есть базовое разрешение на чтение
+    if (hasPermission('students', 'read')) {
+      return { level: 'basic', text: 'Ограниченный доступ' };
+    }
+    
+    return { level: 'none', text: 'Нет доступа' };
   };
 
   if (loading) {
@@ -107,14 +117,15 @@ const Students: React.FC = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Студенты</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
-            {user?.role === 'STUDENT' && 'Ваша группа'}
-            {user?.role === 'PARENT' && 'Ваши дети'}
-            {(user?.role === 'TEACHER' || user?.role === 'ADMIN' || user?.role === 'HR') && 'Управление студентами'}
+            {hasPermission('students', 'read', { scope: 'OWN' }) && 'Ваш профиль'}
+            {hasPermission('students', 'read', { scope: 'ASSIGNED' }) && 'Связанные студенты'}
+            {hasPermission('students', 'read', { scope: 'GROUP' }) && 'Студенты группы'}
+            {hasPermission('students', 'read', { scope: 'ALL' }) && 'Управление студентами'}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-          {/* Кнопка создания студента для админов и учителей */}
-          {user && ['ADMIN', 'TEACHER'].includes(user.role) && (
+          {/* Кнопка создания студента */}
+          <PermissionGuard module="students" action="create">
             <button
               onClick={() => setShowCreateForm(true)}
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm sm:text-base"
@@ -123,7 +134,7 @@ const Students: React.FC = () => {
               <span className="hidden sm:inline">Создать студента</span>
               <span className="sm:hidden">Создать</span>
             </button>
-          )}
+          </PermissionGuard>
           
           <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
             <FaUsers className="w-3 h-3 sm:w-4 sm:h-4" />

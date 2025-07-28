@@ -19,6 +19,7 @@ import {
 import { Button, Input, Select, Table, Modal, Loading } from '../components/ui';
 import HomeworkForm from '../components/HomeworkForm';
 import HomeworkDetailModal from '../components/HomeworkDetailModal';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatDateTime } from '../utils';
 import { Homework, HomeworkFilters, HomeworkStatus } from '../types/homework';
@@ -27,7 +28,7 @@ import { fileService } from '../services/fileService';
 
 const HomeworkPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, hasPermission } = useAuth();
   const [searchParams] = useSearchParams();
 
   const [homeworks, setHomeworks] = useState<Homework[]>([]);
@@ -403,24 +404,24 @@ const HomeworkPage: React.FC = () => {
           >
             <Eye className="h-4 w-4" />
           </Button>
-          {(hasRole('ADMIN') || (hasRole('TEACHER') && record.lesson?.studyPlan?.teacher?.user?.id === user?.id)) && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleEdit(record)}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => setDeletingHomework(record)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
-          )}
+          <PermissionGuard module="homework" action="update">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleEdit(record)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard module="homework" action="delete">
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setDeletingHomework(record)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </PermissionGuard>
         </div>
       )
     }
@@ -455,13 +456,16 @@ const HomeworkPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Домашние задания</h1>
           <p className="text-gray-500 mt-1">
-            {hasRole('STUDENT') ? 'Ваши домашние задания' :
-             hasRole('TEACHER') ? 'Управление домашними заданиями' :
-             'Все домашние задания'}
+            {hasPermission('homework', 'read', { scope: 'OWN' }) && 'Ваши домашние задания'}
+            {hasPermission('homework', 'read', { scope: 'ASSIGNED' }) && 'Назначенные домашние задания'}
+            {hasPermission('homework', 'read', { scope: 'ALL' }) && 'Управление домашними заданиями'}
+            {!hasPermission('homework', 'read', { scope: 'OWN' }) && 
+             !hasPermission('homework', 'read', { scope: 'ASSIGNED' }) && 
+             !hasPermission('homework', 'read', { scope: 'ALL' }) && 'Домашние задания'}
           </p>
         </div>
 
-        {(hasRole('ADMIN') || hasRole('TEACHER')) && (
+        <PermissionGuard module="homework" action="create">
           <Button
             variant="primary"
             onClick={() => setIsCreating(true)}
@@ -469,7 +473,7 @@ const HomeworkPage: React.FC = () => {
             <Plus className="h-4 w-4 mr-2" />
             Создать задание
           </Button>
-        )}
+        </PermissionGuard>
       </div>
 
       {/* Stats */}
@@ -615,24 +619,24 @@ const HomeworkPage: React.FC = () => {
                     <Eye className="h-4 w-4 mr-1" />
                     Открыть
                   </Button>
-                  {(hasRole('ADMIN') || (hasRole('TEACHER') && homework.lesson?.studyPlan?.teacher?.user?.id === user?.id)) && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(homework)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setDeletingHomework(homework)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
+                  <PermissionGuard module="homework" action="update">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(homework)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </PermissionGuard>
+                  <PermissionGuard module="homework" action="delete">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setDeletingHomework(homework)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </PermissionGuard>
                 </div>
               </div>
             </div>

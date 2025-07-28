@@ -12,6 +12,8 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { edoService, type Document } from '../services/edoService';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import DocumentStatusCard from '../components/DocumentStatusCard';
 import QuickApprovalModal from '../components/QuickApprovalModal';
 import SendForApprovalModal from '../components/SendForApprovalModal';
@@ -205,13 +207,15 @@ const EdoPage: React.FC = () => {
             Управление документами и процессами согласования
           </p>
         </div>
-        <button
-          onClick={handleCreateDocument}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Создать документ
-        </button>
+        <PermissionGuard module="edo" action="create">
+          <button
+            onClick={handleCreateDocument}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Создать документ
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* Статистика */}
@@ -328,12 +332,14 @@ const EdoPage: React.FC = () => {
           <div className="p-8 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">Документы не найдены</p>
-            <button
-              onClick={handleCreateDocument}
-              className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Создать первый документ
-            </button>
+            <PermissionGuard module="edo" action="create">
+              <button
+                onClick={handleCreateDocument}
+                className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Создать первый документ
+              </button>
+            </PermissionGuard>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 p-4">

@@ -5,6 +5,8 @@ import { useTasks, useTaskStats, useTaskCategories } from '../hooks/useTasks';
 import { Task, TaskStatus, TaskPriority, CreateTaskData, UpdateTaskData } from '../types/task';
 import { formatDate } from '../utils/formatters';
 import TaskForm from '../components/TaskForm';
+import { PermissionGuard } from '../components/PermissionGuard';
+import { useAuth } from '../hooks/useAuth';
 
 type ViewMode = 'list' | 'kanban';
 
@@ -258,14 +260,16 @@ const Tasks: React.FC = () => {
               <span className="hidden sm:inline">Канбан</span>
             </button>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Новая задача</span>
-            <span className="sm:hidden">Создать</span>
-          </button>
+          <PermissionGuard module="tasks" action="create">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Новая задача</span>
+              <span className="sm:hidden">Создать</span>
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -470,20 +474,24 @@ const Tasks: React.FC = () => {
                       {showDropdown === task.id && (
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
                           <div className="py-1">
-                            <button
-                              onClick={() => handleEditTask(task)}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                            >
-                              <Edit className="w-4 h-4" />
-                              Редактировать
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Удалить
-                            </button>
+                            <PermissionGuard module="tasks" action="update">
+                              <button
+                                onClick={() => handleEditTask(task)}
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Редактировать
+                              </button>
+                            </PermissionGuard>
+                            <PermissionGuard module="tasks" action="delete">
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Удалить
+                              </button>
+                            </PermissionGuard>
                           </div>
                         </div>
                       )}
@@ -576,20 +584,24 @@ const Tasks: React.FC = () => {
                                     {showDropdown === task.id && (
                                       <div className="absolute right-0 mt-1 w-40 bg-white rounded-md shadow-lg z-20 border border-gray-200">
                                         <div className="py-1">
-                                          <button
-                                            onClick={() => handleEditTask(task)}
-                                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                                          >
-                                            <Edit className="w-3 h-3" />
-                                            Редактировать
-                                          </button>
-                                          <button
-                                            onClick={() => handleDeleteTask(task.id)}
-                                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                            Удалить
-                                          </button>
+                                          <PermissionGuard module="tasks" action="update">
+                                            <button
+                                              onClick={() => handleEditTask(task)}
+                                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                            >
+                                              <Edit className="w-3 h-3" />
+                                              Редактировать
+                                            </button>
+                                          </PermissionGuard>
+                                          <PermissionGuard module="tasks" action="delete">
+                                            <button
+                                              onClick={() => handleDeleteTask(task.id)}
+                                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                              Удалить
+                                            </button>
+                                          </PermissionGuard>
                                         </div>
                                       </div>
                                     )}

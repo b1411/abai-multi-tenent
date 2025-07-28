@@ -24,17 +24,14 @@ const DashboardLayout: React.FC = () => {
           onClick={closeSidebar}
         />
       )}
-      
+
       <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
-      
+
       <div className="flex-1 flex flex-col lg:ml-64">
         <TopPanel onToggleSidebar={toggleSidebar} />
         <main className="flex-1 overflow-auto bg-gray-50 p-4 lg:p-6">
           <Outlet />
         </main>
-        
-        {/* Тестовая кнопка активности */}
-        <ActivityTestButton />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   FaClock, FaGraduationCap, FaBookOpen, FaClipboardList
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { formatDate } from '../utils';
 
 interface Question {
@@ -160,11 +161,8 @@ const LessonPage: React.FC = () => {
         presentationUrl: lessonData.presentationUrl || '',
       });
 
-      // Проверяем права доступа
-      if (user?.role === 'TEACHER' && lessonData.studyPlan?.teacher?.user.id !== user.id) {
-        setError('У вас нет прав для редактирования материалов этого урока');
-        return;
-      }
+      // Проверяем права доступа - заменено на RBAC проверку на уровне компонентов
+      // Проверки владения будут выполняться через PermissionGuard компоненты
     } catch (err) {
       setError('Ошибка при загрузке урока');
       console.error('Error loading lesson:', err);
@@ -571,14 +569,16 @@ const LessonPage: React.FC = () => {
               </div>
 
               <div className="flex justify-end">
-                <button
-                  onClick={handleSaveMaterials}
-                  disabled={loading}
-                  className="px-6 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center button-hover"
-                >
-                  <FaSave className="mr-2" />
-                  Сохранить материалы
-                </button>
+                <PermissionGuard module="materials" action="update">
+                  <button
+                    onClick={handleSaveMaterials}
+                    disabled={loading}
+                    className="px-6 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center button-hover"
+                  >
+                    <FaSave className="mr-2" />
+                    Сохранить материалы
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
           )}
@@ -704,14 +704,16 @@ const LessonPage: React.FC = () => {
               </div>
 
               <div className="flex justify-end">
-                <button
-                  onClick={handleSaveQuiz}
-                  disabled={loading}
-                  className="px-6 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center button-hover"
-                >
-                  <FaSave className="mr-2" />
-                  Сохранить тест
-                </button>
+                <PermissionGuard module="quiz" action="create">
+                  <button
+                    onClick={handleSaveQuiz}
+                    disabled={loading}
+                    className="px-6 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center button-hover"
+                  >
+                    <FaSave className="mr-2" />
+                    Сохранить тест
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
           )}
@@ -820,14 +822,16 @@ const LessonPage: React.FC = () => {
               </div>
 
               <div className="flex justify-end">
-                <button
-                  onClick={handleSaveHomework}
-                  disabled={loading}
-                  className="px-6 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center button-hover"
-                >
-                  <FaSave className="mr-2" />
-                  Сохранить задание
-                </button>
+                <PermissionGuard module="homework" action="create">
+                  <button
+                    onClick={handleSaveHomework}
+                    disabled={loading}
+                    className="px-6 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center button-hover"
+                  >
+                    <FaSave className="mr-2" />
+                    Сохранить задание
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
           )}

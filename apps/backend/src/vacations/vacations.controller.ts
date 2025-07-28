@@ -20,15 +20,17 @@ import { UpdateVacationDto } from './dto/update-vacation.dto';
 import { VacationFilterDto } from './dto/vacation-filter.dto';
 import { UpdateVacationStatusDto } from './dto/update-vacation-status.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 
 @ApiTags('vacations')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @Controller('vacations')
 export class VacationsController {
   constructor(private readonly vacationsService: VacationsService) {}
 
   @Post()
+  @RequirePermission('vacations', 'create', { scope: 'OWN' })
   @ApiOperation({ summary: 'Создать заявку на отпуск' })
   @ApiResponse({ status: 201, description: 'Заявка успешно создана' })
   @ApiResponse({ status: 400, description: 'Некорректные данные' })
@@ -39,6 +41,7 @@ export class VacationsController {
   }
 
   @Get()
+  @RequirePermission('vacations', 'read')
   @ApiOperation({ summary: 'Получить список отпусков' })
   @ApiResponse({ status: 200, description: 'Список отпусков успешно получен' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Номер страницы' })
@@ -54,6 +57,7 @@ export class VacationsController {
   }
 
   @Get('summary')
+  @RequirePermission('vacations', 'read')
   @ApiOperation({ summary: 'Получить статистику по отпускам' })
   @ApiResponse({ status: 200, description: 'Статистика успешно получена' })
   getSummary() {
@@ -61,6 +65,7 @@ export class VacationsController {
   }
 
   @Get('substitutions')
+  @RequirePermission('schedule', 'read')
   @ApiOperation({ summary: 'Получить список замен' })
   @ApiResponse({ status: 200, description: 'Список замен успешно получен' })
   @ApiQuery({ name: 'date', required: false, type: String, description: 'Дата для проверки замен' })
@@ -75,6 +80,7 @@ export class VacationsController {
   }
 
   @Get('teacher/:teacherId/summary')
+  @RequirePermission('vacations', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить сводку по отпускам преподавателя' })
   @ApiResponse({ status: 200, description: 'Сводка успешно получена' })
   @ApiResponse({ status: 404, description: 'Преподаватель не найден' })
@@ -83,6 +89,7 @@ export class VacationsController {
   }
 
   @Get(':id')
+  @RequirePermission('vacations', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить отпуск по ID' })
   @ApiResponse({ status: 200, description: 'Отпуск успешно найден' })
   @ApiResponse({ status: 404, description: 'Отпуск не найден' })
@@ -91,6 +98,7 @@ export class VacationsController {
   }
 
   @Patch(':id')
+  @RequirePermission('vacations', 'update', { scope: 'OWN' })
   @ApiOperation({ summary: 'Обновить заявку на отпуск' })
   @ApiResponse({ status: 200, description: 'Заявка успешно обновлена' })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
@@ -104,6 +112,7 @@ export class VacationsController {
   }
 
   @Patch(':id/status')
+  @RequirePermission('vacations', 'update')
   @ApiOperation({ summary: 'Обновить статус отпуска' })
   @ApiResponse({ status: 200, description: 'Статус успешно обновлен' })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
@@ -117,6 +126,7 @@ export class VacationsController {
   }
 
   @Delete(':id')
+  @RequirePermission('vacations', 'delete', { scope: 'OWN' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Удалить заявку на отпуск' })
   @ApiResponse({ status: 204, description: 'Заявка успешно удалена' })
@@ -127,6 +137,7 @@ export class VacationsController {
   }
 
   @Get('teacher/:teacherId/lessons')
+  @RequirePermission('lessons', 'read')
   @ApiOperation({ summary: 'Получить уроки преподавателя для замещения' })
   @ApiResponse({ status: 200, description: 'Список уроков успешно получен' })
   @ApiResponse({ status: 404, description: 'Преподаватель не найден' })

@@ -24,6 +24,8 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { useWorkloads, useWorkloadAnalytics } from '../hooks/useWorkload';
 import { useTeachers } from '../hooks/useTeachers';
 import { workloadService } from '../services/workloadService';
@@ -334,20 +336,24 @@ const WorkloadPage: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center"
-            onClick={handleDownloadTemplate}
-          >
-            <FaDownload className="mr-2" />
-            Загрузить шаблон
-          </button>
-          <button 
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex items-center"
-            onClick={handleExport}
-          >
-            <FaFileExport className="mr-2" />
-            Экспорт
-          </button>
+          <PermissionGuard module="workload" action="create">
+            <button 
+              className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center"
+              onClick={handleDownloadTemplate}
+            >
+              <FaDownload className="mr-2" />
+              Загрузить шаблон
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="workload" action="read">
+            <button 
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex items-center"
+              onClick={handleExport}
+            >
+              <FaFileExport className="mr-2" />
+              Экспорт
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -581,32 +587,34 @@ const WorkloadPage: React.FC = () => {
                   </h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  {!isEditing ? (
-                    <button
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2"
-                      onClick={() => setIsEditing(true)}
-                    >
-                      <FaEdit />
-                      Редактировать нагрузку
-                    </button>
-                  ) : (
-                    <>
+                  <PermissionGuard module="workload" action="update">
+                    {!isEditing ? (
                       <button
-                        className="px-4 py-2 bg-gray-500 text-white rounded-md flex items-center gap-2"
-                        onClick={() => setIsEditing(false)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2"
+                        onClick={() => setIsEditing(true)}
                       >
-                        <FaTimes />
-                        Отменить
+                        <FaEdit />
+                        Редактировать нагрузку
                       </button>
-                      <button
-                        className="px-4 py-2 bg-green-600 text-white rounded-md flex items-center gap-2"
-                        onClick={() => setIsEditing(false)}
-                      >
-                        <FaSave />
-                        Сохранить
-                      </button>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <button
+                          className="px-4 py-2 bg-gray-500 text-white rounded-md flex items-center gap-2"
+                          onClick={() => setIsEditing(false)}
+                        >
+                          <FaTimes />
+                          Отменить
+                        </button>
+                        <button
+                          className="px-4 py-2 bg-green-600 text-white rounded-md flex items-center gap-2"
+                          onClick={() => setIsEditing(false)}
+                        >
+                          <FaSave />
+                          Сохранить
+                        </button>
+                      </>
+                    )}
+                  </PermissionGuard>
                   <button
                     className="text-gray-500 hover:text-gray-700 ml-2"
                     onClick={() => {
@@ -773,13 +781,15 @@ const WorkloadPage: React.FC = () => {
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold border-b pb-2">Ежедневный учет часов</h3>
-                  <button
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2"
-                    onClick={() => setShowDailyHours(true)}
-                  >
-                    <FaPlus />
-                    Добавить часы
-                  </button>
+                  <PermissionGuard module="workload" action="create">
+                    <button
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2"
+                      onClick={() => setShowDailyHours(true)}
+                    >
+                      <FaPlus />
+                      Добавить часы
+                    </button>
+                  </PermissionGuard>
                 </div>
 
                 <div className="overflow-x-auto">

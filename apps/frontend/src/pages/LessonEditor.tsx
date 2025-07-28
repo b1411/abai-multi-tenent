@@ -5,6 +5,8 @@ import {
   FaClipboardCheck, FaHome, FaBookOpen, FaUpload, FaCheck, FaTimes
 } from 'react-icons/fa';
 import { formatDate } from '../utils';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 interface Material {
   id: number;
@@ -54,6 +56,7 @@ interface Lesson {
 const LessonEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -413,27 +416,33 @@ const LessonEditor: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold">Учебные материалы</h3>
               <div className="flex space-x-2">
-                <button
-                  onClick={() => handleCreateMaterial('lecture')}
-                  className="flex items-center px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm button-hover"
-                >
-                  <FaBookOpen className="mr-2" />
-                  Лекция
-                </button>
-                <button
-                  onClick={() => handleCreateMaterial('video')}
-                  className="flex items-center px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm button-hover"
-                >
-                  <FaVideo className="mr-2" />
-                  Видео
-                </button>
-                <button
-                  onClick={() => handleCreateMaterial('presentation')}
-                  className="flex items-center px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm button-hover"
-                >
-                  <FaFile className="mr-2" />
-                  Презентация
-                </button>
+                <PermissionGuard module="materials" action="create">
+                  <button
+                    onClick={() => handleCreateMaterial('lecture')}
+                    className="flex items-center px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm button-hover"
+                  >
+                    <FaBookOpen className="mr-2" />
+                    Лекция
+                  </button>
+                </PermissionGuard>
+                <PermissionGuard module="materials" action="create">
+                  <button
+                    onClick={() => handleCreateMaterial('video')}
+                    className="flex items-center px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm button-hover"
+                  >
+                    <FaVideo className="mr-2" />
+                    Видео
+                  </button>
+                </PermissionGuard>
+                <PermissionGuard module="materials" action="create">
+                  <button
+                    onClick={() => handleCreateMaterial('presentation')}
+                    className="flex items-center px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm button-hover"
+                  >
+                    <FaFile className="mr-2" />
+                    Презентация
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
 
@@ -465,20 +474,24 @@ const LessonEditor: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex space-x-2 ml-4">
-                        <button
-                          onClick={() => handleEditMaterial(material)}
-                          className="text-indigo-600 hover:text-indigo-900 button-hover"
-                          title="Редактировать"
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMaterial(material.id)}
-                          className="text-red-600 hover:text-red-900 button-hover"
-                          title="Удалить"
-                        >
-                          <FaTrash />
-                        </button>
+                        <PermissionGuard module="materials" action="update">
+                          <button
+                            onClick={() => handleEditMaterial(material)}
+                            className="text-indigo-600 hover:text-indigo-900 button-hover"
+                            title="Редактировать"
+                          >
+                            <FaEdit />
+                          </button>
+                        </PermissionGuard>
+                        <PermissionGuard module="materials" action="delete">
+                          <button
+                            onClick={() => handleDeleteMaterial(material.id)}
+                            className="text-red-600 hover:text-red-900 button-hover"
+                            title="Удалить"
+                          >
+                            <FaTrash />
+                          </button>
+                        </PermissionGuard>
                       </div>
                     </div>
                   </div>
@@ -499,13 +512,15 @@ const LessonEditor: React.FC = () => {
           <div className="p-6 animate-fadeIn">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold">Тесты и викторины</h3>
-              <button
-                onClick={() => handleCreateMaterial('quiz')}
-                className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 button-hover"
-              >
-                <FaPlus className="mr-2" />
-                Создать тест
-              </button>
+              <PermissionGuard module="quiz" action="create">
+                <button
+                  onClick={() => handleCreateMaterial('quiz')}
+                  className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 button-hover"
+                >
+                  <FaPlus className="mr-2" />
+                  Создать тест
+                </button>
+              </PermissionGuard>
             </div>
 
             <div className="space-y-4">
@@ -575,13 +590,15 @@ const LessonEditor: React.FC = () => {
           <div className="p-6 animate-fadeIn">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold">Домашние задания</h3>
-              <button
-                onClick={() => handleCreateMaterial('homework')}
-                className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 button-hover"
-              >
-                <FaPlus className="mr-2" />
-                Создать задание
-              </button>
+              <PermissionGuard module="homework" action="create">
+                <button
+                  onClick={() => handleCreateMaterial('homework')}
+                  className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 button-hover"
+                >
+                  <FaPlus className="mr-2" />
+                  Создать задание
+                </button>
+              </PermissionGuard>
             </div>
 
             <div className="space-y-4">

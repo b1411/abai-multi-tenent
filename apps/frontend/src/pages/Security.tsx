@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, RefreshCw } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import AlertsFeed from '../components/security/AlertsFeed';
 import CameraStream from '../components/security/CameraStream';
 import EmergencyButtons from '../components/security/EmergencyButtons';
@@ -202,7 +204,8 @@ const Security: React.FC = () => {
   };
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
+    <PermissionGuard module="security" action="read">
+      <div className="p-3 md:p-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
       {/* Заголовок - мобильная адаптация */}
       <div className="mb-6 md:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
@@ -349,7 +352,8 @@ const Security: React.FC = () => {
         </div>
       )}
 
-    </div>
+      </div>
+    </PermissionGuard>
   );
 };
 

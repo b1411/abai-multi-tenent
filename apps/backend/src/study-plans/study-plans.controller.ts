@@ -2,8 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, Query, Pa
 import { StudyPlansService } from './study-plans.service';
 import { StudyPlanFilterDto } from './dto/study-plan-filter.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { RolesGuard } from 'src/common/guards/role.guard';
+import { PermissionGuard, RequirePermission } from 'src/common/guards/permission.guard';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { CreateStudyPlanDto } from './dto/create-study-plan.dto';
 import { UpdateStudyPlanDto } from './dto/update-study-plan-dto';
@@ -13,12 +12,12 @@ import { PaginateResponseDto } from 'src/common/dtos/paginate.dto';
 @Controller('study-plans')
 @ApiTags('Study Plans')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 export class StudyPlansController {
   constructor(private readonly studyPlansService: StudyPlansService) { }
 
   @Get()
-  @Roles("ADMIN", "TEACHER", "STUDENT")
+  @RequirePermission('study-plans', 'read')
   @ApiOperation({ summary: 'Получить все учебные планы' })
   @ApiResponse({ 
     status: 200, 
@@ -26,16 +25,21 @@ export class StudyPlansController {
     type: PaginateResponseDto<StudyPlan>
   })
   findAll(@Query() filter: StudyPlanFilterDto, @Req() req: any): Promise<PaginateResponseDto<StudyPlan>> {
+    console.log(`📚 StudyPlansController.findAll: User role: ${req.user.role}, ID: ${req.user.id}`);
+    
     // Для студентов возвращаем только их планы
     if (req.user.role === 'STUDENT') {
+      console.log(`👨‍🎓 StudyPlansController: Returning student plans for user ${req.user.id}`);
       return this.studyPlansService.findStudentStudyPlans(filter, req.user.id);
     }
+    
     // Для админов и преподавателей возвращаем все планы
+    console.log(`👨‍💼 StudyPlansController: Returning all plans for ${req.user.role}`);
     return this.studyPlansService.findAll(filter);
   }
 
   @Get('me')
-  @Roles("STUDENT")
+  @RequirePermission('study-plans', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить учебные планы текущего студента' })
   @ApiResponse({ 
     status: 200, 
@@ -47,7 +51,7 @@ export class StudyPlansController {
   }
 
   @Get(':id')
-  @Roles("ADMIN", "TEACHER", "STUDENT")
+  @RequirePermission('study-plans', 'read', { scope: 'ASSIGNED' })
   @ApiOperation({ summary: 'Получить учебный план по ID' })
   @ApiParam({ name: 'id', description: 'ID учебного плана' })
   @ApiResponse({ 
@@ -61,6 +65,7 @@ export class StudyPlansController {
   }
 
   @Post()
+  @RequirePermission('study-plans', 'create')
   @ApiOperation({ summary: 'Создать новый учебный план' })
   @ApiResponse({ 
     status: 201, 
@@ -73,6 +78,7 @@ export class StudyPlansController {
   }
 
   @Patch(':id')
+  @RequirePermission('study-plans', 'update')
   @ApiOperation({ summary: 'Обновить учебный план' })
   @ApiParam({ name: 'id', description: 'ID учебного плана' })
   @ApiResponse({ 
@@ -86,6 +92,7 @@ export class StudyPlansController {
   }
 
   @Delete(':id')
+  @RequirePermission('study-plans', 'delete')
   @ApiOperation({ summary: 'Удалить учебный план (мягкое удаление)' })
   @ApiParam({ name: 'id', description: 'ID учебного плана' })
   @ApiResponse({ 

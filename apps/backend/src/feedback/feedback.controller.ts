@@ -19,20 +19,19 @@ import { CreateFeedbackTemplateDto } from './dto/create-feedback-template.dto';
 import { UpdateFeedbackTemplateDto } from './dto/update-feedback-template.dto';
 import { CreateFeedbackResponseDto } from './dto/create-feedback-response.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
-import { RolesGuard } from '../common/guards/role.guard';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { ThrottleGuard } from '../common/guards/throttle.guard';
-import { Roles } from '../common/decorators/roles.decorator';
 import { Throttle } from '../common/decorators/throttle.decorator';
 import { UserRole } from 'generated/prisma';
 
 @Controller('feedback')
-@UseGuards(AuthGuard, RolesGuard, ThrottleGuard)
+@UseGuards(AuthGuard, PermissionGuard, ThrottleGuard)
 export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) {}
 
   // Создание шаблона (только для админов)
   @Post('templates')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'create')
   @Throttle(300, 10) // 10 запросов в 5 минут
   async createTemplate(
     @Body(ValidationPipe) createTemplateDto: CreateFeedbackTemplateDto,
@@ -50,13 +49,14 @@ export class FeedbackController {
 
   // Получение шаблонов для текущего пользователя
   @Get('templates/my')
+  @RequirePermission('feedback', 'read', { scope: 'OWN' })
   async getMyTemplates(@Request() req) {
     return await this.feedbackService.getTemplatesForUser(req.user.id);
   }
 
   // Получение всех активных шаблонов (для админов)
   @Get('templates')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'read')
   async getActiveTemplates() {
     try {
       return await this.feedbackService.getActiveTemplates();
@@ -70,12 +70,14 @@ export class FeedbackController {
 
   // Проверка обязательных форм для текущего пользователя
   @Get('mandatory-check')
+  @RequirePermission('feedback', 'read', { scope: 'OWN' })
   async checkMandatoryFeedback(@Request() req) {
     return await this.feedbackService.checkMandatoryFeedback(req.user.id);
   }
 
   // Отправка ответа на форму
   @Post('responses')
+  @RequirePermission('feedback', 'create', { scope: 'OWN' })
   @Throttle(60, 5) // 5 запросов в минуту
   async submitResponse(
     @Body(ValidationPipe) responseDto: CreateFeedbackResponseDto,
@@ -95,6 +97,7 @@ export class FeedbackController {
 
   // Получение конкретного шаблона
   @Get('templates/:id')
+  @RequirePermission('feedback', 'read')
   async getTemplate(@Param('id', ParseIntPipe) id: number) {
     try {
       const template = await this.feedbackService.getTemplate(id);
@@ -113,7 +116,7 @@ export class FeedbackController {
 
   // Обновление шаблона (только для админов)
   @Put('templates/:id')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'update')
   async updateTemplate(
     @Param('id', ParseIntPipe) id: number,
     @Body(ValidationPipe) updateTemplateDto: UpdateFeedbackTemplateDto,
@@ -130,7 +133,7 @@ export class FeedbackController {
 
   // Удаление шаблона (только для админов)
   @Delete('templates/:id')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'delete')
   async deleteTemplate(@Param('id', ParseIntPipe) id: number) {
     try {
       await this.feedbackService.deleteTemplate(id);
@@ -145,7 +148,7 @@ export class FeedbackController {
 
   // Активация/деактивация шаблона (только для админов)
   @Put('templates/:id/toggle-active')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'update')
   async toggleTemplateActive(@Param('id', ParseIntPipe) id: number) {
     try {
       return await this.feedbackService.toggleTemplateActive(id);
@@ -159,7 +162,7 @@ export class FeedbackController {
 
   // Получение ответов на шаблон (для аналитики)
   @Get('templates/:id/responses')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'read')
   async getTemplateResponses(
     @Param('id', ParseIntPipe) id: number,
     @Query('period') period?: string,
@@ -176,7 +179,7 @@ export class FeedbackController {
 
   // Сброс статуса обязательной формы для пользователя (только для админов)
   @Put('users/:userId/reset-mandatory')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'update')
   async resetMandatoryStatus(@Param('userId', ParseIntPipe) userId: number) {
     try {
       await this.feedbackService.resetMandatoryStatus(userId);
@@ -191,7 +194,7 @@ export class FeedbackController {
 
   // Получение статистики по заполнению форм (только для админов)
   @Get('statistics')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'read')
   async getFeedbackStatistics(@Query('period') period?: string) {
     try {
       return await this.feedbackService.getFeedbackStatistics(period);
@@ -205,7 +208,7 @@ export class FeedbackController {
 
   // Получение аналитики по формам обратной связи (только для админов)
   @Get('analytics')
-  @Roles(UserRole.ADMIN, UserRole.HR)
+  @RequirePermission('feedback', 'read')
   async getFeedbackAnalytics(
     @Query('templateId') templateId?: string,
     @Query('period') period?: string,
@@ -225,7 +228,7 @@ export class FeedbackController {
 
   // Получение эмоционального состояния студента на основе фидбеков
   @Get('students/:studentId/emotional-state')
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
+  @RequirePermission('feedback', 'read', { scope: 'ASSIGNED' })
   async getStudentEmotionalState(@Param('studentId', ParseIntPipe) studentId: number) {
     try {
       return await this.feedbackService.getStudentEmotionalStateFromFeedbacks(studentId);
@@ -239,7 +242,7 @@ export class FeedbackController {
 
   // Получение истории эмоциональных ответов студента
   @Get('students/:studentId/emotional-history')
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
+  @RequirePermission('feedback', 'read', { scope: 'ASSIGNED' })
   async getStudentEmotionalHistory(
     @Param('studentId', ParseIntPipe) studentId: number,
     @Query('period') period?: string,

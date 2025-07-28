@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, PieChart, TrendingUp, Package, AlertTriangle, DollarSign } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { inventoryService, AnalyticsData } from '../services/inventoryService';
 import { Loading } from '../components/ui';
 
@@ -80,24 +82,27 @@ const InventoryAnalytics: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
-            Аналитика инвентаря
-          </h1>
-          <p className="text-gray-600">Статистика и отчеты по управлению инвентарем</p>
+    <PermissionGuard module="inventory" action="read">
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <BarChart3 className="h-6 w-6" />
+              Аналитика инвентаря
+            </h1>
+            <p className="text-gray-600">Статистика и отчеты по управлению инвентарем</p>
+          </div>
+          <PermissionGuard module="inventory" action="read">
+            <button
+              onClick={loadAnalytics}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Обновить данные
+            </button>
+          </PermissionGuard>
         </div>
-        <button
-          onClick={loadAnalytics}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          <TrendingUp className="h-4 w-4 mr-2" />
-          Обновить данные
-        </button>
-      </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -296,7 +301,8 @@ const InventoryAnalytics: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 };
 

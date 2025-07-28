@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { Mic, MicOff, Send, Phone, PhoneOff, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -81,7 +83,8 @@ const AiChat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <PermissionGuard module="ai-assistant" action="read">
+      <div className="flex flex-col h-full bg-gray-50">
       {/* Заголовок */}
       <div className="bg-white shadow-sm border-b px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
         <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
@@ -276,6 +279,7 @@ const AiChat: React.FC = () => {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 };
 

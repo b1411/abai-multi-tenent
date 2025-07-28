@@ -14,18 +14,19 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { ReportsService } from './reports.service';
 import { ReportFilterDto, GenerateReportDto, ReportType } from './dto/report-filter.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('reports')
 @Controller('reports')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @ApiBearerAuth()
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Post('generate')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('reports', 'create')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Сгенерировать финансовый отчет' })
   @ApiResponse({ status: 200, description: 'Отчет успешно сгенерирован' })
@@ -38,7 +39,7 @@ export class ReportsController {
   }
 
   @Get('cashflow')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить данные движения денежных средств' })
   @ApiResponse({ status: 200, description: 'Данные движения денежных средств' })
   async getCashflowData(
@@ -52,7 +53,7 @@ export class ReportsController {
   }
 
   @Get('performance')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить показатели эффективности' })
   @ApiResponse({ status: 200, description: 'Показатели эффективности' })
   async getPerformanceMetrics(
@@ -66,7 +67,7 @@ export class ReportsController {
   }
 
   @Get('forecast')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить финансовый прогноз' })
   @ApiResponse({ status: 200, description: 'Финансовый прогноз' })
   async getForecastData(
@@ -80,7 +81,7 @@ export class ReportsController {
   }
 
   @Get('variance')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить анализ отклонений' })
   @ApiResponse({ status: 200, description: 'Анализ отклонений' })
   async getVarianceAnalysis(
@@ -94,7 +95,7 @@ export class ReportsController {
   }
 
   @Get('trends')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить тренды бюджета' })
   @ApiResponse({ status: 200, description: 'Тренды бюджета' })
   async getBudgetTrends(
@@ -108,7 +109,7 @@ export class ReportsController {
   }
 
   @Get(':type')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить отчет по типу' })
   @ApiResponse({ status: 200, description: 'Данные отчета' })
   async getReportByType(

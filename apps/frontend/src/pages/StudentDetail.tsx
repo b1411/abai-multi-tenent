@@ -27,6 +27,7 @@ import {
 } from 'react-icons/fa';
 import { useStudent } from '../hooks/useStudents';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import { studentService, AttendanceData, FinanceData, EmotionalData } from '../services/studentService';
@@ -55,7 +56,7 @@ import {
 const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { student, grades, loading, error, refetch, fetchGrades } = useStudent(Number(id));
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -163,18 +164,25 @@ const StudentDetail: React.FC = () => {
   const getAccessLevel = () => {
     if (!user || !student) return 'none';
 
-    switch (user.role) {
-      case 'STUDENT':
-        return student.userId === user.id ? 'full' : 'basic';
-      case 'PARENT':
-        return student.Parents?.some(parent => parent.user.id === user.id) ? 'full' : 'none';
-      case 'TEACHER':
-      case 'ADMIN':
-      case 'HR':
-        return 'full';
-      default:
-        return 'none';
+    // Для студентов - только собственные данные
+    if (user.role === 'STUDENT') {
+      return student.userId === user.id ? 'full' : 'basic';
     }
+
+    // Для родителей - только дети
+    if (user.role === 'PARENT') {
+      return student.Parents?.some(parent => parent.user.id === user.id) ? 'full' : 'none';
+    }
+
+    // Для остальных ролей проверяем разрешения RBAC
+    if (hasPermission('students', 'read', { scope: 'ALL' })) {
+      return 'full';
+    } else if (hasPermission('students', 'read', { scope: 'OWN' })) {
+      // Для учителей - только студенты их групп
+      return 'basic';
+    }
+
+    return 'none';
   };
 
   const accessLevel = getAccessLevel();
@@ -282,7 +290,7 @@ const StudentDetail: React.FC = () => {
                 </div>
               </div>
 
-              {accessLevel === 'full' && (
+              <PermissionGuard module="chat" action="create">
                 <button
                   onClick={() => {/* TODO: Открыть чат */ }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -290,7 +298,7 @@ const StudentDetail: React.FC = () => {
                   <FaComments className="w-4 h-4" />
                   Написать
                 </button>
-              )}
+              </PermissionGuard>
             </div>
           </div>
         </div>
@@ -410,12 +418,14 @@ const StudentDetail: React.FC = () => {
                           <p className="text-sm text-gray-600">{parent.user.phone}</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => {/* TODO: Открыть чат с родителем */ }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <FaComments className="w-4 h-4" />
-                      </button>
+                      <PermissionGuard module="chat" action="create">
+                        <button
+                          onClick={() => {/* TODO: Открыть чат с родителем */ }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <FaComments className="w-4 h-4" />
+                        </button>
+                      </PermissionGuard>
                     </div>
                   ))}
                 </div>
@@ -796,21 +806,23 @@ const StudentDetail: React.FC = () => {
                       </div>
                       
                       {/* Кнопка создания шаблонов если данных нет */}
-                      {emotionalData.source === 'no_data' && user?.role === 'ADMIN' && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await feedbackService.createDefaultTemplates();
-                              // Перезагружаем данные
-                              fetchEmotionalData();
-                            } catch (error) {
-                              console.error('Ошибка создания шаблонов:', error);
-                            }
-                          }}
-                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Создать шаблоны фидбеков
-                        </button>
+                      {emotionalData.source === 'no_data' && (
+                        <PermissionGuard module="feedback" action="create">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await feedbackService.createDefaultTemplates();
+                                // Перезагружаем данные
+                                fetchEmotionalData();
+                              } catch (error) {
+                                console.error('Ошибка создания шаблонов:', error);
+                              }
+                            }}
+                            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
+                            Создать шаблоны фидбеков
+                          </button>
+                        </PermissionGuard>
                       )}
                     </div>
                   </div>

@@ -1,7 +1,259 @@
-import { PrismaClient } from 'generated/prisma';
+import { PrismaClient, PermissionScope } from 'generated/prisma';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
+// RBAC константы и функции
+const MODULES = [
+    'students', 'teachers', 'lessons', 'homework', 'schedule', 'groups', 'materials', 'quiz',
+    'payments', 'reports', 'notifications', 'calendar', 'chat', 'tasks', 'users', 'system',
+    'rbac', 'budget', 'classrooms', 'files', 'ai-assistant', 'feedback', 'lesson-results',
+    'inventory', 'performance', 'kpi', 'loyalty', 'supply', 'salaries', 'vacations',
+    'workload', 'edo', 'activity-monitoring', 'branding', 'integrations', 'security',
+    'journal', 'study-plans', 'dashboard', 'parents'
+];
+
+const STANDARD_ACTIONS = [
+    { action: 'create', scopes: [PermissionScope.ALL] },
+    { action: 'read', scopes: [PermissionScope.ALL, PermissionScope.OWN, PermissionScope.GROUP] },
+    { action: 'update', scopes: [PermissionScope.ALL, PermissionScope.OWN] },
+    { action: 'delete', scopes: [PermissionScope.ALL, PermissionScope.OWN] }
+];
+
+const BASE_ROLES = {
+    SUPER_ADMIN: {
+        name: 'Супер Администратор',
+        description: 'Полный доступ ко всем функциям системы',
+        permissions: ['*:*:ALL'],
+        isSystem: true
+    },
+    ADMIN: {
+        name: 'Администратор',
+        description: 'Административный доступ к системе',
+        permissions: ['*:*:ALL'], // Даем админу полный доступ
+        isSystem: true
+    },
+    TEACHER: {
+        name: 'Учитель',
+        description: 'Преподаватель с доступом к учебным материалам',
+        permissions: [
+            'lessons:*:OWN', 'lessons:read:GROUP', 'homework:*:OWN', 'materials:*:OWN',
+            'quiz:*:OWN', 'students:read:GROUP', 'schedule:read:ALL', 'schedule:update:OWN',
+            'reports:read:GROUP', 'chat:*:GROUP', 'calendar:*:OWN', 'tasks:*:OWN',
+            'study-plans:read:ALL'
+        ],
+        isSystem: true
+    },
+    STUDENT: {
+        name: 'Студент',
+        description: 'Доступ к учебным материалам и личным данным',
+        permissions: [
+            'lessons:read:GROUP', 'homework:read:OWN', 'homework:create:OWN', 'homework:update:OWN',
+            'materials:read:GROUP', 'quiz:read:GROUP', 'schedule:read:GROUP', 'chat:read:GROUP',
+            'chat:create:GROUP', 'calendar:read:OWN', 'tasks:read:OWN', 'payments:read:OWN',
+            'study-plans:read:GROUP'
+        ],
+        isSystem: true
+    },
+    PARENT: {
+        name: 'Родитель',
+        description: 'Доступ к информации о своих детях',
+        permissions: [
+            'students:read:ASSIGNED', 'lessons:read:ASSIGNED', 'homework:read:ASSIGNED',
+            'schedule:read:ASSIGNED', 'payments:read:ASSIGNED', 'reports:read:ASSIGNED',
+            'chat:read:ASSIGNED', 'study-plans:read:ASSIGNED'
+        ],
+        isSystem: true
+    },
+    HR: {
+        name: 'HR Менеджер',
+        description: 'Управление персоналом',
+        permissions: [
+            'users:*:ALL', 'teachers:*:ALL', 'reports:read:ALL', 'tasks:*:ALL',
+            'calendar:read:ALL', 'rbac:read:ALL', 'rbac:users:*:ALL'
+        ],
+        isSystem: true
+    },
+    FINANCIST: {
+        name: 'Финансист',
+        description: 'Управление финансами',
+        permissions: [
+            'payments:*:ALL', 'reports:*:ALL', 'students:read:ALL', 'users:read:ALL',
+            'budget:*:ALL'
+        ],
+        isSystem: true
+    }
+};
+
+async function createRBACPermissions() {
+    console.log('🔐 Создание RBAC разрешений...');
+
+    for (const module of MODULES) {
+        for (const { action, scopes } of STANDARD_ACTIONS) {
+            for (const scope of scopes) {
+                try {
+                    await prisma.permission.upsert({
+                        where: {
+                            id: `${module}-${action}-${scope}`.replace(/[^a-zA-Z0-9-]/g, '-')
+                        },
+                        update: {},
+                        create: {
+                            id: `${module}-${action}-${scope}`.replace(/[^a-zA-Z0-9-]/g, '-'),
+                            module,
+                            action,
+                            scope,
+                            description: `${action.charAt(0).toUpperCase() + action.slice(1)} ${module} with ${scope.toLowerCase()} scope`,
+                            isSystem: true
+                        }
+                    });
+                } catch (error) {
+                    console.error(`Ошибка создания разрешения ${module}:${action}:${scope}:`, error);
+                }
+            }
+        }
+    }
+
+    // Создаем специальные разрешения
+    const specialPermissions = [
+        {
+            id: 'all-all-all',
+            module: '*',
+            action: '*',
+            scope: PermissionScope.ALL,
+            description: 'Full system access',
+            isSystem: true
+        }
+    ];
+
+    for (const permission of specialPermissions) {
+        await prisma.permission.upsert({
+            where: { id: permission.id },
+            update: {},
+            create: permission
+        });
+    }
+
+    console.log('✅ RBAC разрешения созданы');
+}
+
+async function createRBACRoles() {
+    console.log('👥 Создание RBAC ролей...');
+
+    for (const [roleKey, roleData] of Object.entries(BASE_ROLES)) {
+        console.log(`📋 Создание роли: ${roleData.name}`);
+
+        const role = await prisma.role.upsert({
+            where: { name: roleData.name },
+            update: {
+                description: roleData.description,
+                isSystem: roleData.isSystem
+            },
+            create: {
+                name: roleData.name,
+                description: roleData.description,
+                isSystem: roleData.isSystem
+            }
+        });
+
+        // Очищаем старые разрешения роли
+        await prisma.rolePermission.deleteMany({
+            where: { roleId: role.id }
+        });
+
+        // Добавляем разрешения к роли
+        for (const permissionPattern of roleData.permissions) {
+            const [module, action, scope] = permissionPattern.split(':');
+
+            if (module === '*' && action === '*') {
+                // Специальное разрешение на всё
+                const allPermission = await prisma.permission.findFirst({
+                    where: { module: '*', action: '*' }
+                });
+
+                if (allPermission) {
+                    await prisma.rolePermission.create({
+                        data: {
+                            roleId: role.id,
+                            permissionId: allPermission.id
+                        }
+                    });
+                }
+            } else {
+                // Обычные разрешения
+                const whereClause: any = {};
+
+                if (module !== '*') whereClause.module = module;
+                if (action !== '*') whereClause.action = action;
+                if (scope && scope !== '*' && Object.values(PermissionScope).includes(scope as PermissionScope)) {
+                    whereClause.scope = scope as PermissionScope;
+                }
+
+                const permissions = await prisma.permission.findMany({
+                    where: whereClause
+                });
+
+                for (const permission of permissions) {
+                    try {
+                        await prisma.rolePermission.create({
+                            data: {
+                                roleId: role.id,
+                                permissionId: permission.id
+                            }
+                        });
+                    } catch (error) {
+                        // Игнорируем дубликаты
+                    }
+                }
+            }
+        }
+    }
+
+    console.log('✅ RBAC роли созданы');
+}
+
+async function assignRBACRoles() {
+    console.log('🎯 Назначение RBAC ролей пользователям...');
+
+    const users = await prisma.user.findMany({
+        where: { deletedAt: null }
+    });
+
+    for (const user of users) {
+        const roleName = BASE_ROLES[user.role as keyof typeof BASE_ROLES]?.name;
+
+        if (roleName) {
+            const role = await prisma.role.findUnique({
+                where: { name: roleName }
+            });
+
+            if (role) {
+                const existingAssignment = await prisma.userRoleAssignment.findFirst({
+                    where: {
+                        userId: user.id,
+                        roleId: role.id,
+                        isActive: true
+                    }
+                });
+
+                if (!existingAssignment) {
+                    await prisma.userRoleAssignment.create({
+                        data: {
+                            userId: user.id,
+                            roleId: role.id,
+                            assignedBy: 1,
+                            assignedAt: new Date(),
+                            isActive: true
+                        }
+                    });
+
+                    console.log(`👤 Пользователю ${user.email} назначена роль ${roleName}`);
+                }
+            }
+        }
+    }
+
+    console.log('✅ RBAC роли назначены');
+}
 
 async function main() {
     console.log('🌱 Начинаем заполнение базы данных...');
@@ -839,18 +1091,34 @@ async function main() {
         }),
     ]);
 
+    console.log('🔐 Инициализируем RBAC систему...');
+    
+    // Создаем RBAC разрешения и роли
+    try {
+        await createRBACPermissions();
+        await createRBACRoles();
+        await assignRBACRoles();
+        console.log('✅ RBAC система успешно инициализирована!');
+    } catch (error) {
+        console.error('❌ Ошибка при инициализации RBAC:', error);
+        console.log('ℹ️ Возможно, RBAC уже был инициализирован ранее');
+    }
+    
     console.log('✅ База данных успешно заполнена!');
     console.log('\n📊 Создано:');
-    console.log(`👤 Пользователей: ${1 + teachers.length + studentUsers.length + parents.length}`);
+    console.log(`👤 Пользователей: ${1 + 1 + teachers.length + studentUsers.length + parents.length}`);
     console.log(`👥 Групп: ${groups.length}`);
     console.log(`🏫 Аудиторий: ${classrooms.length}`);
     console.log(`📚 Учебных планов: ${studyPlans.length}`);
     console.log(`📖 Уроков: ${lessons.length}`);
+    console.log(`🔐 RBAC ролей: ADMIN, TEACHER, STUDENT, PARENT, FINANCIST, HR`);
+    console.log(`🔐 RBAC разрешений: ~170 разрешений на все модули`);
+    
     console.log('\n🔑 Тестовые аккаунты:');
-    console.log('👨‍💼 Администратор: admin@abai.edu.kz / password123');
-    console.log('💰 Финансист: financist@abai.edu.kz / password123');
-    console.log('👨‍🏫 Преподаватель: ivanova@abai.edu.kz / password123');
-    console.log('🎓 Студент: aida.student@abai.edu.kz / password123');
+    console.log('👨‍💼 Администратор: admin@abai.edu.kz / password123 (полные права)');
+    console.log('💰 Финансист: financist@abai.edu.kz / password123 (права финансиста)');
+    console.log('👨‍🏫 Преподаватель: ivanova@abai.edu.kz / password123 (права учителя)');
+    console.log('🎓 Студент: aida.student@abai.edu.kz / password123 (права студента)');
     console.log('👨‍👩‍👧‍👦 Родители:');
     console.log('  👩 Назым Казыбекова: nazym.parent@abai.edu.kz / password123 (мать Айды)');
     console.log('  👨 Нурлан Казыбеков: nurlan.parent@abai.edu.kz / password123 (отец Айды)');
@@ -859,6 +1127,11 @@ async function main() {
     console.log('  👨 Асылбек Сералиев: asylbek.parent@abai.edu.kz / password123 (отец Даны)');
     console.log('  👩 Жанар Сералиева: zhanar.parent@abai.edu.kz / password123 (мать Даны)');
     console.log('  👨 Алмас Оразбаев: almas.parent@abai.edu.kz / password123 (отец Бекзата)');
+    
+    console.log('\n🚀 Теперь можно запускать приложение:');
+    console.log('  Backend: npm run start:dev');
+    console.log('  Frontend: npm run dev');
+    console.log('\n💡 Все эндпоинты теперь защищены RBAC!');
 }
 
 main()

@@ -23,27 +23,36 @@ enum UserRole {
   HR
 }
 
+// Новый enum для области видимости разрешений
+enum PermissionScope {
+  ALL // Все записи
+  OWN // Только свои записи
+  GROUP // Записи своей группы
+  DEPARTMENT // Записи своего отдела
+  ASSIGNED // Назначенные записи
+}
+
 // ЭДО типы и статусы
 enum DocumentType {
-  STUDENT_CERTIFICATE    // Справка об обучении
-  ADMINISTRATIVE_ORDER   // Административный приказ  
-  FINANCIAL_CONTRACT     // Финансовый договор
-  ENROLLMENT_ORDER       // Приказ о зачислении
-  ACADEMIC_TRANSCRIPT    // Академическая справка
+  STUDENT_CERTIFICATE // Справка об обучении
+  ADMINISTRATIVE_ORDER // Административный приказ  
+  FINANCIAL_CONTRACT // Финансовый договор
+  ENROLLMENT_ORDER // Приказ о зачислении
+  ACADEMIC_TRANSCRIPT // Академическая справка
 }
 
 enum DocumentStatus {
-  DRAFT         // Черновик
-  IN_PROGRESS   // На согласовании
-  APPROVED      // Согласован
-  REJECTED      // Отклонен
-  COMPLETED     // Завершен
+  DRAFT // Черновик
+  IN_PROGRESS // На согласовании
+  APPROVED // Согласован
+  REJECTED // Отклонен
+  COMPLETED // Завершен
 }
 
 enum ApprovalStatus {
-  PENDING   // Ожидает
-  APPROVED  // Согласован
-  REJECTED  // Отклонен
+  PENDING // Ожидает
+  APPROVED // Согласован
+  REJECTED // Отклонен
 }
 
 enum AbsentReason {
@@ -106,16 +115,22 @@ model User {
   eventReminders    EventReminder[]
 
   // Activity monitoring relations
-  sessions      UserSession[]
-  activityLogs  ActivityLog[]
-  onlineStatus  UserOnlineStatus?
+  sessions     UserSession[]
+  activityLogs ActivityLog[]
+  onlineStatus UserOnlineStatus?
 
   // EDO relations
-  createdDocuments     Document[] @relation("CreatedDocuments")
-  responsibleDocuments Document[] @relation("ResponsibleDocuments")
+  createdDocuments     Document[]         @relation("CreatedDocuments")
+  responsibleDocuments Document[]         @relation("ResponsibleDocuments")
   documentApprovals    DocumentApproval[]
   documentComments     DocumentComment[]
   documentTemplates    DocumentTemplate[]
+
+  // RBAC relations
+  userRoleAssignments UserRoleAssignment[] @relation("UserRoleAssignments")
+  assignedRoles       UserRoleAssignment[] @relation("UserRoleAssigner")
+  permissionAudits    PermissionAudit[]    @relation("UserPermissionAudits")
+  permissionCache     UserPermissionCache? @relation("UserPermissionCache")
 }
 
 model Student {
@@ -162,23 +177,23 @@ model LessonResult {
 }
 
 model Teacher {
-  id               Int               @id @default(autoincrement())
-  userId           Int               @unique
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  deletedAt        DateTime?
-  user             User              @relation(fields: [userId], references: [id])
-  studyPlans       StudyPlan[]
-  schedules        Schedule[]
-  employmentType   EmploymentType    @default(STAFF)
-  workloads        TeacherWorkload[]
-  vacations        Vacation[]
-  substituteFor    Vacation[]        @relation("VacationSubstitute")
-  salaries         Salary[]
-  reviews          StudentReview[]   @relation("StudentReviewsTeacher")
-  
+  id             Int               @id @default(autoincrement())
+  userId         Int               @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+  user           User              @relation(fields: [userId], references: [id])
+  studyPlans     StudyPlan[]
+  schedules      Schedule[]
+  employmentType EmploymentType    @default(STAFF)
+  workloads      TeacherWorkload[]
+  vacations      Vacation[]
+  substituteFor  Vacation[]        @relation("VacationSubstitute")
+  salaries       Salary[]
+  reviews        StudentReview[]   @relation("StudentReviewsTeacher")
+
   // Замещения в расписании
-  substituteSchedules Schedule[]     @relation("ScheduleSubstitute")
+  substituteSchedules Schedule[] @relation("ScheduleSubstitute")
 }
 
 model Parent {
@@ -207,14 +222,14 @@ model Group {
 }
 
 model StudyPlan {
-  id                Int               @id @default(autoincrement())
+  id                Int                @id @default(autoincrement())
   name              String
-  description       String?           @db.Text
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  description       String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   deletedAt         DateTime?
   teacherId         Int
-  teacher           Teacher           @relation(fields: [teacherId], references: [id])
+  teacher           Teacher            @relation(fields: [teacherId], references: [id])
   group             Group[]
   lessons           Lesson[]
   schedules         Schedule[]
@@ -239,7 +254,7 @@ model Lesson {
   materialsId     Int?             @unique
   LessonResult    LessonResult[]
   vacationLessons VacationLesson[]
-  schedules       Schedule[]       // Связь с расписанием
+  schedules       Schedule[] // Связь с расписанием
 }
 
 model Homework {
@@ -409,10 +424,10 @@ enum ScheduleStatus {
 }
 
 enum ScheduleType {
-  REGULAR      // Обычное занятие
-  MAKEUP       // Отработка
-  SUBSTITUTE   // Замещение
-  EXTRA        // Дополнительное занятие
+  REGULAR // Обычное занятие
+  MAKEUP // Отработка
+  SUBSTITUTE // Замещение
+  EXTRA // Дополнительное занятие
 }
 
 enum ConflictType {
@@ -424,65 +439,65 @@ enum ConflictType {
 }
 
 model Schedule {
-  id            String          @id @default(uuid())
-  studyPlanId   Int
-  studyPlan     StudyPlan       @relation(fields: [studyPlanId], references: [id])
-  groupId       Int
-  group         Group           @relation(fields: [groupId], references: [id])
-  teacherId     Int
-  teacher       Teacher         @relation(fields: [teacherId], references: [id])
-  classroomId   Int?
-  classroom     Classroom?      @relation(fields: [classroomId], references: [id])
-  
+  id          String     @id @default(uuid())
+  studyPlanId Int
+  studyPlan   StudyPlan  @relation(fields: [studyPlanId], references: [id])
+  groupId     Int
+  group       Group      @relation(fields: [groupId], references: [id])
+  teacherId   Int
+  teacher     Teacher    @relation(fields: [teacherId], references: [id])
+  classroomId Int?
+  classroom   Classroom? @relation(fields: [classroomId], references: [id])
+
   // Связь с конкретным уроком
-  lessonId      Int?
-  lesson        Lesson?         @relation(fields: [lessonId], references: [id])
-  
+  lessonId Int?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id])
+
   // Время проведения
-  dayOfWeek     Int             // 1-7: понедельник-воскресенье
-  startTime     String          // HH:MM
-  endTime       String          // HH:MM
-  date          DateTime?       // Конкретная дата (если привязан к уроку)
-  
+  dayOfWeek Int // 1-7: понедельник-воскресенье
+  startTime String // HH:MM
+  endTime   String // HH:MM
+  date      DateTime? // Конкретная дата (если привязан к уроку)
+
   // Тип и статус расписания
-  type          ScheduleType    @default(REGULAR)
-  status        ScheduleStatus  @default(SCHEDULED)
-  
+  type   ScheduleType   @default(REGULAR)
+  status ScheduleStatus @default(SCHEDULED)
+
   // Управление переносами и отменами
-  originalDate  DateTime?       // Первоначальная дата (для переносов)
-  originalTime  String?         // Первоначальное время (для переносов)
-  rescheduledTo String?         // ID нового расписания
-  cancelReason  String?         // Причина отмены/переноса
-  moveReason    String?         // Причина переноса
-  
+  originalDate  DateTime? // Первоначальная дата (для переносов)
+  originalTime  String? // Первоначальное время (для переносов)
+  rescheduledTo String? // ID нового расписания
+  cancelReason  String? // Причина отмены/переноса
+  moveReason    String? // Причина переноса
+
   // Замещения
-  substituteId  Int?
-  substitute    Teacher?        @relation("ScheduleSubstitute", fields: [substituteId], references: [id])
-  substituteReason String?      // Причина замещения
-  
+  substituteId     Int?
+  substitute       Teacher? @relation("ScheduleSubstitute", fields: [substituteId], references: [id])
+  substituteReason String? // Причина замещения
+
   // AI-оптимизация
-  isAiGenerated Boolean         @default(false)
-  aiConfidence  Float?          // Уверенность AI в расписании (0-1)
-  aiSuggestions Json?           // Предложения AI для улучшения
-  
+  isAiGenerated Boolean @default(false)
+  aiConfidence  Float? // Уверенность AI в расписании (0-1)
+  aiSuggestions Json? // Предложения AI для улучшения
+
   // Массовые операции
-  batchId       String?         // ID пакетной операции
-  isTemplate    Boolean         @default(false) // Является ли шаблоном
-  
+  batchId    String? // ID пакетной операции
+  isTemplate Boolean @default(false) // Является ли шаблоном
+
   // Исключения и особенности
-  excludedDates DateTime[]      // Даты, когда занятие не проводится
-  notes         String?         // Заметки к расписанию
-  
+  excludedDates DateTime[] // Даты, когда занятие не проводится
+  notes         String? // Заметки к расписанию
+
   // Автоматические поля
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  deletedAt     DateTime?
-  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
   // Обратные связи
-  rescheduledFrom Schedule[]     @relation("ScheduleReschedule")
-  originalSchedule Schedule?     @relation("ScheduleReschedule", fields: [rescheduledTo], references: [id])
-  conflicts       ScheduleConflict[]
-  
+  rescheduledFrom  Schedule[]         @relation("ScheduleReschedule")
+  originalSchedule Schedule?          @relation("ScheduleReschedule", fields: [rescheduledTo], references: [id])
+  conflicts        ScheduleConflict[]
+
   @@index([date, teacherId])
   @@index([date, classroomId])
   @@index([date, groupId])
@@ -495,62 +510,62 @@ model ScheduleConflict {
   scheduleId  String
   schedule    Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   type        ConflictType
-  description String       // Описание конфликта
+  description String // Описание конфликта
   severity    Int          @default(1) // 1-низкая, 2-средняя, 3-высокая
   isResolved  Boolean      @default(false)
   resolvedAt  DateTime?
-  resolvedBy  String?      // Кто разрешил конфликт
-  resolution  String?      // Как был разрешен конфликт
+  resolvedBy  String? // Кто разрешил конфликт
+  resolution  String? // Как был разрешен конфликт
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
 
 // Модель для массовых операций с расписанием
 model ScheduleBatch {
-  id          String    @id @default(uuid())
-  operation   String    // CREATE, UPDATE, DELETE, MOVE, CANCEL
-  description String?   // Описание операции
-  totalItems  Int       @default(0)
-  processedItems Int    @default(0)
-  failedItems Int       @default(0)
-  status      String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
-  errors      Json?     // Ошибки при обработке
-  createdBy   Int?      // Кто инициировал операцию
-  startedAt   DateTime?
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  operation      String // CREATE, UPDATE, DELETE, MOVE, CANCEL
+  description    String? // Описание операции
+  totalItems     Int       @default(0)
+  processedItems Int       @default(0)
+  failedItems    Int       @default(0)
+  status         String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  errors         Json? // Ошибки при обработке
+  createdBy      Int? // Кто инициировал операцию
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 // Шаблоны расписания для автогенерации
 model ScheduleTemplate {
-  id            String     @id @default(uuid())
-  name          String
-  description   String?
-  studyPlanId   Int?
-  studyPlan     StudyPlan? @relation(fields: [studyPlanId], references: [id])
-  
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  studyPlanId Int?
+  studyPlan   StudyPlan? @relation(fields: [studyPlanId], references: [id])
+
   // Настройки времени
-  startTime     String     // HH:MM
-  endTime       String     // HH:MM
-  daysOfWeek    Int[]      // Дни недели [1,3,5]
-  duration      Int        // Продолжительность в минутах
-  
+  startTime  String // HH:MM
+  endTime    String // HH:MM
+  daysOfWeek Int[] // Дни недели [1,3,5]
+  duration   Int // Продолжительность в минутах
+
   // Настройки периода
-  startDate     DateTime
-  endDate       DateTime
-  excludeDates  DateTime[] // Исключенные даты (каникулы, праздники)
-  
+  startDate    DateTime
+  endDate      DateTime
+  excludeDates DateTime[] // Исключенные даты (каникулы, праздники)
+
   // Предпочтения
   preferredClassrooms String[] // Предпочитаемые аудитории
-  requirements        Json?    // Особые требования
-  
+  requirements        Json? // Особые требования
+
   // Метаданные
-  isActive      Boolean   @default(true)
-  createdBy     Int?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  isActive  Boolean   @default(true)
+  createdBy Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 }
 
 model EmotionalState {
@@ -589,7 +604,6 @@ enum VacationStatus {
   rejected
   completed
 }
-
 
 model Vacation {
   id           Int                @id @default(autoincrement())
@@ -1417,23 +1431,23 @@ enum SessionStatus {
 }
 
 model UserSession {
-  id            String        @id @default(uuid())
-  userId        Int
-  user          User          @relation(fields: [userId], references: [id])
-  sessionToken  String        @unique
-  ipAddress     String?
-  userAgent     String?       @db.Text
-  device        String?       // mobile, desktop, tablet
-  browser       String?
-  os            String?
-  location      String?       // город/страна на основе IP
-  status        SessionStatus @default(ACTIVE)
-  loginAt       DateTime      @default(now())
-  lastActivityAt DateTime     @default(now())
-  logoutAt      DateTime?
-  expiresAt     DateTime
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id             String        @id @default(uuid())
+  userId         Int
+  user           User          @relation(fields: [userId], references: [id])
+  sessionToken   String        @unique
+  ipAddress      String?
+  userAgent      String?       @db.Text
+  device         String? // mobile, desktop, tablet
+  browser        String?
+  os             String?
+  location       String? // город/страна на основе IP
+  status         SessionStatus @default(ACTIVE)
+  loginAt        DateTime      @default(now())
+  lastActivityAt DateTime      @default(now())
+  logoutAt       DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   // Связь с логами активности
   activityLogs ActivityLog[]
@@ -1449,7 +1463,7 @@ model UserOnlineStatus {
   user         User     @relation(fields: [userId], references: [id])
   isOnline     Boolean  @default(false)
   lastSeen     DateTime @default(now())
-  currentPage  String?  // текущая страница
+  currentPage  String? // текущая страница
   sessionCount Int      @default(0) // количество активных сессий
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -1459,42 +1473,42 @@ model UserOnlineStatus {
 }
 
 model ActivityLog {
-  id           String      @id @default(uuid())
-  userId       Int
-  user         User        @relation(fields: [userId], references: [id])
-  sessionId    String?
-  session      UserSession? @relation(fields: [sessionId], references: [id])
-  
+  id        String       @id @default(uuid())
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id])
+  sessionId String?
+  session   UserSession? @relation(fields: [sessionId], references: [id])
+
   // Тип и детали активности
-  type         ActivityType
-  action       String      // конкретное действие
-  description  String?     // описание действия
-  
+  type        ActivityType
+  action      String // конкретное действие
+  description String? // описание действия
+
   // HTTP данные
-  method       String?     // GET, POST, PUT, DELETE
-  url          String?     // URL запроса
-  route        String?     // роут в приложении
-  statusCode   Int?        // HTTP статус код
-  
+  method     String? // GET, POST, PUT, DELETE
+  url        String? // URL запроса
+  route      String? // роут в приложении
+  statusCode Int? // HTTP статус код
+
   // Данные запроса/ответа
-  requestData  Json?       // параметры запроса (безопасные)
-  responseData Json?       // данные ответа (безопасные)
-  
+  requestData  Json? // параметры запроса (безопасные)
+  responseData Json? // данные ответа (безопасные)
+
   // Метаданные
-  ipAddress    String?
-  userAgent    String?     @db.Text
-  referer      String?     // откуда пришел пользователь
-  duration     Int?        // время выполнения в мс
-  
+  ipAddress String?
+  userAgent String? @db.Text
+  referer   String? // откуда пришел пользователь
+  duration  Int? // время выполнения в мс
+
   // Контекст
-  entityType   String?     // тип сущности (User, Student, etc.)
-  entityId     String?     // ID сущности
-  
+  entityType String? // тип сущности (User, Student, etc.)
+  entityId   String? // ID сущности
+
   // Результат
-  success      Boolean     @default(true)
-  errorMessage String?     @db.Text
-  
-  createdAt    DateTime    @default(now())
+  success      Boolean @default(true)
+  errorMessage String? @db.Text
+
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([type, createdAt])
@@ -1513,7 +1527,7 @@ model DailyActivityStats {
   totalSessions   Int      @default(0) // всего сессий
   totalPageViews  Int      @default(0) // всего просмотров страниц
   totalActions    Int      @default(0) // всего действий
-  avgSessionTime  Int?     // средняя длительность сессии в минутах
+  avgSessionTime  Int? // средняя длительность сессии в минутах
   peakOnlineUsers Int      @default(0) // пик одновременных пользователей
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1542,89 +1556,185 @@ model ActivityMonitoringSettings {
 
 // Основная модель документа
 model Document {
-  id            String @id @default(uuid())
-  title         String
-  number        String? @unique
-  type          DocumentType
-  status        DocumentStatus @default(DRAFT)
-  content       String? @db.Text
-  
+  id      String         @id @default(uuid())
+  title   String
+  number  String?        @unique
+  type    DocumentType
+  status  DocumentStatus @default(DRAFT)
+  content String?        @db.Text
+
   // Создатель и ответственный
   createdById   Int
-  createdBy     User @relation("CreatedDocuments", fields: [createdById], references: [id])
+  createdBy     User  @relation("CreatedDocuments", fields: [createdById], references: [id])
   responsibleId Int?
   responsible   User? @relation("ResponsibleDocuments", fields: [responsibleId], references: [id])
-  
+
   // Связи с сущностями
-  studentId     Int?
-  student       Student? @relation(fields: [studentId], references: [id])
-  
+  studentId Int?
+  student   Student? @relation(fields: [studentId], references: [id])
+
   // Файлы и согласования
-  files         DocumentFile[]
-  approvals     DocumentApproval[]
-  comments      DocumentComment[]
-  
+  files     DocumentFile[]
+  approvals DocumentApproval[]
+  comments  DocumentComment[]
+
   // Сроки
-  deadline      DateTime?
-  completedAt   DateTime?
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  deadline    DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Согласования
 model DocumentApproval {
-  id          String @id @default(uuid())
-  documentId  String
-  document    Document @relation(fields: [documentId], references: [id])
-  approverId  Int
-  approver    User @relation(fields: [approverId], references: [id])
-  
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  approverId Int
+  approver   User     @relation(fields: [approverId], references: [id])
+
   status      ApprovalStatus @default(PENDING)
   comment     String?
   order       Int // Порядок согласования
   deadline    DateTime?
   completedAt DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Файлы документов
 model DocumentFile {
-  id         String @id @default(uuid())
+  id         String   @id @default(uuid())
   documentId String
   document   Document @relation(fields: [documentId], references: [id])
   fileId     Int
-  file       File @relation(fields: [fileId], references: [id])
-  
-  createdAt  DateTime @default(now())
+  file       File     @relation(fields: [fileId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 // Комментарии
 model DocumentComment {
-  id         String @id @default(uuid())
+  id         String   @id @default(uuid())
   documentId String
   document   Document @relation(fields: [documentId], references: [id])
   authorId   Int
-  author     User @relation(fields: [authorId], references: [id])
-  content    String @db.Text
-  
-  createdAt  DateTime @default(now())
+  author     User     @relation(fields: [authorId], references: [id])
+  content    String   @db.Text
+
+  createdAt DateTime @default(now())
 }
 
 // Шаблоны документов
 model DocumentTemplate {
-  id          String @id @default(uuid())
-  name        String
-  type        DocumentType
-  content     String @db.Text // HTML шаблон
-  variables   Json? // Список переменных
-  isActive    Boolean @default(true)
-  
+  id        String       @id @default(uuid())
+  name      String
+  type      DocumentType
+  content   String       @db.Text // HTML шаблон
+  variables Json? // Список переменных
+  isActive  Boolean      @default(true)
+
   createdById Int
   createdBy   User @relation(fields: [createdById], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- RBAC (Role-Based Access Control) System ---
+
+// Новые динамические роли
+model Role {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  isSystem    Boolean   @default(false) // Системные роли нельзя удалять
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Связи
+  userRoles       UserRoleAssignment[]
+  rolePermissions RolePermission[]
+}
+
+// Разрешения с гранулярным контролем
+model Permission {
+  id          String          @id @default(uuid())
+  module      String // students, teachers, lessons, etc.
+  action      String // create, read, update, delete
+  resource    String? // конкретный ресурс (опционально)
+  scope       PermissionScope @default(ALL) // ALL, OWN, GROUP, DEPARTMENT
+  description String?
+  isSystem    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Связи
+  rolePermissions RolePermission[]
+}
+
+// Связь ролей и разрешений
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  conditions   Json? // Дополнительные условия (JSON)
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+// Назначение ролей пользователям
+model UserRoleAssignment {
+  id         String    @id @default(uuid())
+  userId     Int
+  roleId     String
+  assignedBy Int? // Кто назначил роль
+  assignedAt DateTime  @default(now())
+  expiresAt  DateTime? // Срок действия роли
+  isActive   Boolean   @default(true)
+  context    Json? // Контекст роли (например, группа, отдел)
+
+  user     User  @relation("UserRoleAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  role     Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assigner User? @relation("UserRoleAssigner", fields: [assignedBy], references: [id])
+
+  @@unique([userId, roleId])
+}
+
+// Аудит разрешений
+model PermissionAudit {
+  id         String   @id @default(uuid())
+  userId     Int
+  action     String // что делал
+  resource   String // с чем работал
+  resourceId String? // ID ресурса
+  allowed    Boolean // разрешено или запрещено
+  reason     String? // причина (какое правило сработало)
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation("UserPermissionAudits", fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([action, resource])
+}
+
+// Кэш разрешений для производительности
+model UserPermissionCache {
+  id          String   @id @default(uuid())
+  userId      Int      @unique
+  permissions Json // Кэшированные разрешения
+  lastUpdated DateTime @default(now())
+  expiresAt   DateTime
+
+  user User @relation("UserPermissionCache", fields: [userId], references: [id], onDelete: Cascade)
 }

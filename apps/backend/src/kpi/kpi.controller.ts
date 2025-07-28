@@ -12,15 +12,17 @@ import {
   KpiComparisonResponseDto,
 } from './dto/kpi-response.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 
 @ApiTags('KPI')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @Controller('kpi')
 export class KpiController {
   constructor(private readonly kpiService: KpiService) {}
 
   @Get('overview')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Получить общие показатели KPI' })
   @ApiResponse({ status: 200, description: 'Успешно получены данные', type: KpiOverviewResponseDto })
   async getOverview(@Query() filter?: KpiFilterDto): Promise<KpiOverviewResponseDto> {
@@ -28,6 +30,7 @@ export class KpiController {
   }
 
   @Get('teachers')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Получить KPI преподавателей' })
   @ApiResponse({ status: 200, description: 'Успешно получены данные', type: TeacherKpiResponseDto })
   async getTeacherKpi(@Query() filter?: KpiFilterDto): Promise<TeacherKpiResponseDto> {
@@ -35,6 +38,7 @@ export class KpiController {
   }
 
   @Get('departments')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Получить KPI отделов' })
   @ApiResponse({ status: 200, description: 'Успешно получены данные', type: DepartmentKpiResponseDto })
   async getDepartmentKpi(@Query() filter?: KpiFilterDto): Promise<DepartmentKpiResponseDto> {
@@ -42,6 +46,7 @@ export class KpiController {
   }
 
   @Get('trends')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Получить тренды KPI' })
   @ApiResponse({ status: 200, description: 'Успешно получены данные', type: KpiTrendsResponseDto })
   async getTrends(@Query() filter?: KpiFilterDto): Promise<KpiTrendsResponseDto> {
@@ -49,6 +54,7 @@ export class KpiController {
   }
 
   @Get('goals')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Получить цели KPI' })
   @ApiResponse({ status: 200, description: 'Успешно получены данные', type: KpiGoalsResponseDto })
   async getGoals(@Query() filter?: KpiFilterDto): Promise<KpiGoalsResponseDto> {
@@ -56,6 +62,7 @@ export class KpiController {
   }
 
   @Get('comparison')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Получить сравнение KPI' })
   @ApiResponse({ status: 200, description: 'Успешно получены данные', type: KpiComparisonResponseDto })
   async getComparison(@Query() filter?: KpiFilterDto): Promise<KpiComparisonResponseDto> {
@@ -63,6 +70,7 @@ export class KpiController {
   }
 
   @Get('export')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Экспорт KPI данных' })
   @ApiResponse({ status: 200, description: 'Файл экспорта KPI' })
   async exportKpi(
@@ -88,6 +96,7 @@ export class KpiController {
   }
 
   @Get('teachers/:teacherId/export')
+  @RequirePermission('kpi', 'read')
   @ApiOperation({ summary: 'Экспорт KPI отчета по преподавателю' })
   @ApiResponse({ status: 200, description: 'Файл отчета по преподавателю' })
   async exportTeacherReport(

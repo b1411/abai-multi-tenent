@@ -14,21 +14,38 @@ export class AuthGuard implements CanActivate {
 
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest<Request>();
+        const url = request.url;
+        const method = request.method;
+        
+        console.log(`🔐 AuthGuard: ${method} ${url}`);
+        
         const token = this.extractTokenFromHeader(request);
         if (!token) {
-            throw new UnauthorizedException();
+            console.log(`❌ AuthGuard: No token found in request to ${method} ${url}`);
+            console.log(`❌ AuthGuard: Authorization header:`, request.headers.authorization);
+            throw new UnauthorizedException('No token provided');
         }
+        
+        console.log(`🔍 AuthGuard: Token found, verifying...`);
+        
         try {
-            const payload = this.jwtService.verify(
-                token
-            );
+            const payload = this.jwtService.verify(token);
+            
+            console.log(`✅ AuthGuard: Token valid for user:`, {
+                id: payload.id,
+                email: payload.email,
+                role: payload.role
+            });
+            
             // 💡 We're assigning the payload to the request object here
             // so that we can access it in our route handlers
             request['user'] = payload;
-        } catch {
-            throw new UnauthorizedException();
+            
+            return true;
+        } catch (error) {
+            console.log(`❌ AuthGuard: Token verification failed for ${method} ${url}:`, error.message);
+            throw new UnauthorizedException('Invalid token');
         }
-        return true;
     }
 
     private extractTokenFromHeader(request: Request): string | undefined {

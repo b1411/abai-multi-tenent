@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import StudentDashboard from '../components/dashboards/StudentDashboard';
 import TeacherDashboard from '../components/dashboards/TeacherDashboard';
 import AdminDashboard from '../components/dashboards/AdminDashboard';

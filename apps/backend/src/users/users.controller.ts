@@ -3,14 +3,13 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
-import { RolesGuard } from '../common/guards/role.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('Users')
 @Controller('users')
 @ApiBearerAuth()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
@@ -19,7 +18,7 @@ export class UsersController {
   @ApiResponse({ status: 201, description: 'Пользователь успешно создан' })
   @ApiResponse({ status: 400, description: 'Некорректные данные' })
   @ApiResponse({ status: 409, description: 'Пользователь с таким email уже существует' })
-  @Roles('ADMIN', 'TEACHER')
+  @RequirePermission('users', 'create')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
@@ -27,7 +26,7 @@ export class UsersController {
   @Get()
   @ApiOperation({ summary: 'Получить всех пользователей' })
   @ApiResponse({ status: 200, description: 'Список всех пользователей' })
-  @Roles('ADMIN', 'HR')
+  @RequirePermission('users', 'read')
   findAll() {
     return this.usersService.findAll();
   }
@@ -40,7 +39,7 @@ export class UsersController {
     description: 'Роль пользователя',
     enum: ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'FINANCIST', 'HR']
   })
-  @Roles('ADMIN', 'HR', 'TEACHER')
+  @RequirePermission('users', 'read')
   findByRole(@Param('role') role: string) {
     return this.usersService.findByRole(role);
   }
@@ -49,7 +48,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Поиск пользователей' })
   @ApiResponse({ status: 200, description: 'Результаты поиска пользователей' })
   @ApiQuery({ name: 'q', description: 'Поисковый запрос (имя, фамилия, email, телефон)' })
-  @Roles('ADMIN', 'HR', 'TEACHER')
+  @RequirePermission('users', 'read')
   searchUsers(@Query('q') query: string) {
     return this.usersService.searchUsers(query);
   }
@@ -57,7 +56,7 @@ export class UsersController {
   @Get('statistics')
   @ApiOperation({ summary: 'Получить статистику пользователей' })
   @ApiResponse({ status: 200, description: 'Статистика пользователей по ролям' })
-  @Roles('ADMIN', 'HR')
+  @RequirePermission('reports', 'read')
   getStatistics() {
     return this.usersService.getUserStatistics();
   }
@@ -67,7 +66,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Полная информация о пользователе' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   @ApiParam({ name: 'id', description: 'ID пользователя' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'PARENT', 'STUDENT')
+  @RequirePermission('users', 'read', { scope: 'OWN' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
   }
@@ -78,7 +77,7 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   @ApiResponse({ status: 409, description: 'Email уже используется' })
   @ApiParam({ name: 'id', description: 'ID пользователя' })
-  @Roles('ADMIN', 'HR')
+  @RequirePermission('users', 'update')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(+id, updateUserDto);
   }
@@ -89,7 +88,7 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   @ApiResponse({ status: 409, description: 'Неверный старый пароль' })
   @ApiParam({ name: 'id', description: 'ID пользователя' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'PARENT', 'STUDENT')
+  @RequirePermission('users', 'update', { scope: 'OWN' })
   changePassword(
     @Param('id') id: string,
     @Body() body: { oldPassword: string; newPassword: string },
@@ -102,7 +101,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Пользователь успешно удален' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   @ApiParam({ name: 'id', description: 'ID пользователя' })
-  @Roles('ADMIN')
+  @RequirePermission('users', 'delete')
   remove(@Param('id') id: string) {
     return this.usersService.remove(+id);
   }

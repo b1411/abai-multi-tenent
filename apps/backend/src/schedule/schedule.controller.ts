@@ -3,8 +3,7 @@ import { ScheduleService } from './schedule.service';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
-import { RolesGuard } from '../common/guards/role.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
 import { AIScheduleResponseDto } from '../ai-assistant/dto/ai-schedule-response.dto';
@@ -12,8 +11,7 @@ import { AIScheduleResponseDto } from '../ai-assistant/dto/ai-schedule-response.
 @ApiTags('Schedule')
 @Controller('schedule')
 @ApiBearerAuth()
-@UseGuards(AuthGuard, RolesGuard)
-@Roles('ADMIN', 'TEACHER')
+@UseGuards(AuthGuard, PermissionGuard)
 export class ScheduleController {
   constructor(
     private readonly scheduleService: ScheduleService,
@@ -21,6 +19,7 @@ export class ScheduleController {
   ) {}
 
   @Post()
+  @RequirePermission('schedule', 'create')
   @ApiOperation({ summary: 'Создать новое расписание' })
   @ApiResponse({ status: 201, description: 'Расписание успешно создано' })
   @ApiResponse({ status: 400, description: 'Некорректные данные или конфликт расписания' })
@@ -30,41 +29,42 @@ export class ScheduleController {
   }
 
   @Get()
+  @RequirePermission('schedule', 'read')
   @ApiOperation({ summary: 'Получить все расписания' })
   @ApiResponse({ status: 200, description: 'Список всех расписаний' })
-  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
   findAll() {
     return this.scheduleService.findAll();
   }
 
   @Get('group/:groupId')
+  @RequirePermission('schedule', 'read', { scope: 'GROUP' })
   @ApiOperation({ summary: 'Получить расписание группы' })
   @ApiResponse({ status: 200, description: 'Расписание группы' })
   @ApiParam({ name: 'groupId', description: 'ID группы' })
-  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
   findByGroup(@Param('groupId') groupId: string) {
     return this.scheduleService.findByGroup(+groupId);
   }
 
   @Get('teacher/:teacherId')
+  @RequirePermission('schedule', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить расписание преподавателя' })
   @ApiResponse({ status: 200, description: 'Расписание преподавателя' })
   @ApiParam({ name: 'teacherId', description: 'ID преподавателя' })
-  @Roles('ADMIN', 'TEACHER')
   findByTeacher(@Param('teacherId') teacherId: string) {
     return this.scheduleService.findByTeacher(+teacherId);
   }
 
   @Get('classroom/:classroomId')
+  @RequirePermission('schedule', 'read')
   @ApiOperation({ summary: 'Получить расписание аудитории' })
   @ApiResponse({ status: 200, description: 'Расписание аудитории' })
   @ApiParam({ name: 'classroomId', description: 'ID аудитории' })
-  @Roles('ADMIN', 'TEACHER')
   findByClassroom(@Param('classroomId') classroomId: string) {
     return this.scheduleService.findByClassroom(+classroomId);
   }
 
   @Get('day/:dayOfWeek')
+  @RequirePermission('schedule', 'read')
   @ApiOperation({ summary: 'Получить расписание на день недели' })
   @ApiResponse({ status: 200, description: 'Расписание на день' })
   @ApiParam({ 
@@ -72,22 +72,22 @@ export class ScheduleController {
     description: 'День недели (1-7: понедельник-воскресенье)',
     example: 1
   })
-  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
   findByDayOfWeek(@Param('dayOfWeek') dayOfWeek: string) {
     return this.scheduleService.findByDayOfWeek(+dayOfWeek);
   }
 
   @Get(':id')
+  @RequirePermission('schedule', 'read')
   @ApiOperation({ summary: 'Получить расписание по ID' })
   @ApiResponse({ status: 200, description: 'Данные расписания' })
   @ApiResponse({ status: 404, description: 'Расписание не найдено' })
   @ApiParam({ name: 'id', description: 'UUID расписания' })
-  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
   findOne(@Param('id') id: string) {
     return this.scheduleService.findOne(id);
   }
 
   @Patch(':id')
+  @RequirePermission('schedule', 'update')
   @ApiOperation({ summary: 'Обновить расписание' })
   @ApiResponse({ status: 200, description: 'Расписание успешно обновлено' })
   @ApiResponse({ status: 400, description: 'Некорректные данные или конфликт расписания' })
@@ -98,6 +98,7 @@ export class ScheduleController {
   }
 
   @Delete(':id')
+  @RequirePermission('schedule', 'delete')
   @ApiOperation({ summary: 'Удалить расписание' })
   @ApiResponse({ status: 200, description: 'Расписание успешно удалено' })
   @ApiResponse({ status: 404, description: 'Расписание не найдено' })
@@ -111,6 +112,7 @@ export class ScheduleController {
   // ================================
 
   @Post('ai-analyze')
+  @RequirePermission('schedule', 'update')
   @ApiOperation({ 
     summary: 'Анализировать существующее расписание с помощью ИИ',
     description: 'Использует ChatGPT для анализа расписания на предмет конфликтов и возможностей оптимизации'
@@ -118,19 +120,18 @@ export class ScheduleController {
   @ApiResponse({ status: 200, description: 'Анализ расписания выполнен' })
   @ApiResponse({ status: 400, description: 'Некорректные данные для анализа' })
   @ApiResponse({ status: 500, description: 'Ошибка при обращении к ИИ сервису' })
-  @Roles('ADMIN', 'TEACHER')
   async analyzeWithAI(@Body() scheduleItems: any[]) {
     return this.aiAssistantService.analyzeScheduleConflicts(scheduleItems);
   }
 
   @Post('ai-validate')
+  @RequirePermission('schedule', 'create')
   @ApiOperation({ 
     summary: 'Валидировать сгенерированное расписание',
     description: 'Проверяет сгенерированное ИИ расписание на наличие конфликтов и соответствие ограничениям'
   })
   @ApiResponse({ status: 200, description: 'Валидация завершена' })
   @ApiResponse({ status: 400, description: 'Обнаружены критические конфликты' })
-  @Roles('ADMIN')
   async validateAISchedule(@Body() scheduleItems: any[]) {
     // Здесь будет логика валидации сгенерированного расписания
     // Можно добавить дополнительные проверки помимо ИИ анализа
@@ -152,6 +153,7 @@ export class ScheduleController {
   }
 
   @Post('lessons/from-ai')
+  @RequirePermission('schedule', 'create')
   @ApiOperation({ 
     summary: 'Создать расписание из существующих уроков с помощью AI',
     description: 'Берет существующие уроки из базы данных и использует AI для их оптимального расставления по времени и аудиториям'
@@ -159,7 +161,6 @@ export class ScheduleController {
   @ApiResponse({ status: 201, description: 'Расписание из уроков успешно создано' })
   @ApiResponse({ status: 400, description: 'Некорректные параметры' })
   @ApiResponse({ status: 500, description: 'Ошибка при обращении к ИИ сервису' })
-  @Roles('ADMIN')
   async createScheduleFromLessonsWithAI(@Body() params: {
     lessonIds?: number[];
     groupIds?: number[];
@@ -401,13 +402,13 @@ ${existingSchedules.map(schedule => `
   }
 
   @Post('lessons/apply')
+  @RequirePermission('schedule', 'create')
   @ApiOperation({ 
     summary: 'Применить предварительное расписание уроков',
     description: 'Сохраняет подтвержденное пользователем расписание в базу данных'
   })
   @ApiResponse({ status: 201, description: 'Расписание успешно применено' })
   @ApiResponse({ status: 400, description: 'Ошибка при создании расписания' })
-  @Roles('ADMIN')
   async applyLessonSchedule(@Body() applyData: { 
     generatedLessons: any[]; 
     replaceExisting?: boolean 

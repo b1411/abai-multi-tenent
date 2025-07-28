@@ -4,9 +4,10 @@ import { LessonsController } from './lessons.controller';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from 'src/jwt/jwt.service';
 import { LessonScheduleService } from '../schedule/lesson-schedule.service';
+import { RbacService } from 'src/rbac/rbac.service';
 
 @Module({
   controllers: [LessonsController],
-  providers: [LessonsService, LessonScheduleService, PrismaService, JwtService],
+  providers: [LessonsService, LessonScheduleService, PrismaService, JwtService, RbacService],
 })
 export class LessonsModule { }

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button, Loading, Modal, Input } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { Lesson } from '../types/lesson';
 import { lessonService } from '../services/lessonService';
 import { Material, materialService, CreateLessonMaterialsRequest, QuizQuestion } from '../services/materialService';
@@ -41,7 +42,7 @@ interface LocalMaterialForm {
 const LessonMaterialsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -333,7 +334,8 @@ const LessonMaterialsPage: React.FC = () => {
     );
   }
 
-  const canEdit = hasRole('ADMIN') || (hasRole('TEACHER') && lesson.studyPlan?.teacher?.user?.id === user?.id);
+  const canEdit = hasPermission('materials', 'update') || 
+    (hasPermission('materials', 'update', { scope: 'OWN' }) && lesson.studyPlan?.teacher?.user?.id === user?.id);
 
   return (
     <div className="p-6">

@@ -3,8 +3,9 @@ import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { LessonFilterDto } from './dto/lesson-filter.dto';
-import { RolesGuard } from 'src/common/guards/role.guard';
 import { AuthGuard } from 'src/common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from 'src/common/guards/permission.guard';
+import { RolesGuard } from 'src/common/guards/role.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Lesson } from './entities/lesson.entity';
@@ -14,8 +15,7 @@ import { LessonScheduleService } from '../schedule/lesson-schedule.service';
 @Controller('lessons')
 @ApiTags('Lessons')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard, RolesGuard)
-@Roles("ADMIN", "TEACHER")
+@UseGuards(AuthGuard, PermissionGuard)
 export class LessonsController {
   constructor(
     private readonly lessonsService: LessonsService,
@@ -30,6 +30,7 @@ export class LessonsController {
     type: Lesson
   })
   @ApiResponse({ status: 400, description: 'Неверные данные' })
+  @RequirePermission('lessons', 'create')
   create(@Body() createLessonDto: CreateLessonDto): Promise<Lesson> {
     return this.lessonsService.create(createLessonDto);
   }
@@ -41,6 +42,7 @@ export class LessonsController {
     description: 'Список уроков с пагинацией или без (если указан параметр noPagination)',
     type: PaginateResponseDto<Lesson>
   })
+  @RequirePermission('lessons', 'read')
   async findAll(@Query() filters: LessonFilterDto): Promise<PaginateResponseDto<Lesson> | Lesson[]> {
     // Если указан параметр noPagination, возвращаем простой массив для журнала
     if (filters.noPagination === 'true') {
@@ -57,7 +59,7 @@ export class LessonsController {
   }
 
   @Get('me')
-  @Roles("STUDENT")
+  @RequirePermission('lessons', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить уроки текущего студента' })
   @ApiResponse({
     status: 200,
@@ -80,6 +82,7 @@ export class LessonsController {
   }
 
   @Get('available')
+  @RequirePermission('schedule', 'read')
   @ApiOperation({ 
     summary: 'Получить доступные уроки для планирования в расписании',
     description: 'Возвращает список уроков из календарно-тематического планирования, которые можно добавить в расписание'
@@ -173,6 +176,7 @@ export class LessonsController {
   }
 
   @Get('by-study-plan/:studyPlanId')
+  @RequirePermission('lessons', 'read')
   @ApiOperation({ summary: 'Получить уроки по учебному плану' })
   @ApiParam({ name: 'studyPlanId', description: 'ID учебного плана' })
   @ApiResponse({
@@ -185,7 +189,7 @@ export class LessonsController {
   }
 
   @Get(':id')
-  @Roles("ADMIN", "TEACHER", "STUDENT")
+  @RequirePermission('lessons', 'read', { scope: 'ASSIGNED' })
   @ApiOperation({ summary: 'Получить урок по ID' })
   @ApiParam({ name: 'id', description: 'ID урока' })
   @ApiResponse({
@@ -199,6 +203,7 @@ export class LessonsController {
   }
 
   @Patch(':id')
+  @RequirePermission('lessons', 'update')
   @ApiOperation({ summary: 'Обновить урок' })
   @ApiParam({ name: 'id', description: 'ID урока' })
   @ApiResponse({
@@ -212,6 +217,7 @@ export class LessonsController {
   }
 
   @Delete(':id')
+  @RequirePermission('lessons', 'delete')
   @ApiOperation({ summary: 'Удалить урок (мягкое удаление)' })
   @ApiParam({ name: 'id', description: 'ID урока' })
   @ApiResponse({

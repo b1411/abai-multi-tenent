@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Paperclip, Smile, Phone, Video, MoreVertical, Search, Loader, Plus } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import NewChatModal from '../components/NewChatModal';
 
 const Chat: React.FC = () => {
@@ -154,12 +156,14 @@ const Chat: React.FC = () => {
         <div className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">Сообщения</h1>
-            <button
-              onClick={() => setShowNewChatModal(true)}
-              className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-            </button>
+            <PermissionGuard module="chat" action="create">
+              <button
+                onClick={() => setShowNewChatModal(true)}
+                className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+              </button>
+            </PermissionGuard>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />

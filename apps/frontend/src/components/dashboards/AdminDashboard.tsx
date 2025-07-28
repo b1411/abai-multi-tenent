@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { PermissionGuard } from '../PermissionGuard';
 import { 
   Users, 
   GraduationCap, 
@@ -172,18 +173,24 @@ const AdminDashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Быстрые действия</h2>
           <div className="space-y-3">
-            <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-              <p className="font-medium text-blue-900">Добавить студента</p>
-              <p className="text-sm text-blue-600">Зарегистрировать нового ученика</p>
-            </button>
-            <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-              <p className="font-medium text-green-900">Создать группу</p>
-              <p className="text-sm text-green-600">Сформировать новую учебную группу</p>
-            </button>
-            <button className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
-              <p className="font-medium text-purple-900">Настроить расписание</p>
-              <p className="text-sm text-purple-600">Управление учебным расписанием</p>
-            </button>
+            <PermissionGuard module="students" action="create">
+              <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                <p className="font-medium text-blue-900">Добавить студента</p>
+                <p className="text-sm text-blue-600">Зарегистрировать нового ученика</p>
+              </button>
+            </PermissionGuard>
+            <PermissionGuard module="groups" action="create">
+              <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                <p className="font-medium text-green-900">Создать группу</p>
+                <p className="text-sm text-green-600">Сформировать новую учебную группу</p>
+              </button>
+            </PermissionGuard>
+            <PermissionGuard module="schedule" action="update">
+              <button className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+                <p className="font-medium text-purple-900">Настроить расписание</p>
+                <p className="text-sm text-purple-600">Управление учебным расписанием</p>
+              </button>
+            </PermissionGuard>
           </div>
         </div>
       </div>

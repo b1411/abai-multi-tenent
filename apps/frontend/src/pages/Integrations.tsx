@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { FaPlug, FaCheck, FaTimes, FaCog, FaExternalLinkAlt, FaSync, FaPlus } from 'react-icons/fa';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { useIntegrations } from '../hooks/useSystem';
 import { Integration, CreateIntegrationDto, UpdateIntegrationDto } from '../types/system';
 import { Spinner } from '../components/ui/Spinner';
@@ -278,12 +280,14 @@ const IntegrationsPage: React.FC = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Интеграции</h1>
-        <button 
-          onClick={handleCreateIntegration}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <FaPlus /> Добавить интеграцию
-        </button>
+        <PermissionGuard module="integrations" action="create">
+          <button 
+            onClick={handleCreateIntegration}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <FaPlus /> Добавить интеграцию
+          </button>
+        </PermissionGuard>
       </div>
 
       {error && <Alert variant="error" message={error} className="mb-4" />}
@@ -319,13 +323,15 @@ const IntegrationsPage: React.FC = () => {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleConfigIntegration(integration)}
-                  className="text-gray-500 hover:text-gray-600 p-1"
-                  title="Настройки"
-                >
-                  <FaCog />
-                </button>
+                <PermissionGuard module="integrations" action="update">
+                  <button
+                    onClick={() => handleConfigIntegration(integration)}
+                    className="text-gray-500 hover:text-gray-600 p-1"
+                    title="Настройки"
+                  >
+                    <FaCog />
+                  </button>
+                </PermissionGuard>
                 
                 {integration.status === 'connected' && (
                   <button
@@ -342,21 +348,23 @@ const IntegrationsPage: React.FC = () => {
                   </button>
                 )}
                 
-                <button
-                  onClick={() => handleDeleteIntegration(integration.id)}
-                  className={`p-1 ${
-                    deleteConfirm === integration.id 
-                      ? 'text-red-700 bg-red-100 rounded px-2' 
-                      : 'text-red-500 hover:text-red-600'
-                  }`}
-                  title={deleteConfirm === integration.id ? 'Подтвердить удаление' : 'Удалить'}
-                >
-                  {deleteConfirm === integration.id ? (
-                    <span className="text-xs">Подтвердить</span>
-                  ) : (
-                    <FaTimes />
-                  )}
-                </button>
+                <PermissionGuard module="integrations" action="delete">
+                  <button
+                    onClick={() => handleDeleteIntegration(integration.id)}
+                    className={`p-1 ${
+                      deleteConfirm === integration.id 
+                        ? 'text-red-700 bg-red-100 rounded px-2' 
+                        : 'text-red-500 hover:text-red-600'
+                    }`}
+                    title={deleteConfirm === integration.id ? 'Подтвердить удаление' : 'Удалить'}
+                  >
+                    {deleteConfirm === integration.id ? (
+                      <span className="text-xs">Подтвердить</span>
+                    ) : (
+                      <FaTimes />
+                    )}
+                  </button>
+                </PermissionGuard>
               </div>
               
               <div className="flex gap-2">
@@ -391,12 +399,14 @@ const IntegrationsPage: React.FC = () => {
             <FaPlug className="text-6xl mb-4 text-gray-300" />
             <h3 className="text-lg font-medium mb-2">Нет интеграций</h3>
             <p className="text-sm mb-4">Добавьте интеграции для подключения внешних сервисов</p>
-            <button 
-              onClick={handleCreateIntegration}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-            >
-              <FaPlus /> Добавить первую интеграцию
-            </button>
+            <PermissionGuard module="integrations" action="create">
+              <button 
+                onClick={handleCreateIntegration}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+              >
+                <FaPlus /> Добавить первую интеграцию
+              </button>
+            </PermissionGuard>
           </div>
         )}
       </div>

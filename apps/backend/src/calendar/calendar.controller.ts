@@ -17,15 +17,17 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventFilterDto } from './dto/event-filter.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from 'src/common/guards/permission.guard';
 
 @ApiTags('Calendar')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @Controller('calendar')
 export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}
 
   @Post('events')
+  @RequirePermission('calendar', 'create', { scope: 'OWN' })
   @ApiOperation({ summary: 'Создать новое событие' })
   @ApiResponse({ status: 201, description: 'Событие создано успешно' })
   async createEvent(@Req() req: any, @Body() createEventDto: CreateEventDto) {
@@ -33,6 +35,7 @@ export class CalendarController {
   }
 
   @Get('events')
+  @RequirePermission('calendar', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить события пользователя' })
   @ApiResponse({ status: 200, description: 'События получены успешно' })
   async getUserEvents(@Req() req: any, @Query() filterDto: EventFilterDto) {
@@ -40,6 +43,7 @@ export class CalendarController {
   }
 
   @Get('events/today')
+  @RequirePermission('calendar', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить события на сегодня' })
   @ApiResponse({ status: 200, description: 'События на сегодня получены успешно' })
   async getTodaysEvents(@Req() req: any) {
@@ -47,6 +51,7 @@ export class CalendarController {
   }
 
   @Get('events/:eventId')
+  @RequirePermission('calendar', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить событие по ID' })
   @ApiResponse({ status: 200, description: 'Событие получено успешно' })
   async getEventById(
@@ -57,6 +62,7 @@ export class CalendarController {
   }
 
   @Put('events/:eventId')
+  @RequirePermission('calendar', 'update', { scope: 'OWN' })
   @ApiOperation({ summary: 'Обновить событие' })
   @ApiResponse({ status: 200, description: 'Событие обновлено успешно' })
   async updateEvent(
@@ -68,6 +74,7 @@ export class CalendarController {
   }
 
   @Delete('events/:eventId')
+  @RequirePermission('calendar', 'delete', { scope: 'OWN' })
   @ApiOperation({ summary: 'Удалить событие' })
   @ApiResponse({ status: 200, description: 'Событие удалено успешно' })
   async deleteEvent(
@@ -78,6 +85,7 @@ export class CalendarController {
   }
 
   @Put('events/:eventId/status')
+  @RequirePermission('calendar', 'update', { scope: 'OWN' })
   @ApiOperation({ summary: 'Обновить статус участия в событии' })
   @ApiResponse({ status: 200, description: 'Статус участия обновлен успешно' })
   async updateParticipantStatus(
@@ -94,6 +102,7 @@ export class CalendarController {
   }
 
   @Post('events/:eventId/reminders')
+  @RequirePermission('calendar', 'create', { scope: 'OWN' })
   @ApiOperation({ summary: 'Создать напоминание для события' })
   @ApiResponse({ status: 201, description: 'Напоминание создано успешно' })
   async createReminder(
@@ -110,6 +119,7 @@ export class CalendarController {
   }
 
   @Delete('reminders/:reminderId')
+  @RequirePermission('calendar', 'delete', { scope: 'OWN' })
   @ApiOperation({ summary: 'Удалить напоминание' })
   @ApiResponse({ status: 200, description: 'Напоминание удалено успешно' })
   async deleteReminder(

@@ -17,6 +17,8 @@ import {
   Users,
   Eye,
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { edoService, type Document, type DocumentApproval, type DocumentComment } from '../services/edoService';
 import { fileService } from '../services/fileService';
 
@@ -257,34 +259,40 @@ const DocumentDetailPage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {canApprove() && (
-            <button
-              onClick={() => setShowApprovalForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Send className="w-4 h-4" />
-              Согласовать
-            </button>
+            <PermissionGuard module="edo" action="update">
+              <button
+                onClick={() => setShowApprovalForm(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Согласовать
+              </button>
+            </PermissionGuard>
           )}
           
           {canEdit() && (
-            <button
-              onClick={() => navigate(`/edo/${id}/edit`)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              <Edit className="w-4 h-4" />
-              Редактировать
-            </button>
+            <PermissionGuard module="edo" action="update">
+              <button
+                onClick={() => navigate(`/edo/${id}/edit`)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              >
+                <Edit className="w-4 h-4" />
+                Редактировать
+              </button>
+            </PermissionGuard>
           )}
           
           {canDelete() && (
-            <button
-              onClick={handleDelete}
-              disabled={actionLoading}
-              className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Удалить
-            </button>
+            <PermissionGuard module="edo" action="delete">
+              <button
+                onClick={handleDelete}
+                disabled={actionLoading}
+                className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Удалить
+              </button>
+            </PermissionGuard>
           )}
         </div>
       </div>

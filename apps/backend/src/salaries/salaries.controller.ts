@@ -18,18 +18,17 @@ import { CreateSalaryDto } from './dto/create-salary.dto';
 import { UpdateSalaryDto } from './dto/update-salary.dto';
 import { SalaryFilterDto } from './dto/salary-filter.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
-import { RolesGuard } from '../common/guards/role.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 
 @ApiTags('salaries')
 @Controller('salaries')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @ApiBearerAuth()
 export class SalariesController {
   constructor(private readonly salariesService: SalariesService) {}
 
   @Post()
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'create')
   @ApiOperation({ summary: 'Создать зарплату' })
   @ApiResponse({ status: 201, description: 'Зарплата создана' })
   @ApiResponse({ status: 400, description: 'Неверные данные' })
@@ -39,7 +38,7 @@ export class SalariesController {
   }
 
   @Get()
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'read')
   @ApiOperation({ summary: 'Получить список зарплат' })
   @ApiResponse({ status: 200, description: 'Список зарплат' })
   findAll(@Query() filterDto: SalaryFilterDto) {
@@ -47,7 +46,7 @@ export class SalariesController {
   }
 
   @Get('statistics')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'read')
   @ApiOperation({ summary: 'Получить статистику по зарплатам' })
   @ApiResponse({ status: 200, description: 'Статистика зарплат' })
   getStatistics(
@@ -58,7 +57,7 @@ export class SalariesController {
   }
 
   @Get('history/:teacherId')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'read')
   @ApiOperation({ summary: 'Получить историю зарплат учителя' })
   @ApiResponse({ status: 200, description: 'История зарплат учителя' })
   @ApiResponse({ status: 404, description: 'Учитель не найден' })
@@ -67,7 +66,7 @@ export class SalariesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'read')
   @ApiOperation({ summary: 'Получить зарплату по ID' })
   @ApiResponse({ status: 200, description: 'Зарплата найдена' })
   @ApiResponse({ status: 404, description: 'Зарплата не найдена' })
@@ -76,7 +75,7 @@ export class SalariesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'update')
   @ApiOperation({ summary: 'Обновить зарплату' })
   @ApiResponse({ status: 200, description: 'Зарплата обновлена' })
   @ApiResponse({ status: 404, description: 'Зарплата не найдена' })
@@ -88,7 +87,7 @@ export class SalariesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'delete')
   @ApiOperation({ summary: 'Удалить зарплату' })
   @ApiResponse({ status: 200, description: 'Зарплата удалена' })
   @ApiResponse({ status: 404, description: 'Зарплата не найдена' })
@@ -97,7 +96,7 @@ export class SalariesController {
   }
 
   @Post(':id/approve')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'update')
   @ApiOperation({ summary: 'Утвердить зарплату' })
   @ApiResponse({ status: 200, description: 'Зарплата утверждена' })
   @ApiResponse({ status: 400, description: 'Нельзя утвердить зарплату' })
@@ -108,7 +107,7 @@ export class SalariesController {
   }
 
   @Post(':id/mark-paid')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'update')
   @ApiOperation({ summary: 'Отметить зарплату как выплаченную' })
   @ApiResponse({ status: 200, description: 'Зарплата отмечена как выплаченная' })
   @ApiResponse({ status: 400, description: 'Нельзя отметить зарплату как выплаченную' })
@@ -118,7 +117,7 @@ export class SalariesController {
   }
 
   @Get('export')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'read')
   @ApiOperation({ summary: 'Экспорт зарплат' })
   @ApiResponse({ status: 200, description: 'Файл экспорта зарплат' })
   async exportSalaries(
@@ -144,7 +143,7 @@ export class SalariesController {
   }
 
   @Post('recalculate')
-  @Roles('ADMIN', 'FINANCIST')
+  @RequirePermission('salaries', 'create')
   @ApiOperation({ summary: 'Пересчитать зарплаты' })
   @ApiResponse({ status: 200, description: 'Зарплаты пересчитаны' })
   async recalculateSalaries(

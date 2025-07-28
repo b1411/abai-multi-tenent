@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button, Loading, Modal } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { formatDate, formatDateTime } from '../utils';
 import { Homework, HomeworkSubmission } from '../types/homework';
 import { homeworkService } from '../services/homeworkService';
@@ -23,7 +24,7 @@ import { fileService } from '../services/fileService';
 const HomeworkSubmissionsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasPermission } = useAuth();
   
   const [homework, setHomework] = useState<Homework | null>(null);
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>([]);
@@ -343,7 +344,7 @@ const HomeworkSubmissionsPage: React.FC = () => {
                       </Button>
                     )}
                     
-                    {(hasRole('ADMIN') || hasRole('TEACHER')) && (
+                    <PermissionGuard module="homework" action="update">
                       <Button
                         variant="primary"
                         size="sm"
@@ -352,7 +353,7 @@ const HomeworkSubmissionsPage: React.FC = () => {
                         <Star className="h-4 w-4 mr-1" />
                         {status === 'graded' ? 'Изменить оценку' : 'Оценить'}
                       </Button>
-                    )}
+                    </PermissionGuard>
                   </div>
                 </div>
               </div>

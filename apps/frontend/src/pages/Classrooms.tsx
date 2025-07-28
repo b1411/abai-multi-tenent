@@ -6,6 +6,7 @@ import { Classroom, ClassroomType, ClassroomFilter } from '../types/classroom';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import ClassroomForm from '../components/ClassroomForm';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 const CLASSROOM_TYPE_LABELS: Record<ClassroomType, string> = {
   LECTURE: 'Лекционная',
@@ -114,8 +115,6 @@ const Classrooms: React.FC = () => {
     setSelectedClassroom(null);
   };
 
-  const canManageClassrooms = user?.role === 'ADMIN' || user?.role === 'HR';
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -144,7 +143,7 @@ const Classrooms: React.FC = () => {
             <FaBuilding className="w-4 h-4" />
             <span>Всего: {filteredClassrooms.length}</span>
           </div>
-          {canManageClassrooms && (
+          <PermissionGuard module="classrooms" action="create">
             <button
               onClick={() => setShowCreateModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -152,7 +151,7 @@ const Classrooms: React.FC = () => {
               <FaPlus className="w-4 h-4" />
               Добавить аудиторию
             </button>
-          )}
+          </PermissionGuard>
         </div>
       </div>
 
@@ -309,22 +308,24 @@ const Classrooms: React.FC = () => {
                         {classroom.building}, {classroom.floor} этаж
                       </div>
                     </div>
-                    {canManageClassrooms && (
-                      <div className="flex gap-1">
+                    <div className="flex gap-1">
+                      <PermissionGuard module="classrooms" action="update">
                         <button
                           onClick={() => setSelectedClassroom(classroom)}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
                           <FaEdit className="w-4 h-4" />
                         </button>
+                      </PermissionGuard>
+                      <PermissionGuard module="classrooms" action="delete">
                         <button
                           onClick={() => setShowDeleteConfirm(classroom.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <FaTrash className="w-4 h-4" />
                         </button>
-                      </div>
-                    )}
+                      </PermissionGuard>
+                    </div>
                   </div>
 
                   {/* Тип и вместимость */}

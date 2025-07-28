@@ -26,6 +26,8 @@ import {
   Plus,
   Minus
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import {
   LineChart,
   Line,
@@ -814,13 +816,15 @@ const EducationalReports: React.FC = () => {
             Обновить данные
           </button>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Экспорт
-            </button>
+            <PermissionGuard module="reports" action="read">
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Экспорт
+              </button>
+            </PermissionGuard>
             <button 
               onClick={() => setShowSettingsModal(true)}
               className="flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
@@ -1307,13 +1311,15 @@ const EducationalReports: React.FC = () => {
           
           <div className="mt-4 pt-3 border-t border-gray-200">
             <h5 className="text-xs font-semibold text-gray-700 mb-2">Планировщик рассылок</h5>
-            <button 
-              onClick={handleAutoSchedule}
-              className="w-full text-xs px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
-            >
-              <Mail className="w-3 h-3 inline mr-1" />
-              Настроить авто-рассылку
-            </button>
+            <PermissionGuard module="reports" action="create">
+              <button 
+                onClick={handleAutoSchedule}
+                className="w-full text-xs px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
+              >
+                <Mail className="w-3 h-3 inline mr-1" />
+                Настроить авто-рассылку
+              </button>
+            </PermissionGuard>
           </div>
         </div>
       )}

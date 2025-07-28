@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { Plus, Search, Filter, Download, Truck, Building2 } from 'lucide-react';
 import { Loading } from '../components/ui';
 import SupplyModals, { PurchaseRequest, Supplier } from '../components/supply/SupplyModals';
@@ -202,19 +204,23 @@ const Supply: React.FC = () => {
             <Filter className="h-4 w-4 mr-2" />
             Фильтры
           </button>
-          <button
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Экспорт
-          </button>
-          <button
-            onClick={handleCreate}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {activeTab === 'requests' ? 'Новая заявка' : activeTab === 'suppliers' ? 'Новый поставщик' : 'Новый заказ'}
-          </button>
+          <PermissionGuard module="supply" action="read">
+            <button
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Экспорт
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="supply" action="create">
+            <button
+              onClick={handleCreate}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {activeTab === 'requests' ? 'Новая заявка' : activeTab === 'suppliers' ? 'Новый поставщик' : 'Новый заказ'}
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -382,12 +388,14 @@ const Supply: React.FC = () => {
                     >
                       Просмотр
                     </button>
-                    <button 
-                      onClick={() => handleEdit(request)}
-                      className="text-sm text-green-600 hover:text-green-800 font-medium"
-                    >
-                      Редактировать
-                    </button>
+                    <PermissionGuard module="supply" action="update">
+                      <button 
+                        onClick={() => handleEdit(request)}
+                        className="text-sm text-green-600 hover:text-green-800 font-medium"
+                      >
+                        Редактировать
+                      </button>
+                    </PermissionGuard>
                   </div>
                 </div>
               </div>
@@ -445,12 +453,14 @@ const Supply: React.FC = () => {
                     >
                       Просмотр
                     </button>
-                    <button 
-                      onClick={() => handleEdit(supplier)}
-                      className="text-sm text-green-600 hover:text-green-800 font-medium"
-                    >
-                      Редактировать
-                    </button>
+                    <PermissionGuard module="supply" action="update">
+                      <button 
+                        onClick={() => handleEdit(supplier)}
+                        className="text-sm text-green-600 hover:text-green-800 font-medium"
+                      >
+                        Редактировать
+                      </button>
+                    </PermissionGuard>
                   </div>
                 </div>
               </div>
@@ -472,13 +482,15 @@ const Supply: React.FC = () => {
           <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Нет заявок</h3>
           <p className="text-gray-500 mb-4">Создайте первую заявку на закупку</p>
-          <button 
-            onClick={handleCreate}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Создать заявку
-          </button>
+          <PermissionGuard module="supply" action="create">
+            <button 
+              onClick={handleCreate}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Создать заявку
+            </button>
+          </PermissionGuard>
         </div>
       )}
 
@@ -487,13 +499,15 @@ const Supply: React.FC = () => {
           <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Нет поставщиков</h3>
           <p className="text-gray-500 mb-4">Добавьте первого поставщика</p>
-          <button 
-            onClick={handleCreate}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Добавить поставщика
-          </button>
+          <PermissionGuard module="supply" action="create">
+            <button 
+              onClick={handleCreate}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Добавить поставщика
+            </button>
+          </PermissionGuard>
         </div>
       )}
 

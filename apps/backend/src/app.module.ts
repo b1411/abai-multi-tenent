@@ -4,7 +4,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
 import { StudyPlansModule } from './study-plans/study-plans.module';
-import { JwtService } from './jwt/jwt.service';
 import { AuthModule } from './auth/auth.module';
 import { LessonsModule } from './lessons/lessons.module';
 import { MaterialsModule } from './materials/materials.module';
@@ -40,6 +39,7 @@ import { SystemModule } from './system/system.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ActivityMonitoringModule } from './activity-monitoring/activity-monitoring.module';
 import { EdoModule } from './edo/edo.module';
+import { RbacModule } from './rbac/rbac.module';
 import { DevtoolsModule } from '@nestjs/devtools-integration';
 
 @Module({
@@ -80,12 +80,13 @@ import { DevtoolsModule } from '@nestjs/devtools-integration';
     DashboardModule,
     ActivityMonitoringModule,
     EdoModule,
+    RbacModule,
     NotificationsModule,
     FilesModule,
     LessonResultsModule,
     AiAssistantModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService, JwtService],
+  providers: [AppService, PrismaService],
 })
 export class AppModule { }

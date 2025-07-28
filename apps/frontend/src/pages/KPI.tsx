@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import {
   FaChartLine,
   FaFilter,
@@ -215,17 +217,21 @@ const KPI: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <FaCog className="mr-2" />
-            Настроить KPI
-          </button>
-          <button 
-            className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-            onClick={handleExport}
-          >
-            <FaFileExport className="mr-2" />
-            Экспорт
-          </button>
+          <PermissionGuard module="kpi" action="update">
+            <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <FaCog className="mr-2" />
+              Настроить KPI
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="kpi" action="read">
+            <button 
+              className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              onClick={handleExport}
+            >
+              <FaFileExport className="mr-2" />
+              Экспорт
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -598,15 +604,19 @@ const KPI: React.FC = () => {
               </div>
 
               <div className="flex justify-end pt-6 border-t mt-6">
-                <button 
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg mr-2 hover:bg-gray-300 transition-colors"
-                  onClick={() => handleExportTeacherReport(selectedTeacher)}
-                >
-                  Выгрузить отчет
-                </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Редактировать KPI
-                </button>
+                <PermissionGuard module="kpi" action="read">
+                  <button 
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg mr-2 hover:bg-gray-300 transition-colors"
+                    onClick={() => handleExportTeacherReport(selectedTeacher)}
+                  >
+                    Выгрузить отчет
+                  </button>
+                </PermissionGuard>
+                <PermissionGuard module="kpi" action="update">
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Редактировать KPI
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
           </div>

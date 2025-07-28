@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button, Loading, Modal } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { formatDate, formatDateTime } from '../utils';
 import { Lesson, Materials, StudyPlan } from '../types/lesson';
 import { lessonService } from '../services/lessonService';
@@ -25,7 +26,7 @@ import { materialService, Material } from '../services/materialService';
 const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasPermission } = useAuth();
   
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [materials, setMaterials] = useState<Material | null>(null);
@@ -156,8 +157,10 @@ const LessonDetailPage: React.FC = () => {
     );
   }
 
-  const canEdit = hasRole('ADMIN') || (hasRole('TEACHER') && lesson.studyPlan?.teacher?.user?.id === user?.id);
-  const canDelete = hasRole('ADMIN');
+  const canEdit = hasPermission('lessons', 'update', { 
+    scope: lesson.studyPlan?.teacher?.user?.id === user?.id ? 'OWN' : 'ALL' 
+  });
+  const canDelete = hasPermission('lessons', 'delete');
 
   return (
     <div className="p-6">
@@ -181,7 +184,11 @@ const LessonDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-2">
-          {canEdit && (
+          <PermissionGuard 
+            module="lessons" 
+            action="update"
+            scope={lesson.studyPlan?.teacher?.user?.id === user?.id ? 'OWN' : 'ALL'}
+          >
             <Button
               variant="outline"
               onClick={handleEdit}
@@ -189,8 +196,8 @@ const LessonDetailPage: React.FC = () => {
               <Edit className="h-4 w-4 mr-2" />
               Редактировать
             </Button>
-          )}
-          {canDelete && (
+          </PermissionGuard>
+          <PermissionGuard module="lessons" action="delete">
             <Button
               variant="danger"
               onClick={() => setDeleteModalOpen(true)}
@@ -198,7 +205,7 @@ const LessonDetailPage: React.FC = () => {
               <Trash2 className="h-4 w-4 mr-2" />
               Удалить
             </Button>
-          )}
+          </PermissionGuard>
         </div>
       </div>
 
@@ -259,7 +266,11 @@ const LessonDetailPage: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Материалы урока
               </h2>
-              {canEdit && (
+              <PermissionGuard 
+                module="materials" 
+                action="update"
+                scope={lesson.studyPlan?.teacher?.user?.id === user?.id ? 'OWN' : 'ALL'}
+              >
                 <Button
                   variant="outline"
                   size="sm"
@@ -268,7 +279,7 @@ const LessonDetailPage: React.FC = () => {
                   <FileText className="h-4 w-4 mr-2" />
                   Управление материалами
                 </Button>
-              )}
+              </PermissionGuard>
             </div>
             {materials ? (
               <div className="space-y-3">
@@ -341,14 +352,18 @@ const LessonDetailPage: React.FC = () => {
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Нет материалов</h3>
                 <p className="text-gray-500 mb-4">Материалы для этого урока еще не добавлены</p>
-                {canEdit && (
+                <PermissionGuard 
+                  module="materials" 
+                  action="create"
+                  scope={lesson.studyPlan?.teacher?.user?.id === user?.id ? 'OWN' : 'ALL'}
+                >
                   <Button
                     variant="outline"
                     onClick={() => navigate(`/lessons/${id}/materials`)}
                   >
                     Добавить материалы
                   </Button>
-                )}
+                </PermissionGuard>
               </div>
             )}
           </div>
@@ -445,7 +460,11 @@ const LessonDetailPage: React.FC = () => {
                 Домашние задания
               </Button>
               
-              {canEdit && (
+              <PermissionGuard 
+                module="materials" 
+                action="update"
+                scope={lesson.studyPlan?.teacher?.user?.id === user?.id ? 'OWN' : 'ALL'}
+              >
                 <Button
                   variant="outline"
                   className="w-full justify-start"
@@ -454,7 +473,7 @@ const LessonDetailPage: React.FC = () => {
                   <FileText className="h-4 w-4 mr-2" />
                   Управление материалами
                 </Button>
-              )}
+              </PermissionGuard>
             </div>
           </div>
         </div>

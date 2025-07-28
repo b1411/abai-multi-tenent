@@ -11,6 +11,8 @@ import {
   RefreshCw,
   Zap
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import EventCard from '../components/jasLife/EventsFeed/EventCard';
 import CreateEventModal from '../components/jasLife/EventsFeed/CreateEventModal';
 import JoinClubModal from '../components/jasLife/ClubDirectory/JoinClubModal';
@@ -182,12 +184,14 @@ const JasLife: React.FC = () => {
               <RefreshCw className="w-4 h-4" />
             </button>
             
-            <button 
-              onClick={() => setCreateEventModalOpen(true)}
-              className="p-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl hover:from-pink-600 hover:to-rose-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <PermissionGuard module="events" action="create">
+              <button 
+                onClick={() => setCreateEventModalOpen(true)}
+                className="p-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl hover:from-pink-600 hover:to-rose-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </PermissionGuard>
           </div>
         </div>
       </div>
@@ -369,12 +373,14 @@ const JasLife: React.FC = () => {
               <h2 className="text-2xl font-bold text-gray-900">
                 Мои волонтерские часы
               </h2>
-              <button 
-                onClick={() => setSubmitHoursModalOpen(true)}
-                className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all"
-              >
-                Подать часы
-              </button>
+              <PermissionGuard module="volunteer" action="create">
+                <button 
+                  onClick={() => setSubmitHoursModalOpen(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all"
+                >
+                  Подать часы
+                </button>
+              </PermissionGuard>
             </div>
 
             {/* Progress Card */}

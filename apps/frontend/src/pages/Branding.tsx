@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FaPalette, FaFont, FaImage, FaSave, FaUndo, FaUpload } from 'react-icons/fa';
 import { useBrandingContext } from '../contexts/BrandingContext';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { BrandingSettings } from '../types/system';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
@@ -85,14 +87,16 @@ const BrandingPage: React.FC = () => {
               className="mr-4"
             />
           )}
-          <button 
-            onClick={handleSave}
-            disabled={isSaving}
-            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-          >
-            {isSaving ? <Spinner size="sm" /> : <FaSave />}
-            Сохранить изменения
-          </button>
+          <PermissionGuard module="branding" action="update">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              {isSaving ? <Spinner size="sm" /> : <FaSave />}
+              Сохранить изменения
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 

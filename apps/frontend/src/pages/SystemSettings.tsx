@@ -1,9 +1,11 @@
-зimport React, { useState } from 'react';
+import React, { useState } from 'react';
 import { FaCog, FaSave, FaEnvelope, FaBell, FaLock, FaServer, FaDownload } from 'react-icons/fa';
 import { useSystemSettings } from '../hooks/useSystem';
 import { SystemSettings } from '../types/system';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { PermissionGuard } from '../components/PermissionGuard';
+import { useAuth } from '../hooks/useAuth';
 
 type TabType = 'general' | 'email' | 'notifications' | 'security' | 'maintenance';
 
@@ -75,15 +77,17 @@ const SystemSettingsPage: React.FC = () => {
               className="mb-2 sm:mb-0 sm:mr-4"
             />
           )}
-          <button 
-            onClick={handleSave}
-            disabled={isSaving}
-            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-3 md:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm md:text-base"
-          >
-            {isSaving ? <Spinner size="sm" /> : <FaSave className="text-sm md:text-base" />}
-            <span className="hidden sm:inline">Сохранить изменения</span>
-            <span className="sm:hidden">Сохранить</span>
-          </button>
+          <PermissionGuard module="system" action="update">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-3 md:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm md:text-base"
+            >
+              {isSaving ? <Spinner size="sm" /> : <FaSave className="text-sm md:text-base" />}
+              <span className="hidden sm:inline">Сохранить изменения</span>
+              <span className="sm:hidden">Сохранить</span>
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -399,13 +403,15 @@ const SystemSettingsPage: React.FC = () => {
                       <option value="monthly">Ежемесячно</option>
                     </select>
                   </div>
-                  <button 
-                    onClick={handleDownloadBackup}
-                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm"
-                  >
-                    <FaDownload className="text-xs" /> 
-                    <span>Скачать резервную копию</span>
-                  </button>
+                  <PermissionGuard module="system" action="backup">
+                    <button 
+                      onClick={handleDownloadBackup}
+                      className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm"
+                    >
+                      <FaDownload className="text-xs" /> 
+                      <span>Скачать резервную копию</span>
+                    </button>
+                  </PermissionGuard>
                 </div>
               </div>
             )}
@@ -619,13 +625,15 @@ const SystemSettingsPage: React.FC = () => {
                     <option value="monthly">Ежемесячно</option>
                   </select>
                 </div>
-                <button 
-                  onClick={handleDownloadBackup}
-                  className="w-full bg-gray-100 hover:bg-gray-200 px-4 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
-                >
-                  <FaDownload className="text-sm" /> 
-                  <span>Скачать резервную копию</span>
-                </button>
+                <PermissionGuard module="system" action="backup">
+                  <button 
+                    onClick={handleDownloadBackup}
+                    className="w-full bg-gray-100 hover:bg-gray-200 px-4 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
+                  >
+                    <FaDownload className="text-sm" /> 
+                    <span>Скачать резервную копию</span>
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
           )}

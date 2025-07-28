@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Activity, Clock, BarChart3, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useActivity } from '../contexts/ActivityContext';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { ActivityFilters } from '../components/activity-monitoring/ActivityFilters';
 import { ActivityStatistics } from '../components/activity-monitoring/ActivityStatistics';
 import { ActivityTestPanel } from '../components/ActivityTestPanel';
@@ -83,13 +85,15 @@ export const ActivityMonitoring: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-2">
-          <button 
-            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-            onClick={exportActivities}
-            disabled={!connected}
-          >
-            Экспорт данных
-          </button>
+          <PermissionGuard module="activity-monitoring" action="read">
+            <button 
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              onClick={exportActivities}
+              disabled={!connected}
+            >
+              Экспорт данных
+            </button>
+          </PermissionGuard>
           <button 
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50"
             onClick={refreshOnlineUsers}

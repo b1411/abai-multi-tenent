@@ -4,14 +4,13 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateFullStudentDto } from './dto/create-full-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
-import { RolesGuard } from '../common/guards/role.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
 @ApiTags('Students')
 @Controller('students')
 @ApiBearerAuth()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) { }
 
@@ -31,7 +30,7 @@ export class StudentsController {
   @ApiResponse({ status: 400, description: 'Некорректные данные' })
   @ApiResponse({ status: 404, description: 'Пользователь или группа не найдены' })
   @ApiResponse({ status: 409, description: 'Пользователь уже является студентом' })
-  @Roles('ADMIN', 'HR', 'TEACHER')
+  @RequirePermission('students', 'create')
   create(@Body() createStudentDto: CreateStudentDto) {
     return this.studentsService.create(createStudentDto);
   }
@@ -52,7 +51,7 @@ export class StudentsController {
   @ApiResponse({ status: 400, description: 'Некорректные данные' })
   @ApiResponse({ status: 404, description: 'Группа не найдена' })
   @ApiResponse({ status: 409, description: 'Пользователь с таким email уже существует' })
-  @Roles('ADMIN', 'HR', 'TEACHER')
+  @RequirePermission('students', 'create')
   createFullStudent(@Body() createFullStudentDto: CreateFullStudentDto, @Request() req) {
     return this.studentsService.createFullStudent(createFullStudentDto, req.user?.role);
   }
@@ -60,7 +59,7 @@ export class StudentsController {
   @Get()
   @ApiOperation({ summary: 'Получить всех студентов' })
   @ApiResponse({ status: 200, description: 'Список всех студентов с информацией о пользователях и группах' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  @RequirePermission('students', 'read')
   findAll() {
     return this.studentsService.findAll();
   }
@@ -70,7 +69,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Список студентов указанной группы' })
   @ApiResponse({ status: 404, description: 'Группа не найдена' })
   @ApiParam({ name: 'groupId', description: 'ID группы' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  @RequirePermission('students', 'read', { scope: 'GROUP' })
   findByGroup(@Param('groupId') groupId: string) {
     return this.studentsService.findByGroup(+groupId);
   }
@@ -80,7 +79,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Информация о студенте' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'userId', description: 'ID пользователя' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  @RequirePermission('students', 'read', { scope: 'OWN' })
   findByUser(@Param('userId') userId: string) {
     return this.studentsService.findByUser(+userId);
   }
@@ -90,7 +89,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Оценки студента сгруппированные по предметам со статистикой' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  @RequirePermission('students', 'read', { scope: 'OWN' })
   getStudentGrades(@Param('id') id: string) {
     return this.studentsService.getStudentGrades(+id);
   }
@@ -98,7 +97,7 @@ export class StudentsController {
   @Get('statistics')
   @ApiOperation({ summary: 'Получить статистику студентов' })
   @ApiResponse({ status: 200, description: 'Статистика студентов по группам' })
-  @Roles('ADMIN', 'HR', 'TEACHER')
+  @RequirePermission('reports', 'read')
   getStatistics() {
     return this.studentsService.getStudentStatistics();
   }
@@ -108,7 +107,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Полная информация о студенте' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  @RequirePermission('students', 'read', { scope: 'OWN' })
   findOne(@Param('id') id: string) {
     return this.studentsService.findOne(+id);
   }
@@ -118,7 +117,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Данные студента успешно обновлены' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'HR')
+  @RequirePermission('students', 'update')
   update(@Param('id') id: string, @Body() updateStudentDto: UpdateStudentDto) {
     return this.studentsService.update(+id, updateStudentDto);
   }
@@ -129,7 +128,7 @@ export class StudentsController {
   @ApiResponse({ status: 404, description: 'Студент или группа не найдены' })
   @ApiParam({ name: 'id', description: 'ID студента' })
   @ApiParam({ name: 'newGroupId', description: 'ID новой группы' })
-  @Roles('ADMIN', 'HR')
+  @RequirePermission('students', 'update')
   changeGroup(@Param('id') id: string, @Param('newGroupId') newGroupId: string) {
     return this.studentsService.changeStudentGroup(+id, +newGroupId);
   }
@@ -139,7 +138,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Студент успешно отчислен' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN')
+  @RequirePermission('students', 'delete')
   remove(@Param('id') id: string) {
     return this.studentsService.remove(+id);
   }
@@ -153,7 +152,7 @@ export class StudentsController {
   @ApiResponse({ status: 409, description: 'Родитель уже привязан к этому студенту' })
   @ApiParam({ name: 'id', description: 'ID студента' })
   @ApiParam({ name: 'parentId', description: 'ID родителя' })
-  @Roles('ADMIN', 'HR')
+  @RequirePermission('students', 'update')
   addParentToStudent(@Param('id') id: string, @Param('parentId') parentId: string) {
     return this.studentsService.addParentToStudent(+id, +parentId);
   }
@@ -164,7 +163,7 @@ export class StudentsController {
   @ApiResponse({ status: 404, description: 'Студент, родитель не найден или связь не существует' })
   @ApiParam({ name: 'id', description: 'ID студента' })
   @ApiParam({ name: 'parentId', description: 'ID родителя' })
-  @Roles('ADMIN', 'HR')
+  @RequirePermission('students', 'update')
   removeParentFromStudent(@Param('id') id: string, @Param('parentId') parentId: string) {
     return this.studentsService.removeParentFromStudent(+id, +parentId);
   }
@@ -174,7 +173,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Список родителей студента' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  @RequirePermission('students', 'read', { scope: 'OWN' })
   getStudentParents(@Param('id') id: string) {
     return this.studentsService.getStudentParents(+id);
   }
@@ -189,7 +188,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Статистика посещаемости студента' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  @RequirePermission('students', 'read', { scope: 'OWN' })
   getStudentAttendance(
     @Param('id') id: string,
     @Query('dateFrom') dateFrom?: string,
@@ -214,7 +213,7 @@ export class StudentsController {
   @ApiResponse({ status: 403, description: 'Недостаточно прав доступа' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'TEACHER', 'PARENT', 'FINANCIST')
+  @RequirePermission('payments', 'read', { scope: 'ASSIGNED' })
   getStudentFinances(@Param('id') id: string, @Request() req) {
     return this.studentsService.getStudentFinances(+id, req.user?.role, req.user?.id);
   }
@@ -235,7 +234,7 @@ export class StudentsController {
   @ApiResponse({ status: 403, description: 'Недостаточно прав доступа' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'TEACHER', 'PARENT')
+  @RequirePermission('students', 'read', { scope: 'ASSIGNED' })
   getStudentEmotionalState(@Param('id') id: string, @Request() req) {
     return this.studentsService.getStudentEmotionalState(+id, req.user?.role, req.user?.id);
   }
@@ -257,7 +256,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Полный отчет по студенту с учетом прав доступа' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT', 'FINANCIST')
+  @RequirePermission('reports', 'read', { scope: 'ASSIGNED' })
   getStudentCompleteReport(@Param('id') id: string, @Request() req) {
     return this.studentsService.getStudentCompleteReport(+id, req.user?.role, req.user?.id);
   }

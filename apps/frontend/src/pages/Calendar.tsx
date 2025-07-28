@@ -4,6 +4,7 @@ import { formatDate } from '../utils/formatters';
 import { calendarService, CalendarEvent } from '../services/calendarService';
 import EventForm from '../components/EventForm';
 import EventDetailsModal from '../components/EventDetailsModal';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -232,14 +233,16 @@ const Calendar: React.FC = () => {
               День
             </button>
           </div>
-          <button
-            onClick={() => setShowEventModal(true)}
-            className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Новое событие</span>
-            <span className="sm:hidden">Создать</span>
-          </button>
+          <PermissionGuard module="calendar" action="create">
+            <button
+              onClick={() => setShowEventModal(true)}
+              className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Новое событие</span>
+              <span className="sm:hidden">Создать</span>
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -364,20 +367,24 @@ const Calendar: React.FC = () => {
                         style={{ backgroundColor: getEventColor(event) }}
                       ></div>
                       <div className="flex items-center space-x-1 sm:space-x-2">
-                        <button
-                          onClick={() => handleEditEvent(event)}
-                          className="text-blue-600 hover:text-blue-800 p-1 sm:p-1.5 rounded transition-colors"
-                          title="Редактировать событие"
-                        >
-                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEvent(event.id)}
-                          className="text-red-600 hover:text-red-800 p-1 sm:p-1.5 rounded transition-colors"
-                          title="Удалить событие"
-                        >
-                          <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
+                        <PermissionGuard module="calendar" action="update">
+                          <button
+                            onClick={() => handleEditEvent(event)}
+                            className="text-blue-600 hover:text-blue-800 p-1 sm:p-1.5 rounded transition-colors"
+                            title="Редактировать событие"
+                          >
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </PermissionGuard>
+                        <PermissionGuard module="calendar" action="delete">
+                          <button
+                            onClick={() => handleDeleteEvent(event.id)}
+                            className="text-red-600 hover:text-red-800 p-1 sm:p-1.5 rounded transition-colors"
+                            title="Удалить событие"
+                          >
+                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </PermissionGuard>
                       </div>
                     </div>
                   </div>

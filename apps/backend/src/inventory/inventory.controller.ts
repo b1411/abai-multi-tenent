@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { RequirePermission } from '../common/guards/permission.guard';
 import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
@@ -21,6 +22,7 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) { }
 
   @Post()
+  @RequirePermission('inventory', 'create')
   @ApiOperation({ summary: 'Создать новый элемент инвентаря' })
   @ApiResponse({ status: 201, description: 'Элемент успешно создан' })
   create(@Body() createInventoryItemDto: CreateInventoryItemDto) {
@@ -28,6 +30,7 @@ export class InventoryController {
   }
 
   @Get()
+  @RequirePermission('inventory', 'read')
   @ApiOperation({ summary: 'Получить список инвентаря' })
   @ApiResponse({ status: 200, description: 'Список инвентаря получен' })
   findAll(@Query() filters: InventoryFilterDto) {
@@ -35,6 +38,7 @@ export class InventoryController {
   }
 
   @Get('scan/:code')
+  @RequirePermission('inventory', 'read')
   @ApiOperation({ summary: 'Получить информацию по QR/штрих-коду' })
   @ApiResponse({ status: 200, description: 'Элемент найден' })
   @ApiResponse({ status: 404, description: 'Элемент не найден' })
@@ -43,6 +47,7 @@ export class InventoryController {
   }
 
   @Get('export')
+  @RequirePermission('inventory', 'read')
   @ApiOperation({ summary: 'Экспорт данных инвентаря' })
   @ApiResponse({ status: 200, description: 'Данные экспортированы' })
   export(@Query() filters: InventoryFilterDto, @Query('format') format: string = 'xlsx') {
@@ -50,6 +55,7 @@ export class InventoryController {
   }
 
   @Get(':id')
+  @RequirePermission('inventory', 'read')
   @ApiOperation({ summary: 'Получить элемент инвентаря по ID' })
   @ApiResponse({ status: 200, description: 'Элемент найден' })
   @ApiResponse({ status: 404, description: 'Элемент не найден' })
@@ -58,6 +64,7 @@ export class InventoryController {
   }
 
   @Patch(':id')
+  @RequirePermission('inventory', 'update')
   @ApiOperation({ summary: 'Обновить элемент инвентаря' })
   @ApiResponse({ status: 200, description: 'Элемент обновлен' })
   update(@Param('id') id: string, @Body() updateInventoryItemDto: UpdateInventoryItemDto) {
@@ -65,6 +72,7 @@ export class InventoryController {
   }
 
   @Delete(':id')
+  @RequirePermission('inventory', 'delete')
   @ApiOperation({ summary: 'Удалить элемент инвентаря' })
   @ApiResponse({ status: 200, description: 'Элемент удален' })
   remove(@Param('id') id: string) {
@@ -72,6 +80,7 @@ export class InventoryController {
   }
 
   @Post(':id/movement')
+  @RequirePermission('inventory', 'update')
   @ApiOperation({ summary: 'Зарегистрировать перемещение' })
   @ApiResponse({ status: 201, description: 'Перемещение зарегистрировано' })
   createMovement(@Param('id') id: string, @Body() createMovementDto: CreateMovementDto) {
@@ -79,6 +88,7 @@ export class InventoryController {
   }
 
   @Patch(':id/status')
+  @RequirePermission('inventory', 'update')
   @ApiOperation({ summary: 'Обновить статус элемента' })
   @ApiResponse({ status: 200, description: 'Статус обновлен' })
   updateStatus(@Param('id') id: string, @Body() updateStatusDto: UpdateStatusDto) {
@@ -86,6 +96,7 @@ export class InventoryController {
   }
 
   @Post(':id/maintenance')
+  @RequirePermission('inventory', 'create')
   @ApiOperation({ summary: 'Зарегистрировать техническое обслуживание' })
   @ApiResponse({ status: 201, description: 'ТО зарегистрировано' })
   createMaintenance(@Param('id') id: string, @Body() createMaintenanceDto: CreateMaintenanceDto) {

@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Type,
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { edoService, type DocumentTemplate, type User, type Student } from '../services/edoService';
 import FileUpload from '../components/FileUpload';
 
@@ -478,23 +480,27 @@ const DocumentCreatePage: React.FC = () => {
           {/* Действия */}
           <div className="bg-white p-6 rounded-lg shadow border">
             <div className="space-y-3">
-              <button
-                onClick={() => handleSave(true)}
-                disabled={loading}
-                className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-              >
-                <Save className="w-4 h-4" />
-                {loading ? 'Сохранение...' : 'Сохранить как черновик'}
-              </button>
+              <PermissionGuard module="edo" action="create">
+                <button
+                  onClick={() => handleSave(true)}
+                  disabled={loading}
+                  className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  {loading ? 'Сохранение...' : 'Сохранить как черновик'}
+                </button>
+              </PermissionGuard>
 
-              <button
-                onClick={() => handleSave(false)}
-                disabled={loading || formData.approverIds.length === 0}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-              >
-                <Send className="w-4 h-4" />
-                {loading ? 'Отправка...' : 'Отправить на согласование'}
-              </button>
+              <PermissionGuard module="edo" action="create">
+                <button
+                  onClick={() => handleSave(false)}
+                  disabled={loading || formData.approverIds.length === 0}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                  {loading ? 'Отправка...' : 'Отправить на согласование'}
+                </button>
+              </PermissionGuard>
 
               {formData.approverIds.length === 0 && (
                 <p className="text-xs text-gray-500 text-center">

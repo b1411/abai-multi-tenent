@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { feedbackService, FeedbackTemplate } from '../services/feedbackService';
 import { Alert } from '../components/ui/Alert';
 import { Spinner } from '../components/ui/Spinner';
@@ -91,18 +93,22 @@ const FeedbackAdmin: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Создать шаблон
-          </button>
-          <button
-            onClick={handleCreateDefaultTemplates}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            Добавить стандартные
-          </button>
+          <PermissionGuard module="feedback" action="create">
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Создать шаблон
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="feedback" action="create">
+            <button
+              onClick={handleCreateDefaultTemplates}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Добавить стандартные
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 

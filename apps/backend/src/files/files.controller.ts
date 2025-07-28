@@ -23,8 +23,7 @@ import { UpdateFileDto } from './dto/update-file.dto';
 import { Express, Response } from 'express';
 import { Response as ExpressResponse } from 'express';
 import { AuthGuard } from '../common/guards/auth.guard';
-import { RolesGuard } from '../common/guards/role.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 
 type RequestWithUser = Express.Request & {
   user?: {
@@ -38,12 +37,13 @@ import { join } from 'path';
 
 @ApiTags('files')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @Controller('files')
 export class FilesController {
   constructor(private readonly filesService: FilesService) { }
 
   @Post('upload')
+  @RequirePermission('files', 'create')
   @ApiOperation({ summary: 'Загрузить один файл' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -71,6 +71,7 @@ export class FilesController {
   }
 
   @Post('upload-multiple')
+  @RequirePermission('files', 'create')
   @ApiOperation({ summary: 'Загрузить несколько файлов' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -101,7 +102,7 @@ export class FilesController {
   }
 
   @Get(':id/download')
-  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  @RequirePermission('files', 'read')
   @ApiOperation({ summary: 'Скачать файл по ID' })
   async downloadFile(@Param('id') id: string, @Res() res: Response) {
     const file = await this.filesService.findOne(+id);
@@ -135,26 +136,31 @@ export class FilesController {
   }
 
   @Post()
+  @RequirePermission('files', 'create')
   create(@Body() createFileDto: CreateFileDto) {
     return this.filesService.create(createFileDto);
   }
 
   @Get()
+  @RequirePermission('files', 'read')
   findAll() {
     return this.filesService.findAll();
   }
 
   @Get(':id')
+  @RequirePermission('files', 'read')
   findOne(@Param('id') id: string) {
     return this.filesService.findOne(+id);
   }
 
   @Patch(':id')
+  @RequirePermission('files', 'update')
   update(@Param('id') id: string, @Body() updateFileDto: UpdateFileDto) {
     return this.filesService.update(+id, updateFileDto);
   }
 
   @Delete(':id')
+  @RequirePermission('files', 'delete')
   remove(@Param('id') id: string) {
     return this.filesService.remove(+id);
   }

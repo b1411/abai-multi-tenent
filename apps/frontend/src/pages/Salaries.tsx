@@ -40,6 +40,8 @@ import { useSalaries } from '../hooks/useSalaries';
 import { useTeachers } from '../hooks/useTeachers';
 import { salaryService } from '../services/salaryService';
 import SalaryForm from '../components/SalaryForm';
+import { PermissionGuard } from '../components/PermissionGuard';
+import { useAuth } from '../hooks/useAuth';
 
 const Salaries: React.FC = () => {
   // Хуки для данных
@@ -358,16 +360,18 @@ const Salaries: React.FC = () => {
                 >
                   История выплат
                 </button>
-                <button 
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-                  onClick={() => {
-                    setEditingSalary(selectedEmployee);
-                    setSelectedEmployee(null);
-                    setShowSalaryForm(true);
-                  }}
-                >
-                  Редактировать
-                </button>
+                <PermissionGuard module="salaries" action="update">
+                  <button 
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                    onClick={() => {
+                      setEditingSalary(selectedEmployee);
+                      setSelectedEmployee(null);
+                      setShowSalaryForm(true);
+                    }}
+                  >
+                    Редактировать
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
           </div>
@@ -573,41 +577,47 @@ const Salaries: React.FC = () => {
             <FaFilter className="mr-2" />
             Фильтры
           </button>
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
-            onClick={() => setShowSalaryForm(true)}
-          >
-            <FaPlus className="mr-2" />
-            Расчет зарплаты
-          </button>
-          <button 
-            className={`px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center ${
-              isRecalculating 
-                ? 'bg-yellow-100 text-yellow-700 cursor-not-allowed' 
-                : 'hover:bg-gray-50'
-            }`}
-            onClick={handleRecalculate}
-            disabled={isRecalculating}
-          >
-            {isRecalculating ? (
-              <>
-                <FaSync className="mr-2 animate-spin" />
-                Пересчет...
-              </>
-            ) : (
-              <>
-                <FaCalculator className="mr-2" />
-                Перерасчет
-              </>
-            )}
-          </button>
-          <button 
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
-            onClick={handleExport}
-          >
-            <FaFileExport className="mr-2" />
-            Экспорт
-          </button>
+          <PermissionGuard module="salaries" action="create">
+            <button 
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
+              onClick={() => setShowSalaryForm(true)}
+            >
+              <FaPlus className="mr-2" />
+              Расчет зарплаты
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="salaries" action="update">
+            <button 
+              className={`px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center ${
+                isRecalculating 
+                  ? 'bg-yellow-100 text-yellow-700 cursor-not-allowed' 
+                  : 'hover:bg-gray-50'
+              }`}
+              onClick={handleRecalculate}
+              disabled={isRecalculating}
+            >
+              {isRecalculating ? (
+                <>
+                  <FaSync className="mr-2 animate-spin" />
+                  Пересчет...
+                </>
+              ) : (
+                <>
+                  <FaCalculator className="mr-2" />
+                  Перерасчет
+                </>
+              )}
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="salaries" action="read">
+            <button 
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+              onClick={handleExport}
+            >
+              <FaFileExport className="mr-2" />
+              Экспорт
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -777,30 +787,36 @@ const Salaries: React.FC = () => {
                       >
                         <FaEye />
                       </button>
-                      <button
-                        onClick={() => handleEditSalary(salary)}
-                        className="text-green-600 hover:text-green-900"
-                        title="Редактировать"
-                      >
-                        <FaEdit />
-                      </button>
-                      {salary.status === 'APPROVED' && (
+                      <PermissionGuard module="salaries" action="update">
                         <button
-                          onClick={() => handleMarkAsPaid(salary.id!)}
-                          className="text-purple-600 hover:text-purple-900"
-                          title="Отметить как выплаченную"
+                          onClick={() => handleEditSalary(salary)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Редактировать"
                         >
-                          <FaDollarSign />
+                          <FaEdit />
                         </button>
+                      </PermissionGuard>
+                      {salary.status === 'APPROVED' && (
+                        <PermissionGuard module="salaries" action="update">
+                          <button
+                            onClick={() => handleMarkAsPaid(salary.id!)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="Отметить как выплаченную"
+                          >
+                            <FaDollarSign />
+                          </button>
+                        </PermissionGuard>
                       )}
                       {salary.status === 'DRAFT' && (
-                        <button
-                          onClick={() => handleApproveSalary(salary.id!)}
-                          className="text-green-600 hover:text-green-900"
-                          title="Утвердить"
-                        >
-                          <FaCheck />
-                        </button>
+                        <PermissionGuard module="salaries" action="update">
+                          <button
+                            onClick={() => handleApproveSalary(salary.id!)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Утвердить"
+                          >
+                            <FaCheck />
+                          </button>
+                        </PermissionGuard>
                       )}
                     </div>
                   </td>

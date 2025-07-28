@@ -14,9 +14,10 @@ import {
 import { financeService } from '../services/financeService';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 const Budget: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [budgetData, setBudgetData] = useState<BudgetResponse | null>(null);
   const [analytics, setAnalytics] = useState<BudgetAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,7 @@ const Budget: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
 
-  const canCreateBudget = user?.role === 'ADMIN' || user?.role === 'FINANCIST';
+  // Заменено на RBAC проверки в компонентах
 
   useEffect(() => {
     loadBudgetData();
@@ -150,7 +151,7 @@ const Budget: React.FC = () => {
             Планирование и контроль доходов и расходов образовательного учреждения
           </p>
         </div>
-        {canCreateBudget && (
+        <PermissionGuard module="budget" action="create">
           <button
             onClick={() => setShowCreateForm(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -160,7 +161,7 @@ const Budget: React.FC = () => {
             </svg>
             Добавить статью
           </button>
-        )}
+        </PermissionGuard>
       </div>
 
       {error && (
@@ -375,7 +376,7 @@ const Budget: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ответственный
                   </th>
-                  {canCreateBudget && (
+                  {hasPermission('budget', 'update') && (
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Действия
                     </th>
@@ -416,20 +417,24 @@ const Budget: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.responsible || '-'}
                     </td>
-                    {canCreateBudget && (
+                    {hasPermission('budget', 'update') && (
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => setEditingItem(item)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          Изменить
-                        </button>
-                        <button
-                          onClick={() => handleDeleteBudgetItem(item.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Удалить
-                        </button>
+                        <PermissionGuard module="budget" action="update">
+                          <button
+                            onClick={() => setEditingItem(item)}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                          >
+                            Изменить
+                          </button>
+                        </PermissionGuard>
+                        <PermissionGuard module="budget" action="delete">
+                          <button
+                            onClick={() => handleDeleteBudgetItem(item.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Удалить
+                          </button>
+                        </PermissionGuard>
                       </td>
                     )}
                   </tr>
@@ -446,7 +451,7 @@ const Budget: React.FC = () => {
             <p className="mt-1 text-sm text-gray-500">
               Не найдено статей бюджета для выбранных фильтров.
             </p>
-            {canCreateBudget && (
+            <PermissionGuard module="budget" action="create">
               <div className="mt-6">
                 <button
                   onClick={() => setShowCreateForm(true)}
@@ -455,7 +460,7 @@ const Budget: React.FC = () => {
                   Добавить первую статью
                 </button>
               </div>
-            )}
+            </PermissionGuard>
           </div>
         )}
       </div>

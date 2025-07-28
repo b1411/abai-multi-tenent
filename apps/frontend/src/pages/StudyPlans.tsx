@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaDownload, FaEdit, FaTimes, FaPlus } from 'react-icons/fa';
 import { useStudyPlans, useAvailableData } from '../hooks/useStudyPlans';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { formatDate } from '../utils';
 import { StudyPlan } from '../types/studyPlan';
 import { studyPlanService } from '../services/studyPlanService';
@@ -12,7 +13,7 @@ import { getKtpByStudyPlanId } from '../data/mockKtpData';
 
 const StudyPlansPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<StudyPlan | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingPlan, setEditingPlan] = useState<StudyPlan | null>(null);
@@ -32,7 +33,7 @@ const [showKtpModal, setShowKtpModal] = useState(false);
     limit: 10,
     sortBy: 'createdAt',
     order: 'desc'
-  }, hasRole('STUDENT')); // Передаем флаг для студентов
+  }, hasPermission('study-plans', 'read', { scope: 'OWN' })); // Передаем флаг для студентов
 
   const {
     groups,
@@ -140,7 +141,7 @@ const [showKtpModal, setShowKtpModal] = useState(false);
         
         {/* Мобильные кнопки */}
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-          {(hasRole('ADMIN') || hasRole('TEACHER')) && (
+          <PermissionGuard module="study-plans" action="create">
             <button
               onClick={() => setShowCreateForm(true)}
               className="w-full sm:w-auto px-3 md:px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center button-hover text-sm md:text-base"
@@ -149,7 +150,7 @@ const [showKtpModal, setShowKtpModal] = useState(false);
               <span className="hidden sm:inline">Создать учебный план</span>
               <span className="sm:hidden">Создать план</span>
             </button>
-          )}
+          </PermissionGuard>
           <button className="w-full sm:w-auto px-3 md:px-4 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 flex items-center justify-center button-hover text-sm md:text-base">
             <FaDownload className="mr-2 text-xs md:text-sm" />
             <span className="hidden sm:inline">Скачать в Excel</span>
@@ -286,8 +287,9 @@ const [showKtpModal, setShowKtpModal] = useState(false);
                         {formatDate(plan.updatedAt)}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user.id === user?.id)) ? (
-                          <div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
+                        <div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
+                          {(hasPermission('study-plans', 'update') || 
+                            (hasPermission('study-plans', 'update', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id)) && (
                             <button
                               className="text-blue-600 hover:text-blue-800 flex items-center button-hover text-xs lg:text-sm"
                               onClick={(e) => {
@@ -299,6 +301,9 @@ const [showKtpModal, setShowKtpModal] = useState(false);
                               <span className="hidden lg:inline">Редактировать</span>
                               <span className="lg:hidden">Ред.</span>
                             </button>
+                          )}
+                          {(hasPermission('lessons', 'read') || 
+                            (hasPermission('lessons', 'read', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id)) && (
                             <button
                               className="text-green-600 hover:text-green-800 flex items-center button-hover text-xs lg:text-sm"
                               onClick={(e) => {
@@ -309,6 +314,9 @@ const [showKtpModal, setShowKtpModal] = useState(false);
                               <FaEdit className="mr-1" />
                               Уроки
                             </button>
+                          )}
+                          {(hasPermission('study-plans', 'read') || 
+                            (hasPermission('study-plans', 'read', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id)) && (
                             <button
                               className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
                               onClick={(e) => {
@@ -320,10 +328,8 @@ const [showKtpModal, setShowKtpModal] = useState(false);
                               <FaPlus className="mr-1" />
                               КТП
                             </button>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 text-xs">Нет доступа</span>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -402,39 +408,51 @@ const [showKtpModal, setShowKtpModal] = useState(false);
                 </div>
 
                 {/* Действия */}
-                {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user.id === user?.id)) && (
+                {((hasPermission('study-plans', 'update') || 
+                  (hasPermission('study-plans', 'update', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id)) ||
+                 (hasPermission('lessons', 'read') || 
+                  (hasPermission('lessons', 'read', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id))) && (
                   <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
-                    <button
-                      className="flex-1 min-w-[80px] px-3 py-2 text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-md flex items-center justify-center button-hover text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingPlan(plan);
-                      }}
-                    >
-                      <FaEdit className="mr-1" />
-                      Изменить
-                    </button>
-                    <button
-                      className="flex-1 min-w-[80px] px-3 py-2 text-green-600 hover:bg-green-50 border border-green-200 rounded-md flex items-center justify-center button-hover text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/lessons?studyPlanId=${plan.id}`);
-                      }}
-                    >
-                      <FaEdit className="mr-1" />
-                      Уроки
-                    </button>
-                    <button
-                      className="flex-1 min-w-[80px] px-3 py-2 text-purple-600 hover:bg-purple-50 border border-purple-200 rounded-md flex items-center justify-center button-hover text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPlan(plan);
-                        setShowKtpModal(true);
-                      }}
-                    >
-                      <FaPlus className="mr-1" />
-                      КТП
-                    </button>
+                    {(hasPermission('study-plans', 'update') || 
+                      (hasPermission('study-plans', 'update', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id)) && (
+                      <button
+                        className="flex-1 min-w-[80px] px-3 py-2 text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-md flex items-center justify-center button-hover text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingPlan(plan);
+                        }}
+                      >
+                        <FaEdit className="mr-1" />
+                        Изменить
+                      </button>
+                    )}
+                    {(hasPermission('lessons', 'read') || 
+                      (hasPermission('lessons', 'read', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id)) && (
+                      <button
+                        className="flex-1 min-w-[80px] px-3 py-2 text-green-600 hover:bg-green-50 border border-green-200 rounded-md flex items-center justify-center button-hover text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/lessons?studyPlanId=${plan.id}`);
+                        }}
+                      >
+                        <FaEdit className="mr-1" />
+                        Уроки
+                      </button>
+                    )}
+                    {(hasPermission('study-plans', 'read') || 
+                      (hasPermission('study-plans', 'read', { scope: 'OWN' }) && plan.teacher?.user.id === user?.id)) && (
+                      <button
+                        className="flex-1 min-w-[80px] px-3 py-2 text-purple-600 hover:bg-purple-50 border border-purple-200 rounded-md flex items-center justify-center button-hover text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPlan(plan);
+                          setShowKtpModal(true);
+                        }}
+                      >
+                        <FaPlus className="mr-1" />
+                        КТП
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

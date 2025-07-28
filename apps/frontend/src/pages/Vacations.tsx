@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useVacations } from '../hooks/useVacations';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { useTeachers } from '../hooks/useTeachers';
 import { useTeacherLessons } from '../hooks/useStudyPlans';
 import { vacationService } from '../services/vacationService';
@@ -43,8 +44,14 @@ const VacationCard: React.FC<{
   onStatusChange: (id: number, status: VacationStatus) => void;
   onViewDetails: (vacation: Vacation) => void;
 }> = ({ vacation, currentUserId, userRole, onEdit, onDelete, onStatusChange, onViewDetails }) => {
-  const canEdit = vacationService.canEdit(vacation, currentUserId, userRole);
-  const canChangeStatus = vacationService.canChangeStatus(userRole);
+  const { hasPermission } = useAuth();
+  
+  // Можно редактировать если есть права на обновление отпусков ИЛИ это собственная заявка со статусом pending
+  const canEdit = hasPermission('vacations', 'update') || 
+    (vacation.teacher.user.id === currentUserId && vacation.status === 'pending');
+  
+  // Можно изменять статус только с правами на обновление отпусков
+  const canChangeStatus = hasPermission('vacations', 'update');
   
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
@@ -754,16 +761,18 @@ const Vacations: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Управление отпусками</h1>
           <p className="text-gray-600">Заявки на отпуск и больничные листы</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingVacation(null);
-            setIsFormOpen(true);
-          }}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Новая заявка</span>
-        </button>
+        <PermissionGuard module="vacations" action="create">
+          <button
+            onClick={() => {
+              setEditingVacation(null);
+              setIsFormOpen(true);
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Новая заявка</span>
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* Summary Cards */}

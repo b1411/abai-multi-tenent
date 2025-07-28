@@ -45,6 +45,7 @@ import CalendarPage from './pages/Calendar';
 import SystemSettingsPage from './pages/SystemSettings';
 import UsersPage from './pages/Users';
 import PermissionsPage from './pages/Permissions';
+import RoleManagement from './pages/RoleManagement';
 import BrandingPage from './pages/Branding';
 import IntegrationsPage from './pages/Integrations';
 import { ActivityMonitoring } from './pages/ActivityMonitoring';
@@ -178,6 +179,9 @@ const App: React.FC = () => {
                       <Route path="create" element={<DocumentCreatePage />} />
                       <Route path=":id" element={<DocumentDetailPage />} />
                     </Route>
+
+                    {/* Role Management route */}
+                    <Route path="role-management" element={<RoleManagement />} />
 
                     {/* Settings routes */}
                     <Route path="settings">

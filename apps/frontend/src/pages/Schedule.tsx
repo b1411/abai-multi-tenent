@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSearchParams } from 'react-router-dom';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { Button, Loading, Modal, Autocomplete, TimePicker } from '../components/ui';
 import AILessonGeneratorModal from '../components/AILessonGeneratorModal';
 import lessonScheduleService, { AILessonsResponse, AvailableLesson } from '../services/lessonScheduleService';
@@ -528,7 +529,7 @@ const SchedulePage: React.FC = () => {
   }, []);
   const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
 
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const role = user?.role;
 
   // Загрузка фильтров из URL при первом рендере
@@ -796,7 +797,7 @@ const SchedulePage: React.FC = () => {
 
   // Функция проверки прав на редактирование
   const canEditSchedule = () => {
-    return role === 'ADMIN';
+    return hasPermission('schedule', 'update');
   };
 
   const handleAddClick = (day?: ScheduleItem['day'], time?: string) => {
@@ -1222,8 +1223,8 @@ const SchedulePage: React.FC = () => {
                     'Управление расписанием'}
             </h1>
 
-            {/* Показываем кнопку AI только администратору */}
-            {role === 'ADMIN' && (
+            {/* Показываем кнопку AI только пользователям с разрешениями */}
+            <PermissionGuard module="schedule" action="create">
               <button
                 onClick={() => setIsAILessonModalOpen(true)}
                 disabled={isLoading}
@@ -1233,7 +1234,7 @@ const SchedulePage: React.FC = () => {
                 <span className="hidden sm:inline">AI Планирование</span>
                 <span className="sm:hidden">AI План</span>
               </button>
-            )}
+            </PermissionGuard>
           </div>
 
           {/* Кнопки управления */}

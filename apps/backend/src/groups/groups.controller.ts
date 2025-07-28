@@ -16,6 +16,7 @@ import { GroupsService } from './groups.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { GroupStatisticsDto } from './dto/group-statistics.dto';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from 'generated/prisma';
@@ -23,7 +24,7 @@ import { AuthGuard } from '../common/guards/auth.guard';
 
 @ApiTags('Groups')
 @Controller('groups')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) { }
 
@@ -34,7 +35,7 @@ export class GroupsController {
   }
 
   @Post()
-
+  @RequirePermission('groups', 'create')
   @ApiOperation({ summary: 'Создать новую группу' })
   @ApiResponse({
     status: 201,
@@ -48,37 +49,35 @@ export class GroupsController {
     status: 403,
     description: 'Недостаточно прав для создания группы',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
   create(@Body() createGroupDto: CreateGroupDto) {
     return this.groupsService.create(createGroupDto);
   }
 
   @Get()
-
+  @RequirePermission('groups', 'read')
   @ApiOperation({ summary: 'Получить все группы' })
   @ApiResponse({
     status: 200,
     description: 'Список всех групп',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   findAll() {
     return this.groupsService.findAll();
   }
 
   @Get('statistics')
-
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить статистику по группам' })
   @ApiResponse({
     status: 200,
     description: 'Статистика по группам',
     type: GroupStatisticsDto,
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
   getStatistics() {
     return this.groupsService.getGroupStatistics();
   }
 
   @Get('course/:courseNumber')
+  @RequirePermission('groups', 'read')
   @ApiOperation({ summary: 'Получить группы по номеру курса' })
   @ApiParam({
     name: 'courseNumber',
@@ -93,12 +92,12 @@ export class GroupsController {
     status: 400,
     description: 'Неверный номер курса',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   findByCourse(@Param('courseNumber', ParseIntPipe) courseNumber: number) {
     return this.groupsService.findByCourse(courseNumber);
   }
 
   @Get(':id')
+  @RequirePermission('groups', 'read')
   @ApiOperation({ summary: 'Получить группу по ID' })
   @ApiParam({
     name: 'id',
@@ -113,12 +112,12 @@ export class GroupsController {
     status: 404,
     description: 'Группа не найдена',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.groupsService.findOne(id);
   }
 
   @Get(':id/schedule')
+  @RequirePermission('schedule', 'read')
   @ApiOperation({ summary: 'Получить расписание группы' })
   @ApiParam({
     name: 'id',
@@ -133,12 +132,12 @@ export class GroupsController {
     status: 404,
     description: 'Группа не найдена',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   getGroupSchedule(@Param('id', ParseIntPipe) id: number) {
     return this.groupsService.getGroupSchedule(id);
   }
 
   @Get(':id/study-plans')
+  @RequirePermission('study-plans', 'read')
   @ApiOperation({ summary: 'Получить учебные планы группы' })
   @ApiParam({
     name: 'id',
@@ -153,12 +152,12 @@ export class GroupsController {
     status: 404,
     description: 'Группа не найдена',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   getGroupStudyPlans(@Param('id', ParseIntPipe) id: number) {
     return this.groupsService.getGroupStudyPlans(id);
   }
 
   @Patch(':id')
+  @RequirePermission('groups', 'update')
   @ApiOperation({ summary: 'Обновить информацию о группе' })
   @ApiParam({
     name: 'id',
@@ -177,7 +176,6 @@ export class GroupsController {
     status: 403,
     description: 'Недостаточно прав для обновления группы',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateGroupDto: UpdateGroupDto,
@@ -186,6 +184,7 @@ export class GroupsController {
   }
 
   @Delete(':id')
+  @RequirePermission('groups', 'delete')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Удалить группу' })
   @ApiParam({
@@ -205,12 +204,12 @@ export class GroupsController {
     status: 403,
     description: 'Недостаточно прав для удаления группы',
   })
-  @Roles(UserRole.ADMIN)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.groupsService.remove(id);
   }
 
   @Post(':groupId/students/:studentId')
+  @RequirePermission('groups', 'update')
   @ApiOperation({ summary: 'Добавить студента в группу' })
   @ApiParam({
     name: 'groupId',
@@ -234,7 +233,6 @@ export class GroupsController {
     status: 403,
     description: 'Недостаточно прав для управления студентами в группах',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR)
   addStudentToGroup(
     @Param('groupId', ParseIntPipe) groupId: number,
     @Param('studentId', ParseIntPipe) studentId: number,
@@ -243,6 +241,7 @@ export class GroupsController {
   }
 
   @Delete('students/:studentId')
+  @RequirePermission('groups', 'update')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Исключить студента из группы' })
   @ApiParam({
@@ -262,7 +261,6 @@ export class GroupsController {
     status: 403,
     description: 'Недостаточно прав для управления студентами в группах',
   })
-  @Roles(UserRole.ADMIN, UserRole.HR)
   removeStudentFromGroup(@Param('studentId', ParseIntPipe) studentId: number) {
     return this.groupsService.removeStudentFromGroup(studentId);
   }

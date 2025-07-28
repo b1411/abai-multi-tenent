@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Newspaper, RefreshCw, Plus, Search, Filter } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { CreatePost, PostCard, SwipeGestures, PullToRefresh } from '../components/newsFeed';
 import { useNewsFeed } from '../hooks/useNewsFeed';
 
@@ -54,16 +56,18 @@ const News: React.FC = () => {
                 <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${isLoading ? 'animate-spin' : ''}`} />
               </motion.button>
 
-              <motion.button
-                onClick={() => setShowCreatePost(!showCreatePost)}
-                className="hidden sm:flex items-center space-x-2 px-3 md:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden md:inline">Новый пост</span>
-                <span className="md:hidden">Пост</span>
-              </motion.button>
+              <PermissionGuard module="news" action="create">
+                <motion.button
+                  onClick={() => setShowCreatePost(!showCreatePost)}
+                  className="hidden sm:flex items-center space-x-2 px-3 md:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden md:inline">Новый пост</span>
+                  <span className="md:hidden">Пост</span>
+                </motion.button>
+              </PermissionGuard>
             </div>
           </div>
 
@@ -110,14 +114,16 @@ const News: React.FC = () => {
 
           {/* Mobile create post button */}
           {!showCreatePost && (
-            <motion.button
-              onClick={() => setShowCreatePost(true)}
-              className="md:hidden w-full p-4 bg-white border border-gray-200 rounded-lg text-left text-gray-500 hover:bg-gray-50 transition-colors mx-2"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              Поделитесь новостями или мыслями...
-            </motion.button>
+            <PermissionGuard module="news" action="create">
+              <motion.button
+                onClick={() => setShowCreatePost(true)}
+                className="md:hidden w-full p-4 bg-white border border-gray-200 rounded-lg text-left text-gray-500 hover:bg-gray-50 transition-colors mx-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Поделитесь новостями или мыслями...
+              </motion.button>
+            </PermissionGuard>
           )}
 
           {/* Error message */}
@@ -179,14 +185,16 @@ const News: React.FC = () => {
               }
             </p>
             {!searchQuery && (
-              <motion.button
-                onClick={() => setShowCreatePost(true)}
-                className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Создать первый пост
-              </motion.button>
+              <PermissionGuard module="news" action="create">
+                <motion.button
+                  onClick={() => setShowCreatePost(true)}
+                  className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Создать первый пост
+                </motion.button>
+              </PermissionGuard>
             )}
           </motion.div>
         )}
@@ -220,17 +228,19 @@ const News: React.FC = () => {
       </PullToRefresh>
 
       {/* Floating action button for mobile */}
-      <motion.button
-        onClick={() => setShowCreatePost(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors md:hidden z-40 flex items-center justify-center"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.5 }}
-      >
-        <Plus className="w-6 h-6" />
-      </motion.button>
+      <PermissionGuard module="news" action="create">
+        <motion.button
+          onClick={() => setShowCreatePost(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors md:hidden z-40 flex items-center justify-center"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Plus className="w-6 h-6" />
+        </motion.button>
+      </PermissionGuard>
     </div>
   );
 };

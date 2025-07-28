@@ -7,8 +7,11 @@ class ApiClient {
   private isRedirecting: boolean = false;
 
   constructor() {
+    // Убираем завершающие слеши из baseURL для предотвращения дублирования
+    const baseURL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+    
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+      baseURL,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -57,6 +60,7 @@ class ApiClient {
     this.isRedirecting = true;
 
     // Clear all authentication data from localStorage
+    localStorage.removeItem('token');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     localStorage.removeItem('refreshToken');

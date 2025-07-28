@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LoginDto } from './dto/login-dto';
 import { JwtService } from 'src/jwt/jwt.service';
@@ -20,13 +20,13 @@ export class AuthService {
         });
 
         if (!user) {
-            throw new Error('User not found');
+            throw new UnauthorizedException('Invalid credentials');
         }
 
         const isPasswordValid = await compare(loginDto.password, user.hashedPassword);
 
         if (!isPasswordValid) {
-            throw new Error('Invalid password');
+            throw new UnauthorizedException('Invalid credentials');
         }
 
         const token = this.jwt.sign({

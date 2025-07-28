@@ -3,7 +3,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaFileExport } from 'react-icons/fa';
 import { performanceService } from '../services/performanceService';
 import {
   PerformanceOverview,
@@ -17,8 +17,11 @@ import {
   PerformanceFilter,
 } from '../types/performance';
 import { Spinner } from '../components/ui/Spinner';
+import { PermissionGuard } from '../components/PermissionGuard';
+import { useAuth } from '../hooks/useAuth';
 
 const Performance: React.FC = () => {
+  const { hasPermission } = useAuth();
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -4,6 +4,8 @@ import { useRoles } from '../hooks/useSystem';
 import { Role, CreateRoleDto, UpdateRoleDto } from '../types/system';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 interface RoleModalProps {
   role?: Role;
@@ -208,16 +210,19 @@ const PermissionsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Управление правами доступа</h1>
-        <button 
-          onClick={handleCreateRole}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <FaPlus /> Создать роль
-        </button>
-      </div>
+    <PermissionGuard module="rbac" action="read">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Управление правами доступа</h1>
+          <PermissionGuard module="rbac" action="create">
+            <button 
+              onClick={handleCreateRole}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              <FaPlus /> Создать роль
+            </button>
+          </PermissionGuard>
+        </div>
 
       {error && <Alert variant="error" message={error} className="mb-4" />}
 
@@ -254,30 +259,34 @@ const PermissionsPage: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex gap-1 ml-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditRole(role);
-                      }}
-                      className="text-blue-500 hover:text-blue-600 p-1"
-                      title="Редактировать"
-                    >
-                      <FaShieldAlt size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteRole(role.id);
-                      }}
-                      className={`p-1 ${
-                        deleteConfirm === role.id 
-                          ? 'text-red-700 bg-red-100 rounded' 
-                          : 'text-red-500 hover:text-red-600'
-                      }`}
-                      title={deleteConfirm === role.id ? 'Подтвердить удаление' : 'Удалить'}
-                    >
-                      <FaTrash size={12} />
-                    </button>
+                    <PermissionGuard module="rbac" action="update">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditRole(role);
+                        }}
+                        className="text-blue-500 hover:text-blue-600 p-1"
+                        title="Редактировать"
+                      >
+                        <FaShieldAlt size={14} />
+                      </button>
+                    </PermissionGuard>
+                    <PermissionGuard module="rbac" action="delete">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRole(role.id);
+                        }}
+                        className={`p-1 ${
+                          deleteConfirm === role.id 
+                            ? 'text-red-700 bg-red-100 rounded' 
+                            : 'text-red-500 hover:text-red-600'
+                        }`}
+                        title={deleteConfirm === role.id ? 'Подтвердить удаление' : 'Удалить'}
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </PermissionGuard>
                   </div>
                 </div>
               </div>
@@ -299,12 +308,14 @@ const PermissionsPage: React.FC = () => {
                   <h2 className="text-xl font-bold">{selectedRole.name}</h2>
                   <p className="text-gray-500">{selectedRole.description}</p>
                 </div>
-                <button 
-                  onClick={() => handleEditRole(selectedRole)}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                >
-                  <FaSave /> Редактировать
-                </button>
+                <PermissionGuard module="rbac" action="update">
+                  <button 
+                    onClick={() => handleEditRole(selectedRole)}
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  >
+                    <FaSave /> Редактировать
+                  </button>
+                </PermissionGuard>
               </div>
 
               <div className="space-y-6">
@@ -370,6 +381,7 @@ const PermissionsPage: React.FC = () => {
         availablePermissions={permissions}
       />
     </div>
+    </PermissionGuard>
   );
 };
 

@@ -9,20 +9,26 @@ import {
   Query,
   ParseIntPipe,
   Res,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { WorkloadService } from './workload.service';
 import { CreateWorkloadDto } from './dto/create-workload.dto';
 import { UpdateWorkloadDto } from './dto/update-workload.dto';
 import { WorkloadFilterDto } from './dto/workload-filter.dto';
+import { AuthGuard } from '../common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 
 @ApiTags('workload')
 @Controller('workload')
+@UseGuards(AuthGuard, PermissionGuard)
+@ApiBearerAuth()
 export class WorkloadController {
   constructor(private readonly workloadService: WorkloadService) { }
 
   @Post()
+  @RequirePermission('workload', 'create')
   @ApiOperation({ summary: 'Create teacher workload' })
   @ApiResponse({ status: 201, description: 'Workload created successfully' })
   create(@Body() createWorkloadDto: CreateWorkloadDto) {
@@ -30,6 +36,7 @@ export class WorkloadController {
   }
 
   @Get()
+  @RequirePermission('workload', 'read')
   @ApiOperation({ summary: 'Get all teacher workloads' })
   @ApiResponse({ status: 200, description: 'List of workloads retrieved successfully' })
   findAll(@Query() filter: WorkloadFilterDto) {
@@ -37,6 +44,7 @@ export class WorkloadController {
   }
 
   @Get('analytics')
+  @RequirePermission('workload', 'read')
   @ApiOperation({ summary: 'Get workload analytics' })
   @ApiResponse({ status: 200, description: 'Analytics retrieved successfully' })
   getAnalytics(@Query() filter: WorkloadFilterDto) {
@@ -44,6 +52,7 @@ export class WorkloadController {
   }
 
   @Get('teacher/:teacherId')
+  @RequirePermission('workload', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Get workloads by teacher' })
   @ApiResponse({ status: 200, description: 'Teacher workloads retrieved successfully' })
   findByTeacher(
@@ -54,6 +63,7 @@ export class WorkloadController {
   }
 
   @Get(':id')
+  @RequirePermission('workload', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Get workload by id' })
   @ApiResponse({ status: 200, description: 'Workload retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Workload not found' })
@@ -62,6 +72,7 @@ export class WorkloadController {
   }
 
   @Patch(':id')
+  @RequirePermission('workload', 'update')
   @ApiOperation({ summary: 'Update workload' })
   @ApiResponse({ status: 200, description: 'Workload updated successfully' })
   @ApiResponse({ status: 404, description: 'Workload not found' })
@@ -73,6 +84,7 @@ export class WorkloadController {
   }
 
   @Delete(':id')
+  @RequirePermission('workload', 'delete')
   @ApiOperation({ summary: 'Delete workload' })
   @ApiResponse({ status: 200, description: 'Workload deleted successfully' })
   @ApiResponse({ status: 404, description: 'Workload not found' })
@@ -81,6 +93,7 @@ export class WorkloadController {
   }
 
   @Post(':id/daily-hours')
+  @RequirePermission('workload', 'update')
   @ApiOperation({ summary: 'Add daily hours to workload' })
   @ApiResponse({ status: 201, description: 'Daily hours added successfully' })
   addDailyHours(
@@ -91,6 +104,7 @@ export class WorkloadController {
   }
 
   @Post(':id/recalculate')
+  @RequirePermission('workload', 'update')
   @ApiOperation({ summary: 'Recalculate workload automatically' })
   @ApiResponse({ status: 200, description: 'Workload recalculated successfully' })
   async recalculateWorkload(@Param('id', ParseIntPipe) id: number) {
@@ -99,6 +113,7 @@ export class WorkloadController {
   }
 
   @Post('generate-from-schedule')
+  @RequirePermission('workload', 'create')
   @ApiOperation({ summary: 'Generate workload from schedule' })
   @ApiResponse({ status: 201, description: 'Workload generated from schedule successfully' })
   generateFromSchedule(
@@ -108,6 +123,7 @@ export class WorkloadController {
   }
 
   @Get('calculate-from-schedule/:teacherId')
+  @RequirePermission('workload', 'read')
   @ApiOperation({ summary: 'Calculate workload from schedule without creating' })
   @ApiResponse({ status: 200, description: 'Workload calculated successfully' })
   calculateFromSchedule(
@@ -118,6 +134,7 @@ export class WorkloadController {
   }
 
   @Get('export')
+  @RequirePermission('workload', 'read')
   @ApiOperation({ summary: 'Export workloads' })
   @ApiResponse({ status: 200, description: 'Workload export file' })
   async exportWorkloads(
@@ -143,6 +160,7 @@ export class WorkloadController {
   }
 
   @Get('template')
+  @RequirePermission('workload', 'read')
   @ApiOperation({ summary: 'Download workload template' })
   @ApiResponse({ status: 200, description: 'Workload template file' })
   async downloadTemplate(
@@ -165,6 +183,7 @@ export class WorkloadController {
   }
 
   @Get('teacher/:teacherId/export')
+  @RequirePermission('workload', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Export teacher workload' })
   @ApiResponse({ status: 200, description: 'Teacher workload export file' })
   async exportTeacherWorkload(

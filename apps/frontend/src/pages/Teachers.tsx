@@ -18,6 +18,7 @@ import {
   FaFileAlt
 } from 'react-icons/fa';
 import { useTeachers, useTeacherActions } from '../hooks/useTeachers';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import type { Teacher, TeacherFilters } from '../types/teacher';
@@ -213,26 +214,30 @@ const Teachers: React.FC = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end gap-2">
-                    <button 
-                      className="text-gray-400 hover:text-blue-500 p-1 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleChangeEmploymentType(teacher.id, teacher.employmentType);
-                      }}
-                      title={teacher.employmentType === 'STAFF' ? 'Перевести в совместители' : 'Перевести в штатные'}
-                    >
-                      <FaExchangeAlt className="w-4 h-4" />
-                    </button>
-                    <button 
-                      className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTeacher(teacher.id);
-                      }}
-                      title="Удалить преподавателя"
-                    >
-                      <FaTimes className="w-4 h-4" />
-                    </button>
+                    <PermissionGuard module="teachers" action="update">
+                      <button 
+                        className="text-gray-400 hover:text-blue-500 p-1 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleChangeEmploymentType(teacher.id, teacher.employmentType);
+                        }}
+                        title={teacher.employmentType === 'STAFF' ? 'Перевести в совместители' : 'Перевести в штатные'}
+                      >
+                        <FaExchangeAlt className="w-4 h-4" />
+                      </button>
+                    </PermissionGuard>
+                    <PermissionGuard module="teachers" action="delete">
+                      <button 
+                        className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTeacher(teacher.id);
+                        }}
+                        title="Удалить преподавателя"
+                      >
+                        <FaTimes className="w-4 h-4" />
+                      </button>
+                    </PermissionGuard>
                     <button 
                       className="text-gray-400 hover:text-gray-500 p-1 rounded transition-colors"
                       onClick={(e) => {
@@ -328,26 +333,30 @@ const Teachers: React.FC = () => {
                   </div>
                   
                   <div className="flex items-center space-x-1 ml-2">
-                    <button 
-                      className="text-gray-400 hover:text-blue-500 p-2 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleChangeEmploymentType(teacher.id, teacher.employmentType);
-                      }}
-                      title={teacher.employmentType === 'STAFF' ? 'Перевести в совместители' : 'Перевести в штатные'}
-                    >
-                      <FaExchangeAlt className="w-4 h-4" />
-                    </button>
-                    <button 
-                      className="text-gray-400 hover:text-red-500 p-2 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTeacher(teacher.id);
-                      }}
-                      title="Удалить преподавателя"
-                    >
-                      <FaTimes className="w-4 h-4" />
-                    </button>
+                    <PermissionGuard module="teachers" action="update">
+                      <button 
+                        className="text-gray-400 hover:text-blue-500 p-2 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleChangeEmploymentType(teacher.id, teacher.employmentType);
+                        }}
+                        title={teacher.employmentType === 'STAFF' ? 'Перевести в совместители' : 'Перевести в штатные'}
+                      >
+                        <FaExchangeAlt className="w-4 h-4" />
+                      </button>
+                    </PermissionGuard>
+                    <PermissionGuard module="teachers" action="delete">
+                      <button 
+                        className="text-gray-400 hover:text-red-500 p-2 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTeacher(teacher.id);
+                        }}
+                        title="Удалить преподавателя"
+                      >
+                        <FaTimes className="w-4 h-4" />
+                      </button>
+                    </PermissionGuard>
                   </div>
                 </div>
               </div>
@@ -374,23 +383,27 @@ const Teachers: React.FC = () => {
           <p className="text-sm text-gray-500">Управление кадровым составом образовательного учреждения</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <button 
-            className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
-            onClick={handleExport}
-            disabled={actionLoading}
-          >
-            <FaDownload className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Экспорт</span>
-            <span className="sm:hidden">Скачать</span>
-          </button>
-          <button 
-            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
-            onClick={() => setShowAddModal(true)}
-          >
-            <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Добавить преподавателя</span>
-            <span className="sm:hidden">Добавить</span>
-          </button>
+          <PermissionGuard module="reports" action="read">
+            <button 
+              className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
+              onClick={handleExport}
+              disabled={actionLoading}
+            >
+              <FaDownload className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Экспорт</span>
+              <span className="sm:hidden">Скачать</span>
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="teachers" action="create">
+            <button 
+              className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
+              onClick={() => setShowAddModal(true)}
+            >
+              <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Добавить преподавателя</span>
+              <span className="sm:hidden">Добавить</span>
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -562,26 +575,34 @@ const Teachers: React.FC = () => {
               {/* Кнопки действий */}
               <div className="flex justify-between pt-4 border-t">
                 <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    Редактировать
-                  </button>
-                  <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
-                    Скачать личное дело
-                  </button>
-                  <button 
-                    className="px-4 py-2 bg-orange-50 text-orange-700 rounded-md hover:bg-orange-100 flex items-center gap-2"
-                    onClick={() => handleChangeEmploymentType(selectedTeacher.id, selectedTeacher.employmentType)}
-                  >
-                    <FaExchangeAlt className="w-4 h-4" />
-                    {selectedTeacher.employmentType === 'STAFF' ? 'В совместители' : 'В штатные'}
-                  </button>
+                  <PermissionGuard module="teachers" action="update">
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                      Редактировать
+                    </button>
+                  </PermissionGuard>
+                  <PermissionGuard module="reports" action="read">
+                    <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+                      Скачать личное дело
+                    </button>
+                  </PermissionGuard>
+                  <PermissionGuard module="teachers" action="update">
+                    <button 
+                      className="px-4 py-2 bg-orange-50 text-orange-700 rounded-md hover:bg-orange-100 flex items-center gap-2"
+                      onClick={() => handleChangeEmploymentType(selectedTeacher.id, selectedTeacher.employmentType)}
+                    >
+                      <FaExchangeAlt className="w-4 h-4" />
+                      {selectedTeacher.employmentType === 'STAFF' ? 'В совместители' : 'В штатные'}
+                    </button>
+                  </PermissionGuard>
                 </div>
-                <button 
-                  className="px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100"
-                  onClick={() => handleDeleteTeacher(selectedTeacher.id)}
-                >
-                  Удалить
-                </button>
+                <PermissionGuard module="teachers" action="delete">
+                  <button 
+                    className="px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100"
+                    onClick={() => handleDeleteTeacher(selectedTeacher.id)}
+                  >
+                    Удалить
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
           </div>

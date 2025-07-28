@@ -1,6 +1,8 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { neuroAbaiService } from '../services/neuroAbaiService';
 import { Paperclip, Send, X, FileText, Bot, User, ChevronDown } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -41,27 +43,25 @@ function ChatBubble({ variant = "received", children }: { variant?: 'sent' | 're
 
 function ChatBubbleAvatar({ variant = "received" }: { variant?: 'sent' | 'received' }) {
   return (
-    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-      variant === "sent" ? "bg-blue-500 text-white" : "bg-gray-200 text-blue-500"
-    }`}>
+    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${variant === "sent" ? "bg-blue-500 text-white" : "bg-gray-200 text-blue-500"
+      }`}>
       {variant === "sent" ? <User size={16} /> : <Bot size={16} />}
     </div>
   );
 }
 
-function ChatBubbleMessage({ 
-  variant = "received", 
-  isLoading, 
-  children 
-}: { 
-  variant?: 'sent' | 'received'; 
-  isLoading?: boolean; 
+function ChatBubbleMessage({
+  variant = "received",
+  isLoading,
+  children
+}: {
+  variant?: 'sent' | 'received';
+  isLoading?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-lg p-3 max-w-[80%] ${
-      variant === "sent" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-900"
-    }`}>
+    <div className={`rounded-lg p-3 max-w-[80%] ${variant === "sent" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-900"
+      }`}>
       {isLoading ? (
         <div className="flex items-center space-x-2">
           <MessageLoading />
@@ -125,11 +125,10 @@ function FileUploadArea({ files, onFileChange, onRemoveFile, disabled }: FileUpl
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 transition-colors ${
-          isDragging 
-            ? "border-blue-500/50 bg-blue-500/5" 
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 transition-colors ${isDragging
+            ? "border-blue-500/50 bg-blue-500/5"
             : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+          } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         <div className="rounded-full bg-white p-2 shadow-sm">
           <Paperclip className="h-5 w-5 text-gray-400" />
@@ -159,8 +158,7 @@ function FileUploadArea({ files, onFileChange, onRemoveFile, disabled }: FileUpl
               </div>
             ))}
           </div>
-        </div>
-      )}
+        </div>)}
     </div>
   );
 }
@@ -230,95 +228,97 @@ export default function NeuroAbai() {
   };
 
   return (
-    <div className="h-full bg-gray-50">
-      {/* Заголовок */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">Neuro Abai</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Интеллектуальный помощник для учителей
-        </p>
-      </div>
+    <PermissionGuard module="ai-assistant" action="read">
+      <div className="h-full bg-gray-50">
+        {/* Заголовок */}
+        <div className="bg-white shadow-sm border-b px-6 py-4">
+          <h1 className="text-2xl font-bold text-gray-900">Neuro Abai</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Интеллектуальный помощник для учителей
+          </p>
+        </div>
 
-      {/* Основной контент */}
-      <div className="mx-auto max-w-4xl p-4">
-        <div className="overflow-hidden rounded-xl border bg-white shadow-lg">
-          {/* Выбор сценария */}
-          <div className="border-b p-4">
-            <h2 className="text-center text-xl font-bold text-blue-600 mb-4">Fizmat AI Ala</h2>
-            <div className="relative">
-              <select
-                value={scenario}
-                onChange={e => setScenario(e.target.value)}
-                className="w-full appearance-none rounded-lg border bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                {SCENARIOS.map(s => (
-                  <option key={s.label} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            </div>
-          </div>
-
-          {/* Область чата */}
-          <div className="h-[500px] overflow-y-auto p-4 bg-gray-50">
-            {messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center text-gray-400">
-                <Bot size={48} className="mb-4 text-blue-500" />
-                <h3 className="text-lg font-medium">Начните диалог с Neuro Abai</h3>
-                <p className="mt-2 text-sm">Задайте вопрос или загрузите файл для анализа</p>
-              </div>
-            ) : (
-              messages.map((msg, idx) => (
-                <ChatBubble key={idx} variant={msg.role === 'user' ? 'sent' : 'received'}>
-                  <ChatBubbleAvatar variant={msg.role === 'user' ? 'sent' : 'received'} />
-                  <ChatBubbleMessage variant={msg.role === 'user' ? 'sent' : 'received'}>
-                    {msg.content}
-                  </ChatBubbleMessage>
-                </ChatBubble>
-              ))
-            )}
-            {loading && (
-              <ChatBubble variant="received">
-                <ChatBubbleAvatar variant="received" />
-                <ChatBubbleMessage variant="received" isLoading />
-              </ChatBubble>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Область ввода */}
-          <div className="border-t p-4">
-            <div className="relative rounded-lg border bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                placeholder="Введите сообщение..."
-                className="min-h-[80px] w-full resize-none rounded-lg border-0 bg-transparent p-3 text-sm shadow-none focus:outline-none focus:ring-0"
-                onKeyDown={handleKeyDown}
-                disabled={loading}
-              />
-              <div className="flex items-center justify-between border-t p-2">
-                <div className="flex-1">
-                  <FileUploadArea
-                    files={files}
-                    onFileChange={handleFileChange}
-                    onRemoveFile={handleRemoveFile}
-                    disabled={loading}
-                  />
-                </div>
-                <button
-                  onClick={handleSend}
-                  disabled={loading || (!input && files.length === 0)}
-                  className="ml-auto flex h-10 items-center gap-2 rounded-lg bg-blue-500 px-4 text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+        {/* Основной контент */}
+        <div className="mx-auto max-w-4xl p-4">
+          <div className="overflow-hidden rounded-xl border bg-white shadow-lg">
+            {/* Выбор сценария */}
+            <div className="border-b p-4">
+              <h2 className="text-center text-xl font-bold text-blue-600 mb-4">Fizmat AI Ala</h2>
+              <div className="relative">
+                <select
+                  value={scenario}
+                  onChange={e => setScenario(e.target.value)}
+                  className="w-full appearance-none rounded-lg border bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
-                  Отправить
-                  <Send size={16} />
-                </button>
+                  {SCENARIOS.map(s => (
+                    <option key={s.label} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              </div>
+            </div>
+
+            {/* Область чата */}
+            <div className="h-[500px] overflow-y-auto p-4 bg-gray-50">
+              {messages.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center text-center text-gray-400">
+                  <Bot size={48} className="mb-4 text-blue-500" />
+                  <h3 className="text-lg font-medium">Начните диалог с Neuro Abai</h3>
+                  <p className="mt-2 text-sm">Задайте вопрос или загрузите файл для анализа</p>
+                </div>
+              ) : (
+                messages.map((msg, idx) => (
+                  <ChatBubble key={idx} variant={msg.role === 'user' ? 'sent' : 'received'}>
+                    <ChatBubbleAvatar variant={msg.role === 'user' ? 'sent' : 'received'} />
+                    <ChatBubbleMessage variant={msg.role === 'user' ? 'sent' : 'received'}>
+                      {msg.content}
+                    </ChatBubbleMessage>
+                  </ChatBubble>
+                ))
+              )}
+              {loading && (
+                <ChatBubble variant="received">
+                  <ChatBubbleAvatar variant="received" />
+                  <ChatBubbleMessage variant="received" isLoading />
+                </ChatBubble>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Область ввода */}
+            <div className="border-t p-4">
+              <div className="relative rounded-lg border bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
+                <textarea
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder="Введите сообщение..."
+                  className="min-h-[80px] w-full resize-none rounded-lg border-0 bg-transparent p-3 text-sm shadow-none focus:outline-none focus:ring-0"
+                  onKeyDown={handleKeyDown}
+                  disabled={loading}
+                />
+                <div className="flex items-center justify-between border-t p-2">
+                  <div className="flex-1">
+                    <FileUploadArea
+                      files={files}
+                      onFileChange={handleFileChange}
+                      onRemoveFile={handleRemoveFile}
+                      disabled={loading}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSend}
+                    disabled={loading || (!input && files.length === 0)}
+                    className="ml-auto flex h-10 items-center gap-2 rounded-lg bg-blue-500 px-4 text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                  >
+                    Отправить
+                    <Send size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </PermissionGuard>
   );
 }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Select, Table, Modal, Loading } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { formatDate, formatDateTime } from '../utils';
 import { Lesson, LessonFilters, StudyPlan } from '../types/lesson';
 import { lessonService } from '../services/lessonService';
@@ -19,7 +20,7 @@ import { studyPlanService } from '../services/studyPlanService';
 
 const LessonsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [searchParams] = useSearchParams();
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -56,8 +57,8 @@ const LessonsPage: React.FC = () => {
 
   const loadStudyPlans = async () => {
     try {
-      // Используем разные методы в зависимости от роли
-      const response = hasRole('STUDENT') 
+      // Используем разные методы в зависимости от разрешений
+      const response = hasPermission('study-plans', 'read', { scope: 'OWN' })
         ? await studyPlanService.getMyStudyPlans()
         : await studyPlanService.getStudyPlans();
       // Преобразуем StudyPlan из studyPlan.ts в StudyPlan из lesson.ts
@@ -90,8 +91,8 @@ const LessonsPage: React.FC = () => {
   const loadLessons = async () => {
     try {
       setLessonsLoading(true);
-      // Используем разные методы в зависимости от роли
-      const response = hasRole('STUDENT') 
+      // Используем разные методы в зависимости от разрешений
+      const response = hasPermission('lessons', 'read', { scope: 'OWN' })
         ? await lessonService.getMyLessons(filters)
         : await lessonService.getLessons(filters);
       setLessons(response.data);
@@ -266,7 +267,7 @@ const LessonsPage: React.FC = () => {
           >
             <Eye className="h-4 w-4" />
           </Button>
-          {(hasRole('ADMIN') || (hasRole('TEACHER') && record.studyPlan?.teacher?.user?.id === user?.id)) && (
+          <PermissionGuard module="lessons" action="update">
             <Button
               variant="outline"
               size="sm"
@@ -274,8 +275,8 @@ const LessonsPage: React.FC = () => {
             >
               <Edit className="h-4 w-4" />
             </Button>
-          )}
-          {hasRole('ADMIN') && (
+          </PermissionGuard>
+          <PermissionGuard module="lessons" action="delete">
             <Button
               variant="danger"
               size="sm"
@@ -283,7 +284,7 @@ const LessonsPage: React.FC = () => {
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-          )}
+          </PermissionGuard>
         </div>
       )
     }
@@ -315,7 +316,7 @@ const LessonsPage: React.FC = () => {
           </p>
         </div>
 
-        {(hasRole('ADMIN') || hasRole('TEACHER')) && (
+        <PermissionGuard module="lessons" action="create">
           <Button
             variant="primary"
             onClick={() => setIsCreating(true)}
@@ -325,7 +326,7 @@ const LessonsPage: React.FC = () => {
             <span className="hidden sm:inline">Создать урок</span>
             <span className="sm:hidden">Создать</span>
           </Button>
-        )}
+        </PermissionGuard>
       </div>
 
       {/* Filters */}
@@ -484,23 +485,23 @@ const LessonsPage: React.FC = () => {
                         <Eye className="w-4 h-4" />
                       </button>
                       
-                      {(hasRole('ADMIN') || (hasRole('TEACHER') && lesson.studyPlan?.teacher?.user?.id === user?.id)) && (
+                      <PermissionGuard module="lessons" action="update">
                         <button
                           onClick={() => handleEdit(lesson)}
                           className="text-gray-600 hover:text-gray-800 p-1.5 rounded transition-colors"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                      )}
+                      </PermissionGuard>
                       
-                      {hasRole('ADMIN') && (
+                      <PermissionGuard module="lessons" action="delete">
                         <button
                           onClick={() => setDeletingLesson(lesson)}
                           className="text-red-600 hover:text-red-800 p-1.5 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
+                      </PermissionGuard>
                     </div>
                   </div>
                 </div>

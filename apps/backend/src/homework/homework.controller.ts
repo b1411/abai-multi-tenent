@@ -26,19 +26,20 @@ import {
 } from './dto/create-homework.dto';
 import { UpdateHomeworkDto } from './dto/update-homework.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../../generated/prisma';
 
 @ApiTags('homework')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @Controller('homework')
 export class HomeworkController {
   constructor(private readonly homeworkService: HomeworkService) { }
 
   @Post()
-  @Roles('ADMIN', 'TEACHER')
+  @RequirePermission('homework', 'create')
   @ApiOperation({ summary: 'Создать домашнее задание' })
   @ApiResponse({ status: 201, description: 'Домашнее задание создано' })
   create(@Body() createHomeworkDto: CreateHomeworkDto) {
@@ -46,7 +47,7 @@ export class HomeworkController {
   }
 
   @Get()
-  @Roles('ADMIN', 'TEACHER')
+  @RequirePermission('homework', 'read')
   @ApiOperation({ summary: 'Получить список домашних заданий' })
   @ApiResponse({ status: 200, description: 'Список домашних заданий' })
   @ApiQuery({ name: 'search', required: false, description: 'Поиск по названию' })
@@ -62,7 +63,7 @@ export class HomeworkController {
   }
 
   @Get('me')
-  @Roles('STUDENT')
+  @RequirePermission('homework', 'read', { scope: 'OWN' })
   @ApiOperation({ summary: 'Получить домашние задания текущего студента' })
   @ApiResponse({ status: 200, description: 'Список домашних заданий студента' })
   @ApiQuery({ name: 'search', required: false, description: 'Поиск по названию' })
@@ -76,6 +77,7 @@ export class HomeworkController {
   }
 
   @Get('stats')
+  @RequirePermission('reports', 'read')
   @ApiOperation({ summary: 'Получить статистику домашних заданий' })
   @ApiResponse({ status: 200, description: 'Статистика домашних заданий' })
   @ApiQuery({ name: 'lessonId', required: false, description: 'ID урока' })
@@ -95,7 +97,7 @@ export class HomeworkController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  @RequirePermission('homework', 'read', { scope: 'ASSIGNED' })
   @ApiOperation({ summary: 'Получить домашнее задание по ID' })
   @ApiResponse({ status: 200, description: 'Домашнее задание найдено' })
   @ApiResponse({ status: 404, description: 'Домашнее задание не найдено' })
@@ -104,7 +106,7 @@ export class HomeworkController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'TEACHER')
+  @RequirePermission('homework', 'update')
   @ApiOperation({ summary: 'Обновить домашнее задание' })
   @ApiResponse({ status: 200, description: 'Домашнее задание обновлено' })
   update(@Param('id', ParseIntPipe) id: number, @Body() updateHomeworkDto: UpdateHomeworkDto) {
@@ -112,7 +114,7 @@ export class HomeworkController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'TEACHER')
+  @RequirePermission('homework', 'delete')
   @ApiOperation({ summary: 'Удалить домашнее задание' })
   @ApiResponse({ status: 200, description: 'Домашнее задание удалено' })
   remove(@Param('id', ParseIntPipe) id: number) {
@@ -120,7 +122,7 @@ export class HomeworkController {
   }
 
   @Post(':id/submit')
-  @Roles('STUDENT')
+  @RequirePermission('homework', 'create', { scope: 'OWN' })
   @ApiOperation({ summary: 'Отправить выполненное домашнее задание' })
   @ApiResponse({ status: 201, description: 'Домашнее задание отправлено' })
   @ApiResponse({ status: 400, description: 'Ошибка при отправке' })
@@ -133,7 +135,7 @@ export class HomeworkController {
   }
 
   @Patch(':id/update-submission')
-  @Roles('STUDENT')
+  @RequirePermission('homework', 'update', { scope: 'OWN' })
   @ApiOperation({ summary: 'Обновить отправленное домашнее задание' })
   @ApiResponse({ status: 200, description: 'Домашнее задание обновлено' })
   @ApiResponse({ status: 400, description: 'Ошибка при обновлении' })
@@ -146,7 +148,7 @@ export class HomeworkController {
   }
 
   @Get(':id/submissions')
-  @Roles('ADMIN', 'TEACHER')
+  @RequirePermission('homework', 'read')
   @ApiOperation({ summary: 'Получить отправки домашнего задания' })
   @ApiResponse({ status: 200, description: 'Список отправок' })
   getSubmissions(@Param('id', ParseIntPipe) id: number) {
@@ -154,7 +156,7 @@ export class HomeworkController {
   }
 
   @Patch('submissions/:submissionId/grade')
-  @Roles('ADMIN', 'TEACHER')
+  @RequirePermission('homework', 'update')
   @ApiOperation({ summary: 'Оценить домашнее задание' })
   @ApiResponse({ status: 200, description: 'Домашнее задание оценено' })
   @ApiResponse({ status: 403, description: 'Нет прав для оценки' })

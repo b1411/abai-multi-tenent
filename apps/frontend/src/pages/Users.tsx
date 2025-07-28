@@ -4,6 +4,8 @@ import { useUsers } from '../hooks/useSystem';
 import { User, CreateUserDto, UpdateUserDto } from '../types/system';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 interface UserModalProps {
   user?: User;
@@ -279,12 +281,14 @@ const UsersPage: React.FC = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Управление пользователями</h1>
-        <button 
-          onClick={handleCreateUser}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <FaUserPlus /> Добавить пользователя
-        </button>
+        <PermissionGuard module="users" action="create">
+          <button 
+            onClick={handleCreateUser}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <FaUserPlus /> Добавить пользователя
+          </button>
+        </PermissionGuard>
       </div>
 
       {error && <Alert variant="error" message={error} className="mb-4" />}
@@ -358,31 +362,37 @@ const UsersPage: React.FC = () => {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleEditUser(user)}
-                      className="text-blue-500 hover:text-blue-600"
-                      title="Редактировать"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button 
-                      onClick={() => handleResetPassword(user.id)}
-                      className="text-yellow-500 hover:text-yellow-600"
-                      title="Сбросить пароль"
-                    >
-                      <FaKey />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteUser(user.id)}
-                      className={`${
-                        deleteConfirm === user.id 
-                          ? 'text-red-700 bg-red-100 px-2 py-1 rounded text-xs' 
-                          : 'text-red-500 hover:text-red-600'
-                      }`}
-                      title={deleteConfirm === user.id ? 'Подтвердить удаление' : 'Удалить'}
-                    >
-                      {deleteConfirm === user.id ? 'Подтвердить' : <FaTrash />}
-                    </button>
+                    <PermissionGuard module="users" action="update">
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="text-blue-500 hover:text-blue-600"
+                        title="Редактировать"
+                      >
+                        <FaEdit />
+                      </button>
+                    </PermissionGuard>
+                    <PermissionGuard module="users" action="update">
+                      <button 
+                        onClick={() => handleResetPassword(user.id)}
+                        className="text-yellow-500 hover:text-yellow-600"
+                        title="Сбросить пароль"
+                      >
+                        <FaKey />
+                      </button>
+                    </PermissionGuard>
+                    <PermissionGuard module="users" action="delete">
+                      <button 
+                        onClick={() => handleDeleteUser(user.id)}
+                        className={`${
+                          deleteConfirm === user.id 
+                            ? 'text-red-700 bg-red-100 px-2 py-1 rounded text-xs' 
+                            : 'text-red-500 hover:text-red-600'
+                        }`}
+                        title={deleteConfirm === user.id ? 'Подтвердить удаление' : 'Удалить'}
+                      >
+                        {deleteConfirm === user.id ? 'Подтвердить' : <FaTrash />}
+                      </button>
+                    </PermissionGuard>
                   </div>
                 </td>
               </tr>

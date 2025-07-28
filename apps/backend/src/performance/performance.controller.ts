@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { PermissionGuard, RequirePermission } from '../common/guards/permission.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { PerformanceService } from './performance.service';
@@ -19,12 +20,13 @@ import {
 
 @ApiTags('performance')
 @Controller('performance')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @ApiBearerAuth()
 export class PerformanceController {
   constructor(private readonly performanceService: PerformanceService) {}
 
   @Get('statistics')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить общую статистику успеваемости',
     description: 'Возвращает общие показатели успеваемости, посещаемости и выполнения заданий',
@@ -34,12 +36,12 @@ export class PerformanceController {
     description: 'Статистика успешно получена',
     type: StatisticsResponseDto,
   })
-  @Roles('ADMIN', 'TEACHER', 'HR')
   async getStatistics(@Query() filter: PerformanceFilterDto) {
     return this.performanceService.getStatistics(filter);
   }
 
   @Get('subjects')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить статистику по предметам',
     description: 'Возвращает показатели успеваемости по каждому предмету',
@@ -49,12 +51,12 @@ export class PerformanceController {
     description: 'Статистика по предметам успешно получена',
     type: SubjectsResponseDto,
   })
-  @Roles('ADMIN', 'TEACHER', 'HR')
   async getSubjects(@Query() filter: PerformanceFilterDto) {
     return this.performanceService.getSubjects(filter);
   }
 
   @Get('classes')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить статистику по группам',
     description: 'Возвращает показатели успеваемости по каждой группе',
@@ -69,6 +71,7 @@ export class PerformanceController {
   }
 
   @Get('students/low-performing')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить список отстающих студентов',
     description: 'Возвращает студентов с низкой успеваемостью и рекомендации для улучшения',
@@ -83,6 +86,7 @@ export class PerformanceController {
   }
 
   @Get('students/high-progress')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить список студентов с высоким прогрессом',
     description: 'Возвращает студентов, которые показывают значительное улучшение результатов',
@@ -97,6 +101,7 @@ export class PerformanceController {
   }
 
   @Get('trends')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить тренды успеваемости',
     description: 'Возвращает динамику изменения показателей успеваемости за период',
@@ -111,6 +116,7 @@ export class PerformanceController {
   }
 
   @Get('monthly-data')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить помесячные данные',
     description: 'Возвращает данные по успеваемости, посещаемости и заданиям по месяцам',
@@ -125,6 +131,7 @@ export class PerformanceController {
   }
 
   @Get('grade-distribution')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить распределение оценок',
     description: 'Возвращает статистику распределения оценок студентов',
@@ -139,6 +146,7 @@ export class PerformanceController {
   }
 
   @Get('metrics')
+  @RequirePermission('performance', 'read')
   @ApiOperation({
     summary: 'Получить общие метрики производительности',
     description: 'Возвращает основные показатели для радарной диаграммы',

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaSearch, FaFilter, FaPlus, FaCalendar, FaCaretDown, FaTimes, FaEdit, FaEye } from 'react-icons/fa';
 import { journalService } from '../services/journalService';
 import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import type {
     LessonResult,
     Student,
@@ -323,7 +324,7 @@ const GradeInfoModal: React.FC<GradeInfoModalProps> = ({
 };
 
 const AcademicJournal: React.FC = () => {
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const [filters, setFilters] = useState<JournalFilters>({
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0],
@@ -350,9 +351,9 @@ const AcademicJournal: React.FC = () => {
         lesson?: Lesson;
     }>({ isOpen: false });
 
-    // Определяем возможности пользователя
-    const canEdit = user?.role === 'ADMIN' || user?.role === 'TEACHER';
-    const canViewAll = user?.role === 'ADMIN' || user?.role === 'TEACHER';
+    // Определяем возможности пользователя через RBAC
+    const canEdit = hasPermission('journal', 'update');
+    const canViewAll = hasPermission('journal', 'read', { scope: 'ALL' });
 
     // Загрузка начальных данных
     useEffect(() => {

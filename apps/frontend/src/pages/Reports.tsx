@@ -23,6 +23,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { financeService } from '../services/financeService';
+import { PermissionGuard } from '../components/PermissionGuard';
 
 interface FinancialReport {
   id: string;
@@ -415,18 +416,22 @@ const Reports: React.FC = () => {
           </button>
         </div>
         <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0">
-          <button 
-            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
-            onClick={() => handleGenerateReport('PERFORMANCE')}
-          >
-            <BarChart3 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Сгенерировать отчет</span>
-            <span className="sm:hidden">Создать</span>
-          </button>
-          <button className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center">
-            <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            Экспорт
-          </button>
+          <PermissionGuard module="reports" action="create">
+            <button 
+              className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+              onClick={() => handleGenerateReport('PERFORMANCE')}
+            >
+              <BarChart3 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Сгенерировать отчет</span>
+              <span className="sm:hidden">Создать</span>
+            </button>
+          </PermissionGuard>
+          <PermissionGuard module="reports" action="read">
+            <button className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center">
+              <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              Экспорт
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -557,24 +562,28 @@ const Reports: React.FC = () => {
                     <div className="text-sm text-gray-900">{new Date(report.generatedAt).toLocaleDateString('ru-RU')}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Логика скачивания
-                      }}
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
-                    <button 
-                      className="text-gray-600 hover:text-gray-900"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Логика экспорта
-                      }}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </button>
+                    <PermissionGuard module="reports" action="read">
+                      <button 
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Логика скачивания
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </PermissionGuard>
+                    <PermissionGuard module="reports" action="read">
+                      <button 
+                        className="text-gray-600 hover:text-gray-900"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Логика экспорта
+                        }}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </button>
+                    </PermissionGuard>
                   </td>
                 </tr>
               ))}
@@ -625,24 +634,28 @@ const Reports: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center space-x-1 ml-2">
-                      <button 
-                        className="text-blue-600 hover:text-blue-900 p-1.5 rounded transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Логика скачивания
-                        }}
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
-                      <button 
-                        className="text-gray-600 hover:text-gray-900 p-1.5 rounded transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Логика экспорта
-                        }}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </button>
+                      <PermissionGuard module="reports" action="read">
+                        <button 
+                          className="text-blue-600 hover:text-blue-900 p-1.5 rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Логика скачивания
+                          }}
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      </PermissionGuard>
+                      <PermissionGuard module="reports" action="read">
+                        <button 
+                          className="text-gray-600 hover:text-gray-900 p-1.5 rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Логика экспорта
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </button>
+                      </PermissionGuard>
                     </div>
                   </div>
                 </div>

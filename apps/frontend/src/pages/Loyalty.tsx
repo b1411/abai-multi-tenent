@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { PermissionGuard } from '../components/PermissionGuard';
 import { useLoyaltyAnalytics, useReviews } from '../hooks/useLoyalty';
 import { LoyaltyFilter } from '../types/loyalty';
 import { Spinner } from '../components/ui/Spinner';
@@ -540,16 +542,18 @@ const Loyalty: React.FC = () => {
             >
               Feedback Ответы
             </button>
-            <button
-              onClick={() => handleTabChange('add-review')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'add-review'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Добавить отзыв
-            </button>
+            <PermissionGuard module="loyalty" action="create">
+              <button
+                onClick={() => handleTabChange('add-review')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'add-review'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Добавить отзыв
+              </button>
+            </PermissionGuard>
           </nav>
         </div>
       </div>

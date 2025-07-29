@@ -481,6 +481,9 @@ model Schedule {
   aiConfidence  Float?          // Уверенность AI в расписании (0-1)
   aiSuggestions Json?           // Предложения AI для улучшения
   
+  // Регулярность
+  repeat        String?         // weekly, biweekly, once
+
   // Массовые операции
   batchId       String?         // ID пакетной операции
   isTemplate    Boolean         @default(false) // Является ли шаблоном

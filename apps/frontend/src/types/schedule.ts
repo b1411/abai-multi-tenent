@@ -52,6 +52,7 @@ export interface CreateScheduleDto {
   dayOfWeek: number; // 1-7
   startTime: string; // HH:MM
   endTime: string; // HH:MM
+  repeat?: 'weekly' | 'biweekly' | 'once';
 }
 
 export interface UpdateScheduleDto {
@@ -62,6 +63,7 @@ export interface UpdateScheduleDto {
   dayOfWeek?: number;
   startTime?: string;
   endTime?: string;
+  repeat?: 'weekly' | 'biweekly' | 'once';
 }
 
 // Frontend display types (совместимые с legacy фронтом)
@@ -108,6 +110,9 @@ export interface StudyPlanOption {
   id: number;
   name: string;
   description?: string;
+  teacherId: number;
+  groupId: number;
+  groupName: string;
 }
 
 export interface ClassroomOption {

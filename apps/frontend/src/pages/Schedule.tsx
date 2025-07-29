@@ -50,22 +50,20 @@ interface ScheduleModalInternalProps extends ScheduleModalProps {
   classrooms: ClassroomOption[];
 }
 
-const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSave, 
-  initialData, 
+const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
   isEdit = false,
   groups,
   teachers,
   studyPlans,
   classrooms
 }) => {
-  const [selectedLesson, setSelectedLesson] = useState<AvailableLesson | null>(null);
-  const [availableLessons, setAvailableLessons] = useState<AvailableLesson[]>([]);
-  const [isLoadingLessons, setIsLoadingLessons] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  
+  const [selectedStudyPlan, setSelectedStudyPlan] = useState<StudyPlanOption | null>(null);
+  const [lessonFormat, setLessonFormat] = useState<'offline' | 'online'>('offline');
+
   const [formData, setFormData] = useState<Partial<ScheduleItem>>({
     id: initialData?.id || '',
     day: (initialData?.day || '') as ScheduleItem['day'],
@@ -80,8 +78,6 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
     repeat: (initialData?.repeat || 'weekly') as ScheduleItem['repeat'],
     status: (initialData?.status || 'upcoming') as ScheduleItem['status']
   });
-
-  const lessonSearchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Обновляем данные формы при изменении initialData (для режима редактирования)
   useEffect(() => {
@@ -100,306 +96,182 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
         repeat: (initialData.repeat || 'weekly') as ScheduleItem['repeat'],
         status: (initialData.status || 'upcoming') as ScheduleItem['status']
       });
-    }
-  }, [initialData]);
-
-  // Загружаем доступные уроки при открытии модального окна
-  useEffect(() => {
-    if (isOpen && !isEdit) {
-      loadAvailableLessons();
-    }
-  }, [isOpen, isEdit]);
-
-  // Очистка таймаута при размонтировании
-  useEffect(() => {
-    return () => {
-      if (lessonSearchTimeoutRef.current) {
-        clearTimeout(lessonSearchTimeoutRef.current);
+      // Определяем формат и учебный план для редактирования
+      if (initialData.roomId) {
+        setLessonFormat('offline');
+      } else {
+        setLessonFormat('online');
       }
-    };
-  }, []);
-
-  const loadAvailableLessons = async (search?: string) => {
-    try {
-      setIsLoadingLessons(true);
-      const lessons = await lessonScheduleService.getAvailableLessons({
-        search,
-        groupIds: groups.map(g => g.id),
-        teacherIds: teachers.map(t => t.id),
-        subjectIds: studyPlans.map(sp => sp.id)
+      const plan = studyPlans.find(p => p.name === initialData.subject);
+      if (plan) {
+        setSelectedStudyPlan(plan);
+      }
+    } else {
+      // Сбрасываем состояние при открытии для создания
+      setFormData({
+        day: '' as ScheduleItem['day'],
+        startTime: '',
+        endTime: '',
+        roomId: '',
       });
-      setAvailableLessons(lessons);
-    } catch (error) {
-      console.error('Ошибка при загрузке уроков:', error);
-    } finally {
-      setIsLoadingLessons(false);
+      setSelectedStudyPlan(null);
+      setLessonFormat('offline');
+    }
+  }, [initialData, isEdit, isOpen, studyPlans]);
+
+  const handleStudyPlanSelect = (plan: StudyPlanOption | null) => {
+    setSelectedStudyPlan(plan);
+    if (plan) {
+      // Находим преподавателя и группу по учебному плану
+      // Это предположение, что в studyPlan есть teacherId и groupId
+      // Если нет, эту логику нужно будет доработать
+      const teacher = teachers.find(t => t.id === plan.teacherId);
+      const group = groups.find(g => g.id === plan.groupId);
+
+      setFormData(prev => ({
+        ...prev,
+        subject: plan.name,
+        teacherId: plan.teacherId?.toString() || '',
+        teacherName: teacher ? `${teacher.name} ${teacher.surname}` : '',
+        classId: group?.name || '',
+      }));
     }
   };
 
-  const handleLessonSearch = (query: string) => {
-    setSearchQuery(query);
-    
-    if (lessonSearchTimeoutRef.current) {
-      clearTimeout(lessonSearchTimeoutRef.current);
-    }
+  const [duration, setDuration] = useState(50);
 
-    lessonSearchTimeoutRef.current = setTimeout(() => {
-      loadAvailableLessons(query);
-    }, 300);
-  };
-
-  const handleLessonSelect = (lesson: AvailableLesson) => {
-    setSelectedLesson(lesson);
-    
-    // Определяем день недели из даты урока
-    let dayOfWeek = '';
-    if (lesson.scheduledDate) {
-      const lessonDate = new Date(lesson.scheduledDate);
-      const dayNumber = lessonDate.getDay(); // 0 = Sunday, 1 = Monday, ...
-      const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      dayOfWeek = dayMap[dayNumber];
-    }
-    
-    // Автоматически заполняем форму данными из урока
-    setFormData(prev => ({
-      ...prev,
-      subject: lesson.studyPlanName,
-      teacherId: lesson.teacherId.toString(),
-      teacherName: lesson.teacherName,
-      classId: lesson.groupName,
-      day: dayOfWeek as ScheduleItem['day'] || prev.day,
-      endTime: prev.startTime ? getEndTimeFromLesson(prev.startTime, lesson.estimatedDuration) : ''
-    }));
-  };
-
-  const getEndTimeFromLesson = (startTime: string, durationMinutes: number): string => {
+  const getEndTime = (startTime: string, lessonDuration: number): string => {
+    if (!startTime) return '';
     const [hours, minutes] = startTime.split(':').map(Number);
-    const startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-    startDate.setMinutes(startDate.getMinutes() + durationMinutes);
-    
-    return `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    date.setMinutes(date.getMinutes() + lessonDuration);
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData, isEdit ? formData.id : undefined);
+    // Убедимся, что отправляем правильные данные
+    const dataToSave = { ...formData };
+    if (lessonFormat === 'online') {
+      dataToSave.roomId = ''; // Не отправляем ID аудитории для онлайн-уроков
+    }
+    onSave(dataToSave, isEdit ? formData.id : undefined);
     onClose();
   };
 
   if (!isOpen) return null;
 
-  // Для режима редактирования показываем старую форму
-  if (isEdit) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white rounded-lg p-6 w-[500px]"
-        >
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Редактировать занятие</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  День недели
-                </label>
-                <select
-                  value={formData.day}
-                  onChange={(e) => setFormData({ ...formData, day: e.target.value as ScheduleItem['day'] })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Выберите день</option>
-                  <option value="monday">Понедельник</option>
-                  <option value="tuesday">Вторник</option>
-                  <option value="wednesday">Среда</option>
-                  <option value="thursday">Четверг</option>
-                  <option value="friday">Пятница</option>
-                </select>
-              </div>
-              <div>
-                <TimePicker
-                  label="Время начала"
-                  value={formData.startTime || ''}
-                  onChange={(time) => setFormData({ ...formData, startTime: time })}
-                  placeholder="Выберите время начала"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Аудитория
-              </label>
-              <select
-                value={formData.roomId}
-                onChange={(e) => setFormData({ ...formData, roomId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Выберите аудиторию</option>
-                {classrooms.map(classroom => (
-                  <option key={classroom.id} value={classroom.name}>
-                    {classroom.name} ({classroom.building})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-              >
-                Сохранить
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
-    );
-  }
-
+  // Единая форма для создания и редактирования
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto"
+        className="bg-white rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Добавить занятие в расписание</h3>
+          <h3 className="text-lg font-medium">
+            {isEdit ? 'Редактировать занятие' : 'Добавить занятие'}
+          </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Выбор урока */}
+          {/* Выбор учебного плана */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Выберите урок из календарно-тематического планирования
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Учебный план (Предмет)
             </label>
-            
-            {/* Поиск уроков */}
-            <div className="mb-3">
-              <input
-                type="text"
-                placeholder="Поиск урока по названию, предмету или преподавателю..."
-                value={searchQuery}
-                onChange={(e) => handleLessonSearch(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Список доступных уроков */}
-            <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto">
-              {isLoadingLessons ? (
-                <div className="p-4 text-center text-gray-500">
-                  <Loading text="Загрузка уроков..." />
-                </div>
-              ) : availableLessons.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  Нет доступных уроков для планирования
-                </div>
-              ) : (
-                availableLessons.map((lesson) => (
-                  <div
-                    key={lesson.id}
-                    onClick={() => handleLessonSelect(lesson)}
-                    className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedLesson?.id === lesson.id ? 'bg-blue-50 border-blue-200' : ''
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{lesson.name}</div>
-                        <div className="text-sm text-gray-600">
-                          {lesson.studyPlanName} • {lesson.groupName} • {lesson.teacherName}
-                        </div>
-                        {lesson.description && (
-                          <div className="text-xs text-gray-500 mt-1">{lesson.description}</div>
-                        )}
-                      </div>
-                      <div className="ml-3 text-right">
-                        <div className="text-xs text-gray-500">
-                          {lesson.estimatedDuration} мин
-                        </div>
-                        {lesson.difficulty && (
-                          <div className="text-xs mt-1">
-                            {lessonScheduleService.getDifficultyIcon(lesson.difficulty)}
-                          </div>
-                        )}
-                        {lesson.isCompleted && (
-                          <div className="text-xs text-green-600 mt-1">✓ Завершен</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <Autocomplete
+              placeholder="Выберите учебный план"
+              options={studyPlans.map(p => ({ id: p.id, label: `${p.name} (${p.groupName})`, value: p.id.toString() }))}
+              value={selectedStudyPlan ? { id: selectedStudyPlan.id, label: `${selectedStudyPlan.name} (${selectedStudyPlan.groupName})`, value: selectedStudyPlan.id.toString() } : null}
+              onChange={(option) => {
+                const plan = studyPlans.find(p => p.id.toString() === option?.value);
+                handleStudyPlanSelect(plan || null);
+              }}
+              label="Учебный план"
+              required
+            />
           </div>
 
-          {/* Информация о выбранном уроке */}
-          {selectedLesson && (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <h4 className="font-medium text-blue-900 mb-2">Выбранный урок:</h4>
-              <div className="text-sm text-blue-800">
-                <div><strong>Название:</strong> {selectedLesson.name}</div>
-                <div><strong>Предмет:</strong> {selectedLesson.studyPlanName}</div>
-                <div><strong>Группа:</strong> {selectedLesson.groupName}</div>
-                <div><strong>Преподаватель:</strong> {selectedLesson.teacherName}</div>
-                {selectedLesson.scheduledDate && (
-                  <div><strong>Запланированная дата:</strong> {new Date(selectedLesson.scheduledDate).toLocaleDateString('ru-RU')}</div>
-                )}
-                <div><strong>Длительность:</strong> {selectedLesson.estimatedDuration} минут</div>
-                {selectedLesson.homework && (
-                  <div><strong>Домашнее задание:</strong> {selectedLesson.homework.name}</div>
-                )}
-              </div>
+          {/* Информация о плане */}
+          {selectedStudyPlan && (
+            <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-sm">
+              <div><strong>Группа:</strong> {formData.classId}</div>
+              <div><strong>Преподаватель:</strong> {formData.teacherName}</div>
             </div>
           )}
 
-          {/* Планирование времени */}
+          {/* Формат занятия */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Формат занятия
+            </label>
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={() => setLessonFormat('offline')}
+                className={`flex-1 py-2 px-4 rounded-md transition-colors text-sm ${
+                  lessonFormat === 'offline' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                Оффлайн
+              </button>
+              <button
+                type="button"
+                onClick={() => setLessonFormat('online')}
+                className={`flex-1 py-2 px-4 rounded-md transition-colors text-sm ${
+                  lessonFormat === 'online' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                Онлайн
+              </button>
+            </div>
+          </div>
+
+          {/* Выбор аудитории (только для оффлайн) */}
+          <AnimatePresence>
+            {lessonFormat === 'offline' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <label className="block text-sm font-medium text-gray-700 mb-1 mt-4">
+                  Аудитория
+                </label>
+                <select
+                  value={formData.roomId}
+                  onChange={(e) => setFormData({ ...formData, roomId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required={lessonFormat === 'offline'}
+                >
+                  <option value="">Выберите аудиторию</option>
+                  {classrooms.map(classroom => (
+                    <option key={classroom.id} value={classroom.id.toString()}>
+                      {classroom.name} ({classroom.building})
+                    </option>
+                  ))}
+                </select>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Планирование времени и длительности */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                День недели {selectedLesson?.scheduledDate && <span className="text-xs text-gray-500">(из даты урока)</span>}
+                День недели
               </label>
               <select
                 value={formData.day}
-                onChange={(e) => {
-                  const newDay = e.target.value as ScheduleItem['day'];
-                  setFormData({ 
-                    ...formData, 
-                    day: newDay,
-                    endTime: formData.startTime && selectedLesson ? 
-                      getEndTimeFromLesson(formData.startTime, selectedLesson.estimatedDuration) : 
-                      formData.endTime
-                  });
-                }}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  selectedLesson?.scheduledDate ? 'bg-gray-50 text-gray-600' : ''
-                }`}
-                disabled={!!selectedLesson?.scheduledDate}
+                onChange={(e) => setFormData({ ...formData, day: e.target.value as ScheduleItem['day'] })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
                 <option value="">Выберите день</option>
@@ -408,6 +280,7 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
                 <option value="wednesday">Среда</option>
                 <option value="thursday">Четверг</option>
                 <option value="friday">Пятница</option>
+                <option value="saturday">Суббота</option>
               </select>
             </div>
             <div>
@@ -415,55 +288,64 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
                 label="Время начала"
                 value={formData.startTime || ''}
                 onChange={(time: string) => {
-                  setFormData({ 
-                    ...formData, 
+                  setFormData({
+                    ...formData,
                     startTime: time,
-                    endTime: selectedLesson ? 
-                      getEndTimeFromLesson(time, selectedLesson.estimatedDuration) : 
-                      ''
+                    endTime: getEndTime(time, duration)
                   });
                 }}
-                placeholder="Выберите время начала"
+                placeholder="Выберите время"
                 required
               />
             </div>
           </div>
 
-          {/* Время окончания (автоматически рассчитывается) */}
-          {formData.endTime && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Время окончания
-              </label>
-              <input
-                type="text"
-                value={formData.endTime}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
-              />
-            </div>
-          )}
-
-          {/* Выбор аудитории */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Аудитория
+              Длительность (в минутах)
             </label>
-            <select
-              value={formData.roomId}
-              onChange={(e) => setFormData({ ...formData, roomId: e.target.value })}
+            <input
+              type="number"
+              value={duration}
+              onChange={(e) => {
+                const newDuration = parseInt(e.target.value, 10) || 0;
+                setDuration(newDuration);
+                if (formData.startTime) {
+                  setFormData({
+                    ...formData,
+                    endTime: getEndTime(formData.startTime, newDuration)
+                  });
+                }
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Выберите аудиторию</option>
-              {classrooms.map(classroom => (
-                <option key={classroom.id} value={classroom.name}>
-                  {classroom.name} ({classroom.building})
-                </option>
-              ))}
-            </select>
+              min="10"
+              step="5"
+            />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Регулярность
+            </label>
+            <select
+              value={formData.repeat}
+              onChange={(e) => setFormData({ ...formData, repeat: e.target.value as ScheduleItem['repeat'] })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="weekly">Еженедельно</option>
+              <option value="biweekly">Раз в две недели</option>
+              <option value="once">Один раз</option>
+            </select>
+          </div>
+          
+          {/* Время окончания (автоматически) */}
+          {formData.endTime && (
+             <div className="text-sm text-gray-600">
+               Время окончания (автоматически): {formData.endTime}
+             </div>
+          )}
+
+          {/* Кнопки */}
           <div className="flex justify-end space-x-2 pt-4">
             <button
               type="button"
@@ -474,10 +356,10 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!selectedLesson || !formData.day || !formData.startTime || !formData.roomId}
+              disabled={!selectedStudyPlan || !formData.day || !formData.startTime || (lessonFormat === 'offline' && !formData.roomId)}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Запланировать урок
+              {isEdit ? 'Сохранить' : 'Добавить'}
             </button>
           </div>
         </form>
@@ -867,13 +749,14 @@ const SchedulePage: React.FC = () => {
 
         // Создаем DTO для API
         const createDto: CreateScheduleDto = {
-          studyPlanId: selectedStudyPlan.id,
+          studyPlanId: selectedStudyPlan!.id,
           groupId: selectedGroup.id,
           teacherId: selectedTeacher.id,
-          classroomId: selectedClassroom?.id,
+          classroomId: scheduleItem.roomId ? parseInt(scheduleItem.roomId, 10) : undefined,
           dayOfWeek: getDayNumber(scheduleItem.day!),
           startTime: scheduleItem.startTime!,
-          endTime: scheduleItem.endTime || getEndTime(scheduleItem.startTime!)
+          endTime: scheduleItem.endTime || getEndTime(scheduleItem.startTime!, 50),
+          repeat: scheduleItem.repeat
         };
 
         // Вызываем API для создания
@@ -893,10 +776,12 @@ const SchedulePage: React.FC = () => {
   };
 
   // Вспомогательная функция для вычисления времени окончания
-  const getEndTime = (startTime: string): string => {
+  const getEndTime = (startTime: string, duration = 60): string => {
     const [hours, minutes] = startTime.split(':').map(Number);
-    const endHours = hours + 1; // Занятие длится 1 час по умолчанию
-    return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    date.setMinutes(date.getMinutes() + duration);
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
   const handleExcelImport = (event: React.ChangeEvent<HTMLInputElement>) => {

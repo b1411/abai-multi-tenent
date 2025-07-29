@@ -20,6 +20,7 @@ export class CreateScheduleDto {
     nullable: true 
   })
   @IsInt()
+  @IsOptional()
   classroomId?: number;
 
   @ApiPropertyOptional({ 
@@ -85,4 +86,12 @@ export class CreateScheduleDto {
   @IsEnum(['SCHEDULED', 'COMPLETED', 'CANCELLED', 'RESCHEDULED', 'POSTPONED', 'MOVED'])
   @IsOptional()
   status?: string;
+
+  @ApiPropertyOptional({
+    description: 'Регулярность занятия',
+    enum: ['weekly', 'biweekly', 'once']
+  })
+  @IsEnum(['weekly', 'biweekly', 'once'])
+  @IsOptional()
+  repeat?: 'weekly' | 'biweekly' | 'once';
 }

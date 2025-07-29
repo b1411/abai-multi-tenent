@@ -109,11 +109,18 @@ class ScheduleService {
       const url = `/study-plans${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       const response = await apiClient.get<{ data: any[], meta: any }>(url);
 
-      return response.data.map(plan => ({
-        id: plan.id,
-        name: plan.name,
-        description: plan.description
-      }));
+      return response.data.map(plan => {
+        // Предполагаем, что у плана есть массив group и мы берем первую группу
+        const group = plan.group && plan.group.length > 0 ? plan.group[0] : null;
+        return {
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          teacherId: plan.teacherId,
+          groupId: group ? group.id : 0,
+          groupName: group ? group.name : 'N/A',
+        };
+      });
     } catch (error) {
       console.error('Error fetching study plans:', error);
       return [];
@@ -126,13 +133,18 @@ class ScheduleService {
   
   async getStudyPlanById(id: number): Promise<StudyPlanOption | null> {
     try {
-      const response = await apiClient.get<Record<string, unknown>>(`/study-plans/${id}`);
-      if (!response) return null;
+      const plan = await apiClient.get<any>(`/study-plans/${id}`);
+      if (!plan) return null;
+
+      const group = plan.group && plan.group.length > 0 ? plan.group[0] : null;
       
       return {
-        id: Number(response.id),
-        name: String(response.name || ''),
-        description: response.description ? String(response.description) : undefined
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        teacherId: plan.teacherId,
+        groupId: group ? group.id : 0,
+        groupName: group ? group.name : 'N/A',
       };
     } catch (error) {
       console.error(`Error fetching study plan with ID ${id}:`, error);

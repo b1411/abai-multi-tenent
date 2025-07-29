@@ -33,4 +33,11 @@ export class Schedule {
 
   @ApiPropertyOptional({ description: 'Дата удаления', nullable: true })
   deletedAt: Date | null;
+
+  @ApiPropertyOptional({
+    description: 'Регулярность занятия',
+    enum: ['weekly', 'biweekly', 'once'],
+    nullable: true,
+  })
+  repeat: string | null;
 }

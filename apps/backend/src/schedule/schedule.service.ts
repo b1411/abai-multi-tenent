@@ -40,6 +40,9 @@ export class ScheduleService {
     if (createScheduleDto.status) {
       data.status = createScheduleDto.status;
     }
+    if (createScheduleDto.repeat) {
+      data.repeat = createScheduleDto.repeat;
+    }
 
     return this.prisma.schedule.create({
       data,
@@ -137,6 +140,7 @@ export class ScheduleService {
     if (updateScheduleDto.endTime !== undefined) data.endTime = updateScheduleDto.endTime;
     if (updateScheduleDto.type !== undefined) data.type = updateScheduleDto.type;
     if (updateScheduleDto.status !== undefined) data.status = updateScheduleDto.status;
+    if (updateScheduleDto.repeat !== undefined) data.repeat = updateScheduleDto.repeat;
 
     return this.prisma.schedule.update({
       where: { id },

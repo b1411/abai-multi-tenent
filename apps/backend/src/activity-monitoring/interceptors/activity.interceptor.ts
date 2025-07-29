@@ -10,12 +10,14 @@ import { ActivityMonitoringService } from '../activity-monitoring.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityType } from '../../../generated/prisma';
 import { Request } from 'express';
+import { JwtService } from '../../jwt/jwt.service';
 
 @Injectable()
 export class ActivityInterceptor implements NestInterceptor {
   constructor(
     private activityMonitoringService: ActivityMonitoringService,
     private prisma: PrismaService,
+    private jwtService: JwtService,
   ) { }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -23,9 +25,21 @@ export class ActivityInterceptor implements NestInterceptor {
     const response = context.switchToHttp().getResponse();
     const startTime = Date.now();
 
-    // Получаем информацию о пользователе из запроса
-    const user = (request as any).user;
+    // Получаем информацию о пользователе из запроса или пытаемся извлечь из токена
+    let user = (request as any).user;
     const sessionToken = this.extractSessionToken(request);
+
+    // Если пользователь не установлен AuthGuard'ом, пытаемся извлечь его из токена
+    if (!user && sessionToken) {
+      try {
+        user = this.jwtService.verify(sessionToken);
+        // Устанавливаем пользователя в request для других обработчиков
+        (request as any).user = user;
+      } catch {
+        // Токен невалидный или отсутствует - это нормально для публичных эндпоинтов
+        user = null;
+      }
+    }
 
     return next.handle().pipe(
       tap(
@@ -52,8 +66,13 @@ export class ActivityInterceptor implements NestInterceptor {
     error?: any,
   ) {
     try {
+      // Пропускаем логирование только для действительно публичных эндпоинтов
       if (!user || !user.id) {
-        console.log('ActivityInterceptor: Skipping activity log - no user or user ID');
+        // Логируем только если это не auth или публичные эндпоинты
+        const isPublicEndpoint = this.isPublicEndpoint(request.url);
+        if (!isPublicEndpoint) {
+          console.log(`ActivityInterceptor: Skipping activity log for ${request.method} ${request.url} - no user or user ID`);
+        }
         return;
       }
 
@@ -217,5 +236,21 @@ export class ActivityInterceptor implements NestInterceptor {
     }
 
     return cleaned;
+  }
+
+  private isPublicEndpoint(url: string): boolean {
+    const publicEndpoints = [
+      '/auth/login',
+      '/auth/register', 
+      '/auth/refresh',
+      '/api',
+      '/api-json',
+      '/uploads',
+      '/favicon.ico',
+      '/health',
+      '/swagger'
+    ];
+
+    return publicEndpoints.some(endpoint => url.startsWith(endpoint));
   }
 }

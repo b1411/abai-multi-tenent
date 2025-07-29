@@ -74,6 +74,22 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
 
       // Сохраняем данные пользователя
       client.data.user = user;
+      client.data.token = token;
+
+      // Обновляем онлайн статус пользователя
+      await this.prisma.userOnlineStatus.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          isOnline: true,
+          sessionCount: 1,
+        },
+        update: {
+          isOnline: true,
+          lastSeen: new Date(),
+          sessionCount: { increment: 1 },
+        },
+      });
 
       // Присоединяем к соответствующей комнате
       if (user.role === UserRole.ADMIN) {
@@ -95,15 +111,64 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
         isAdmin: user.role === UserRole.ADMIN
       });
 
+      // Уведомляем всех админов об обновлении онлайн пользователей
+      await this.broadcastOnlineUsersUpdate();
+
+      // Уведомляем о новом пользователе онлайн
+      this.notifyUserOnline(user.id);
+
     } catch (error) {
       this.logger.error('Connection error:', error);
       client.disconnect();
     }
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     if (client.data.user) {
-      this.logger.log(`Admin ${client.data.user.email} disconnected`);
+      this.logger.log(`User ${client.data.user.email} disconnected`);
+      
+      try {
+        // Проверяем количество активных подключений пользователя
+        const clientsInRoom = await this.server.in('users').fetchSockets();
+        const adminClientsInRoom = await this.server.in('admins').fetchSockets();
+        const allClients = [...clientsInRoom, ...adminClientsInRoom];
+        
+        const userActiveConnections = allClients.filter(
+          (socket) => socket.data.user?.id === client.data.user.id
+        ).length;
+
+        this.logger.log(`User ${client.data.user.email} has ${userActiveConnections} remaining connections`);
+
+        // Если это было последнее подключение пользователя, обновляем статус
+        if (userActiveConnections === 0) {
+          await this.prisma.userOnlineStatus.update({
+            where: { userId: client.data.user.id },
+            data: {
+              isOnline: false,
+              lastSeen: new Date(),
+              sessionCount: 0,
+            },
+          });
+
+          // Уведомляем о том, что пользователь ушел в офлайн
+          this.notifyUserOffline(client.data.user.id);
+        } else {
+          // Уменьшаем счетчик сессий
+          await this.prisma.userOnlineStatus.update({
+            where: { userId: client.data.user.id },
+            data: {
+              sessionCount: { decrement: 1 },
+              lastSeen: new Date(),
+            },
+          });
+        }
+
+        // Уведомляем всех админов об обновлении онлайн пользователей
+        await this.broadcastOnlineUsersUpdate();
+
+      } catch (error) {
+        this.logger.error('Error handling disconnect:', error);
+      }
     }
   }
 
@@ -212,11 +277,11 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
         success: true,
       });
 
-      // Уведомляем других админов об обновлении онлайн пользователей
-      if (client.data.user.role === UserRole.ADMIN) {
-        const onlineUsers = await this.activityMonitoringService.getOnlineUsers(client.data.user.id);
-        this.server.to('admins').emit('online-users-update', onlineUsers);
-      }
+      // Обновляем активность сессии
+      await this.activityMonitoringService.updateSessionActivity(sessionToken as string, data.page);
+
+      // Уведомляем всех админов об обновлении онлайн пользователей
+      await this.broadcastOnlineUsersUpdate();
 
       return { success: true };
     } catch (error) {

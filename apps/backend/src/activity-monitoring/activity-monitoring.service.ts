@@ -224,7 +224,7 @@ export class ActivityMonitoringService {
       throw new Error('Access denied. Admin role required.');
     }
 
-    return await this.prisma.userOnlineStatus.findMany({
+    const onlineStatuses = await this.prisma.userOnlineStatus.findMany({
       where: { isOnline: true },
       include: {
         user: {
@@ -240,6 +240,19 @@ export class ActivityMonitoringService {
       },
       orderBy: { lastSeen: 'desc' },
     });
+
+    // Преобразуем в плоскую структуру, которую ожидает фронтенд
+    return onlineStatuses.map(status => ({
+      id: status.user.id,
+      name: status.user.name,
+      surname: status.user.surname,
+      email: status.user.email,
+      role: status.user.role,
+      avatar: status.user.avatar,
+      lastSeen: status.lastSeen.toISOString(),
+      currentPage: status.currentPage,
+      sessionCount: status.sessionCount,
+    }));
   }
 
   // Получение активности пользователя

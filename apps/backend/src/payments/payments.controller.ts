@@ -29,8 +29,12 @@ export class PaymentsController {
   }
 
   @Get('summary')
-  @Roles('ADMIN', 'FINANCIST')
-  getSummary() {
+  @Roles('ADMIN', 'FINANCIST', 'PARENT')
+  getSummary(@Request() req) {
+    // Для родителей возвращаем summary только по их детям
+    if (req.user.role === 'PARENT') {
+      return this.paymentsService.getParentSummary(req.user.id);
+    }
     return this.paymentsService.getSummary();
   }
 

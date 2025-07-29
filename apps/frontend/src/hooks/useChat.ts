@@ -370,7 +370,12 @@ export const useChat = () => {
       setError(null);
       const newChat = await chatService.createChat(chatData);
       
+      // Добавляем новый чат в начало списка
       setChats(prev => [newChat, ...prev]);
+      
+      // Принудительно обновляем список чатов
+      await loadChats();
+      
       return newChat;
     } catch (err) {
       setError('Ошибка создания чата');
@@ -379,7 +384,7 @@ export const useChat = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadChats]);
 
   // Открытие чата
   const openChat = useCallback(async (chat: ChatRoom) => {

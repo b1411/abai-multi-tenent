@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
@@ -34,8 +34,12 @@ export class PerformanceController {
     description: 'Статистика успешно получена',
     type: StatisticsResponseDto,
   })
-  @Roles('ADMIN', 'TEACHER', 'HR')
-  async getStatistics(@Query() filter: PerformanceFilterDto) {
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT')
+  async getStatistics(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    // Для родителей фильтруем по их детям
+    if (req.user.role === 'PARENT') {
+      return this.performanceService.getParentStatistics(req.user.id, filter);
+    }
     return this.performanceService.getStatistics(filter);
   }
 
@@ -49,8 +53,12 @@ export class PerformanceController {
     description: 'Статистика по предметам успешно получена',
     type: SubjectsResponseDto,
   })
-  @Roles('ADMIN', 'TEACHER', 'HR')
-  async getSubjects(@Query() filter: PerformanceFilterDto) {
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT')
+  async getSubjects(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    // Для родителей возвращаем предметы только их детей
+    if (req.user.role === 'PARENT') {
+      return this.performanceService.getParentSubjects(req.user.id, filter);
+    }
     return this.performanceService.getSubjects(filter);
   }
 
@@ -64,7 +72,12 @@ export class PerformanceController {
     description: 'Статистика по группам успешно получена',
     type: ClassesResponseDto,
   })
-  async getClasses() {
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT')
+  async getClasses(@Req() req: any) {
+    // Для родителей возвращаем группы только их детей
+    if (req.user.role === 'PARENT') {
+      return this.performanceService.getParentClasses(req.user.id);
+    }
     return this.performanceService.getClasses();
   }
 

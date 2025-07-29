@@ -16,9 +16,9 @@ const StudyPlansPage: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<StudyPlan | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingPlan, setEditingPlan] = useState<StudyPlan | null>(null);
-const [formLoading, setFormLoading] = useState(false);
-const [, setLoading] = useState(false);
-const [showKtpModal, setShowKtpModal] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const [, setLoading] = useState(false);
+  const [showKtpModal, setShowKtpModal] = useState(false);
 
   const {
     studyPlans,
@@ -32,7 +32,7 @@ const [showKtpModal, setShowKtpModal] = useState(false);
     limit: 10,
     sortBy: 'createdAt',
     order: 'desc'
-  }, hasRole('STUDENT')); // Передаем флаг для студентов
+  }, hasRole('STUDENT'), hasRole('PARENT')); // Передаем флаги для студентов и родителей
 
   const {
     groups,
@@ -136,8 +136,10 @@ const [showKtpModal, setShowKtpModal] = useState(false);
     <div className="p-3 md:p-6 max-w-[1600px] mx-auto">
       {/* Header - мобильная адаптация */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6 space-y-3 sm:space-y-0">
-        <h1 className="text-xl md:text-2xl font-bold">Учебные планы</h1>
-        
+        <h1 className="text-xl md:text-2xl font-bold">
+          {hasRole('PARENT') ? 'Учебные планы моих детей' : 'Учебные планы'}
+        </h1>
+
         {/* Мобильные кнопки */}
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           {(hasRole('ADMIN') || hasRole('TEACHER')) && (

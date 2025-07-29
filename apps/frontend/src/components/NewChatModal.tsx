@@ -12,10 +12,11 @@ interface User {
 interface NewChatModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onChatCreated?: () => void;
 }
 
-const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose }) => {
-  const { createChat, searchUsers, openChat, openDirectChat } = useChat();
+const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose, onChatCreated }) => {
+  const { createChat, searchUsers, openChat, openDirectChat, loadChats } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
@@ -88,6 +89,19 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose }) => {
           await openChat(chat);
         }
       }
+
+      // Принудительно обновляем список чатов после создания
+      await loadChats();
+      
+      // Вызываем коллбэк из родительского компонента
+      if (onChatCreated) {
+        onChatCreated();
+      }
+      
+      // Дополнительное обновление через 100ms для надежности
+      setTimeout(async () => {
+        await loadChats();
+      }, 100);
       
       onClose();
       resetForm();

@@ -141,7 +141,10 @@ export class PaymentsService {
       updatedAt: payment.updatedAt.toISOString(),
     }));
 
-    const summary = await this.getSummary();
+    // Для родителей вычисляем summary только по их детям
+    const summary = user && user.role === 'PARENT' 
+      ? await this.getParentSummary(user.id)
+      : await this.getSummary();
 
     return {
       payments: transformedPayments,
@@ -344,5 +347,97 @@ export class PaymentsService {
       OVERDUE: 'overdue',
     };
     return statusMap[status] || 'unpaid';
+  }
+
+  async getParentSummary(userId: number) {
+    // Находим родителя и его детей
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      include: {
+        students: {
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!parent || parent.students.length === 0) {
+      return {
+        totalDue: 0,
+        totalPaid: 0,
+        overdueCount: 0,
+        paidCount: 0,
+        collectionRate: 0,
+      };
+    }
+
+    const studentIds = parent.students.map(student => student.id);
+
+    const totalDue = await this.prisma.payment.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        studentId: { in: studentIds },
+      },
+    });
+
+    // Исправим логику для totalPaid - считаем по paidAmount > 0, а не по статусу
+    const totalPaid = await this.prisma.payment.aggregate({
+      _sum: {
+        paidAmount: true,
+      },
+      where: {
+        studentId: { in: studentIds },
+        paidAmount: {
+          gt: 0
+        }
+      },
+    });
+
+    // Исправим подсчет для overdue - проверяем dueDate и статус
+    const overdueCount = await this.prisma.payment.count({
+      where: {
+        studentId: { in: studentIds },
+        OR: [
+          { status: 'OVERDUE' },
+          {
+            AND: [
+              { status: { in: ['PENDING', 'UNPAID'] } },
+              { dueDate: { lt: new Date() } }
+            ]
+          }
+        ]
+      },
+    });
+
+    // Получаем все платежи детей для подсчета полностью оплаченных
+    const allPayments = await this.prisma.payment.findMany({
+      where: {
+        studentId: { in: studentIds },
+      },
+      select: {
+        amount: true,
+        paidAmount: true,
+        status: true,
+      },
+    });
+
+    // Подсчитываем полностью оплаченные платежи
+    const paidCount = allPayments.filter(payment => 
+      payment.status === 'PAID' || 
+      (payment.paidAmount && payment.paidAmount >= payment.amount)
+    ).length;
+
+    const totalDueAmount = totalDue._sum.amount || 0;
+    const totalPaidAmount = totalPaid._sum.paidAmount || 0;
+    const collectionRate = totalDueAmount > 0 ? Math.round((totalPaidAmount / totalDueAmount) * 100) : 0;
+
+    return {
+      totalDue: totalDueAmount,
+      totalPaid: totalPaidAmount,
+      overdueCount,
+      paidCount,
+      collectionRate,
+    };
   }
 }

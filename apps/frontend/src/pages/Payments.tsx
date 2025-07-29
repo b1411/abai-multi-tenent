@@ -329,13 +329,15 @@ const PaymentsPage: React.FC = () => {
           </div>
           
           <div className="flex justify-end space-x-3">
-            <button
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm flex items-center"
-              onClick={() => handleSendReminder(selectedPayment.id)}
-              disabled={loading}
-            >
-              <FaBell className="mr-2" /> Отправить напоминание
-            </button>
+            {!isParent && (
+              <button
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm flex items-center"
+                onClick={() => handleSendReminder(selectedPayment.id)}
+                disabled={loading}
+              >
+                <FaBell className="mr-2" /> Отправить напоминание
+              </button>
+            )}
             <button
               className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md text-sm flex items-center"
               onClick={() => handleGenerateSummaryInvoice(selectedPayment)}
@@ -366,7 +368,9 @@ const PaymentsPage: React.FC = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Оплаты и задолженности</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">
+        {isParent ? 'Платежи моих детей' : 'Оплаты и задолженности'}
+      </h1>
       
       {error && (
         <Alert variant="error" className="mb-4">
@@ -510,16 +514,18 @@ const PaymentsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
-                      <button 
-                        className="text-blue-600 hover:text-blue-900 p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSendReminder(payment.id);
-                        }}
-                        title="Отправить напоминание"
-                      >
-                        <FaBell />
-                      </button>
+                      {!isParent && (
+                        <button 
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSendReminder(payment.id);
+                          }}
+                          title="Отправить напоминание"
+                        >
+                          <FaBell />
+                        </button>
+                      )}
                       <button 
                         className="text-purple-600 hover:text-purple-900 p-1"
                         onClick={(e) => {

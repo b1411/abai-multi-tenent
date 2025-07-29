@@ -166,6 +166,78 @@ export interface EmotionalData {
   source?: 'feedback' | 'legacy' | 'no_data';
 }
 
+export interface StudentRemark {
+  id: number;
+  type: 'ACADEMIC' | 'BEHAVIOR' | 'ATTENDANCE' | 'GENERAL';
+  title: string;
+  content: string;
+  isPrivate: boolean;
+  teacher: {
+    id: number;
+    name: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudentRemarksResponse {
+  studentId: number;
+  totalRemarks: number;
+  remarks: StudentRemark[];
+}
+
+export interface CreateRemarkData {
+  type?: 'ACADEMIC' | 'BEHAVIOR' | 'ATTENDANCE' | 'GENERAL';
+  title: string;
+  content: string;
+  isPrivate?: boolean;
+}
+
+export interface UpdateRemarkData {
+  type?: 'ACADEMIC' | 'BEHAVIOR' | 'ATTENDANCE' | 'GENERAL';
+  title?: string;
+  content?: string;
+  isPrivate?: boolean;
+}
+
+export interface StudentComment {
+  id: number;
+  title: string;
+  content: string;
+  type: 'ACADEMIC' | 'GENERAL';
+  isPrivate: boolean;
+  teacher: {
+    id: number;
+    name: string;
+  };
+  author: {
+    id: number;
+    name: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudentCommentsResponse {
+  studentId: number;
+  totalComments: number;
+  comments: StudentComment[];
+}
+
+export interface CreateCommentData {
+  title: string;
+  content: string;
+  type?: 'ACADEMIC' | 'GENERAL';
+  isPrivate?: boolean;
+}
+
+export interface UpdateCommentData {
+  title?: string;
+  content?: string;
+  type?: 'ACADEMIC' | 'GENERAL';
+  isPrivate?: boolean;
+}
+
 export interface CompleteStudentReport {
   student: Student;
   basicInfo: any;
@@ -287,5 +359,54 @@ export const studentService = {
   // Получить полный отчет по студенту
   async getStudentCompleteReport(studentId: number): Promise<CompleteStudentReport> {
     return await apiClient.get<CompleteStudentReport>(`/students/${studentId}/complete-report`);
+  },
+
+  // Получить детей родителя (для родителей)
+  async getParentChildren(): Promise<Student[]> {
+    return await apiClient.get<Student[]>('/parents/me/children');
+  },
+
+  // === МЕТОДЫ ДЛЯ РАБОТЫ С ЗАМЕЧАНИЯМИ ===
+
+  // Получить замечания студента
+  async getStudentRemarks(studentId: number): Promise<StudentRemarksResponse> {
+    return await apiClient.get<StudentRemarksResponse>(`/students/${studentId}/remarks`);
+  },
+
+  // Добавить замечание студенту
+  async addStudentRemark(studentId: number, remarkData: CreateRemarkData): Promise<any> {
+    return await apiClient.post(`/students/${studentId}/remarks`, remarkData);
+  },
+
+  // Обновить замечание
+  async updateStudentRemark(remarkId: number, remarkData: UpdateRemarkData): Promise<any> {
+    return await apiClient.patch(`/students/remarks/${remarkId}`, remarkData);
+  },
+
+  // Удалить замечание
+  async deleteStudentRemark(remarkId: number): Promise<any> {
+    return await apiClient.delete(`/students/remarks/${remarkId}`);
+  },
+
+  // === МЕТОДЫ ДЛЯ РАБОТЫ С КОММЕНТАРИЯМИ ===
+
+  // Получить комментарии студента (только для админов)
+  async getStudentComments(studentId: number): Promise<StudentCommentsResponse> {
+    return await apiClient.get<StudentCommentsResponse>(`/students/${studentId}/comments`);
+  },
+
+  // Добавить комментарий студенту (только для админов)
+  async addStudentComment(studentId: number, commentData: CreateCommentData): Promise<any> {
+    return await apiClient.post(`/students/${studentId}/comments`, commentData);
+  },
+
+  // Обновить комментарий (только для админов)
+  async updateStudentComment(commentId: number, commentData: UpdateCommentData): Promise<any> {
+    return await apiClient.patch(`/students/comments/${commentId}`, commentData);
+  },
+
+  // Удалить комментарий (только для админов)
+  async deleteStudentComment(commentId: number): Promise<any> {
+    return await apiClient.delete(`/students/comments/${commentId}`);
   }
 };

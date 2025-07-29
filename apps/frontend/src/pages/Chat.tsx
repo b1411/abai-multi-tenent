@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Paperclip, Smile, Phone, Video, MoreVertical, Search, Loader, Plus } from 'lucide-react';
+import { Send, Paperclip, Smile, Phone, Video, MoreVertical, Search, Loader, Plus, MessageCircle, CheckCircle, AlertCircle } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
+import { useAuth } from '../hooks/useAuth';
+import { parentService } from '../services/parentService';
 import NewChatModal from '../components/NewChatModal';
 
 const Chat: React.FC = () => {
+  const { user } = useAuth();
   const {
     chats,
     currentChat,
@@ -37,6 +40,9 @@ const Chat: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [setupChatsLoading, setSetupChatsLoading] = useState(false);
+  const [chatSetupSuccess, setChatSetupSuccess] = useState(false);
+  const [chatSetupError, setChatSetupError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<number | null>(null);
 
@@ -58,11 +64,8 @@ const Chat: React.FC = () => {
       });
       setNewMessage('');
 
-      // Обновляем список чатов после отправки сообщения
-      // Делаем это с небольшой задержкой, чтобы сервер успел обработать
-      setTimeout(() => {
-        loadChats();
-      }, 500);
+      // Реактивное обновление списка чатов после отправки сообщения
+      await loadChats();
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -104,6 +107,29 @@ const Chat: React.FC = () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
+    }
+  };
+
+  // Обработка настройки чатов для родителей
+  const handleSetupChats = async () => {
+    try {
+      setSetupChatsLoading(true);
+      setChatSetupSuccess(false);
+      setChatSetupError(null);
+
+      const result = await parentService.setupMyChats();
+      if (result && result.length > 0) {
+        setChatSetupSuccess(true);
+        // Обновляем список чатов
+        await loadChats();
+        setTimeout(() => setChatSetupSuccess(false), 5000);
+      } else {
+        setChatSetupError('Новые чаты не были созданы');
+      }
+    } catch (err: any) {
+      setChatSetupError(err.response?.data?.message || 'Ошибка при настройке чатов');
+    } finally {
+      setSetupChatsLoading(false);
     }
   };
 
@@ -180,6 +206,42 @@ const Chat: React.FC = () => {
           </div>
         )}
 
+        {/* Success Message */}
+        {chatSetupSuccess && (
+          <div className="flex-shrink-0 p-3 bg-green-50 border-b border-green-200">
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+              <div>
+                <p className="text-xs text-green-800 font-medium">Чаты настроены!</p>
+                <p className="text-xs text-green-700">Созданы чаты с учителями и администрацией</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {chatSetupError && (
+          <div className="flex-shrink-0 p-3 bg-red-50 border-b border-red-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="w-4 h-4 text-red-600 mr-2 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-red-800 font-medium">Ошибка</p>
+                  <p className="text-xs text-red-700">{chatSetupError}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setChatSetupError(null)}
+                className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Chats list */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {filteredChats.length === 0 ? (
@@ -188,7 +250,32 @@ const Chat: React.FC = () => {
                 <Send className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-gray-400" />
               </div>
               <h3 className="text-sm sm:text-base lg:text-lg font-medium text-gray-900 mb-2">Нет чатов</h3>
-              <p className="text-xs sm:text-sm lg:text-base text-gray-500">Начните новый чат, чтобы общаться с коллегами</p>
+              <p className="text-xs sm:text-sm lg:text-base text-gray-500 mb-4">
+                {user?.role === 'PARENT' 
+                  ? 'Настройте чаты с учителями и администрацией' 
+                  : 'Начните новый чат, чтобы общаться с коллегами'
+                }
+              </p>
+              
+              {user?.role === 'PARENT' && (
+                <button
+                  onClick={handleSetupChats}
+                  disabled={setupChatsLoading}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {setupChatsLoading ? (
+                    <>
+                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      Настройка...
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Настроить чаты
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           ) : (
             filteredChats.map((chat) => {
@@ -453,6 +540,10 @@ const Chat: React.FC = () => {
       <NewChatModal
         isOpen={showNewChatModal}
         onClose={() => setShowNewChatModal(false)}
+        onChatCreated={() => {
+          setShowNewChatModal(false);
+          loadChats(); // Принудительно обновляем чаты в родительском компоненте
+        }}
       />
     </div>
   );

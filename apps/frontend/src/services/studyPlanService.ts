@@ -28,6 +28,18 @@ class StudyPlanService {
     return apiClient.get<StudyPlanResponse>(`${this.baseUrl}/me?${params.toString()}`);
   }
 
+  async getMyChildrenStudyPlans(filters: StudyPlanFilters = {}): Promise<StudyPlanResponse> {
+    const params = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value.toString());
+      }
+    });
+
+    return apiClient.get<StudyPlanResponse>(`${this.baseUrl}/my-children?${params.toString()}`);
+  }
+
   async getStudyPlan(id: string): Promise<StudyPlan> {
     return apiClient.get<StudyPlan>(`${this.baseUrl}/${id}`);
   }

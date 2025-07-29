@@ -85,7 +85,6 @@ export interface CreateVacationRequest {
   substituteId?: number;
   comment?: string;
   lectureTopics?: string;
-  affectedLessons?: number[]; // ID уроков, которые нужно замещать
 }
 
 export interface UpdateVacationRequest {

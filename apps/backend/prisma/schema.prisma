@@ -52,6 +52,15 @@ enum AbsentReason {
   OTHER
 }
 
+enum LessonType {
+  REGULAR     // Обычный урок
+  CONTROL_WORK // Контрольная работа
+  EXAM        // Экзамен
+  TEST        // Тест
+  PRACTICAL   // Практическая работа
+  LAB         // Лабораторная работа
+}
+
 enum EmploymentType {
   STAFF
   PART_TIME
@@ -116,6 +125,10 @@ model User {
   documentApprovals    DocumentApproval[]
   documentComments     DocumentComment[]
   documentTemplates    DocumentTemplate[]
+
+  // Student remarks relations
+  teacherRemarks       StudentRemark[] @relation("TeacherRemarks")
+  teacherComments      StudentComment[] @relation("TeacherComments")
 }
 
 model Student {
@@ -137,6 +150,8 @@ model Student {
   reviews            StudentReview[]
   repeatPurchases    RepeatPurchase[]
   documents          Document[]
+  remarks            StudentRemark[]
+  comments           StudentComment[]
 }
 
 model LessonResult {
@@ -226,6 +241,7 @@ model StudyPlan {
 model Lesson {
   id              Int              @id @default(autoincrement())
   name            String
+  type            LessonType       @default(REGULAR)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
@@ -1536,6 +1552,60 @@ model ActivityMonitoringSettings {
   maskSensitiveData     Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+// --- Student Remarks ---
+
+enum RemarkType {
+  ACADEMIC     // Академические замечания
+  BEHAVIOR     // Поведенческие замечания
+  ATTENDANCE   // Замечания по посещаемости
+  GENERAL      // Общие замечания
+}
+
+model StudentRemark {
+  id          Int        @id @default(autoincrement())
+  studentId   Int
+  student     Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId   Int
+  teacher     User       @relation("TeacherRemarks", fields: [teacherId], references: [id])
+  type        RemarkType @default(GENERAL)
+  title       String
+  content     String     @db.Text
+  isPrivate   Boolean    @default(true) // Только для преподавателей и админов
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([createdAt])
+}
+
+// --- Student Comments ---
+
+enum CommentType {
+  ACADEMIC
+  GENERAL
+}
+
+model StudentComment {
+  id          Int         @id @default(autoincrement())
+  studentId   Int
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId   Int
+  teacher     User        @relation("TeacherComments", fields: [teacherId], references: [id])
+  title       String
+  content     String      @db.Text
+  type        CommentType @default(GENERAL)
+  isPrivate   Boolean     @default(true) // Только для администрации
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([createdAt])
 }
 
 // --- ЭДО (Электронный документооборот) ---

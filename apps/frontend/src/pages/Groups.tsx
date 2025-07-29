@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GroupForm } from '../components/GroupForm';
 import { useGroups } from '../hooks/useGroups';
 import { Group } from '../types/group';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { useAuth } from '../hooks/useAuth';
 
 const Groups: React.FC = () => {
+  const { hasRole } = useAuth();
   const {
     groups,
     statistics,
@@ -15,6 +18,7 @@ const Groups: React.FC = () => {
     deleteGroup,
   } = useGroups();
 
+  const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
@@ -65,18 +69,25 @@ const Groups: React.FC = () => {
         {/* Заголовок и кнопка создания */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Группы</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              {hasRole('PARENT') ? 'Группы моих детей' : 'Группы'}
+            </h1>
             <p className="mt-1 text-sm text-gray-600">
-              Управление учебными группами и их составом
+              {hasRole('PARENT') 
+                ? 'Информация о группах, где учатся ваши дети'
+                : 'Управление учебными группами и их составом'
+              }
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm sm:text-base"
-          >
-            <span className="hidden sm:inline">Создать группу</span>
-            <span className="sm:hidden">Создать</span>
-          </button>
+          {(hasRole('ADMIN') || hasRole('HR') || hasRole('TEACHER')) && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm sm:text-base"
+            >
+              <span className="hidden sm:inline">Создать группу</span>
+              <span className="sm:hidden">Создать</span>
+            </button>
+          )}
         </div>
 
         {/* Статистика */}
@@ -218,7 +229,11 @@ const Groups: React.FC = () => {
             {!loading && sortedGroups.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                 {sortedGroups.map((group: Group) => (
-                  <div key={group.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                  <div 
+                    key={group.id} 
+                    className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/groups/${group.id}`)}
+                  >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
                         <h4 className="text-base sm:text-lg font-medium text-gray-900 truncate">
@@ -228,17 +243,22 @@ const Groups: React.FC = () => {
                           {group.courseNumber} курс
                         </span>
                       </div>
-                      <div className="flex space-x-1 ml-2">
-                        <button
-                          onClick={() => setDeleteConfirm(group.id)}
-                          className="text-red-600 hover:text-red-800 p-1 rounded transition-colors"
-                          title="Удалить группу"
-                        >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/>
-                          </svg>
-                        </button>
-                      </div>
+                      {hasRole('ADMIN') && (
+                        <div className="flex space-x-1 ml-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirm(group.id);
+                            }}
+                            className="text-red-600 hover:text-red-800 p-1 rounded transition-colors"
+                            title="Удалить группу"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/>
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="space-y-2 text-xs sm:text-sm text-gray-600">
@@ -250,6 +270,15 @@ const Groups: React.FC = () => {
                         <span>Создана:</span>
                         <span className="text-right">{formatDate(group.createdAt)}</span>
                       </div>
+                    </div>
+                    
+                    <div className="mt-3 pt-2 border-t border-gray-100">
+                      <span className="text-xs text-blue-600 flex items-center">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Нажмите для просмотра
+                      </span>
                     </div>
                   </div>
                 ))}

@@ -17,8 +17,10 @@ import {
   PerformanceFilter,
 } from '../types/performance';
 import { Spinner } from '../components/ui/Spinner';
+import { useAuth } from '../hooks/useAuth';
 
 const Performance: React.FC = () => {
+  const { hasRole } = useAuth();
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +114,17 @@ const Performance: React.FC = () => {
       {/* Селектор класса */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Успеваемость по группам</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {hasRole('PARENT') ? 'Успеваемость моих детей' : 'Успеваемость по группам'}
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              {hasRole('PARENT') 
+                ? 'Отчеты и статистика успеваемости ваших детей'
+                : 'Анализ успеваемости студентов по группам'
+              }
+            </p>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <button 

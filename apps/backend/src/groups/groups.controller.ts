@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { GroupsService } from './groups.service';
@@ -61,7 +62,12 @@ export class GroupsController {
     description: 'Список всех групп',
   })
   @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
-  findAll() {
+  findAll(@Req() req: any) {
+    // Для родителей возвращаем только группы их детей
+    if (req.user.role === 'PARENT') {
+      return this.groupsService.findParentGroups(req.user.id);
+    }
+    // Для всех остальных возвращаем все группы
     return this.groupsService.findAll();
   }
 
@@ -73,8 +79,13 @@ export class GroupsController {
     description: 'Статистика по группам',
     type: GroupStatisticsDto,
   })
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
-  getStatistics() {
+  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.PARENT)
+  getStatistics(@Req() req: any) {
+    // Для родителей возвращаем статистику только по группам их детей
+    if (req.user.role === 'PARENT') {
+      return this.groupsService.getParentGroupStatistics(req.user.id);
+    }
+    // Для всех остальных возвращаем общую статистику
     return this.groupsService.getGroupStatistics();
   }
 

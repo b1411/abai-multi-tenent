@@ -483,4 +483,99 @@ export class StudyPlansService {
             },
         };
     }
+
+    async findParentChildrenStudyPlans(filter: StudyPlanFilterDto, userId: number): Promise<PaginateResponseDto<StudyPlan>> {
+        const {
+            page = 1,
+            limit = 10,
+            sortBy = 'name',
+            order = 'asc',
+            search
+        } = filter;
+
+        // Сначала находим родителя и его детей
+        const parent = await this.prisma.parent.findUnique({
+            where: { userId },
+            include: {
+                students: {
+                    select: {
+                        groupId: true
+                    }
+                }
+            }
+        });
+
+        if (!parent) {
+            throw new Error('Parent not found');
+        }
+
+        // Получаем ID групп всех детей
+        const childrenGroupIds = parent.students
+            .map(student => student.groupId)
+            .filter(Boolean);
+
+        if (childrenGroupIds.length === 0) {
+            return {
+                data: [],
+                meta: {
+                    totalItems: 0,
+                    itemCount: 0,
+                    itemsPerPage: limit,
+                    totalPages: 0,
+                    currentPage: page,
+                },
+            };
+        }
+
+        const where: Prisma.StudyPlanWhereInput = {
+            deletedAt: null,
+            group: {
+                some: {
+                    id: {
+                        in: childrenGroupIds
+                    }
+                }
+            },
+            ...(search && search.trim() && {
+                OR: [
+                    {
+                        name: {
+                            contains: search.trim(),
+                            mode: 'insensitive',
+                        }
+                    },
+                    {
+                        description: {
+                            contains: search.trim(),
+                            mode: 'insensitive',
+                        }
+                    }
+                ]
+            }),
+        };
+
+        const [data, totalItems] = await Promise.all([
+            this.prisma.studyPlan.findMany({
+                skip: (page - 1) * limit,
+                take: limit,
+                orderBy: { [sortBy]: order },
+                where,
+                include: this.getStudyPlanInclude(),
+            }),
+            this.prisma.studyPlan.count({
+                where,
+            }),
+        ]);
+
+        return {
+            data,
+            meta: {
+                totalItems,
+                itemCount: data.length,
+                itemsPerPage: limit,
+                totalPages: Math.ceil(totalItems / limit),
+                currentPage: page,
+            },
+        };
+    }
 }

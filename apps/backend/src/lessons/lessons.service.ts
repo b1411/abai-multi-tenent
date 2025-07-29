@@ -64,6 +64,7 @@ export class LessonsService {
       search,
       studyPlanId,
       groupId,
+      type,
       startDate,
       endDate,
       dateFrom, // обратная совместимость
@@ -102,6 +103,7 @@ export class LessonsService {
           }
         }
       }),
+      ...(type && { type }),
       ...(finalStartDate && finalEndDate && {
         date: {
           gte: new Date(finalStartDate),
@@ -478,5 +480,256 @@ export class LessonsService {
         currentPage: page,
       },
     };
+  }
+
+  async findParentLessons(filter: LessonFilterDto, userId: number): Promise<PaginateResponseDto<Lesson>> {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'date',
+      order = 'asc',
+      search,
+      studyPlanId,
+      startDate,
+      endDate,
+      dateFrom,
+      dateTo
+    } = filter;
+
+    // Находим родителя и его детей
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      include: {
+        students: {
+          where: { deletedAt: null },
+          select: { groupId: true }
+        }
+      }
+    });
+
+    if (!parent || parent.students.length === 0) {
+      return {
+        data: [],
+        meta: {
+          totalItems: 0,
+          itemCount: 0,
+          itemsPerPage: limit,
+          totalPages: 0,
+          currentPage: page,
+        },
+      };
+    }
+
+    // Получаем ID групп всех детей
+    const groupIds = parent.students.map(student => student.groupId);
+
+    const finalStartDate = startDate || dateFrom;
+    const finalEndDate = endDate || dateTo;
+
+    const where: Prisma.LessonWhereInput = {
+      deletedAt: null,
+      studyPlan: {
+        group: {
+          some: {
+            id: { in: groupIds }
+          }
+        }
+      },
+      ...(search && search.trim() && {
+        OR: [
+          {
+            name: {
+              contains: search.trim(),
+              mode: 'insensitive',
+            }
+          },
+          {
+            description: {
+              contains: search.trim(),
+              mode: 'insensitive',
+            }
+          }
+        ]
+      }),
+      ...(studyPlanId && { studyPlanId }),
+      ...(finalStartDate && finalEndDate && {
+        date: {
+          gte: new Date(finalStartDate),
+          lte: new Date(finalEndDate),
+        }
+      }),
+      ...(finalStartDate && !finalEndDate && {
+        date: {
+          gte: new Date(finalStartDate),
+        }
+      }),
+      ...(!finalStartDate && finalEndDate && {
+        date: {
+          lte: new Date(finalEndDate),
+        }
+      }),
+    };
+
+    const [data, count] = await Promise.all([
+      this.prisma.lesson.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { [sortBy]: order },
+        include: {
+          studyPlan: {
+            select: {
+              id: true,
+              name: true,
+              teacher: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      surname: true,
+                      email: true,
+                    }
+                  }
+                }
+              }
+            }
+          },
+          materials: {
+            include: {
+              quiz: {
+                select: {
+                  id: true,
+                  name: true,
+                  isActive: true,
+                }
+              }
+            }
+          },
+          homework: {
+            select: {
+              id: true,
+              name: true,
+              deadline: true,
+            }
+          }
+        },
+      }),
+      this.prisma.lesson.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        totalItems: count,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+      },
+    };
+  }
+
+  async findOneForParent(id: number, userId: number): Promise<Lesson> {
+    // Находим родителя и его детей
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      include: {
+        students: {
+          where: { deletedAt: null },
+          select: { groupId: true }
+        }
+      }
+    });
+
+    if (!parent || parent.students.length === 0) {
+      throw new NotFoundException(`Урок с ID ${id} не найден`);
+    }
+
+    // Получаем ID групп всех детей
+    const groupIds = parent.students.map(student => student.groupId);
+
+    // Находим урок и проверяем, что он относится к группам детей родителя
+    const lesson = await this.prisma.lesson.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        studyPlan: {
+          group: {
+            some: {
+              id: { in: groupIds }
+            }
+          }
+        }
+      },
+      include: {
+        studyPlan: {
+          include: {
+            teacher: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    surname: true,
+                    middlename: true,
+                    email: true,
+                    phone: true,
+                  }
+                }
+              }
+            },
+            group: {
+              select: {
+                id: true,
+                name: true,
+                courseNumber: true,
+              }
+            }
+          }
+        },
+        materials: {
+          include: {
+            quiz: {
+              select: {
+                id: true,
+                name: true,
+                isActive: true,
+                maxScore: true,
+                duration: true,
+              }
+            },
+            additionalFiles: {
+              select: {
+                id: true,
+                name: true,
+                url: true,
+                type: true,
+                size: true,
+              }
+            }
+          }
+        },
+        homework: {
+          include: {
+            additionalFiles: {
+              select: {
+                id: true,
+                name: true,
+                url: true,
+                type: true,
+                size: true,
+              }
+            }
+          }
+        }
+      },
+    });
+
+    if (!lesson) {
+      throw new NotFoundException(`Урок с ID ${id} не найден или недоступен`);
+    }
+
+    return lesson;
   }
 }

@@ -796,24 +796,34 @@ const LessonMaterialsPage: React.FC = () => {
                 placeholder="Название теста"
               />
               <div className="grid grid-cols-2 gap-4">
-                <Input
-                  type="number"
-                  value={materialForm.quiz?.maxScore || 100}
-                  onChange={(e) => setMaterialForm({
-                    ...materialForm,
-                    quiz: { ...materialForm.quiz!, maxScore: parseInt(e.target.value) || 100 }
-                  })}
-                  placeholder="Максимальный балл"
-                />
-                <Input
-                  type="number"
-                  value={materialForm.quiz?.duration || 30}
-                  onChange={(e) => setMaterialForm({
-                    ...materialForm,
-                    quiz: { ...materialForm.quiz!, duration: parseInt(e.target.value) || 30 }
-                  })}
-                  placeholder="Длительность (мин)"
-                />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Максимальный балл
+                  </label>
+                  <Input
+                    type="number"
+                    value={materialForm.quiz?.maxScore || 100}
+                    onChange={(e) => setMaterialForm({
+                      ...materialForm,
+                      quiz: { ...materialForm.quiz!, maxScore: parseInt(e.target.value) || 100 }
+                    })}
+                    placeholder="100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Длительность (минуты)
+                  </label>
+                  <Input
+                    type="number"
+                    value={materialForm.quiz?.duration || 30}
+                    onChange={(e) => setMaterialForm({
+                      ...materialForm,
+                      quiz: { ...materialForm.quiz!, duration: parseInt(e.target.value) || 30 }
+                    })}
+                    placeholder="30"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

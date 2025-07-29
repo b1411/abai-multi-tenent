@@ -1,7 +1,8 @@
 import { PaginateQueryDto } from 'src/common/dtos/paginate.dto';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsPositive, IsDateString } from 'class-validator';
+import { IsOptional, IsNumber, IsPositive, IsDateString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { LessonType } from 'generated/prisma';
 
 export class LessonFilterDto extends PaginateQueryDto {
     @ApiPropertyOptional({ 
@@ -25,6 +26,15 @@ export class LessonFilterDto extends PaginateQueryDto {
     @IsNumber()
     @IsPositive()
     readonly groupId?: number;
+
+    @ApiPropertyOptional({
+        description: 'Фильтр по типу урока',
+        enum: LessonType,
+        example: LessonType.REGULAR
+    })
+    @IsOptional()
+    @IsEnum(LessonType)
+    readonly type?: LessonType;
 
     @ApiPropertyOptional({ 
         description: 'Фильтр по дате начала', 

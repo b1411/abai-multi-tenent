@@ -81,10 +81,21 @@ const Calendar: React.FC = () => {
   };
 
   const getEventsForDate = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    // Используем локальную дату без учета часового пояса
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    
     return events.filter(event => {
-      const eventDate = new Date(event.startDate).toISOString().split('T')[0];
-      return eventDate === dateString;
+      // Создаем дату события в локальном часовом поясе
+      const eventDate = new Date(event.startDate);
+      const eventYear = eventDate.getFullYear();
+      const eventMonth = String(eventDate.getMonth() + 1).padStart(2, '0');
+      const eventDay = String(eventDate.getDate()).padStart(2, '0');
+      const eventDateString = `${eventYear}-${eventMonth}-${eventDay}`;
+      
+      return eventDateString === dateString;
     }).map(convertEventForDisplay);
   };
 

@@ -17,7 +17,7 @@ import {
 import { Button, Loading, Modal } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatDateTime } from '../utils';
-import { Lesson, Materials, StudyPlan } from '../types/lesson';
+import { Lesson, Materials, StudyPlan, LessonType } from '../types/lesson';
 import { lessonService } from '../services/lessonService';
 import { studyPlanService } from '../services/studyPlanService';
 import { materialService, Material } from '../services/materialService';
@@ -26,7 +26,7 @@ const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
-  
+
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [materials, setMaterials] = useState<Material | null>(null);
   const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
@@ -47,14 +47,14 @@ const LessonDetailPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [lessonData, materialsData] = await Promise.all([
         lessonService.getLesson(parseInt(id!)),
         materialService.getMaterialsByLesson(parseInt(id!)).catch(() => null) // Игнорируем ошибку если материалов нет
       ]);
-      
+
       setLesson(lessonData);
-      
+
       // Устанавливаем материалы если они есть
       setMaterials(materialsData as Material | null);
     } catch (error) {
@@ -80,6 +80,7 @@ const LessonDetailPage: React.FC = () => {
         lessons: plan.lessons?.map(lesson => ({
           id: lesson.id,
           name: lesson.name,
+          type: LessonType.REGULAR, // Default type since it's not provided by the API
           date: lesson.date,
           studyPlanId: lesson.studyPlanId || 0,
           createdAt: lesson.createdAt || '',
@@ -100,7 +101,7 @@ const LessonDetailPage: React.FC = () => {
 
   const handleSaveEdit = async (formData: any) => {
     if (!lesson) return;
-    
+
     try {
       setSaving(true);
       await lessonService.updateLesson(lesson.id, formData);
@@ -115,7 +116,7 @@ const LessonDetailPage: React.FC = () => {
 
   const handleDelete = async () => {
     if (!lesson) return;
-    
+
     try {
       await lessonService.deleteLesson(lesson.id);
       navigate('/lessons');
@@ -210,7 +211,7 @@ const LessonDetailPage: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Основная информация
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center">
                 <Calendar className="h-5 w-5 text-gray-400 mr-3" />
@@ -359,7 +360,7 @@ const LessonDetailPage: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 Домашнее задание
               </h2>
-              
+
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -394,20 +395,20 @@ const LessonDetailPage: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Учебный план
               </h3>
-              
+
               <div className="space-y-3">
                 <div>
                   <p className="text-sm font-medium text-gray-700">Название</p>
                   <p className="text-gray-900">{lesson.studyPlan.name}</p>
                 </div>
-                
+
                 {lesson.studyPlan.description && (
                   <div>
                     <p className="text-sm font-medium text-gray-700">Описание</p>
                     <p className="text-gray-900 text-sm">{lesson.studyPlan.description}</p>
                   </div>
                 )}
-                
+
                 {lesson.studyPlan.teacher?.user && (
                   <div>
                     <p className="text-sm font-medium text-gray-700">Преподаватель</p>
@@ -425,7 +426,7 @@ const LessonDetailPage: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Быстрые действия
             </h3>
-            
+
             <div className="space-y-2">
               <Button
                 variant="outline"
@@ -435,7 +436,7 @@ const LessonDetailPage: React.FC = () => {
                 <Users className="h-4 w-4 mr-2" />
                 Результаты студентов
               </Button>
-              
+
               <Button
                 variant="outline"
                 className="w-full justify-start"
@@ -444,7 +445,7 @@ const LessonDetailPage: React.FC = () => {
                 <BookOpen className="h-4 w-4 mr-2" />
                 Домашние задания
               </Button>
-              
+
               {canEdit && (
                 <Button
                   variant="outline"
@@ -496,7 +497,7 @@ const LessonDetailPage: React.FC = () => {
           <p className="text-sm text-gray-500">
             Это действие нельзя отменить. Все связанные данные также будут удалены.
           </p>
-          
+
           <div className="flex justify-end space-x-3">
             <Button
               variant="outline"

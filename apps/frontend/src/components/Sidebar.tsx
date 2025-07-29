@@ -86,25 +86,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       key: 'app',
       children: [
         { name: 'Чат', href: '/app/chat', icon: MessageSquare },
-        { name: 'AI чат', href: '/app/ai-chat', icon: Bot },
+        { name: 'AI чат', href: '/app/ai-chat', icon: Bot, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { name: 'Календарь', href: '/app/calendar', icon: Calendar },
-        { name: 'Список дел', href: '/app/tasks', icon: List },
+        { name: 'Список дел', href: '/app/tasks', icon: List, roles: ['ADMIN', 'TEACHER'] },
         { name: 'Fizmat AI Ala', href: '/app/neuro-abai', icon: Brain, roles: ['ADMIN', 'TEACHER'] },
       ]
     },
     {
       name: 'Учебный процесс',
       icon: BookOpen,
-      roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'],
       key: 'study',
       children: [
-        { name: 'Учебные планы', href: '/study-plans', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { name: 'Учебные планы', href: '/study-plans', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'] },
         { name: 'Уроки', href: '/lessons', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { name: 'Домашние задания', href: '/homework', icon: ClipboardList, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
-        { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen },
-        { name: 'Расписание', href: '/academic/schedule', icon: Calendar },
-        { name: 'Аудитории', href: '/classrooms', icon: Building },
-        { name: 'Отчеты', href: '/educational-reports', icon: BarChart3 },
+        { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen, roles: ['ADMIN', 'TEACHER'] },
+        { name: 'Расписание', href: '/academic/schedule', icon: Calendar, roles: ['ADMIN', 'TEACHER'] },
+        { name: 'Аудитории', href: '/classrooms', icon: Building, roles: ['ADMIN', 'TEACHER'] },
+        { name: 'Отчеты', href: '/educational-reports', icon: BarChart3, roles: ['ADMIN', 'TEACHER'] },
       ]
     },
     {
@@ -113,8 +113,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: ['ADMIN', 'TEACHER', 'HR', 'STUDENT', 'PARENT'],
       key: 'students',
       children: [
-        { name: 'Списки учащихся', href: '/students', icon: GraduationCap },
-        { name: 'Группы', href: '/groups', icon: Users },
+        { name: 'Списки учащихся', href: '/students', icon: GraduationCap, roles: ['ADMIN', 'TEACHER', 'HR'] },
+        { name: 'Мои дети', href: '/my-children', icon: Heart, roles: ['PARENT'] },
+        { name: 'Группы', href: '/groups', icon: Users, roles: ['ADMIN', 'TEACHER', 'HR', 'PARENT'] },
         { name: 'Успеваемость', href: '/performance', icon: TrendingUp },
       ]
     },

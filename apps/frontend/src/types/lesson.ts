@@ -1,6 +1,16 @@
+export enum LessonType {
+  REGULAR = 'REGULAR',
+  CONTROL_WORK = 'CONTROL_WORK',
+  EXAM = 'EXAM',
+  TEST = 'TEST',
+  PRACTICAL = 'PRACTICAL',
+  LAB = 'LAB'
+}
+
 export interface Lesson {
   id: number;
   name: string;
+  type: LessonType;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -104,6 +114,7 @@ export interface LessonResult {
 
 export interface CreateLessonRequest {
   name: string;
+  type?: LessonType;
   date: string;
   studyPlanId: number;
   description?: string;
@@ -111,12 +122,14 @@ export interface CreateLessonRequest {
 
 export interface UpdateLessonRequest {
   name?: string;
+  type?: LessonType;
   date?: string;
   description?: string;
 }
 
 export interface LessonFilters {
   studyPlanId?: number;
+  type?: LessonType;
   search?: string;
   dateFrom?: string;
   dateTo?: string;

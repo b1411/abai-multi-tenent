@@ -18,7 +18,7 @@ export class StudyPlansController {
   constructor(private readonly studyPlansService: StudyPlansService) { }
 
   @Get()
-  @Roles("ADMIN", "TEACHER", "STUDENT")
+  @Roles("ADMIN", "TEACHER", "STUDENT", "PARENT")
   @ApiOperation({ summary: 'Получить все учебные планы' })
   @ApiResponse({ 
     status: 200, 
@@ -29,6 +29,10 @@ export class StudyPlansController {
     // Для студентов возвращаем только их планы
     if (req.user.role === 'STUDENT') {
       return this.studyPlansService.findStudentStudyPlans(filter, req.user.id);
+    }
+    // Для родителей возвращаем планы их детей
+    if (req.user.role === 'PARENT') {
+      return this.studyPlansService.findParentChildrenStudyPlans(filter, req.user.id);
     }
     // Для админов и преподавателей возвращаем все планы
     return this.studyPlansService.findAll(filter);
@@ -46,8 +50,20 @@ export class StudyPlansController {
     return this.studyPlansService.findStudentStudyPlans(filter, req.user.id);
   }
 
+  @Get('my-children')
+  @Roles("PARENT")
+  @ApiOperation({ summary: 'Получить учебные планы детей родителя' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Список учебных планов детей родителя',
+    type: PaginateResponseDto<StudyPlan>
+  })
+  findMyChildrenStudyPlans(@Query() filter: StudyPlanFilterDto, @Req() req: any): Promise<PaginateResponseDto<StudyPlan>> {
+    return this.studyPlansService.findParentChildrenStudyPlans(filter, req.user.id);
+  }
+
   @Get(':id')
-  @Roles("ADMIN", "TEACHER", "STUDENT")
+  @Roles("ADMIN", "TEACHER", "STUDENT", "PARENT")
   @ApiOperation({ summary: 'Получить учебный план по ID' })
   @ApiParam({ name: 'id', description: 'ID учебного плана' })
   @ApiResponse({ 

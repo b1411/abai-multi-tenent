@@ -58,6 +58,8 @@ import AlumniList from './alumni/pages/AlumniList';
 import AlumniDetail from './alumni/pages/AlumniDetail';
 import JasLife from './pages/JasLife';
 import EducationalReports from './pages/EducationalReports';
+import MyChildren from './pages/MyChildren';
+import GroupDetail from './pages/GroupDetail';
 
 const App: React.FC = () => {
   return (
@@ -119,7 +121,9 @@ const App: React.FC = () => {
                     {/* Students routes */}
                     <Route path="students" element={<StudentsPage />} />
                     <Route path="students/:id" element={<StudentDetailPage />} />
+                    <Route path="my-children" element={<MyChildren />} />
                     <Route path="groups" element={<GroupsPage />} />
+                    <Route path="groups/:id" element={<GroupDetail />} />
                     <Route path="performance" element={<PerformancePage />} />
                     <Route path="loyalty" element={<LoyaltyPage />} />
 

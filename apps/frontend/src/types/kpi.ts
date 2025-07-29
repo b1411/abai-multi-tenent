@@ -110,3 +110,73 @@ export interface KpiFilter {
   startDate?: string;
   endDate?: string;
 }
+
+// Settings types
+export interface KpiMetricSetting {
+  name: string;
+  weight: number;
+  target: number;
+  successThreshold: number;
+  warningThreshold: number;
+  isActive?: boolean;
+}
+
+export interface KpiSettings {
+  metrics: KpiMetricSetting[];
+  calculationPeriod: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  autoNotifications?: boolean;
+  notificationThreshold?: number;
+}
+
+export interface KpiSettingsResponse {
+  settings: KpiSettings;
+  lastUpdated: Date;
+  updatedBy: string;
+}
+
+export interface CreateKpiGoal {
+  title: string;
+  description: string;
+  target: number;
+  deadline: string;
+  responsible: string;
+  departmentId?: number;
+  teacherId?: number;
+}
+
+export interface UpdateKpiGoal {
+  title?: string;
+  description?: string;
+  target?: number;
+  current?: number;
+  deadline?: string;
+  responsible?: string;
+  status?: 'on_track' | 'at_risk' | 'behind' | 'completed';
+}
+
+// KPI recalculation response
+export interface KpiRecalculationResponse {
+  success: boolean;
+  message: string;
+  statistics: {
+    totalTeachers: number;
+    successfulUpdates: number;
+    failedUpdates: number;
+    processingTime: string;
+    errors?: string[];
+  };
+  timestamp: Date;
+}
+
+// KPI calculation status response
+export interface KpiCalculationStatusResponse {
+  lastUpdate: Date;
+  nextScheduledUpdate: Date;
+  totalTeachers: number;
+  successfulUpdates: number;
+  failedUpdates: number;
+  averageProcessingTime: string;
+  systemStatus: 'active' | 'inactive' | 'error';
+  calculationPeriod: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  autoNotifications: boolean;
+}

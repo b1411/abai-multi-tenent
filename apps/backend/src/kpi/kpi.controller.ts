@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Res, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Query, Body, UseGuards, Res, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { KpiService } from './kpi.service';
@@ -11,6 +11,12 @@ import {
   KpiGoalsResponseDto,
   KpiComparisonResponseDto,
 } from './dto/kpi-response.dto';
+import {
+  KpiSettingsDto,
+  KpiSettingsResponseDto,
+  CreateKpiGoalDto,
+  UpdateKpiGoalDto,
+} from './dto/kpi-settings.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 
 @ApiTags('KPI')
@@ -109,5 +115,60 @@ export class KpiController {
     });
     
     res.send(buffer);
+  }
+
+  // Settings endpoints
+  @Get('settings')
+  @ApiOperation({ summary: 'Получить настройки KPI' })
+  @ApiResponse({ status: 200, description: 'Настройки KPI', type: KpiSettingsResponseDto })
+  async getSettings(): Promise<KpiSettingsResponseDto> {
+    return this.kpiService.getSettings();
+  }
+
+  @Put('settings')
+  @ApiOperation({ summary: 'Обновить настройки KPI' })
+  @ApiResponse({ status: 200, description: 'Настройки обновлены', type: KpiSettingsResponseDto })
+  async updateSettings(@Body() settings: KpiSettingsDto): Promise<KpiSettingsResponseDto> {
+    return this.kpiService.updateSettings(settings);
+  }
+
+  // Goals management
+  @Post('goals')
+  @ApiOperation({ summary: 'Создать новую цель KPI' })
+  @ApiResponse({ status: 201, description: 'Цель создана' })
+  async createGoal(@Body() goalData: CreateKpiGoalDto) {
+    return this.kpiService.createGoal(goalData);
+  }
+
+  @Put('goals/:goalId')
+  @ApiOperation({ summary: 'Обновить цель KPI' })
+  @ApiResponse({ status: 200, description: 'Цель обновлена' })
+  async updateGoal(
+    @Param('goalId', ParseIntPipe) goalId: number,
+    @Body() goalData: UpdateKpiGoalDto,
+  ) {
+    return this.kpiService.updateGoal(goalId, goalData);
+  }
+
+  @Delete('goals/:goalId')
+  @ApiOperation({ summary: 'Удалить цель KPI' })
+  @ApiResponse({ status: 200, description: 'Цель удалена' })
+  async deleteGoal(@Param('goalId', ParseIntPipe) goalId: number) {
+    return this.kpiService.deleteGoal(goalId);
+  }
+
+  // Manual KPI recalculation
+  @Post('recalculate')
+  @ApiOperation({ summary: 'Ручной пересчет KPI для всех преподавателей' })
+  @ApiResponse({ status: 200, description: 'KPI пересчитан успешно' })
+  async recalculateKpi() {
+    return this.kpiService.manualKpiRecalculation();
+  }
+
+  @Get('calculation-status')
+  @ApiOperation({ summary: 'Получить статус последнего обновления KPI' })
+  @ApiResponse({ status: 200, description: 'Статус обновления' })
+  async getCalculationStatus() {
+    return this.kpiService.getCalculationStatus();
   }
 }

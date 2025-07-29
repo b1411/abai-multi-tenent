@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Request } from '@nestjs/common';
 import { ParentsService } from './parents.service';
 import { CreateParentDto } from './dto/create-parent.dto';
 import { UpdateParentDto } from './dto/update-parent.dto';
@@ -57,6 +57,15 @@ export class ParentsController {
     return this.parentsService.getParentStatistics();
   }
 
+  @Get('me/children')
+  @ApiOperation({ summary: 'Получить детей текущего родителя' })
+  @ApiResponse({ status: 200, description: 'Список детей текущего родителя' })
+  @ApiResponse({ status: 404, description: 'Родитель не найден' })
+  @Roles('PARENT')
+  getMyChildren(@Request() req: any) {
+    return this.parentsService.getCurrentParentChildren(req.user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Получить родителя по ID' })
   @ApiResponse({ status: 200, description: 'Полная информация о родителе' })
@@ -77,6 +86,16 @@ export class ParentsController {
     return this.parentsService.update(+id, updateParentDto);
   }
 
+  @Get(':id/children')
+  @ApiOperation({ summary: 'Получить детей родителя' })
+  @ApiResponse({ status: 200, description: 'Список детей родителя' })
+  @ApiResponse({ status: 404, description: 'Родитель не найден' })
+  @ApiParam({ name: 'id', description: 'ID родителя' })
+  @Roles('ADMIN', 'HR', 'TEACHER', 'PARENT')
+  getParentChildren(@Param('id') id: string) {
+    return this.parentsService.getParentChildren(+id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить родителя' })
   @ApiResponse({ status: 200, description: 'Родитель успешно удален' })
@@ -85,5 +104,33 @@ export class ParentsController {
   @Roles('ADMIN')
   remove(@Param('id') id: string) {
     return this.parentsService.remove(+id);
+  }
+
+  @Post('me/setup-chats')
+  @ApiOperation({ summary: 'Настроить чаты для текущего родителя' })
+  @ApiResponse({ status: 201, description: 'Чаты успешно созданы' })
+  @ApiResponse({ status: 404, description: 'Родитель не найден' })
+  @Roles('PARENT')
+  setupMyChats(@Request() req: any) {
+    return this.parentsService.setupParentChats(req.user.id);
+  }
+
+  @Post('me/refresh-chats')
+  @ApiOperation({ summary: 'Обновить чаты для текущего родителя' })
+  @ApiResponse({ status: 201, description: 'Чаты успешно обновлены' })
+  @ApiResponse({ status: 404, description: 'Родитель не найден' })
+  @Roles('PARENT')
+  refreshMyChats(@Request() req: any) {
+    return this.parentsService.refreshParentChats(req.user.id);
+  }
+
+  @Post(':id/setup-chats')
+  @ApiOperation({ summary: 'Настроить чаты для родителя' })
+  @ApiResponse({ status: 201, description: 'Чаты успешно созданы' })
+  @ApiResponse({ status: 404, description: 'Родитель не найден' })
+  @ApiParam({ name: 'id', description: 'ID пользователя-родителя' })
+  @Roles('ADMIN', 'HR')
+  setupParentChats(@Param('id') id: string) {
+    return this.parentsService.setupParentChats(+id);
   }
 }

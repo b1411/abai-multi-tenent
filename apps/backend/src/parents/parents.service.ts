@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { CreateParentDto } from './dto/create-parent.dto';
 import { UpdateParentDto } from './dto/update-parent.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class ParentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private chatService: ChatService,
+  ) {}
 
   async create(createParentDto: CreateParentDto) {
     // Проверяем существование пользователя
@@ -33,7 +37,7 @@ export class ParentsService {
       throw new ConflictException('User is already a parent');
     }
 
-    return this.prisma.parent.create({
+    const parent = await this.prisma.parent.create({
       data: createParentDto,
       include: {
         user: {
@@ -50,6 +54,16 @@ export class ParentsService {
         },
       },
     });
+
+    // Автоматически создаем чаты для нового родителя
+    try {
+      await this.createDefaultChatsForParent(createParentDto.userId);
+    } catch (error) {
+      console.error('Error creating default chats for new parent:', error);
+      // Не прерываем процесс создания родителя, если возникли проблемы с чатами
+    }
+
+    return parent;
   }
 
   async findAll() {
@@ -218,5 +232,233 @@ export class ParentsService {
         { user: { name: 'asc' } },
       ],
     });
+  }
+
+  async getParentChildren(parentId: number) {
+    const parent = await this.findOne(parentId); // Проверяем существование родителя
+
+    return this.prisma.student.findMany({
+      where: {
+        deletedAt: null,
+        Parents: {
+          some: {
+            id: parentId,
+            deletedAt: null,
+          },
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            surname: true,
+            middlename: true,
+            phone: true,
+            avatar: true,
+            role: true,
+          },
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            courseNumber: true,
+          },
+        },
+        lessonsResults: {
+          select: {
+            id: true,
+            lessonScore: true,
+            homeworkScore: true,
+            attendance: true,
+            createdAt: true,
+            Lesson: {
+              select: {
+                id: true,
+                name: true,
+                date: true,
+                studyPlan: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 10, // Последние 10 результатов для быстрой загрузки
+        },
+      },
+      orderBy: [
+        { user: { surname: 'asc' } },
+        { user: { name: 'asc' } },
+      ],
+    });
+  }
+
+  async getCurrentParentChildren(userId: number) {
+    // Сначала находим родителя по ID пользователя
+    const parent = await this.findByUser(userId);
+    
+    if (!parent) {
+      throw new NotFoundException(`Parent with user ID ${userId} not found`);
+    }
+
+    // Возвращаем детей найденного родителя
+    return this.getParentChildren(parent.id);
+  }
+
+  // Методы для автоматического создания чатов
+
+  async createDefaultChatsForParent(parentUserId: number) {
+    try {
+      // Находим родителя
+      const parent = await this.findByUser(parentUserId);
+      if (!parent) {
+        throw new NotFoundException('Parent not found');
+      }
+
+      // Получаем детей родителя
+      const children = await this.getParentChildren(parent.id);
+      
+      const createdChats = [];
+
+      // Создаем чаты с учителями детей
+      for (const child of children) {
+        // Получаем учителей, которые ведут занятия у ребенка
+        const teachers = await this.getChildTeachers(child.id);
+        
+        for (const teacher of teachers) {
+          try {
+            const chat = await this.chatService.createChat(parentUserId, {
+              participantIds: [teacher.userId],
+              name: `${teacher.user.name} ${teacher.user.surname} - ${child.user.name} ${child.user.surname}`,
+              isGroup: false,
+            });
+            createdChats.push({
+              chatId: chat.id,
+              type: 'teacher',
+              teacher: teacher.user,
+              student: child.user,
+            });
+          } catch (error) {
+            // Если чат уже существует, игнорируем ошибку
+            console.log(`Chat with teacher ${teacher.user.name} already exists for parent ${parentUserId}`);
+          }
+        }
+      }
+
+      // Создаем чаты с администрацией
+      const adminUsers = await this.getAdministrationUsers();
+      
+      for (const admin of adminUsers) {
+        try {
+          const chat = await this.chatService.createChat(parentUserId, {
+            participantIds: [admin.id],
+            name: `${admin.name} ${admin.surname} (${this.getRoleDisplayName(admin.role)})`,
+            isGroup: false,
+          });
+          createdChats.push({
+            chatId: chat.id,
+            type: 'admin',
+            admin: admin,
+          });
+        } catch (error) {
+          // Если чат уже существует, игнорируем ошибку
+          console.log(`Chat with admin ${admin.name} already exists for parent ${parentUserId}`);
+        }
+      }
+
+      return createdChats;
+    } catch (error) {
+      console.error('Error creating default chats for parent:', error);
+      throw error;
+    }
+  }
+
+  private async getChildTeachers(studentId: number) {
+    // Получаем учителей через планы обучения группы студента
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        group: {
+          include: {
+            studyPlans: {
+              include: {
+                teacher: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        surname: true,
+                        email: true,
+                        avatar: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!student?.group) {
+      return [];
+    }
+
+    // Убираем дубликаты учителей
+    const teachersMap = new Map();
+    student.group.studyPlans.forEach(plan => {
+      if (plan.teacher && !teachersMap.has(plan.teacher.userId)) {
+        teachersMap.set(plan.teacher.userId, plan.teacher);
+      }
+    });
+
+    return Array.from(teachersMap.values());
+  }
+
+  private async getAdministrationUsers() {
+    // Получаем пользователей с административными ролями
+    return this.prisma.user.findMany({
+      where: {
+        role: { in: ['ADMIN', 'FINANCIST', 'HR'] },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        surname: true,
+        email: true,
+        avatar: true,
+        role: true,
+      },
+    });
+  }
+
+  private getRoleDisplayName(role: string): string {
+    const roleNames = {
+      'ADMIN': 'Администратор',
+      'FINANCIST': 'Финансист',
+      'HR': 'HR-менеджер',
+    };
+    return roleNames[role] || role;
+  }
+
+  async setupParentChats(parentUserId: number) {
+    // Метод для настройки чатов родителя (можно вызвать при создании родителя или по запросу)
+    return this.createDefaultChatsForParent(parentUserId);
+  }
+
+  async refreshParentChats(parentUserId: number) {
+    // Метод для обновления чатов родителя (например, при изменении состава учителей)
+    return this.createDefaultChatsForParent(parentUserId);
   }
 }

@@ -83,12 +83,23 @@ const EventForm: React.FC<EventFormProps> = ({
     const startDate = new Date(eventData.startDate);
     const endDate = new Date(eventData.endDate);
 
+    // Используем локальную дату без учета часового пояса
+    const startYear = startDate.getFullYear();
+    const startMonth = String(startDate.getMonth() + 1).padStart(2, '0');
+    const startDay = String(startDate.getDate()).padStart(2, '0');
+    const startDateString = `${startYear}-${startMonth}-${startDay}`;
+
+    const endYear = endDate.getFullYear();
+    const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+    const endDay = String(endDate.getDate()).padStart(2, '0');
+    const endDateString = `${endYear}-${endMonth}-${endDay}`;
+
     setFormData({
       title: eventData.title,
       description: eventData.description || '',
-      startDate: startDate.toISOString().split('T')[0],
+      startDate: startDateString,
       startTime: eventData.isAllDay ? '' : startDate.toTimeString().slice(0, 5),
-      endDate: endDate.toISOString().split('T')[0],
+      endDate: endDateString,
       endTime: eventData.isAllDay ? '' : endDate.toTimeString().slice(0, 5),
       isAllDay: eventData.isAllDay || false,
       location: eventData.location || '',
@@ -100,7 +111,12 @@ const EventForm: React.FC<EventFormProps> = ({
   };
 
   const populateFormFromSelectedDate = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    // Используем локальную дату без учета часового пояса
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    
     const now = new Date();
     const defaultStartTime = `${now.getHours().toString().padStart(2, '0')}:${Math.ceil(now.getMinutes() / 15) * 15}`.slice(0, 5);
     const endTime = new Date(now.getTime() + 60 * 60 * 1000);

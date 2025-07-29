@@ -13,9 +13,10 @@ import {
 import { Button, Input, Select, Table, Modal, Loading } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatDateTime } from '../utils';
-import { Lesson, LessonFilters, StudyPlan } from '../types/lesson';
+import { Lesson, LessonFilters, StudyPlan, LessonType } from '../types/lesson';
 import { lessonService } from '../services/lessonService';
 import { studyPlanService } from '../services/studyPlanService';
+import { getLessonTypeLabel, getLessonTypeColor, getLessonTypeOptions } from '../utils/lessonTypeUtils';
 
 const LessonsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ const LessonsPage: React.FC = () => {
   const loadStudyPlans = async () => {
     try {
       // Используем разные методы в зависимости от роли
-      const response = hasRole('STUDENT') 
+      const response = hasRole('STUDENT')
         ? await studyPlanService.getMyStudyPlans()
         : await studyPlanService.getStudyPlans();
       // Преобразуем StudyPlan из studyPlan.ts в StudyPlan из lesson.ts
@@ -73,6 +74,7 @@ const LessonsPage: React.FC = () => {
         lessons: plan.lessons?.map(lesson => ({
           id: lesson.id,
           name: lesson.name,
+          type: (lesson as any).type || LessonType.REGULAR,
           date: lesson.date,
           studyPlanId: lesson.studyPlanId || 0,
           createdAt: lesson.createdAt || '',
@@ -91,7 +93,7 @@ const LessonsPage: React.FC = () => {
     try {
       setLessonsLoading(true);
       // Используем разные методы в зависимости от роли
-      const response = hasRole('STUDENT') 
+      const response = hasRole('STUDENT')
         ? await lessonService.getMyLessons(filters)
         : await lessonService.getLessons(filters);
       setLessons(response.data);
@@ -174,6 +176,15 @@ const LessonsPage: React.FC = () => {
             )}
           </div>
         </div>
+      )
+    },
+    {
+      key: 'type',
+      title: 'Тип урока',
+      render: (type: LessonType) => (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getLessonTypeColor(type)}`}>
+          {getLessonTypeLabel(type)}
+        </span>
       )
     },
     {
@@ -330,7 +341,7 @@ const LessonsPage: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 lg:mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="lg:col-span-1">
             <Input
               placeholder="Поиск по названию..."
@@ -339,6 +350,16 @@ const LessonsPage: React.FC = () => {
               icon={<Search className="h-4 w-4" />}
             />
           </div>
+
+          <Select
+            placeholder="Тип урока"
+            value={filters.type || 'all'}
+            onChange={(value) => updateFilters({ type: value === 'all' ? undefined : value as LessonType })}
+            options={[
+              { value: 'all', label: 'Все типы' },
+              ...getLessonTypeOptions()
+            ]}
+          />
 
           <Select
             placeholder="Учебный план"
@@ -431,22 +452,22 @@ const LessonsPage: React.FC = () => {
                       >
                         {lesson.name}
                       </button>
-                      
+
                       {lesson.description && (
                         <p className="text-xs text-gray-600 mt-1 line-clamp-2">{lesson.description}</p>
                       )}
-                      
+
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center text-xs text-gray-500">
                           <BookOpen className="w-3 h-3 mr-1" />
                           <span className="truncate">{lesson.studyPlan?.name || 'Не указан'}</span>
                         </div>
-                        
+
                         <div className="flex items-center text-xs text-gray-500">
                           <Calendar className="w-3 h-3 mr-1" />
                           <span>{formatDate(lesson.date)}</span>
                         </div>
-                        
+
                         {lesson.studyPlan?.teacher?.user && (
                           <div className="flex items-center text-xs text-gray-500">
                             <span className="truncate">
@@ -455,19 +476,23 @@ const LessonsPage: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      
-                      <div className="flex items-center space-x-2 mt-2">
+
+                      <div className="flex items-center space-x-2 mt-2 flex-wrap gap-1">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getLessonTypeColor(lesson.type)}`}>
+                          {getLessonTypeLabel(lesson.type)}
+                        </span>
+
                         <div className="flex items-center space-x-1">
                           <Clock className="w-3 h-3 text-gray-400" />
                           <span className="text-xs text-gray-500">{lesson._count?.LessonResult || 0}</span>
                         </div>
-                        
+
                         {lesson.materials && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             Материалы
                           </span>
                         )}
-                        
+
                         {lesson.homework && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             ДЗ
@@ -475,7 +500,7 @@ const LessonsPage: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-1 ml-2">
                       <button
                         onClick={() => navigate(`/lessons/${lesson.id}`)}
@@ -483,7 +508,7 @@ const LessonsPage: React.FC = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      
+
                       {(hasRole('ADMIN') || (hasRole('TEACHER') && lesson.studyPlan?.teacher?.user?.id === user?.id)) && (
                         <button
                           onClick={() => handleEdit(lesson)}
@@ -492,7 +517,7 @@ const LessonsPage: React.FC = () => {
                           <Edit className="w-4 h-4" />
                         </button>
                       )}
-                      
+
                       {hasRole('ADMIN') && (
                         <button
                           onClick={() => setDeletingLesson(lesson)}
@@ -623,6 +648,7 @@ const LessonForm: React.FC<{
 }> = ({ onClose, onSave, lesson, studyPlans, loading }) => {
   const [formData, setFormData] = useState({
     name: '',
+    type: LessonType.REGULAR,
     date: '',
     studyPlanId: '',
     description: ''
@@ -632,6 +658,7 @@ const LessonForm: React.FC<{
     if (lesson) {
       setFormData({
         name: lesson.name || '',
+        type: lesson.type || LessonType.REGULAR,
         date: lesson.date ? new Date(lesson.date).toISOString().slice(0, 16) : '',
         studyPlanId: lesson.studyPlanId?.toString() || '',
         description: lesson.description || ''
@@ -640,9 +667,10 @@ const LessonForm: React.FC<{
       // При создании нового урока используем studyPlanId из URL (если есть)
       const urlParams = new URLSearchParams(window.location.search);
       const studyPlanIdFromUrl = urlParams.get('studyPlanId');
-      
+
       setFormData({
         name: '',
+        type: LessonType.REGULAR,
         date: '',
         studyPlanId: studyPlanIdFromUrl || '',
         description: ''
@@ -656,6 +684,7 @@ const LessonForm: React.FC<{
 
     onSave({
       name: formData.name,
+      type: formData.type,
       date: new Date(formData.date).toISOString(),
       studyPlanId: parseInt(formData.studyPlanId),
       description: formData.description
@@ -676,6 +705,23 @@ const LessonForm: React.FC<{
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Тип урока
+        </label>
+        <select
+          value={formData.type}
+          onChange={(e) => setFormData({ ...formData, type: e.target.value as LessonType })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {getLessonTypeOptions().map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

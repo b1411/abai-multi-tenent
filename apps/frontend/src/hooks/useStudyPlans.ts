@@ -3,7 +3,7 @@ import { studyPlanService } from '../services/studyPlanService';
 import { StudyPlan, StudyPlanFilters, StudyPlanResponse, Group, Teacher } from '../types/studyPlan';
 import { useAuth } from './useAuth';
 
-export const useStudyPlans = (initialFilters: StudyPlanFilters = {}, useStudentMode: boolean = false) => {
+export const useStudyPlans = (initialFilters: StudyPlanFilters = {}, useStudentMode: boolean = false, useParentMode: boolean = false) => {
   const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,9 +20,14 @@ export const useStudyPlans = (initialFilters: StudyPlanFilters = {}, useStudentM
       setLoading(true);
       setError(null);
       // Используем разные методы в зависимости от роли
-      const response: StudyPlanResponse = useStudentMode 
-        ? await studyPlanService.getMyStudyPlans(filters)
-        : await studyPlanService.getStudyPlans(filters);
+      let response: StudyPlanResponse;
+      if (useParentMode) {
+        response = await studyPlanService.getMyChildrenStudyPlans(filters);
+      } else if (useStudentMode) {
+        response = await studyPlanService.getMyStudyPlans(filters);
+      } else {
+        response = await studyPlanService.getStudyPlans(filters);
+      }
       setStudyPlans(response.data);
       setPagination({
         page: response.meta.currentPage,
@@ -51,7 +56,7 @@ export const useStudyPlans = (initialFilters: StudyPlanFilters = {}, useStudentM
 
   useEffect(() => {
     fetchStudyPlans();
-  }, [filters, useStudentMode]);
+  }, [filters, useStudentMode, useParentMode]);
 
   return {
     studyPlans,

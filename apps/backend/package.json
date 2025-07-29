@@ -31,7 +31,7 @@
     "swagger:export": "npm run build && tsx scripts/export-swagger-minimal.ts",
     "swagger:export:yaml": "npm run swagger:export",
     "docs:generate": "npm run swagger:export && echo '📚 Документация обновлена в папке docs/'",
-    "postinstall": "npx npm-run-all db:generate docs:generate"
+    "postinstall": "npx npm-run-all db:generate"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

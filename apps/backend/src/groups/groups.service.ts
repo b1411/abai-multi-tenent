@@ -293,4 +293,101 @@ export class GroupsService {
 
     return group?.studyPlans || [];
   }
+
+  async findParentGroups(userId: number) {
+    // Находим родителя и его детей
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+      include: {
+        students: {
+          where: { deletedAt: null },
+          select: {
+            groupId: true
+          }
+        }
+      }
+    });
+
+    if (!parent) {
+      throw new NotFoundException('Parent not found');
+    }
+
+    // Получаем уникальные ID групп детей
+    const childrenGroupIds = [...new Set(parent.students.map(student => student.groupId))];
+
+    if (childrenGroupIds.length === 0) {
+      return [];
+    }
+
+    // Возвращаем только группы, где учатся дети родителя
+    return this.prisma.group.findMany({
+      where: { 
+        id: { in: childrenGroupIds },
+        deletedAt: null 
+      },
+      include: {
+        students: {
+          where: { deletedAt: null },
+          include: {
+            user: true,
+          },
+        },
+        _count: {
+          select: {
+            students: {
+              where: { deletedAt: null },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { courseNumber: 'asc' },
+        { name: 'asc' },
+      ],
+    });
+  }
+
+  async getParentGroupStatistics(userId: number) {
+    // Сначала получаем группы родителя
+    const parentGroups = await this.findParentGroups(userId);
+    
+    if (parentGroups.length === 0) {
+      return {
+        totalGroups: 0,
+        totalStudents: 0,
+        groupsByCourse: [],
+        averageStudentsPerGroup: 0,
+      };
+    }
+
+    const groupIds = parentGroups.map(group => group.id);
+    
+    const totalGroups = parentGroups.length;
+    
+    // Подсчитываем студентов только в группах детей родителя
+    const totalStudents = await this.prisma.student.count({
+      where: { 
+        groupId: { in: groupIds },
+        deletedAt: null 
+      },
+    });
+
+    // Группируем по курсам
+    const groupsByCourseData = parentGroups.reduce((acc, group) => {
+      const existing = acc.find(item => item.courseNumber === group.courseNumber);
+      if (existing) {
+        existing.count++;
+      } else {
+        acc.push({ courseNumber: group.courseNumber, count: 1 });
+      }
+      return acc;
+    }, [] as { courseNumber: number; count: number }[]);
+
+    return {
+      totalGroups,
+      totalStudents,
+      groupsByCourse: groupsByCourseData,
+      averageStudentsPerGroup: totalStudents / totalGroups || 0,
+    };
+  }
 }

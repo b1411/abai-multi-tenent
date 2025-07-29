@@ -41,8 +41,10 @@ import type {
   KpiGoalsResponse,
   KpiFilter,
   TeacherKpi,
+  KpiRecalculationResponse,
 } from '../types/kpi';
 import { Spinner } from '../components/ui/Spinner';
+import KpiSettingsModal from '../components/KpiSettingsModal';
 
 const KPI: React.FC = () => {
   const [overview, setOverview] = useState<KpiOverviewResponse | null>(null);
@@ -55,6 +57,7 @@ const KPI: React.FC = () => {
 
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherKpi | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [periodFilter, setPeriodFilter] = useState('month');
@@ -186,6 +189,32 @@ const KPI: React.FC = () => {
     }
   };
 
+  const handleRecalculateKpi = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Запускаем ручной пересчет KPI
+      const result = await kpiService.recalculateKpi();
+      
+      if (result.success) {
+        // Показываем результат пересчета
+        alert(`KPI успешно пересчитан!\n\nОбработано: ${result.statistics.totalTeachers} преподавателей\nУспешно: ${result.statistics.successfulUpdates}\nОшибок: ${result.statistics.failedUpdates}\nВремя: ${result.statistics.processingTime}`);
+        
+        // Перезагружаем данные
+        await loadData();
+      } else {
+        throw new Error('Не удалось пересчитать KPI');
+      }
+    } catch (error) {
+      console.error('Ошибка при пересчете KPI:', error);
+      setError('Ошибка при пересчете KPI');
+      alert('Произошла ошибка при пересчете KPI');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -215,9 +244,20 @@ const KPI: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button 
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => setIsSettingsModalOpen(true)}
+          >
             <FaCog className="mr-2" />
             Настроить KPI
+          </button>
+          <button 
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            onClick={handleRecalculateKpi}
+            disabled={loading}
+          >
+            <FaChartLine className="mr-2" />
+            {loading ? 'Пересчет...' : 'Пересчитать KPI'}
           </button>
           <button 
             className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
@@ -612,6 +652,16 @@ const KPI: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Модальное окно настроек KPI */}
+      <KpiSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        onSave={() => {
+          // Перезагружаем данные после сохранения настроек
+          loadData();
+        }}
+      />
     </div>
   );
 };

@@ -15,7 +15,6 @@ import { LessonScheduleService } from '../schedule/lesson-schedule.service';
 @ApiTags('Lessons')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthGuard, RolesGuard)
-@Roles("ADMIN", "TEACHER")
 export class LessonsController {
   constructor(
     private readonly lessonsService: LessonsService,
@@ -35,13 +34,28 @@ export class LessonsController {
   }
 
   @Get()
+  @Roles("ADMIN", "TEACHER", "PARENT")
   @ApiOperation({ summary: 'Получить все уроки' })
   @ApiResponse({
     status: 200,
     description: 'Список уроков с пагинацией или без (если указан параметр noPagination)',
     type: PaginateResponseDto<Lesson>
   })
-  async findAll(@Query() filters: LessonFilterDto): Promise<PaginateResponseDto<Lesson> | Lesson[]> {
+  async findAll(@Query() filters: LessonFilterDto, @Req() req: any): Promise<PaginateResponseDto<Lesson> | Lesson[]> {
+    // Для родителей возвращаем только уроки их детей
+    if (req.user.role === 'PARENT') {
+      if (filters.noPagination === 'true') {
+        const result = await this.lessonsService.findParentLessons({
+          ...filters,
+          page: 1,
+          limit: 1000,
+          noPagination: undefined
+        }, req.user.id);
+        return result.data;
+      }
+      return this.lessonsService.findParentLessons(filters, req.user.id);
+    }
+
     // Если указан параметр noPagination, возвращаем простой массив для журнала
     if (filters.noPagination === 'true') {
       const result = await this.lessonsService.findAll({
@@ -185,7 +199,7 @@ export class LessonsController {
   }
 
   @Get(':id')
-  @Roles("ADMIN", "TEACHER", "STUDENT")
+  @Roles("ADMIN", "TEACHER", "STUDENT", "PARENT")
   @ApiOperation({ summary: 'Получить урок по ID' })
   @ApiParam({ name: 'id', description: 'ID урока' })
   @ApiResponse({
@@ -194,7 +208,11 @@ export class LessonsController {
     type: Lesson
   })
   @ApiResponse({ status: 404, description: 'Урок не найден' })
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<Lesson> {
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any): Promise<Lesson> {
+    // Для родителей нужно проверить доступ к уроку через детей
+    if (req.user.role === 'PARENT') {
+      return this.lessonsService.findOneForParent(id, req.user.id);
+    }
     return this.lessonsService.findOne(id);
   }
 

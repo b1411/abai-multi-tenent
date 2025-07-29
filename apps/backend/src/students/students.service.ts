@@ -1283,4 +1283,482 @@ export class StudentsService {
 
     return recommendations;
   }
+
+  // === МЕТОДЫ ДЛЯ РАБОТЫ С ЗАМЕЧАНИЯМИ ===
+
+  async getStudentRemarks(studentId: number) {
+    await this.findOne(studentId); // Проверяем существование студента
+
+    const remarks = await this.prisma.studentRemark.findMany({
+      where: {
+        studentId,
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            middlename: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      studentId,
+      totalRemarks: remarks.length,
+      remarks: remarks.map(remark => ({
+        id: remark.id,
+        type: remark.type,
+        title: remark.title,
+        content: remark.content,
+        isPrivate: remark.isPrivate,
+        teacher: {
+          id: remark.teacher.id,
+          name: `${remark.teacher.surname} ${remark.teacher.name}`,
+        },
+        createdAt: remark.createdAt,
+        updatedAt: remark.updatedAt,
+      })),
+    };
+  }
+
+  async addStudentRemark(studentId: number, createRemarkDto: any, teacherId: number) {
+    await this.findOne(studentId); // Проверяем существование студента
+
+    // Проверяем, что пользователь является преподавателем
+    const teacher = await this.prisma.user.findFirst({
+      where: {
+        id: teacherId,
+        role: { in: ['TEACHER', 'ADMIN'] },
+        deletedAt: null,
+      },
+    });
+
+    if (!teacher) {
+      throw new ForbiddenException('Only teachers and admins can add remarks');
+    }
+
+    const remark = await this.prisma.studentRemark.create({
+      data: {
+        studentId,
+        teacherId,
+        type: createRemarkDto.type || 'GENERAL',
+        title: createRemarkDto.title,
+        content: createRemarkDto.content,
+        isPrivate: createRemarkDto.isPrivate !== undefined ? createRemarkDto.isPrivate : true,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            middlename: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Remark added successfully for student ${remark.student.user.surname} ${remark.student.user.name}`,
+      remark: {
+        id: remark.id,
+        type: remark.type,
+        title: remark.title,
+        content: remark.content,
+        isPrivate: remark.isPrivate,
+        teacher: {
+          id: remark.teacher.id,
+          name: `${remark.teacher.surname} ${remark.teacher.name}`,
+        },
+        createdAt: remark.createdAt,
+        updatedAt: remark.updatedAt,
+      },
+    };
+  }
+
+  async updateStudentRemark(remarkId: number, updateRemarkDto: any, currentUserId: number, currentUserRole: string) {
+    const remark = await this.prisma.studentRemark.findFirst({
+      where: {
+        id: remarkId,
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!remark) {
+      throw new NotFoundException(`Remark with ID ${remarkId} not found`);
+    }
+
+    // Проверяем права доступа: только автор замечания или админ может редактировать
+    if (remark.teacherId !== currentUserId && currentUserRole !== 'ADMIN') {
+      throw new ForbiddenException('You can only edit your own remarks');
+    }
+
+    const updatedRemark = await this.prisma.studentRemark.update({
+      where: { id: remarkId },
+      data: {
+        ...(updateRemarkDto.type && { type: updateRemarkDto.type }),
+        ...(updateRemarkDto.title && { title: updateRemarkDto.title }),
+        ...(updateRemarkDto.content && { content: updateRemarkDto.content }),
+        ...(updateRemarkDto.isPrivate !== undefined && { isPrivate: updateRemarkDto.isPrivate }),
+        updatedAt: new Date(),
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Remark updated successfully for student ${remark.student.user.surname} ${remark.student.user.name}`,
+      remark: {
+        id: updatedRemark.id,
+        type: updatedRemark.type,
+        title: updatedRemark.title,
+        content: updatedRemark.content,
+        isPrivate: updatedRemark.isPrivate,
+        teacher: {
+          id: updatedRemark.teacher.id,
+          name: `${updatedRemark.teacher.surname} ${updatedRemark.teacher.name}`,
+        },
+        createdAt: updatedRemark.createdAt,
+        updatedAt: updatedRemark.updatedAt,
+      },
+    };
+  }
+
+  async deleteStudentRemark(remarkId: number, currentUserId: number, currentUserRole: string) {
+    const remark = await this.prisma.studentRemark.findFirst({
+      where: {
+        id: remarkId,
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!remark) {
+      throw new NotFoundException(`Remark with ID ${remarkId} not found`);
+    }
+
+    // Проверяем права доступа: только автор замечания или админ может удалить
+    if (remark.teacherId !== currentUserId && currentUserRole !== 'ADMIN') {
+      throw new ForbiddenException('You can only delete your own remarks');
+    }
+
+    await this.prisma.studentRemark.update({
+      where: { id: remarkId },
+      data: { deletedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      message: `Remark deleted successfully for student ${remark.student.user.surname} ${remark.student.user.name}`,
+    };
+  }
+
+  // === МЕТОДЫ ДЛЯ РАБОТЫ С КОММЕНТАРИЯМИ ===
+
+  async getStudentComments(studentId: number) {
+    await this.findOne(studentId); // Проверяем существование студента
+
+    const comments = await this.prisma.studentComment.findMany({
+      where: {
+        studentId,
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            middlename: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      studentId,
+      totalComments: comments.length,
+      comments: comments.map(comment => ({
+        id: comment.id,
+        title: comment.title,
+        content: comment.content,
+        type: comment.type,
+        isPrivate: comment.isPrivate,
+        teacher: {
+          id: comment.teacher.id,
+          name: `${comment.teacher.surname} ${comment.teacher.name}`,
+        },
+        author: {
+          id: comment.teacher.id,
+          name: `${comment.teacher.surname} ${comment.teacher.name}`,
+        },
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+      })),
+    };
+  }
+
+  async addStudentComment(studentId: number, createCommentDto: any, teacherId: number) {
+    await this.findOne(studentId); // Проверяем существование студента
+
+    // Проверяем, что пользователь является преподавателем или админом
+    const teacher = await this.prisma.user.findFirst({
+      where: {
+        id: teacherId,
+        role: { in: ['TEACHER', 'ADMIN'] },
+        deletedAt: null,
+      },
+    });
+
+    if (!teacher) {
+      throw new ForbiddenException('Only teachers and admins can add comments');
+    }
+
+    const comment = await this.prisma.studentComment.create({
+      data: {
+        studentId,
+        teacherId,
+        title: createCommentDto.title,
+        content: createCommentDto.content,
+        type: createCommentDto.type || 'GENERAL',
+        isPrivate: createCommentDto.isPrivate !== undefined ? createCommentDto.isPrivate : true,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            middlename: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Comment added successfully for student ${comment.student.user.surname} ${comment.student.user.name}`,
+      comment: {
+        id: comment.id,
+        title: comment.title,
+        content: comment.content,
+        type: comment.type,
+        isPrivate: comment.isPrivate,
+        teacher: {
+          id: comment.teacher.id,
+          name: `${comment.teacher.surname} ${comment.teacher.name}`,
+        },
+        author: {
+          id: comment.teacher.id,
+          name: `${comment.teacher.surname} ${comment.teacher.name}`,
+        },
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+      },
+    };
+  }
+
+  async updateStudentComment(commentId: number, updateCommentDto: any, currentUserId: number, currentUserRole: string) {
+    const comment = await this.prisma.studentComment.findFirst({
+      where: {
+        id: commentId,
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException(`Comment with ID ${commentId} not found`);
+    }
+
+    // Проверяем права доступа: только автор комментария или админ может редактировать
+    if (comment.teacherId !== currentUserId && currentUserRole !== 'ADMIN') {
+      throw new ForbiddenException('You can only edit your own comments');
+    }
+
+    const updatedComment = await this.prisma.studentComment.update({
+      where: { id: commentId },
+      data: {
+        ...(updateCommentDto.title && { title: updateCommentDto.title }),
+        ...(updateCommentDto.content && { content: updateCommentDto.content }),
+        ...(updateCommentDto.type && { type: updateCommentDto.type }),
+        ...(updateCommentDto.isPrivate !== undefined && { isPrivate: updateCommentDto.isPrivate }),
+        updatedAt: new Date(),
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Comment updated successfully for student ${comment.student.user.surname} ${comment.student.user.name}`,
+      comment: {
+        id: updatedComment.id,
+        title: updatedComment.title,
+        content: updatedComment.content,
+        type: updatedComment.type,
+        isPrivate: updatedComment.isPrivate,
+        teacher: {
+          id: updatedComment.teacher.id,
+          name: `${updatedComment.teacher.surname} ${updatedComment.teacher.name}`,
+        },
+        author: {
+          id: updatedComment.teacher.id,
+          name: `${updatedComment.teacher.surname} ${updatedComment.teacher.name}`,
+        },
+        createdAt: updatedComment.createdAt,
+        updatedAt: updatedComment.updatedAt,
+      },
+    };
+  }
+
+  async deleteStudentComment(commentId: number, currentUserId: number, currentUserRole: string) {
+    const comment = await this.prisma.studentComment.findFirst({
+      where: {
+        id: commentId,
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException(`Comment with ID ${commentId} not found`);
+    }
+
+    // Проверяем права доступа: только автор комментария или админ может удалить
+    if (comment.teacherId !== currentUserId && currentUserRole !== 'ADMIN') {
+      throw new ForbiddenException('You can only delete your own comments');
+    }
+
+    await this.prisma.studentComment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      message: `Comment deleted successfully for student ${comment.student.user.surname} ${comment.student.user.name}`,
+    };
+  }
 }

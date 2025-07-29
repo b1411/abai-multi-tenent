@@ -29,8 +29,12 @@ import { useStudent } from '../hooks/useStudents';
 import { useAuth } from '../hooks/useAuth';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
-import { studentService, AttendanceData, FinanceData, EmotionalData } from '../services/studentService';
+import { studentService, AttendanceData, FinanceData, EmotionalData, StudentRemarksResponse, CreateRemarkData, UpdateRemarkData, StudentRemark, StudentCommentsResponse, CreateCommentData, UpdateCommentData, StudentComment } from '../services/studentService';
 import { feedbackService } from '../services/feedbackService';
+import RemarkModal from '../components/RemarkModal';
+import DeleteRemarkModal from '../components/DeleteRemarkModal';
+import { CommentModal } from '../components/CommentModal';
+import { DeleteCommentModal } from '../components/DeleteCommentModal';
 import {
   LineChart,
   Line,
@@ -62,7 +66,21 @@ const StudentDetail: React.FC = () => {
   const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null);
   const [financeData, setFinanceData] = useState<FinanceData | null>(null);
   const [emotionalData, setEmotionalData] = useState<EmotionalData | null>(null);
+  const [remarksData, setRemarksData] = useState<StudentRemarksResponse | null>(null);
+  const [commentsData, setCommentsData] = useState<StudentCommentsResponse | null>(null);
   const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
+
+  // Состояние для модальных окон замечаний
+  const [remarkModalOpen, setRemarkModalOpen] = useState(false);
+  const [deleteRemarkModalOpen, setDeleteRemarkModalOpen] = useState(false);
+  const [editingRemark, setEditingRemark] = useState<StudentRemark | null>(null);
+  const [deletingRemark, setDeletingRemark] = useState<StudentRemark | null>(null);
+
+  // Состояние для модальных окон комментариев
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [deleteCommentModalOpen, setDeleteCommentModalOpen] = useState(false);
+  const [editingComment, setEditingComment] = useState<StudentComment | null>(null);
+  const [deletingComment, setDeletingComment] = useState<StudentComment | null>(null);
 
   // Функция для загрузки данных посещаемости
   const fetchAttendanceData = useCallback(async () => {
@@ -123,6 +141,34 @@ const StudentDetail: React.FC = () => {
     setLoadingData(prev => ({ ...prev, emotional: false }));
   }, [id]);
 
+  // Функция для загрузки замечаний
+  const fetchRemarksData = useCallback(async () => {
+    if (!id) return;
+
+    setLoadingData(prev => ({ ...prev, remarks: true }));
+    try {
+      const data = await studentService.getStudentRemarks(Number(id));
+      setRemarksData(data);
+    } catch (error) {
+      console.error('Ошибка загрузки замечаний:', error);
+    }
+    setLoadingData(prev => ({ ...prev, remarks: false }));
+  }, [id]);
+
+  // Функция для загрузки комментариев
+  const fetchCommentsData = useCallback(async () => {
+    if (!id) return;
+
+    setLoadingData(prev => ({ ...prev, comments: true }));
+    try {
+      const data = await studentService.getStudentComments(Number(id));
+      setCommentsData(data);
+    } catch (error) {
+      console.error('Ошибка загрузки комментариев:', error);
+    }
+    setLoadingData(prev => ({ ...prev, comments: false }));
+  }, [id]);
+
   // Функция для объединения данных из разных источников
   const combineEmotionalData = (feedbackData: any, legacyData: any) => {
     // Сначала проверяем данные из фидбеков
@@ -157,6 +203,10 @@ const StudentDetail: React.FC = () => {
       fetchFinanceData();
     } else if (student && activeTab === 'emotional') {
       fetchEmotionalData();
+    } else if (student && activeTab === 'remarks') {
+      fetchRemarksData();
+    } else if (student && activeTab === 'comments') {
+      fetchCommentsData();
     }
   }, [student?.id, activeTab]); // Убираем все функции из зависимостей - они мемоизированы
 
@@ -178,6 +228,124 @@ const StudentDetail: React.FC = () => {
   };
 
   const accessLevel = getAccessLevel();
+
+  // Функции для работы с замечаниями
+  const handleAddRemark = () => {
+    setEditingRemark(null);
+    setRemarkModalOpen(true);
+  };
+
+  const handleEditRemark = (remark: StudentRemark) => {
+    setEditingRemark(remark);
+    setRemarkModalOpen(true);
+  };
+
+  const handleDeleteRemark = (remark: StudentRemark) => {
+    setDeletingRemark(remark);
+    setDeleteRemarkModalOpen(true);
+  };
+
+  const handleRemarkSubmit = async (remarkData: CreateRemarkData | UpdateRemarkData) => {
+    if (!id) return;
+
+    try {
+      if (editingRemark) {
+        // Редактирование существующего замечания
+        await studentService.updateStudentRemark(editingRemark.id, remarkData);
+      } else {
+        // Добавление нового замечания
+        await studentService.addStudentRemark(Number(id), remarkData as CreateRemarkData);
+      }
+
+      // Перезагружаем данные замечаний
+      await fetchRemarksData();
+    } catch (error) {
+      console.error('Ошибка при сохранении замечания:', error);
+      throw error;
+    }
+  };
+
+  const handleRemarkDelete = async () => {
+    if (!deletingRemark) return;
+
+    try {
+      await studentService.deleteStudentRemark(deletingRemark.id);
+      // Перезагружаем данные замечаний
+      await fetchRemarksData();
+    } catch (error) {
+      console.error('Ошибка при удалении замечания:', error);
+      throw error;
+    }
+  };
+
+  const closeRemarkModal = () => {
+    setRemarkModalOpen(false);
+    setEditingRemark(null);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteRemarkModalOpen(false);
+    setDeletingRemark(null);
+  };
+
+  // Функции для работы с комментариями
+  const handleAddComment = () => {
+    setEditingComment(null);
+    setCommentModalOpen(true);
+  };
+
+  const handleEditComment = (comment: StudentComment) => {
+    setEditingComment(comment);
+    setCommentModalOpen(true);
+  };
+
+  const handleDeleteComment = (comment: StudentComment) => {
+    setDeletingComment(comment);
+    setDeleteCommentModalOpen(true);
+  };
+
+  const handleCommentSubmit = async (commentData: CreateCommentData | UpdateCommentData) => {
+    if (!id) return;
+
+    try {
+      if (editingComment) {
+        // Редактирование существующего комментария
+        await studentService.updateStudentComment(editingComment.id, commentData);
+      } else {
+        // Добавление нового комментария
+        await studentService.addStudentComment(Number(id), commentData as CreateCommentData);
+      }
+
+      // Перезагружаем данные комментариев
+      await fetchCommentsData();
+    } catch (error) {
+      console.error('Ошибка при сохранении комментария:', error);
+      throw error;
+    }
+  };
+
+  const handleCommentDelete = async () => {
+    if (!deletingComment) return;
+
+    try {
+      await studentService.deleteStudentComment(deletingComment.id);
+      // Перезагружаем данные комментариев
+      await fetchCommentsData();
+    } catch (error) {
+      console.error('Ошибка при удалении комментария:', error);
+      throw error;
+    }
+  };
+
+  const closeCommentModal = () => {
+    setCommentModalOpen(false);
+    setEditingComment(null);
+  };
+
+  const closeDeleteCommentModal = () => {
+    setDeleteCommentModalOpen(false);
+    setDeletingComment(null);
+  };
 
   if (loading) {
     return (
@@ -230,6 +398,12 @@ const StudentDetail: React.FC = () => {
       { id: 'attendance', label: 'Посещаемость', icon: FaClipboardList },
       { id: 'finance', label: 'Финансы', icon: FaCreditCard },
       { id: 'emotional', label: 'Эмоциональное состояние', icon: FaSmile },
+      ...(user?.role === 'TEACHER' || user?.role === 'ADMIN' ? [
+        { id: 'remarks', label: 'Замечания', icon: FaExclamationTriangle },
+      ] : []),
+      ...(user?.role === 'ADMIN' ? [
+        { id: 'comments', label: 'Комментарии админам', icon: FaComments },
+      ] : [])
     ] : [])
   ];
 
@@ -610,8 +784,8 @@ const StudentDetail: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${record.attendance
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
                           }`}>
                           {record.attendance ? 'Присутствовал' : 'Отсутствовал'}
                         </span>
@@ -739,10 +913,10 @@ const StudentDetail: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${payment.status === 'paid'
-                                ? 'bg-green-100 text-green-800'
-                                : payment.status === 'overdue'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
+                              ? 'bg-green-100 text-green-800'
+                              : payment.status === 'overdue'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
                               }`}>
                               {payment.status === 'paid' ? 'Оплачено' :
                                 payment.status === 'overdue' ? 'Просрочено' : 'К оплате'}
@@ -785,16 +959,15 @@ const StudentDetail: React.FC = () => {
                     <h2 className="text-xl font-semibold">Текущее эмоциональное состояние</h2>
                     <div className="flex items-center gap-3">
                       {/* Индикатор источника данных */}
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        emotionalData.source === 'feedback' ? 'bg-green-100 text-green-800' :
+                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${emotionalData.source === 'feedback' ? 'bg-green-100 text-green-800' :
                         emotionalData.source === 'legacy' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                          'bg-gray-100 text-gray-800'
+                        }`}>
                         {emotionalData.source === 'feedback' ? '📊 Из фидбеков' :
-                         emotionalData.source === 'legacy' ? '💾 Старая система' :
-                         '⚠️ Нет данных'}
+                          emotionalData.source === 'legacy' ? '💾 Старая система' :
+                            '⚠️ Нет данных'}
                       </div>
-                      
+
                       {/* Кнопка создания шаблонов если данных нет */}
                       {emotionalData.source === 'no_data' && user?.role === 'ADMIN' && (
                         <button
@@ -901,13 +1074,13 @@ const StudentDetail: React.FC = () => {
                   <div className="space-y-3">
                     {emotionalData.recommendations.map((rec, index) => (
                       <div key={index} className={`p-4 rounded-lg border-l-4 ${rec.priority === 'high' ? 'border-red-500 bg-red-50' :
-                          rec.priority === 'medium' ? 'border-yellow-500 bg-yellow-50' :
-                            'border-blue-500 bg-blue-50'
+                        rec.priority === 'medium' ? 'border-yellow-500 bg-yellow-50' :
+                          'border-blue-500 bg-blue-50'
                         }`}>
                         <div className="flex items-start gap-3">
                           <div className={`p-2 rounded-full ${rec.priority === 'high' ? 'bg-red-100' :
-                              rec.priority === 'medium' ? 'bg-yellow-100' :
-                                'bg-blue-100'
+                            rec.priority === 'medium' ? 'bg-yellow-100' :
+                              'bg-blue-100'
                             }`}>
                             {rec.priority === 'high' ? <FaExclamationTriangle className="w-4 h-4 text-red-600" /> :
                               rec.priority === 'medium' ? <FaExclamationTriangle className="w-4 h-4 text-yellow-600" /> :
@@ -960,6 +1133,327 @@ const StudentDetail: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Вкладка замечаний */}
+      {activeTab === 'remarks' && accessLevel === 'full' && (user?.role === 'TEACHER' || user?.role === 'ADMIN') && (
+        <div className="space-y-6">
+          {loadingData.remarks ? (
+            <div className="flex justify-center items-center h-64">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <>
+              {/* Заголовок с кнопкой добавления */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold">Замечания студента</h2>
+                  <button
+                    onClick={handleAddRemark}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <FaExclamationTriangle className="w-4 h-4" />
+                    Добавить замечание
+                  </button>
+                </div>
+
+                {/* Статистика замечаний */}
+                {remarksData && (
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    <div className="bg-red-50 rounded-lg p-4 text-center">
+                      <FaExclamationTriangle className="w-8 h-8 mx-auto mb-2 text-red-600" />
+                      <div className="text-2xl font-bold text-red-600">
+                        {remarksData.totalRemarks}
+                      </div>
+                      <div className="text-sm text-gray-600">Всего замечаний</div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4 text-center">
+                      <FaBook className="w-8 h-8 mx-auto mb-2 text-orange-600" />
+                      <div className="text-2xl font-bold text-orange-600">
+                        {remarksData.remarks.filter(r => r.type === 'ACADEMIC').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Учебные</div>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 text-center">
+                      <FaUsers className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                      <div className="text-2xl font-bold text-purple-600">
+                        {remarksData.remarks.filter(r => r.type === 'BEHAVIOR').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Поведение</div>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-4 text-center">
+                      <FaCalendarAlt className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                      <div className="text-2xl font-bold text-blue-600">
+                        {remarksData.remarks.filter(r => r.type === 'ATTENDANCE').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Посещаемость</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Список замечаний */}
+              {remarksData && remarksData.remarks.length > 0 ? (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-lg font-semibold mb-4">История замечаний</h3>
+                  <div className="space-y-4">
+                    {remarksData.remarks.map((remark) => (
+                      <div key={remark.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${remark.type === 'ACADEMIC' ? 'bg-orange-100 text-orange-800' :
+                              remark.type === 'BEHAVIOR' ? 'bg-purple-100 text-purple-800' :
+                                remark.type === 'ATTENDANCE' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                              }`}>
+                              {remark.type === 'ACADEMIC' ? 'Учебное' :
+                                remark.type === 'BEHAVIOR' ? 'Поведение' :
+                                  remark.type === 'ATTENDANCE' ? 'Посещаемость' :
+                                    'Общее'}
+                            </span>
+                            {remark.isPrivate && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Приватное
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditRemark(remark)}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Редактировать"
+                            >
+                              <FaEye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRemark(remark)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Удалить"
+                            >
+                              <FaExclamationTriangle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <h4 className="font-semibold text-gray-900 mb-2">{remark.title}</h4>
+                        <p className="text-gray-700 mb-3">{remark.content}</p>
+
+                        <div className="flex justify-between items-center text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <FaUserGraduate className="w-3 h-3" />
+                            <span>Преподаватель: {remark.teacher.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <FaCalendarAlt className="w-3 h-3" />
+                            <span>{new Date(remark.createdAt).toLocaleDateString('ru-RU')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <div className="text-center py-8">
+                    <FaCheckCircle className="w-12 h-12 mx-auto mb-4 text-green-300" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Замечаний нет</h3>
+                    <p className="text-gray-500 mb-4">
+                      У этого студента пока нет замечаний. Это хорошо!
+                    </p>
+                    <button
+                      onClick={handleAddRemark}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Добавить первое замечание
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Вкладка комментариев для админов */}
+      {activeTab === 'comments' && accessLevel === 'full' && user?.role === 'ADMIN' && (
+        <div className="space-y-6">
+          {loadingData.comments ? (
+            <div className="flex justify-center items-center h-64">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <>
+              {/* Заголовок с кнопкой добавления */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold">Комментарии администрации</h2>
+                  <button
+                    onClick={handleAddComment}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <FaComments className="w-4 h-4" />
+                    Добавить комментарий
+                  </button>
+                </div>
+
+                {/* Информация о комментариях */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-blue-100">
+                      <FaComments className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-blue-900">Внутренние комментарии</h3>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Эти комментарии видны только администраторам и используются для внутренних заметок о студенте.
+                        Студенты и родители не имеют доступа к этой информации.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Статистика комментариев */}
+                {commentsData && (
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-blue-50 rounded-lg p-4 text-center">
+                      <FaComments className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                      <div className="text-2xl font-bold text-blue-600">
+                        {commentsData.totalComments}
+                      </div>
+                      <div className="text-sm text-gray-600">Всего комментариев</div>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <FaUserGraduate className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                      <div className="text-2xl font-bold text-green-600">
+                        {commentsData.comments.filter(c => c.type === 'ACADEMIC').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Учебные</div>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 text-center">
+                      <FaUsers className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                      <div className="text-2xl font-bold text-purple-600">
+                        {commentsData.comments.filter(c => c.type === 'GENERAL').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Общие</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Список комментариев */}
+              {commentsData && commentsData.comments.length > 0 ? (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-lg font-semibold mb-4">История комментариев</h3>
+                  <div className="space-y-4">
+                    {commentsData.comments.map((comment) => (
+                      <div key={comment.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${comment.type === 'ACADEMIC' ? 'bg-green-100 text-green-800' :
+                              comment.type === 'GENERAL' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                              {comment.type === 'ACADEMIC' ? 'Учебный' :
+                                comment.type === 'GENERAL' ? 'Общий' :
+                                  'Другое'}
+                            </span>
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Конфиденциально
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditComment(comment)}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Редактировать"
+                            >
+                              <FaEye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteComment(comment)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Удалить"
+                            >
+                              <FaExclamationTriangle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <h4 className="font-semibold text-gray-900 mb-2">{comment.title}</h4>
+                        <p className="text-gray-700 mb-3">{comment.content}</p>
+
+                        <div className="flex justify-between items-center text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <FaUserGraduate className="w-3 h-3" />
+                            <span>Автор: {comment.author.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <FaCalendarAlt className="w-3 h-3" />
+                            <span>{new Date(comment.createdAt).toLocaleDateString('ru-RU')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <div className="text-center py-8">
+                    <FaComments className="w-12 h-12 mx-auto mb-4 text-blue-300" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Комментариев нет</h3>
+                    <p className="text-gray-500 mb-4">
+                      У этого студента пока нет внутренних комментариев администрации.
+                    </p>
+                    <button
+                      onClick={handleAddComment}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Добавить первый комментарий
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Модальные окна */}
+      {/* Модал для добавления/редактирования замечания */}
+      <RemarkModal
+        isOpen={remarkModalOpen}
+        onClose={closeRemarkModal}
+        onSubmit={handleRemarkSubmit}
+        remark={editingRemark}
+        studentName={`${student?.user.surname} ${student?.user.name}`}
+      />
+
+      {/* Модал для подтверждения удаления замечания */}
+      <DeleteRemarkModal
+        isOpen={deleteRemarkModalOpen}
+        onClose={closeDeleteModal}
+        onConfirm={handleRemarkDelete}
+        remarkTitle={deletingRemark?.title || ''}
+        studentName={`${student?.user.surname} ${student?.user.name}`}
+      />
+
+      {/* Модал для добавления/редактирования комментария */}
+      <CommentModal
+        isOpen={commentModalOpen}
+        onClose={closeCommentModal}
+        onSubmit={handleCommentSubmit}
+        comment={editingComment!}
+        studentName={`${student?.user.surname} ${student?.user.name}`}
+        title={editingComment ? 'Редактировать комментарий' : 'Добавить комментарий'}
+      />
+
+      {/* Модал для подтверждения удаления комментария */}
+      <DeleteCommentModal
+        isOpen={deleteCommentModalOpen}
+        onClose={closeDeleteCommentModal}
+        onConfirm={handleCommentDelete}
+        comment={deletingComment}
+        studentName={`${student?.user.surname} ${student?.user.name}`}
+      />
     </div>
   );
 };

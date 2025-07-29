@@ -3,6 +3,10 @@ import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateFullStudentDto } from './dto/create-full-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { CreateRemarkDto } from './dto/create-remark.dto';
+import { UpdateRemarkDto } from './dto/update-remark.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -260,5 +264,113 @@ export class StudentsController {
   @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT', 'FINANCIST')
   getStudentCompleteReport(@Param('id') id: string, @Request() req) {
     return this.studentsService.getStudentCompleteReport(+id, req.user?.role, req.user?.id);
+  }
+
+  // === МЕТОДЫ ДЛЯ РАБОТЫ С ЗАМЕЧАНИЯМИ ===
+
+  @Get(':id/remarks')
+  @ApiOperation({ 
+    summary: 'Получить замечания студента',
+    description: 'Получает все замечания о студенте. Доступно только преподавателям и админам.'
+  })
+  @ApiResponse({ status: 200, description: 'Список замечаний студента' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER')
+  getStudentRemarks(@Param('id') id: string) {
+    return this.studentsService.getStudentRemarks(+id);
+  }
+
+  @Post(':id/remarks')
+  @ApiOperation({ 
+    summary: 'Добавить замечание студенту',
+    description: 'Добавляет новое замечание о студенте. Доступно только преподавателям и админам.'
+  })
+  @ApiResponse({ status: 201, description: 'Замечание успешно добавлено' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER')
+  addStudentRemark(@Param('id') id: string, @Body() createRemarkDto: CreateRemarkDto, @Request() req) {
+    return this.studentsService.addStudentRemark(+id, createRemarkDto, req.user?.id);
+  }
+
+  @Patch('remarks/:remarkId')
+  @ApiOperation({ 
+    summary: 'Обновить замечание',
+    description: 'Обновляет существующее замечание. Доступно только автору замечания или админам.'
+  })
+  @ApiResponse({ status: 200, description: 'Замечание успешно обновлено' })
+  @ApiResponse({ status: 404, description: 'Замечание не найдено' })
+  @ApiParam({ name: 'remarkId', description: 'ID замечания' })
+  @Roles('ADMIN', 'TEACHER')
+  updateStudentRemark(@Param('remarkId') remarkId: string, @Body() updateRemarkDto: UpdateRemarkDto, @Request() req) {
+    return this.studentsService.updateStudentRemark(+remarkId, updateRemarkDto, req.user?.id, req.user?.role);
+  }
+
+  @Delete('remarks/:remarkId')
+  @ApiOperation({ 
+    summary: 'Удалить замечание',
+    description: 'Удаляет замечание. Доступно только автору замечания или админам.'
+  })
+  @ApiResponse({ status: 200, description: 'Замечание успешно удалено' })
+  @ApiResponse({ status: 404, description: 'Замечание не найдено' })
+  @ApiParam({ name: 'remarkId', description: 'ID замечания' })
+  @Roles('ADMIN', 'TEACHER')
+  deleteStudentRemark(@Param('remarkId') remarkId: string, @Request() req) {
+    return this.studentsService.deleteStudentRemark(+remarkId, req.user?.id, req.user?.role);
+  }
+
+  // === МЕТОДЫ ДЛЯ РАБОТЫ С КОММЕНТАРИЯМИ ===
+
+  @Get(':id/comments')
+  @ApiOperation({ 
+    summary: 'Получить комментарии студента',
+    description: 'Получает все комментарии о студенте, которые видны только администрации. Доступно только админам.'
+  })
+  @ApiResponse({ status: 200, description: 'Список комментариев студента' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN')
+  getStudentComments(@Param('id') id: string) {
+    return this.studentsService.getStudentComments(+id);
+  }
+
+  @Post(':id/comments')
+  @ApiOperation({ 
+    summary: 'Добавить комментарий студенту',
+    description: 'Добавляет новый комментарий о студенте, который виден только администрации. Доступно только админам.'
+  })
+  @ApiResponse({ status: 201, description: 'Комментарий успешно добавлен' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN')
+  addStudentComment(@Param('id') id: string, @Body() createCommentDto: CreateCommentDto, @Request() req) {
+    return this.studentsService.addStudentComment(+id, createCommentDto, req.user?.id);
+  }
+
+  @Patch('comments/:commentId')
+  @ApiOperation({ 
+    summary: 'Обновить комментарий',
+    description: 'Обновляет существующий комментарий. Доступно только автору комментария или админам.'
+  })
+  @ApiResponse({ status: 200, description: 'Комментарий успешно обновлен' })
+  @ApiResponse({ status: 404, description: 'Комментарий не найден' })
+  @ApiParam({ name: 'commentId', description: 'ID комментария' })
+  @Roles('ADMIN')
+  updateStudentComment(@Param('commentId') commentId: string, @Body() updateCommentDto: UpdateCommentDto, @Request() req) {
+    return this.studentsService.updateStudentComment(+commentId, updateCommentDto, req.user?.id, req.user?.role);
+  }
+
+  @Delete('comments/:commentId')
+  @ApiOperation({ 
+    summary: 'Удалить комментарий',
+    description: 'Удаляет комментарий. Доступно только автору комментария или админам.'
+  })
+  @ApiResponse({ status: 200, description: 'Комментарий успешно удален' })
+  @ApiResponse({ status: 404, description: 'Комментарий не найден' })
+  @ApiParam({ name: 'commentId', description: 'ID комментария' })
+  @Roles('ADMIN')
+  deleteStudentComment(@Param('commentId') commentId: string, @Request() req) {
+    return this.studentsService.deleteStudentComment(+commentId, req.user?.id, req.user?.role);
   }
 }

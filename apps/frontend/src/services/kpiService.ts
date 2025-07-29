@@ -7,6 +7,8 @@ import type {
   KpiGoalsResponse,
   KpiComparisonResponse,
   KpiFilter,
+  KpiRecalculationResponse,
+  KpiCalculationStatusResponse,
 } from '../types/kpi';
 
 export const kpiService = {
@@ -86,5 +88,36 @@ export const kpiService = {
   // Экспорт отчета по конкретному преподавателю
   exportTeacherReport: async (teacherId: number, format: 'xlsx' | 'pdf' = 'pdf'): Promise<Blob> => {
     return await apiClient.getBlob(`/kpi/teachers/${teacherId}/export?format=${format}`);
+  },
+
+  // Settings management
+  getSettings: async () => {
+    return await apiClient.get(`/kpi/settings`);
+  },
+
+  updateSettings: async (settings: any) => {
+    return await apiClient.put(`/kpi/settings`, settings);
+  },
+
+  // Goals management
+  createGoal: async (goalData: any) => {
+    return await apiClient.post(`/kpi/goals`, goalData);
+  },
+
+  updateGoal: async (goalId: number, goalData: any) => {
+    return await apiClient.put(`/kpi/goals/${goalId}`, goalData);
+  },
+
+  deleteGoal: async (goalId: number) => {
+    return await apiClient.delete(`/kpi/goals/${goalId}`);
+  },
+
+  // Manual KPI recalculation
+  recalculateKpi: async (): Promise<KpiRecalculationResponse> => {
+    return await apiClient.post<KpiRecalculationResponse>(`/kpi/recalculate`);
+  },
+
+  getCalculationStatus: async (): Promise<KpiCalculationStatusResponse> => {
+    return await apiClient.get<KpiCalculationStatusResponse>(`/kpi/calculation-status`);
   },
 };

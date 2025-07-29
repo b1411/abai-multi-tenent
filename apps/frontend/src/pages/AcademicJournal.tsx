@@ -33,6 +33,7 @@ interface GradeInfoModalProps {
     result: LessonResult;
     student: Student;
     lesson: Lesson;
+    onEdit?: () => void;
 }
 
 const GradeModal: React.FC<GradeModalProps> = ({
@@ -210,59 +211,63 @@ const GradeInfoModal: React.FC<GradeInfoModalProps> = ({
     onClose,
     result,
     student,
-    lesson
+    lesson,
+    onEdit
 }) => {
+    const { user } = useAuth();
+    const canEdit = user?.role === 'ADMIN' || user?.role === 'TEACHER';
+
     if (!isOpen) return null;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Информация об оценке">
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <span className="text-sm text-gray-500">Студент</span>
-                        <p className="font-medium">{student.user?.surname} {student.user?.name}</p>
+                        <p className="font-medium text-sm sm:text-base">{student.user?.surname} {student.user?.name}</p>
                     </div>
                     <div>
                         <span className="text-sm text-gray-500">Группа</span>
-                        <p className="font-medium">{student.group?.name || 'Не указана'}</p>
+                        <p className="font-medium text-sm sm:text-base">{student.group?.name || 'Не указана'}</p>
                     </div>
                 </div>
 
                 <div>
                     <span className="text-sm text-gray-500">Урок</span>
-                    <p className="font-medium">{lesson.title}</p>
-                    <p className="text-sm text-gray-600">{lesson.date}</p>
+                    <p className="font-medium text-sm sm:text-base">{lesson.title}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{new Date(lesson.date).toLocaleDateString('ru-RU')}</p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                     {/* Посещаемость */}
-                    <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
                         <span className="text-sm text-gray-500">Посещаемость</span>
-                        <div className="mt-1">
+                        <div className="mt-2">
                             {result.attendance === true && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                     Присутствовал
                                 </span>
                             )}
                             {result.attendance === false && (
-                                <div>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <div className="space-y-2">
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                         Отсутствовал
                                     </span>
                                     {result.absentReason && (
-                                        <p className="text-sm text-gray-600 mt-1">
-                                            Причина: {journalService.getAbsentReasonText(result.absentReason)}
+                                        <p className="text-xs sm:text-sm text-gray-600">
+                                            <span className="font-medium">Причина:</span> {journalService.getAbsentReasonText(result.absentReason)}
                                         </p>
                                     )}
                                     {result.absentComment && (
-                                        <p className="text-sm text-gray-600 mt-1">
-                                            Комментарий: {result.absentComment}
+                                        <p className="text-xs sm:text-sm text-gray-600">
+                                            <span className="font-medium">Комментарий:</span> {result.absentComment}
                                         </p>
                                     )}
                                 </div>
                             )}
                             {result.attendance === undefined && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                     Не отмечено
                                 </span>
                             )}
@@ -271,37 +276,37 @@ const GradeInfoModal: React.FC<GradeInfoModalProps> = ({
 
                     {/* Оценки */}
                     {(result.lessonScore || result.homeworkScore) && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
                             {result.lessonScore && (
-                                <div className="p-4 bg-blue-50 rounded-lg">
+                                <div className="p-3 sm:p-4 bg-blue-50 rounded-lg">
                                     <span className="text-sm text-gray-500">Классная работа</span>
-                                    <div className="mt-1">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white ${journalService.getGradeColor(result.lessonScore)}`}>
+                                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center">
+                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white ${journalService.getGradeColor(result.lessonScore)} mb-1 sm:mb-0`}>
                                             {result.lessonScore}
                                         </span>
-                                        <span className="ml-2 text-sm text-gray-600">
+                                        <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">
                                             {journalService.getGradeText(result.lessonScore)}
                                         </span>
                                     </div>
                                     {result.lessonScoreComment && (
-                                        <p className="text-sm text-gray-600 mt-2">{result.lessonScoreComment}</p>
+                                        <p className="text-xs sm:text-sm text-gray-600 mt-2 break-words">{result.lessonScoreComment}</p>
                                     )}
                                 </div>
                             )}
 
                             {result.homeworkScore && (
-                                <div className="p-4 bg-green-50 rounded-lg">
+                                <div className="p-3 sm:p-4 bg-green-50 rounded-lg">
                                     <span className="text-sm text-gray-500">Домашняя работа</span>
-                                    <div className="mt-1">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white ${journalService.getGradeColor(result.homeworkScore)}`}>
+                                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center">
+                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white ${journalService.getGradeColor(result.homeworkScore)} mb-1 sm:mb-0`}>
                                             {result.homeworkScore}
                                         </span>
-                                        <span className="ml-2 text-sm text-gray-600">
+                                        <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">
                                             {journalService.getGradeText(result.homeworkScore)}
                                         </span>
                                     </div>
                                     {result.homeworkScoreComment && (
-                                        <p className="text-sm text-gray-600 mt-2">{result.homeworkScoreComment}</p>
+                                        <p className="text-xs sm:text-sm text-gray-600 mt-2 break-words">{result.homeworkScoreComment}</p>
                                     )}
                                 </div>
                             )}
@@ -309,14 +314,24 @@ const GradeInfoModal: React.FC<GradeInfoModalProps> = ({
                     )}
                 </div>
 
-                <div className="text-xs text-gray-500">
-                    Создано: {new Date(result.createdAt).toLocaleString('ru-RU')}
+                <div className="text-xs text-gray-500 space-y-1">
+                    <div>Создано: {new Date(result.createdAt).toLocaleString('ru-RU')}</div>
                     {result.updatedAt !== result.createdAt && (
-                        <span className="block">
-                            Обновлено: {new Date(result.updatedAt).toLocaleString('ru-RU')}
-                        </span>
+                        <div>Обновлено: {new Date(result.updatedAt).toLocaleString('ru-RU')}</div>
                     )}
                 </div>
+
+                {canEdit && (
+                    <div className="flex justify-center sm:justify-end pt-4 border-t">
+                        <Button 
+                            onClick={onEdit} 
+                            className="w-full sm:w-auto flex items-center justify-center space-x-2 text-sm"
+                        >
+                            <FaEdit />
+                            <span>Редактировать</span>
+                        </Button>
+                    </div>
+                )}
             </div>
         </Modal>
     );
@@ -540,22 +555,33 @@ const AcademicJournal: React.FC = () => {
     const handleGradeClick = (studentId: number, lessonId: number) => {
         const existingResult = results.find(r => r.studentId === studentId && r.lessonId === lessonId);
 
-        if (existingResult && !canEdit) {
-            // Показываем информацию
+        if (existingResult) {
+            // Если есть результат, показываем информацию
             const student = students.find(s => s.id === studentId);
             const lesson = lessons.find(l => l.id === lessonId);
             if (student && lesson) {
                 setInfoModal({ isOpen: true, result: existingResult, student, lesson });
             }
-        } else {
-            // Открываем модальное окно для редактирования
+        } else if (canEdit) {
+            // Если нет результата и можно редактировать, открываем форму для создания
             setGradeModal({
                 isOpen: true,
                 studentId,
                 lessonId,
-                result: existingResult,
+                result: undefined,
             });
         }
+    };
+
+    const handleEditGrade = (studentId: number, lessonId: number) => {
+        const existingResult = results.find(r => r.studentId === studentId && r.lessonId === lessonId);
+        
+        setGradeModal({
+            isOpen: true,
+            studentId,
+            lessonId,
+            result: existingResult,
+        });
     };
 
     const getResultForStudentAndLesson = (studentId: number, lessonId: number): LessonResult | undefined => {
@@ -773,6 +799,19 @@ const AcademicJournal: React.FC = () => {
                 result={infoModal.result!}
                 student={infoModal.student!}
                 lesson={infoModal.lesson!}
+                onEdit={() => {
+                    if (infoModal.result && infoModal.student && infoModal.lesson) {
+                        // Закрываем информационную модалку
+                        setInfoModal({ isOpen: false });
+                        // Открываем модалку редактирования
+                        setGradeModal({
+                            isOpen: true,
+                            studentId: infoModal.student.id,
+                            lessonId: infoModal.lesson.id,
+                            result: infoModal.result,
+                        });
+                    }
+                }}
             />
         </div>
     );

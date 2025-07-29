@@ -33,7 +33,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { Salary, SalaryStatus, BonusType } from '../types/salary';
+import { Salary, SalaryStatus, BonusType, CreateSalaryDto } from '../types/salary';
 import { Teacher } from '../types/teacher';
 import { formatCurrency } from '../utils/formatters';
 import { useSalaries } from '../hooks/useSalaries';
@@ -84,7 +84,7 @@ const Salaries: React.FC = () => {
   });
 
   // Обработчики
-  const handleCreateSalary = async (salaryData: any) => {
+  const handleCreateSalary = async (salaryData: CreateSalaryDto) => {
     const result = await createSalary(salaryData);
     if (result) {
       setShowSalaryForm(false);
@@ -277,6 +277,38 @@ const Salaries: React.FC = () => {
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-4">Расчет базовой зарплаты</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Ставка за час:</span>
+                        <span className="font-medium">{formatCurrency(selectedEmployee.hourlyRate || 0)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Отработано часов:</span>
+                        <span className="font-medium">{selectedEmployee.hoursWorked || 0}ч</span>
+                      </div>
+                      <div className="border-t pt-2 flex items-center justify-between">
+                        <span className="text-sm font-medium">Базовая зарплата:</span>
+                        <span className="text-blue-600 font-bold">{formatCurrency(selectedEmployee.baseSalary)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-4">Надбавки</h3>
+                    <div className="space-y-2">
+                      {selectedEmployee.allowances?.map((allowance: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <span className="text-sm">{allowance.name}</span>
+                          <span className="text-purple-600 font-medium">
+                            +{allowance.isPercentage ? `${allowance.amount}%` : formatCurrency(allowance.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="text-lg font-semibold mb-4">Бонусы</h3>
                     <div className="space-y-2">
                       {selectedEmployee.bonuses?.map((bonus: any, index: number) => (
@@ -459,9 +491,9 @@ const Salaries: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Период
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Оклад
-                      </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ставка/Часы
+                </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Бонусы
                       </th>
@@ -760,7 +792,12 @@ const Salaries: React.FC = () => {
                     <div className="text-sm text-gray-900">{salary.month}/{salary.year}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{formatCurrency(salary.baseSalary!)}</div>
+                    <div className="text-sm text-gray-900">
+                      {formatCurrency(salary.hourlyRate || 0)}/ч
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {salary.hoursWorked || 0}ч = {formatCurrency((salary.hourlyRate || 0) * (salary.hoursWorked || 0))}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{formatCurrency(salary.totalNet!)}</div>

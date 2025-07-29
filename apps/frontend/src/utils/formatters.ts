@@ -32,12 +32,20 @@ export const formatTime = (date: string | Date): string => {
 
 // Форматирование валюты
 export const formatCurrency = (amount: number, currency: string = 'KZT'): string => {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: currency,
+  const formatted = new Intl.NumberFormat('ru-RU', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount);
+  return `${formatted}₸`;
+};
+
+// Форматирование тенге (явное)
+export const formatTenge = (amount: number): string => {
+  const formatted = new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount);
+  return `${formatted}₸`;
 };
 
 // Форматирование числа

@@ -13,11 +13,20 @@ export enum BonusType {
   OTHER = 'OTHER',
 }
 
+export enum AllowanceType {
+  EXPERIENCE = 'EXPERIENCE',
+  CATEGORY = 'CATEGORY',
+  CONDITIONS = 'CONDITIONS',
+  QUALIFICATION = 'QUALIFICATION',
+  OTHER = 'OTHER',
+}
+
 export interface SalaryBonus {
   id: number;
   type: BonusType;
   name: string;
   amount: number;
+  isPercentage?: boolean;
   comment?: string;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +36,18 @@ export interface SalaryDeduction {
   id: number;
   name: string;
   amount: number;
+  isPercentage?: boolean;
+  comment?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalaryAllowance {
+  id: number;
+  type: AllowanceType;
+  name: string;
+  amount: number;
+  isPercentage: boolean;
   comment?: string;
   createdAt: string;
   updatedAt: string;
@@ -45,7 +66,10 @@ export interface Salary {
       email: string;
     };
   };
+  hourlyRate: number;
+  hoursWorked: number;
   baseSalary: number;
+  allowances: SalaryAllowance[];
   bonuses: SalaryBonus[];
   deductions: SalaryDeduction[];
   totalGross: number;
@@ -63,16 +87,26 @@ export interface Salary {
 
 export interface CreateSalaryDto {
   teacherId: number;
-  baseSalary: number;
+  hourlyRate: number;
+  hoursWorked: number;
+  allowances?: {
+    type: AllowanceType;
+    name: string;
+    amount: number;
+    isPercentage?: boolean;
+    comment?: string;
+  }[];
   bonuses?: {
     type: BonusType;
     name: string;
     amount: number;
+    isPercentage?: boolean;
     comment?: string;
   }[];
   deductions?: {
     name: string;
     amount: number;
+    isPercentage?: boolean;
     comment?: string;
   }[];
   month: number;

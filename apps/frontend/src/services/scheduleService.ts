@@ -53,8 +53,8 @@ class ScheduleService {
   }
 
   // AI Schedule Generation methods
-  async generateWithAI(params: any): Promise<any> {
-    return apiClient.post<any>(`${this.baseUrl}/ai-generate`, params);
+  async generateFromStudyPlans(params: any): Promise<any> {
+    return apiClient.post<any>(`${this.baseUrl}/study-plans/from-ai`, params);
   }
 
   async analyzeWithAI(scheduleItems: any[]): Promise<any> {
@@ -65,8 +65,27 @@ class ScheduleService {
     return apiClient.post<any>(`${this.baseUrl}/ai-validate`, scheduleItems);
   }
 
-  async applyAISchedule(applyData: { scheduleItems: any[], replaceExisting?: boolean }): Promise<any> {
-    return apiClient.post<any>(`${this.baseUrl}/ai-apply`, applyData);
+  async applySchedule(applyData: { generatedSchedules: any[], replaceExisting?: boolean }): Promise<any> {
+    return apiClient.post<any>(`${this.baseUrl}/lessons/apply`, applyData);
+  }
+
+  async updateScheduleDayAndTime(id: string, day: string, startTime: string, endTime: string) {
+    const dayOfWeek = this.getDayNumber(day);
+    const response = await apiClient.patch<{ data: Schedule }>(`/schedule/${id}`, { dayOfWeek, startTime, endTime });
+    return response.data;
+  }
+
+  private getDayNumber(day: string): number {
+    const dayMap: { [key: string]: number } = {
+      'monday': 1,
+      'tuesday': 2,
+      'wednesday': 3,
+      'thursday': 4,
+      'friday': 5,
+      'saturday': 6,
+      'sunday': 7
+    };
+    return dayMap[day.toLowerCase()] || 1;
   }
 
   // Методы для получения данных для выпадающих списков (из реального API)

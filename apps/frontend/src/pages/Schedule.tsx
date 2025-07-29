@@ -13,13 +13,26 @@ import {
   User,
   Edit,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  GripVertical
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  useDraggable,
+  useDroppable,
+} from '@dnd-kit/core';
 import { useAuth } from '../hooks/useAuth';
 import { useSearchParams } from 'react-router-dom';
 import { Button, Loading, Modal, Autocomplete, TimePicker } from '../components/ui';
-import AILessonGeneratorModal from '../components/AILessonGeneratorModal';
-import lessonScheduleService, { AILessonsResponse, AvailableLesson } from '../services/lessonScheduleService';
+import AIStudyPlanGeneratorModal from '../components/AILessonGeneratorModal';
 
 // import WeekGrid from '../components/WeekGrid';
 import scheduleService, { ScheduleService } from '../services/scheduleService';
@@ -216,18 +229,16 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
               <button
                 type="button"
                 onClick={() => setLessonFormat('offline')}
-                className={`flex-1 py-2 px-4 rounded-md transition-colors text-sm ${
-                  lessonFormat === 'offline' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
-                }`}
+                className={`flex-1 py-2 px-4 rounded-md transition-colors text-sm ${lessonFormat === 'offline' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+                  }`}
               >
                 Оффлайн
               </button>
               <button
                 type="button"
                 onClick={() => setLessonFormat('online')}
-                className={`flex-1 py-2 px-4 rounded-md transition-colors text-sm ${
-                  lessonFormat === 'online' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
-                }`}
+                className={`flex-1 py-2 px-4 rounded-md transition-colors text-sm ${lessonFormat === 'online' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+                  }`}
               >
                 Онлайн
               </button>
@@ -337,12 +348,12 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
               <option value="once">Один раз</option>
             </select>
           </div>
-          
+
           {/* Время окончания (автоматически) */}
           {formData.endTime && (
-             <div className="text-sm text-gray-600">
-               Время окончания (автоматически): {formData.endTime}
-             </div>
+            <div className="text-sm text-gray-600">
+              Время окончания (автоматически): {formData.endTime}
+            </div>
           )}
 
           {/* Кнопки */}
@@ -364,6 +375,86 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
           </div>
         </form>
       </motion.div>
+    </div>
+  );
+};
+
+const DraggableScheduleItem = ({ item, canEdit, onEdit, onDelete }: { item: ScheduleItem, canEdit: boolean, onEdit: (item: ScheduleItem) => void, onDelete: (id: string) => void }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: item.id,
+    data: { item },
+  });
+
+  const style = transform
+    ? {
+      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      zIndex: 100,
+      opacity: isDragging ? 0.5 : 1,
+    }
+    : {};
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className={`p-2 mb-1 rounded text-xs group relative flex items-start gap-1 ${item.type === 'lesson' ? 'bg-blue-50 border-l-4 border-blue-500' :
+        item.type === 'consultation' ? 'bg-green-50 border-l-4 border-green-500' :
+          'bg-purple-50 border-l-4 border-purple-500'
+        }`}
+    >
+      {/* Drag Handle */}
+      {canEdit && (
+        <div {...listeners} className="cursor-grab touch-none py-2">
+          <GripVertical className="h-4 w-4 text-gray-400" />
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="flex-grow">
+        <div className="font-semibold">{item.subject}</div>
+        <div className="text-gray-600">{item.classId}</div>
+        <div className="text-gray-500 flex items-center mt-1">
+          <User className="h-3 w-3 mr-1" />
+          {item.teacherName}
+        </div>
+        <div className="text-gray-500 flex items-center">
+          <MapPin className="h-3 w-3 mr-1" />
+          {item.roomId}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      {canEdit && (
+        <div className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+            className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
+          >
+            <Edit className="h-3 w-3 text-gray-500" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+            className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
+          >
+            <Trash2 className="h-3 w-3 text-red-500" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DroppableCell = ({ id, children, onAddClick }: { id: string, children: React.ReactNode, onAddClick: () => void }) => {
+  const { isOver, setNodeRef } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`border border-gray-200 p-1 min-h-24 relative transition-colors ${isOver ? 'bg-blue-100' : 'bg-gray-50/50'}`}
+      onClick={onAddClick}
+    >
+      {children}
     </div>
   );
 };
@@ -609,7 +700,7 @@ const SchedulePage: React.FC = () => {
   // Функция проверки конфликтов расписания
   const checkScheduleConflicts = (newItem: CreateScheduleDto, existingSchedule: ScheduleItem[]): string[] => {
     const conflicts: string[] = [];
-    
+
     // Конвертируем номер дня обратно в строку для сравнения
     const dayName = Object.entries({
       'monday': 1,
@@ -640,15 +731,15 @@ const SchedulePage: React.FC = () => {
 
       // Проверяем пересечение времени
       if (timesOverlap(newItem.startTime, newEndTime, existingItem.startTime, existingEndTime)) {
-        
+
         // Конфликт преподавателя
         if (newItem.teacherId.toString() === existingItem.teacherId) {
           conflicts.push(`Преподаватель занят в это время (${existingItem.startTime}-${existingEndTime})`);
         }
 
         // Конфликт аудитории
-        if (newItem.classroomId && existingItem.roomId && 
-            newItem.classroomId.toString() === existingItem.roomId) {
+        if (newItem.classroomId && existingItem.roomId &&
+          newItem.classroomId.toString() === existingItem.roomId) {
           conflicts.push(`Аудитория ${existingItem.roomId} занята в это время (${existingItem.startTime}-${existingEndTime})`);
         }
 
@@ -698,10 +789,10 @@ const SchedulePage: React.FC = () => {
       try {
         // Вызываем API для удаления
         await scheduleService.remove(id);
-        
+
         // Обновляем локальное состояние после успешного удаления
         setSchedule(prev => prev.filter(item => item.id !== id));
-        
+
         // Обновляем общее количество
         setTotal(prev => prev - 1);
       } catch (error) {
@@ -722,9 +813,9 @@ const SchedulePage: React.FC = () => {
               ...item,
               ...scheduleItem,
               // Обновляем имя преподавателя на основе загруженных данных
-              teacherName: teachers.find(t => t.id.toString() === scheduleItem.teacherId)?.name + ' ' + 
-                          teachers.find(t => t.id.toString() === scheduleItem.teacherId)?.surname || 
-                          scheduleItem.teacherName || item.teacherName,
+              teacherName: teachers.find(t => t.id.toString() === scheduleItem.teacherId)?.name + ' ' +
+                teachers.find(t => t.id.toString() === scheduleItem.teacherId)?.surname ||
+                scheduleItem.teacherName || item.teacherName,
             };
           }
           return item;
@@ -761,10 +852,10 @@ const SchedulePage: React.FC = () => {
 
         // Вызываем API для создания
         const createdSchedule = await scheduleService.create(createDto);
-        
+
         // Конвертируем ответ API в формат для отображения
         const newScheduleItem = ScheduleService.convertToScheduleItem(createdSchedule);
-        
+
         // Добавляем к существующему расписанию
         setSchedule(prev => [...prev, newScheduleItem]);
         setTotal(prev => prev + 1);
@@ -877,7 +968,7 @@ const SchedulePage: React.FC = () => {
 
   const handleAIGenerate = async (result: any) => {
     console.log('AI generated schedule FULL result:', JSON.stringify(result, null, 2));
-    
+
     if (result.generatedSchedule && Array.isArray(result.generatedSchedule)) {
       try {
         console.log('Начинаем сохранение AI расписания в БД...');
@@ -885,50 +976,50 @@ const SchedulePage: React.FC = () => {
         console.log('Доступные преподаватели:', teachers.map(t => ({ id: t.id, name: `${t.name} ${t.surname}` })));
         console.log('Доступные учебные планы:', studyPlans.map(sp => ({ id: sp.id, name: sp.name })));
         console.log('Доступные аудитории:', classrooms.map(c => ({ id: c.id, name: c.name })));
-        
+
         // Загружаем ПОЛНОЕ расписание из БД для проверки конфликтов
         console.log('Загружаем полное расписание из БД для проверки конфликтов...');
         let fullSchedule: ScheduleItem[] = [];
-        
+
         try {
           // Получаем все расписание без фильтров для проверки конфликтов
           const fullScheduleResponse = await scheduleService.getScheduleForUser(
             user?.role || 'STUDENT',
             user?.id,
-            { 
-              page: 1, 
+            {
+              page: 1,
               pageSize: 10000 // Большой размер чтобы получить все записи
             }
           );
-          
+
           if (Array.isArray(fullScheduleResponse)) {
             fullSchedule = fullScheduleResponse;
           } else {
             fullSchedule = fullScheduleResponse.items || [];
           }
-          
+
           console.log(`Загружено ${fullSchedule.length} существующих записей расписания для проверки конфликтов`);
           console.log('Образец существующих записей:', fullSchedule.slice(0, 3));
-          
+
         } catch (error) {
           console.warn('Ошибка при загрузке полного расписания, используем текущие данные:', error);
           fullSchedule = schedule; // Fallback на текущие данные
         }
-        
+
         // Сохраняем каждую запись через API
         const savedScheduleItems: ScheduleItem[] = [];
         const errors: string[] = [];
-        
+
         for (let i = 0; i < result.generatedSchedule.length; i++) {
           const aiItem = result.generatedSchedule[i];
           console.log(`\n--- Обрабатываем запись ${i + 1}/${result.generatedSchedule.length} ---`);
           console.log('AI Item:', JSON.stringify(aiItem, null, 2));
-          
+
           try {
             // Находим реальные ID для создания через API
             console.log('Поиск группы...');
-            const selectedGroup = groups.find(g => 
-              g.name === aiItem.groupName || 
+            const selectedGroup = groups.find(g =>
+              g.name === aiItem.groupName ||
               g.name === aiItem.group ||
               g.id.toString() === aiItem.groupId ||
               g.name.toLowerCase().includes((aiItem.groupName || aiItem.group || '').toLowerCase())
@@ -938,16 +1029,16 @@ const SchedulePage: React.FC = () => {
             console.log('Поиск преподавателя...');
             const selectedTeacher = teachers.find(t => {
               const fullName = `${t.name} ${t.surname}`;
-              return fullName === aiItem.teacherName || 
-                     fullName === aiItem.teacher ||
-                     t.id.toString() === aiItem.teacherId ||
-                     fullName.toLowerCase().includes((aiItem.teacherName || aiItem.teacher || '').toLowerCase());
+              return fullName === aiItem.teacherName ||
+                fullName === aiItem.teacher ||
+                t.id.toString() === aiItem.teacherId ||
+                fullName.toLowerCase().includes((aiItem.teacherName || aiItem.teacher || '').toLowerCase());
             });
             console.log('Найденный преподаватель:', selectedTeacher);
 
             console.log('Поиск аудитории...');
-            const selectedClassroom = classrooms.find(c => 
-              c.name === aiItem.roomId || 
+            const selectedClassroom = classrooms.find(c =>
+              c.name === aiItem.roomId ||
               c.name === aiItem.room ||
               c.name === aiItem.classroom ||
               c.id.toString() === aiItem.classroomId ||
@@ -956,8 +1047,8 @@ const SchedulePage: React.FC = () => {
             console.log('Найденная аудитория:', selectedClassroom);
 
             console.log('Поиск учебного плана...');
-            const selectedStudyPlan = studyPlans.find(sp => 
-              sp.name === aiItem.subject || 
+            const selectedStudyPlan = studyPlans.find(sp =>
+              sp.name === aiItem.subject ||
               sp.name === aiItem.studyPlan ||
               sp.id.toString() === aiItem.studyPlanId ||
               sp.name.toLowerCase().includes((aiItem.subject || aiItem.studyPlan || '').toLowerCase())
@@ -1002,9 +1093,9 @@ const SchedulePage: React.FC = () => {
             console.log('Проверяем конфликты с полным расписанием...');
             const conflictCheckSchedule = [...fullSchedule, ...savedScheduleItems];
             console.log(`Проверяем против ${conflictCheckSchedule.length} существующих записей`);
-            
+
             const conflicts = checkScheduleConflicts(createDto, conflictCheckSchedule);
-            
+
             if (conflicts.length > 0) {
               const conflictMsg = `Конфликт расписания для записи ${i + 1}: ${conflicts.join(', ')}`;
               console.warn(conflictMsg);
@@ -1016,13 +1107,13 @@ const SchedulePage: React.FC = () => {
 
             // Вызываем API для создания
             const createdSchedule = await scheduleService.create(createDto);
-            
+
             // Конвертируем ответ API в формат для отображения
             const newScheduleItem = ScheduleService.convertToScheduleItem(createdSchedule);
             savedScheduleItems.push(newScheduleItem);
-            
+
             console.log('Запись успешно создана:', newScheduleItem);
-            
+
           } catch (error) {
             const errorMsg = `Ошибка при создании записи ${i + 1}: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`;
             console.error(errorMsg, error);
@@ -1041,14 +1132,14 @@ const SchedulePage: React.FC = () => {
           // Добавляем сохраненные записи к существующему расписанию
           setSchedule(prev => [...prev, ...savedScheduleItems]);
           setTotal(prev => prev + savedScheduleItems.length);
-          
-          const message = errors.length > 0 
+
+          const message = errors.length > 0
             ? `Создано ${savedScheduleItems.length} записей. ${errors.length} записей пропущено из-за ошибок.`
             : `Успешно создано ${savedScheduleItems.length} записей расписания!`;
-          
+
           console.log(message);
           alert(message);
-          
+
           if (errors.length > 0) {
             console.warn('Детали ошибок:', errors.join('\n'));
           }
@@ -1057,7 +1148,7 @@ const SchedulePage: React.FC = () => {
           console.error(errorMessage);
           alert(errorMessage);
         }
-        
+
       } catch (error) {
         console.error('Критическая ошибка при сохранении AI расписания:', error);
         alert('Критическая ошибка при сохранении расписания: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
@@ -1068,22 +1159,82 @@ const SchedulePage: React.FC = () => {
     }
   };
 
-  const handleAILessonGenerate = async (result: AILessonsResponse) => {
-    console.log('AI generated lessons result:', result);
-    
-    // Просто показываем результат пользователю, так как применение уже произошло в модальном окне
-    const message = result.success 
-      ? `Расписание успешно применено! Создано ${result.statistics.schedulesCreated} записей.`
-      : 'Возникли проблемы при применении расписания.';
-    
-    alert(message);
-    
-    // Обновляем расписание
-    loadScheduleData();
+  const handleAIGenerateFromStudyPlans = async (params: any) => {
+    try {
+      setIsLoading(true);
+      setIsAILessonModalOpen(false); // Закрываем модальное окно сразу
+      const result = await scheduleService.generateFromStudyPlans(params);
+      console.log('AI generated schedule from study plans:', result);
+
+      if (result.success && result.generatedSchedules) {
+        alert(`Успешно сгенерировано и сохранено ${result.generatedSchedules.length} занятий.`);
+        // Перезагружаем данные с сервера, чтобы отобразить новое расписание
+        loadScheduleData();
+      } else {
+        alert('Не удалось сгенерировать расписание. ' + (result.message || ''));
+      }
+    } catch (error) {
+      console.error('Error generating schedule from study plans:', error);
+      alert('Ошибка при генерации расписания.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRoomClick = (roomId: string) => {
     console.log(`Выбрана аудитория ${roomId}`);
+  };
+
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    // Проверяем, что перетаскивание произошло над валидной ячейкой
+    if (over && active.id !== over.id) {
+      // Получаем данные перетаскиваемого элемента
+      const activeItem = active.data.current?.item as ScheduleItem;
+      if (!activeItem) return;
+
+      // ID ячейки, куда перетащили
+      const droppableId = over.id as string;
+      const [newDay, newTime] = droppableId.split('-');
+
+      // Проверяем, что ID ячейки корректный
+      if (!newDay || !newTime) {
+        console.warn('Invalid drop zone:', droppableId);
+        return;
+      }
+      
+      // Проверяем, изменилась ли позиция
+      if (activeItem.day === newDay && activeItem.startTime === newTime) {
+        return; // Ничего не делаем, если позиция не изменилась
+      }
+
+      // Вычисляем новое время окончания
+      const duration = new Date(`1970-01-01T${activeItem.endTime}`).getTime() - new Date(`1970-01-01T${activeItem.startTime}`).getTime();
+      const newEndTime = new Date(new Date(`1970-01-01T${newTime}`).getTime() + duration).toTimeString().slice(0, 5);
+
+      // Оптимистичное обновление UI
+      setSchedule((items) =>
+        items.map(item =>
+          item.id === active.id
+            ? { ...item, day: newDay as ScheduleItem['day'], startTime: newTime, endTime: newEndTime }
+            : item
+        )
+      );
+
+      try {
+        // Отправляем запрос на сервер
+        await scheduleService.updateScheduleDayAndTime(active.id as string, newDay, newTime, newEndTime);
+        // Можно добавить уведомление об успехе
+      } catch (error) {
+        console.error("Failed to update schedule:", error);
+        // Возвращаем UI в предыдущее состояние в случае ошибки
+        loadScheduleData();
+        alert("Не удалось переместить занятие. Проверьте, нет ли конфликтов.");
+      }
+    }
   };
 
   if (isLoading) {
@@ -1133,23 +1284,21 @@ const SchedulePage: React.FC = () => {
                 <span className="sm:hidden">Добавить</span>
               </button>
             )}
-            
+
             {/* Переключатель вида */}
             <div className="flex rounded-lg overflow-hidden border border-gray-300">
               <button
                 onClick={() => setViewMode('table')}
-                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${
-                  viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Table className="h-4 w-4 inline-block mr-1 md:mr-2" />
                 Таблица
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${
-                  viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Calendar className="h-4 w-4 inline-block mr-1 md:mr-2" />
                 Сетка
@@ -1483,8 +1632,8 @@ const SchedulePage: React.FC = () => {
       }
 
       {/* Сетка расписания */}
-      {
-        viewMode === 'grid' && (
+      {viewMode === 'grid' && (
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="bg-white rounded-lg shadow overflow-hidden p-4">
             <div className="grid grid-cols-6 gap-4">
               <div className="col-span-1"></div>
@@ -1498,61 +1647,35 @@ const SchedulePage: React.FC = () => {
                 <React.Fragment key={time}>
                   <div className="text-center font-medium py-2 bg-gray-50">{time}</div>
                   {['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map((day) => {
-                    const scheduleForTimeAndDay = getFilteredSchedule().filter(
+                    const itemsInCell = getFilteredSchedule().filter(
                       (item) => item.day === day && item.startTime === time
                     );
+                    const droppableId = `${day}-${time}`;
 
                     return (
-                      <div
-                        key={`${day}-${time}`}
-                        className="border border-gray-200 p-1 min-h-16 relative"
-                        onClick={() => canEditSchedule() && handleAddClick(day as ScheduleItem['day'], time)}
+                      <DroppableCell
+                        key={droppableId}
+                        id={droppableId}
+                        onAddClick={() => canEditSchedule() && handleAddClick(day as ScheduleItem['day'], time)}
                       >
-                        {scheduleForTimeAndDay.map((item) => (
-                          <div
+                        {itemsInCell.map((item) => (
+                          <DraggableScheduleItem
                             key={item.id}
-                            className={`p-2 mb-1 rounded text-xs ${item.type === 'lesson' ? 'bg-blue-50 border-l-4 border-blue-500' :
-                              item.type === 'consultation' ? 'bg-green-50 border-l-4 border-green-500' :
-                                'bg-purple-50 border-l-4 border-purple-500'
-                              }`}
-                          >
-                            <div className="font-semibold">{item.subject}</div>
-                            <div className="text-gray-600">{item.classId}</div>
-                            <div className="text-gray-500 flex items-center mt-1">
-                              <User className="h-3 w-3 mr-1" />
-                              {item.teacherName}
-                            </div>
-                            <div className="text-gray-500 flex items-center">
-                              <MapPin className="h-3 w-3 mr-1" />
-                              {item.roomId}
-                            </div>
-                            {canEditSchedule() && (
-                              <div className="absolute top-1 right-1 flex space-x-1">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleEditClick(item); }}
-                                  className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
-                                >
-                                  <Edit className="h-3 w-3 text-gray-500" />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(item.id); }}
-                                  className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
-                                >
-                                  <Trash2 className="h-3 w-3 text-red-500" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                            item={item}
+                            canEdit={canEditSchedule()}
+                            onEdit={handleEditClick}
+                            onDelete={handleDeleteClick}
+                          />
                         ))}
-                      </div>
+                      </DroppableCell>
                     );
                   })}
                 </React.Fragment>
               ))}
             </div>
           </div>
-        )
-      }
+        </DndContext>
+      )}
 
       {/* Модальные окна показываются только если есть права на редактирование */}
       <AnimatePresence>
@@ -1574,11 +1697,11 @@ const SchedulePage: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* AI Lesson Generator Modal */}
-      <AILessonGeneratorModal
+      {/* AI Study Plan Generator Modal */}
+      <AIStudyPlanGeneratorModal
         isOpen={isAILessonModalOpen}
         onClose={() => setIsAILessonModalOpen(false)}
-        onGenerate={handleAILessonGenerate}
+        onGenerate={handleAIGenerateFromStudyPlans}
         groups={groups}
         teachers={teachers}
         studyPlans={studyPlans}

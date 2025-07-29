@@ -151,6 +151,57 @@ export class ScheduleController {
     };
   }
 
+  @Post('study-plans/from-ai')
+  @ApiOperation({
+    summary: 'Создать расписание из учебных планов с помощью AI',
+    description: 'Генерирует расписание на основе учебных планов, распределяя часы по указанному периоду.'
+  })
+  @ApiResponse({ status: 201, description: 'Расписание успешно сгенерировано' })
+  @ApiResponse({ status: 400, description: 'Некорректные параметры' })
+  @ApiResponse({ status: 500, description: 'Ошибка при обращении к ИИ сервису' })
+  @Roles('ADMIN')
+  async createScheduleFromStudyPlansWithAI(@Body() params: {
+    studyPlanIds?: number[];
+    groupIds?: number[];
+    teacherIds?: number[];
+    startDate: string;
+    endDate: string;
+    constraints?: {
+      workingHours?: { start: string; end: string };
+      maxConsecutiveHours?: number;
+      preferredBreaks?: string[];
+      lessonsPerDayLimit?: number;
+    };
+  }) {
+    const studyPlans = await this.scheduleService.findStudyPlansForScheduling(params);
+
+    if (!studyPlans || studyPlans.length === 0) {
+      throw new Error('Не найдено учебных планов для создания расписания');
+    }
+
+    const classrooms = await this.scheduleService.findAllClassrooms();
+    const existingSchedules = await this.scheduleService.findSchedulesByDateRange(params.startDate, params.endDate);
+
+    const prompt = this.aiAssistantService.generateStudyPlanPrompt(
+      studyPlans,
+      classrooms,
+      existingSchedules,
+      params.startDate,
+      params.endDate,
+      params.constraints
+    );
+
+    const aiResult = await this.aiAssistantService.getCompletion(prompt.system, prompt.user);
+
+    const proposedSchedules = this.scheduleService.processAiSchedulerResponse(aiResult, studyPlans, classrooms);
+
+    return {
+      success: true,
+      message: `Сгенерировано предварительное расписание для ${studyPlans.length} учебных планов`,
+      ...proposedSchedules
+    };
+  }
+
   @Post('lessons/from-ai')
   @ApiOperation({ 
     summary: 'Создать расписание из существующих уроков с помощью AI',

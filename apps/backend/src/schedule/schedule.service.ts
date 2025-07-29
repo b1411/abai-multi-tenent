@@ -250,6 +250,98 @@ export class ScheduleService {
     });
   }
 
+  async findStudyPlansForScheduling(params: { studyPlanIds?: number[], groupIds?: number[], teacherIds?: number[] }) {
+    const whereClause: any = { deletedAt: null };
+
+    if (params.studyPlanIds && params.studyPlanIds.length > 0) {
+      whereClause.id = { in: params.studyPlanIds };
+    }
+    if (params.groupIds && params.groupIds.length > 0) {
+      whereClause.group = { some: { id: { in: params.groupIds } } };
+    }
+    if (params.teacherIds && params.teacherIds.length > 0) {
+      whereClause.teacherId = { in: params.teacherIds };
+    }
+
+    return this.prisma.studyPlan.findMany({
+      where: whereClause,
+      include: {
+        teacher: { include: { user: true } },
+        group: true,
+      },
+    });
+  }
+
+  async findAllClassrooms() {
+    return this.prisma.classroom.findMany({
+      where: { deletedAt: null },
+    });
+  }
+
+  async findSchedulesByDateRange(startDate: string, endDate: string) {
+    return this.prisma.schedule.findMany({
+      where: {
+        deletedAt: null,
+        date: {
+          gte: new Date(startDate),
+          lte: new Date(endDate),
+        },
+      },
+    });
+  }
+
+  async processAiSchedulerResponse(aiResult: any, studyPlans: any[], classrooms: any[]) {
+    const createSchedulePromises = [];
+
+    for (const scheduleItem of aiResult.schedules) {
+      const studyPlan = studyPlans.find(sp => sp.id === scheduleItem.studyPlanId);
+      if (!studyPlan) continue;
+
+      const group = studyPlan.group[0];
+      if (!group) continue;
+
+      const classroom = classrooms.find(c => c.id === scheduleItem.classroomId);
+      
+      const dayOfWeek = new Date(scheduleItem.date).getDay();
+      const dayMapping = [7, 1, 2, 3, 4, 5, 6]; // JS getDay() is Sun-Sat (0-6), we need Mon-Sun (1-7)
+
+      const createDto: CreateScheduleDto = {
+        studyPlanId: scheduleItem.studyPlanId,
+        groupId: group.id,
+        teacherId: studyPlan.teacherId,
+        classroomId: classroom?.id,
+        date: new Date(scheduleItem.date),
+        dayOfWeek: dayMapping[dayOfWeek],
+        startTime: scheduleItem.startTime,
+        endTime: scheduleItem.endTime,
+        type: 'lesson',
+        status: 'upcoming',
+        repeat: 'once',
+      };
+      
+      // Добавляем промис создания в массив
+      createSchedulePromises.push(this.create(createDto));
+    }
+
+    // Ожидаем выполнения всех промисов создания
+    const savedSchedules = await Promise.all(createSchedulePromises);
+
+    // Формируем ответ с уже сохраненными данными
+    const processedSchedules = savedSchedules.map(s => ({
+      ...s,
+      studyPlanName: s.studyPlan.name,
+      groupName: s.group.name,
+      teacherName: `${s.teacher.user.name} ${s.teacher.user.surname}`,
+      classroomName: s.classroom?.name || 'Не указана',
+    }));
+
+    return {
+      generatedSchedules: processedSchedules,
+      conflicts: aiResult.conflicts || [],
+      recommendations: aiResult.recommendations || [],
+    };
+  }
+
   // Приватные методы для валидации
   private async validateRelatedEntities(dto: CreateScheduleDto) {
     // Проверяем учебный план

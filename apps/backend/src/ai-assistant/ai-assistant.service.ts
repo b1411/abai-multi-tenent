@@ -609,7 +609,7 @@ ${scheduleItems.map((item, index) =>
       });
 
     // Загружаем существующие уроки в указанном периоде
-    let whereClause: any = {
+    const whereClause: any = {
       deletedAt: null,
       date: {
         gte: new Date(params.startDate),
@@ -914,5 +914,88 @@ ${classrooms.map(room => `
 - Ориентированный на результат
 
 Помогай учителям улучшать качество образовательного процесса!`;
+  }
+
+  async getCompletion(systemPrompt: string, userPrompt: string): Promise<any> {
+    if (!this.openaiApiKey) {
+      throw new Error('OPENAI_API_KEY is not configured');
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-2024-08-06',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      this.logger.error(`OpenAI API error: ${response.status} - ${error}`);
+      throw new Error(`Failed to get completion: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return JSON.parse(data.choices[0].message.content);
+  }
+
+  generateStudyPlanPrompt(studyPlans: any[], classrooms: any[], existingSchedules: any[], startDate: string, endDate: string, constraints: any) {
+    const systemPrompt = `Ты — эксперт по составлению расписаний для учебных заведений. Твоя задача — создать оптимальное расписание на основе учебных планов, распределив часы по указанному периоду.
+
+ПРИНЦИПЫ:
+1.  **Равномерное распределение**: Распределяй часы по учебным планам равномерно в течение недели и всего периода.
+2.  **Избегание конфликтов**: Не допускай одновременного нахождения одного преподавателя, группы или аудитории в разных местах.
+3.  **Оптимизация аудиторий**: Используй аудитории в соответствии с их типом и вместимостью.
+4.  **Соблюдение ограничений**: Учитывай рабочие часы, перерывы и лимиты на количество уроков в день.
+
+ФОРМАТ ОТВЕТА:
+Всегда отвечай в формате JSON.
+{
+  "schedules": [
+    {
+      "studyPlanId": number,
+      "groupId": number,
+      "date": "YYYY-MM-DD",
+      "startTime": "HH:MM",
+      "endTime": "HH:MM",
+      "classroomId": number,
+      "reasoning": "Краткое объяснение выбора времени и аудитории."
+    }
+  ],
+  "conflicts": ["Список потенциальных конфликтов, которые не удалось разрешить."],
+  "recommendations": ["Рекомендации по улучшению расписания."]
+}`;
+
+    const userPrompt = `Сгенерируй расписание на основе следующих данных:
+
+ПЕРИОД: с ${startDate} по ${endDate}
+
+ОГРАНИЧЕНИЯ:
+- Рабочие часы: с ${constraints?.workingHours?.start || '08:00'} до ${constraints?.workingHours?.end || '18:00'}
+- Максимум уроков в день: ${constraints?.lessonsPerDayLimit || 5}
+- Максимум уроков подряд: ${constraints?.maxConsecutiveHours || 3}
+
+УЧЕБНЫЕ ПЛАНЫ:
+${studyPlans.map(sp => `- ID: ${sp.id}, Название: ${sp.name}, Часы: ${sp.normativeWorkload || 68} в год, Преподаватель: ${sp.teacher.user.name} ${sp.teacher.user.surname} (ID: ${sp.teacherId}), Группа: ${sp.group.map(g => `${g.name} (ID: ${g.id})`).join(', ')}`).join('\n')}
+
+ДОСТУПНЫЕ АУДИТОРИИ:
+${classrooms.map(c => `- ID: ${c.id}, Название: ${c.name}, Тип: ${c.type}, Вместимость: ${c.capacity}`).join('\n')}
+
+СУЩЕСТВУЮЩИЕ РАСПИСАНИЯ (для избежания конфликтов):
+${existingSchedules.map(s => `- Дата: ${s.date?.toISOString().split('T')[0]}, Время: ${s.startTime}-${s.endTime}, Преподаватель ID: ${s.teacherId}, Аудитория ID: ${s.classroomId}, Группа ID: ${s.groupId}`).join('\n')}
+
+ЗАДАЧА:
+Распредели годовые часы по учебным планам на указанный период, создав конкретные занятия в расписании.`;
+
+    return { system: systemPrompt, user: userPrompt };
   }
 }

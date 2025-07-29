@@ -77,6 +77,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Календарь', href: '/app/calendar', icon: Calendar },
         { name: 'Список дел', href: '/app/tasks', icon: List },
         { name: 'Fizmat AI Ala', href: '/app/neuro-abai', icon: Brain, roles: ['ADMIN', 'TEACHER'] },
+        { name: 'Новости', href: '/app/news', icon: FileText }
       ]
     },
     {

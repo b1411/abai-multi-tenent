@@ -324,10 +324,20 @@ const GradeInfoModal: React.FC<GradeInfoModalProps> = ({
 
 const AcademicJournal: React.FC = () => {
     const { user } = useAuth();
-    const [filters, setFilters] = useState<JournalFilters>({
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
-    });
+    
+    // Устанавливаем промежуток в месяц по умолчанию
+    const getDefaultDateRange = () => {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Первый день текущего месяца
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Последний день текущего месяца
+        
+        return {
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0],
+        };
+    };
+    
+    const [filters, setFilters] = useState<JournalFilters>(getDefaultDateRange());
     const [groups, setGroups] = useState<Array<{ id: number; name: string; courseNumber: number }>>([]);
     const [studyPlans, setStudyPlans] = useState<PaginateResponseDto<{ id: number; name: string; description?: string }> | null>(null);
     const [lessons, setLessons] = useState<Lesson[]>([]);

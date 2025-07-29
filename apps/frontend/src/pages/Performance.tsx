@@ -34,15 +34,30 @@ const Performance: React.FC = () => {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [gradeDistribution, setGradeDistribution] = useState<GradeDistribution[]>([]);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetric[]>([]);
+  const [allStudents, setAllStudents] = useState<{ id: number; name: string; surname: string; group: string; averageGrade: number; attendanceRate: number; assignmentRate: number }[]>([]);
 
-  const filter: PerformanceFilter = useMemo(() => 
-    selectedClass === 'all' ? {} : { groupId: selectedClass }, 
+  const filter: PerformanceFilter = useMemo(() =>
+    selectedClass === 'all' ? {} : { groupId: selectedClass },
     [selectedClass]
   );
 
   useEffect(() => {
     loadData();
   }, [filter]);
+
+  // Проверяем, имеет ли пользователь доступ к странице
+  if (!hasRole('ADMIN') && !hasRole('TEACHER')) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-lg font-medium text-red-800 mb-2">Доступ запрещен</h3>
+          <p className="text-red-600">
+            У вас нет прав для просмотра этой страницы. Данная страница доступна только администраторам и учителям.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const loadData = async () => {
     try {
@@ -61,7 +76,7 @@ const Performance: React.FC = () => {
       ] = await Promise.all([
         performanceService.getStatistics(filter),
         performanceService.getSubjects(filter),
-        performanceService.getClasses(),
+        performanceService.getClasses(filter),
         performanceService.getLowPerformingStudents(filter),
         performanceService.getHighProgressStudents(filter),
         performanceService.getMonthlyData(filter),
@@ -77,6 +92,17 @@ const Performance: React.FC = () => {
       setMonthlyData(monthlyRes);
       setGradeDistribution(distributionRes);
       setPerformanceMetrics(metricsRes);
+
+      // Загружаем данные всех студентов только для админов и учителей
+      if (hasRole('ADMIN') || hasRole('TEACHER')) {
+        try {
+          const allStudentsRes = await performanceService.getAllStudentsPerformance(filter);
+          setAllStudents(allStudentsRes);
+        } catch (err) {
+          console.error('Error loading all students data:', err);
+          setAllStudents([]);
+        }
+      }
     } catch (err) {
       setError('Ошибка загрузки данных');
       console.error('Error loading performance data:', err);
@@ -98,7 +124,7 @@ const Performance: React.FC = () => {
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800">{error}</p>
-          <button 
+          <button
             onClick={loadData}
             className="mt-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
           >
@@ -119,7 +145,7 @@ const Performance: React.FC = () => {
               {hasRole('PARENT') ? 'Успеваемость моих детей' : 'Успеваемость по группам'}
             </h1>
             <p className="mt-1 text-sm text-gray-600">
-              {hasRole('PARENT') 
+              {hasRole('PARENT')
                 ? 'Отчеты и статистика успеваемости ваших детей'
                 : 'Анализ успеваемости студентов по группам'
               }
@@ -127,12 +153,11 @@ const Performance: React.FC = () => {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <button 
-            className={`px-4 py-2 rounded-md transition-all ${
-              selectedClass === 'all' 
-                ? 'bg-blue-500 text-white shadow-lg' 
+          <button
+            className={`px-4 py-2 rounded-md transition-all ${selectedClass === 'all'
+                ? 'bg-blue-500 text-white shadow-lg'
                 : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+              }`}
             onClick={() => setSelectedClass('all')}
           >
             Все группы
@@ -140,11 +165,10 @@ const Performance: React.FC = () => {
           {classes.map((cls) => (
             <button
               key={cls.id}
-              className={`flex flex-col items-center justify-center px-6 py-4 rounded-lg transition-all ${
-                selectedClass === cls.id 
-                  ? 'bg-blue-500 text-white shadow-lg' 
+              className={`flex flex-col items-center justify-center px-6 py-4 rounded-lg transition-all ${selectedClass === cls.id
+                  ? 'bg-blue-500 text-white shadow-lg'
                   : 'bg-white text-gray-700 hover:bg-gray-50 border'
-              }`}
+                }`}
               onClick={() => setSelectedClass(cls.id)}
             >
               <span className="text-lg font-medium">{cls.name}</span>
@@ -215,8 +239,8 @@ const Performance: React.FC = () => {
               <AreaChart data={monthlyData}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2E69FF" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#2E69FF" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#2E69FF" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#2E69FF" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -284,48 +308,90 @@ const Performance: React.FC = () => {
         </div>
       </div>
 
-      {/* Списки студентов */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Полный список студентов (только для админов и учителей) */}
+      {(hasRole('ADMIN') || hasRole('TEACHER')) && (
         <div className="bg-white rounded-lg shadow-sm p-6 border">
-          <h3 className="text-sm text-gray-600 mb-4">Студенты с низкой успеваемостью</h3>
-          <div className="space-y-3">
-            {lowPerformingStudents.map((studentData, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                <span className="text-sm text-gray-900">{studentData.student.name}</span>
-                <div className="flex items-center">
-                  <span className="text-sm font-medium text-red-500 mr-2">{studentData.student.grade}</span>
-                  {studentData.student.trend && (
-                    <span className="text-xs text-red-600">({studentData.student.trend})</span>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Все студенты по успеваемости</h3>
+          <div className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Студент
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Группа
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Средний балл
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Посещаемость
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Выполнение заданий
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {allStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                        Нет данных о студентах
+                      </td>
+                    </tr>
+                  ) : (
+                    allStudents.map((student, index) => (
+                      <tr
+                        key={student.id}
+                        className={`hover:bg-gray-50 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                        onClick={() => window.location.href = `/students/${student.id}`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.name} {student.surname}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-600">{student.group}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className={`text-sm font-medium ${student.averageGrade >= 4.5 ? 'text-green-600' :
+                              student.averageGrade >= 3.5 ? 'text-yellow-600' :
+                                student.averageGrade >= 3.0 ? 'text-orange-600' :
+                                  'text-red-600'
+                            }`}>
+                            {student.averageGrade.toFixed(1)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className={`text-sm ${student.attendanceRate >= 90 ? 'text-green-600' :
+                              student.attendanceRate >= 80 ? 'text-yellow-600' :
+                                student.attendanceRate >= 70 ? 'text-orange-600' :
+                                  'text-red-600'
+                            }`}>
+                            {student.attendanceRate}%
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className={`text-sm ${student.assignmentRate >= 90 ? 'text-green-600' :
+                              student.assignmentRate >= 80 ? 'text-yellow-600' :
+                                student.assignmentRate >= 70 ? 'text-orange-600' :
+                                  'text-red-600'
+                            }`}>
+                            {student.assignmentRate}%
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </div>
-              </div>
-            ))}
-            {lowPerformingStudents.length === 0 && (
-              <p className="text-gray-500 text-center py-4">Нет студентов с низкой успеваемостью</p>
-            )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6 border">
-          <h3 className="text-sm text-gray-600 mb-4">Студенты с высоким прогрессом</h3>
-          <div className="space-y-3">
-            {highProgressStudents.map((studentData, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                <span className="text-sm text-gray-900">{studentData.student.name}</span>
-                <div className="flex items-center">
-                  <span className="text-sm font-medium text-green-500 mr-2">{studentData.student.grade}</span>
-                  {studentData.student.trend && (
-                    <span className="text-xs text-green-600">(+{studentData.student.trend})</span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {highProgressStudents.length === 0 && (
-              <p className="text-gray-500 text-center py-4">Нет данных о прогрессе студентов</p>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

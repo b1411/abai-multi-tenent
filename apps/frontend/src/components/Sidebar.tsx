@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { User } from '../types/api';
+import StudentProfileWidget from './StudentProfileWidget';
 import {
   Home,
   Users,
@@ -217,6 +218,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4">
+          {/* Профиль студента */}
+          {user?.role === 'STUDENT' && (
+            <div className="mb-6">
+              <StudentProfileWidget variant="sidebar" />
+            </div>
+          )}
+          
           <ul className="space-y-2">
             {filteredItems.map((item) => (
               <li key={item.name}>

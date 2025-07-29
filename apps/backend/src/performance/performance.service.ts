@@ -34,6 +34,9 @@ export class PerformanceService {
   async getStatistics(filter: PerformanceFilterDto): Promise<StatisticsResponseDto> {
     // Получаем реальные данные по студентам и группам
     const groups = await this.prisma.group.findMany({
+      where: {
+        ...(filter.groupId && { id: parseInt(filter.groupId) }),
+      },
       include: {
         students: {
           include: {
@@ -130,7 +133,14 @@ export class PerformanceService {
         lessons: {
           include: {
             LessonResult: {
-              where: { deletedAt: null },
+              where: { 
+                deletedAt: null,
+                ...(filter.groupId && {
+                  Student: {
+                    groupId: parseInt(filter.groupId),
+                  },
+                }),
+              },
             },
           },
         },
@@ -138,7 +148,7 @@ export class PerformanceService {
     });
 
     const subjects = subjectsRaw.map(subject => {
-      // Собираем все результаты по всем урокам предмета
+      // Собираем все результаты по всем урокам предмета (уже отфильтрованные по группе)
       const allResults = subject.lessons.flatMap(lesson => lesson.LessonResult);
 
       const grades = allResults.map(r => r.lessonScore).filter(v => v !== null);
@@ -172,7 +182,7 @@ export class PerformanceService {
     };
   }
 
-  async getClasses(): Promise<ClassesResponseDto> {
+  async getClasses(filter?: PerformanceFilterDto): Promise<ClassesResponseDto> {
     // Получаем реальные группы из базы данных с результатами студентов
     const groups = await this.prisma.group.findMany({
       include: {
@@ -600,6 +610,58 @@ export class PerformanceService {
       { name: '3', value: Math.round((gradeCounts[3] / total) * 100), color: '#F59E0B' },
       { name: '2', value: Math.round((gradeCounts[2] / total) * 100), color: '#EF4444' },
     ];
+  }
+
+  async getAllStudentsPerformance(filter: PerformanceFilterDto): Promise<{ id: number; name: string; surname: string; group: string; averageGrade: number; attendanceRate: number; assignmentRate: number }[]> {
+    // Получаем всех студентов с их результатами
+    const students = await this.prisma.student.findMany({
+      where: {
+        ...(filter.groupId && { groupId: parseInt(filter.groupId) }),
+      },
+      include: {
+        user: true,
+        group: true,
+        lessonsResults: {
+          where: {
+            deletedAt: null,
+          },
+        },
+      },
+    });
+
+    // Рассчитываем статистику для каждого студента
+    const studentsWithPerformance = students.map(student => {
+      const allResults = student.lessonsResults;
+
+      // Средняя оценка
+      const grades = allResults.filter(r => r.lessonScore !== null).map(r => r.lessonScore);
+      const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+
+      // Посещаемость
+      const attendanceRecords = allResults.filter(r => r.attendance !== null);
+      const attendanceRate = attendanceRecords.length > 0 
+        ? (attendanceRecords.filter(r => r.attendance).length / attendanceRecords.length) * 100 
+        : 0;
+
+      // Выполнение заданий
+      const assignmentRecords = allResults.filter(r => r.homeworkScore !== null);
+      const assignmentRate = assignmentRecords.length > 0 
+        ? (assignmentRecords.filter(r => r.homeworkScore >= 3).length / assignmentRecords.length) * 100 
+        : 0;
+
+      return {
+        id: student.id,
+        name: student.user.name,
+        surname: student.user.surname,
+        group: student.group?.name || 'Без группы',
+        averageGrade: Number(averageGrade.toFixed(1)),
+        attendanceRate: Math.round(attendanceRate),
+        assignmentRate: Math.round(assignmentRate),
+      };
+    });
+
+    // Сортируем по убыванию средней оценки
+    return studentsWithPerformance.sort((a, b) => b.averageGrade - a.averageGrade);
   }
 
   async getPerformanceMetrics(filter: PerformanceFilterDto): Promise<PerformanceMetricDto[]> {

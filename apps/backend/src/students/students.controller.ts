@@ -271,14 +271,14 @@ export class StudentsController {
   @Get(':id/remarks')
   @ApiOperation({ 
     summary: 'Получить замечания студента',
-    description: 'Получает все замечания о студенте. Доступно только преподавателям и админам.'
+    description: 'Получает все замечания о студенте. Студенты могут видеть только свои замечания.'
   })
   @ApiResponse({ status: 200, description: 'Список замечаний студента' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN', 'TEACHER')
-  getStudentRemarks(@Param('id') id: string) {
-    return this.studentsService.getStudentRemarks(+id);
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  getStudentRemarks(@Param('id') id: string, @Request() req) {
+    return this.studentsService.getStudentRemarks(+id, req.user?.role, req.user?.id);
   }
 
   @Post(':id/remarks')

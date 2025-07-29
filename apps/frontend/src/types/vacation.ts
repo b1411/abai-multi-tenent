@@ -85,6 +85,7 @@ export interface CreateVacationRequest {
   substituteId?: number;
   comment?: string;
   lectureTopics?: string;
+  lessonIds?: number[];
 }
 
 export interface UpdateVacationRequest {
@@ -96,6 +97,7 @@ export interface UpdateVacationRequest {
   comment?: string;
   lectureTopics?: string;
   affectedLessons?: number[];
+  lessonIds?: number[];
 }
 
 export interface UpdateVacationStatusRequest {

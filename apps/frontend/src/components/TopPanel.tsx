@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Search, Menu } from 'lucide-react';
 import { NotificationPanel } from './NotificationPanel';
 import { ActivityIndicator, ActivityStatusBadge } from './activity-monitoring/ActivityIndicator';
+import StudentProfileWidget from './StudentProfileWidget';
 
 interface TopPanelProps {
   onToggleSidebar: () => void;
@@ -43,6 +44,11 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
           <ActivityStatusBadge />
           
           <NotificationPanel />
+
+          {/* Виджет профиля студента */}
+          {user?.role === 'STUDENT' && (
+            <StudentProfileWidget variant="header" className="hidden lg:flex" />
+          )}
 
           <div className="flex items-center space-x-2 lg:space-x-3">
             <div className="text-right hidden sm:block">

@@ -114,34 +114,33 @@ export class VacationsService {
       );
     }
 
-    // Возвращаем обновленный отпуск с уроками
-    return this.prisma.vacation.findUnique({
-      where: { id: vacation.id },
-      include: {
-        teacher: {
-          include: { user: true }
-        },
-        substitute: {
-          include: { user: true }
-        },
-        documents: {
-          include: { file: true }
-        },
-        lessons: {
-          include: {
-            lesson: true
-          }
-        }
-      }
-    });
+    // Возвращаем обновленный отпуск с уроками через findOne для корректной трансформации
+    return this.findOne(vacation.id);
   }
 
-  async findAll(filterDto: VacationFilterDto & { page?: number; limit?: number }) {
-    const { page = 1, limit = 10, search, type, status, period, startDate, endDate, department, substituteId } = filterDto;
+  async findAll(filterDto: VacationFilterDto & { page?: number; limit?: number }, userId: number) {
+    const { page = 1, limit = 10, search, type, status, period, startDate, endDate, substituteId } = filterDto;
     const skip = (page - 1) * limit;
 
+    // Получаем информацию о пользователе для RBAC
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { teacher: true }
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
     // Строим условия фильтрации
-    const where: any = {};
+    const where: any = {
+      deletedAt: null // Исключаем удаленные записи
+    };
+
+    // RBAC: Если пользователь - преподаватель, показываем только его заявки
+    if (user.role === 'TEACHER' && user.teacher) {
+      where.teacherId = user.teacher.id;
+    }
 
     if (search) {
       where.OR = [
@@ -215,17 +214,48 @@ export class VacationsService {
           },
           documents: {
             include: { file: true }
+          },
+          lessons: {
+            include: {
+              lesson: {
+                include: {
+                  studyPlan: {
+                    include: {
+                      group: true
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }),
       this.prisma.vacation.count({ where })
     ]);
 
+    // Трансформируем уроки для всех отпусков
+    const vacationsWithLessons = vacations.map(vacation => ({
+      ...vacation,
+      affectedLessons: vacation.lessons.map(vacationLesson => ({
+        id: vacationLesson.lesson.id,
+        name: vacationLesson.lesson.name,
+        date: vacationLesson.lesson.date,
+        studyPlan: {
+          id: vacationLesson.lesson.studyPlan.id,
+          name: vacationLesson.lesson.studyPlan.name
+        },
+        group: vacationLesson.lesson.studyPlan.group?.[0] ? {
+          id: vacationLesson.lesson.studyPlan.group[0].id,
+          name: vacationLesson.lesson.studyPlan.group[0].name
+        } : null
+      }))
+    }));
+
     // Получаем статистику
     const summary = await this.getVacationsSummary();
 
     return {
-      vacations,
+      vacations: vacationsWithLessons,
       total,
       page,
       limit,
@@ -235,8 +265,11 @@ export class VacationsService {
   }
 
   async findOne(id: number) {
-    const vacation = await this.prisma.vacation.findUnique({
-      where: { id },
+    const vacation = await this.prisma.vacation.findFirst({
+      where: { 
+        id,
+        deletedAt: null 
+      },
       include: {
         teacher: {
           include: { user: true }
@@ -246,6 +279,19 @@ export class VacationsService {
         },
         documents: {
           include: { file: true }
+        },
+        lessons: {
+          include: {
+            lesson: {
+              include: {
+                studyPlan: {
+                  include: {
+                    group: true
+                  }
+                }
+              }
+            }
+          }
         }
       }
     });
@@ -254,7 +300,25 @@ export class VacationsService {
       throw new NotFoundException('Отпуск не найден');
     }
 
-    return vacation;
+    // Трансформируем уроки для фронтенда
+    const affectedLessons = vacation.lessons.map(vacationLesson => ({
+      id: vacationLesson.lesson.id,
+      name: vacationLesson.lesson.name,
+      date: vacationLesson.lesson.date,
+      studyPlan: {
+        id: vacationLesson.lesson.studyPlan.id,
+        name: vacationLesson.lesson.studyPlan.name
+      },
+      group: vacationLesson.lesson.studyPlan.group?.[0] ? {
+        id: vacationLesson.lesson.studyPlan.group[0].id,
+        name: vacationLesson.lesson.studyPlan.group[0].name
+      } : null
+    }));
+
+    return {
+      ...vacation,
+      affectedLessons
+    };
   }
 
   async update(id: number, updateVacationDto: UpdateVacationDto, currentUserId: number) {
@@ -337,7 +401,7 @@ export class VacationsService {
     return updatedVacation;
   }
 
-  async remove(id: number, currentUserId: number) {
+  async remove(id: number, currentUserId: number): Promise<void> {
     const vacation = await this.findOne(id);
 
     // Проверяем права доступа
@@ -360,13 +424,19 @@ export class VacationsService {
       throw new BadRequestException('Нельзя удалять утвержденные или завершенные отпуска');
     }
 
-    return this.prisma.vacation.update({
+    // Сначала удаляем связанные уроки
+    await this.prisma.vacationLesson.deleteMany({
+      where: { vacationId: id }
+    });
+
+    // Затем делаем soft delete отпуска
+    await this.prisma.vacation.update({
       where: { id },
       data: { deletedAt: new Date() }
     });
   }
 
-  async getVacationsSummary() {
+  async getVacationsSummary(userId?: number) {
     const currentYear = new Date().getFullYear();
     const startOfYear = new Date(`${currentYear}-01-01`);
     const endOfYear = new Date(`${currentYear}-12-31`);

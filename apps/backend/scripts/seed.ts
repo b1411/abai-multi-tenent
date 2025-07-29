@@ -3,6 +3,14 @@ import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+// Утилиты для генерации дат в Q3 2025
+
+function getDateInQ3_2025(year: number, month: number, day: number): Date {
+    // Убеждаемся что месяц в Q3 2025 (7-9)
+    const q3Month = Math.max(7, Math.min(9, month));
+    return new Date(2025, q3Month - 1, day);
+}
+
 async function main() {
     console.log('🌱 Начинаем заполнение базы данных...');
 
@@ -529,14 +537,15 @@ async function main() {
 
     console.log('📖 Создаем уроки...');
 
-    // Создаем уроки для алгебры
+    // Создаем расширенный набор уроков для Q3 2025
     const lessons = await Promise.all([
+        // Уроки алгебры (10 класс) - июль 2025
         prisma.lesson.create({
             data: {
                 name: 'Квадратные уравнения',
                 description: 'Решение квадратных уравнений различными методами',
                 studyPlanId: studyPlans[0].id,
-                date: new Date('2025-08-02T08:30:00Z'),
+                date: getDateInQ3_2025(2025, 7, 5),
             },
         }),
         prisma.lesson.create({
@@ -544,7 +553,7 @@ async function main() {
                 name: 'Формулы сокращенного умножения',
                 description: 'Применение формул сокращенного умножения',
                 studyPlanId: studyPlans[0].id,
-                date: new Date('2025-08-09T08:30:00Z'),
+                date: getDateInQ3_2025(2025, 7, 12),
             },
         }),
         prisma.lesson.create({
@@ -552,16 +561,59 @@ async function main() {
                 name: 'Теорема Виета',
                 description: 'Изучение теоремы Виета и ее применение',
                 studyPlanId: studyPlans[0].id,
-                date: new Date('2025-08-16T08:30:00Z'),
+                date: getDateInQ3_2025(2025, 7, 19),
             },
         }),
-        // Уроки биологии
+        prisma.lesson.create({
+            data: {
+                name: 'Контрольная работа по алгебре',
+                description: 'Проверка знаний по пройденным темам',
+                studyPlanId: studyPlans[0].id,
+                date: getDateInQ3_2025(2025, 7, 26),
+            },
+        }),
+        // Уроки алгебры - август 2025
+        prisma.lesson.create({
+            data: {
+                name: 'Системы уравнений',
+                description: 'Решение систем линейных и квадратных уравнений',
+                studyPlanId: studyPlans[0].id,
+                date: getDateInQ3_2025(2025, 8, 2),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Неравенства',
+                description: 'Решение линейных и квадратных неравенств',
+                studyPlanId: studyPlans[0].id,
+                date: getDateInQ3_2025(2025, 8, 9),
+            },
+        }),
+        // Уроки алгебры - сентябрь 2025
+        prisma.lesson.create({
+            data: {
+                name: 'Функции и их графики',
+                description: 'Изучение основных функций и построение графиков',
+                studyPlanId: studyPlans[0].id,
+                date: getDateInQ3_2025(2025, 9, 6),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Практикум по функциям',
+                description: 'Решение задач на функции',
+                studyPlanId: studyPlans[0].id,
+                date: getDateInQ3_2025(2025, 9, 13),
+            },
+        }),
+
+        // Уроки биологии (10 класс) - июль-сентябрь 2025
         prisma.lesson.create({
             data: {
                 name: 'Строение клетки',
                 description: 'Основы цитологии, строение эукариотической клетки',
                 studyPlanId: studyPlans[1].id,
-                date: new Date('2025-08-03T10:25:00Z'),
+                date: getDateInQ3_2025(2025, 7, 8),
             },
         }),
         prisma.lesson.create({
@@ -569,16 +621,115 @@ async function main() {
                 name: 'Фотосинтез',
                 description: 'Процесс фотосинтеза у растений',
                 studyPlanId: studyPlans[1].id,
-                date: new Date('2025-08-10T10:25:00Z'),
+                date: getDateInQ3_2025(2025, 7, 15),
             },
         }),
-        // Уроки физики
+        prisma.lesson.create({
+            data: {
+                name: 'Дыхание растений',
+                description: 'Процессы дыхания у растений и животных',
+                studyPlanId: studyPlans[1].id,
+                date: getDateInQ3_2025(2025, 8, 5),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Генетика и наследственность',
+                description: 'Основы генетики, законы Менделя',
+                studyPlanId: studyPlans[1].id,
+                date: getDateInQ3_2025(2025, 8, 12),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Лабораторная работа по генетике',
+                description: 'Решение генетических задач',
+                studyPlanId: studyPlans[1].id,
+                date: getDateInQ3_2025(2025, 9, 2),
+            },
+        }),
+
+        // Уроки физики (11 класс) - июль-сентябрь 2025
         prisma.lesson.create({
             data: {
                 name: 'Молекулярно-кинетическая теория',
                 description: 'Основные положения МКТ',
                 studyPlanId: studyPlans[2].id,
-                date: new Date('2025-08-04T11:25:00Z'),
+                date: getDateInQ3_2025(2025, 7, 10),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Газовые законы',
+                description: 'Изучение законов идеального газа',
+                studyPlanId: studyPlans[2].id,
+                date: getDateInQ3_2025(2025, 7, 17),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Термодинамика',
+                description: 'Первый и второй законы термодинамики',
+                studyPlanId: studyPlans[2].id,
+                date: getDateInQ3_2025(2025, 8, 7),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Лабораторная работа по термодинамике',
+                description: 'Экспериментальное изучение тепловых процессов',
+                studyPlanId: studyPlans[2].id,
+                date: getDateInQ3_2025(2025, 8, 14),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Электростатика',
+                description: 'Электрическое поле и его характеристики',
+                studyPlanId: studyPlans[2].id,
+                date: getDateInQ3_2025(2025, 9, 4),
+            },
+        }),
+
+        // Уроки химии (9 класс) - июль-сентябрь 2025
+        prisma.lesson.create({
+            data: {
+                name: 'Периодическая система',
+                description: 'Периодический закон и периодическая система элементов',
+                studyPlanId: studyPlans[3].id,
+                date: getDateInQ3_2025(2025, 7, 11),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Химические связи',
+                description: 'Ковалентная, ионная и металлическая связь',
+                studyPlanId: studyPlans[3].id,
+                date: getDateInQ3_2025(2025, 7, 18),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Практическая работа по химическим реакциям',
+                description: 'Проведение химических реакций в лаборатории',
+                studyPlanId: studyPlans[3].id,
+                date: getDateInQ3_2025(2025, 8, 8),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Кислоты и основания',
+                description: 'Свойства кислот и оснований, реакции нейтрализации',
+                studyPlanId: studyPlans[3].id,
+                date: getDateInQ3_2025(2025, 8, 15),
+            },
+        }),
+        prisma.lesson.create({
+            data: {
+                name: 'Окислительно-восстановительные реакции',
+                description: 'Изучение ОВР и составление уравнений',
+                studyPlanId: studyPlans[3].id,
+                date: getDateInQ3_2025(2025, 9, 5),
             },
         }),
     ]);
@@ -839,16 +990,241 @@ async function main() {
         }),
     ]);
 
+    console.log('🏖️ Создаем каникулы...');
+
+    // Создаем периоды каникул для Q3 2025
+    await Promise.all([
+        prisma.vacation.create({
+            data: {
+                teacherId: teachers[0].teacher.id,
+                type: 'vacation',
+                startDate: getDateInQ3_2025(2025, 7, 1),
+                endDate: getDateInQ3_2025(2025, 7, 14),
+                days: 14,
+                status: 'completed',
+                comment: 'Летний отпуск',
+            },
+        }),
+        prisma.vacation.create({
+            data: {
+                teacherId: teachers[1].teacher.id,
+                type: 'vacation',
+                startDate: getDateInQ3_2025(2025, 8, 15),
+                endDate: getDateInQ3_2025(2025, 8, 28),
+                days: 14,
+                status: 'approved',
+                comment: 'Отпуск в конце лета',
+            },
+        }),
+    ]);
+
+    console.log('📅 Создаем события календаря...');
+
+    // Создаем события календаря для Q3 2025
+    await Promise.all([
+        prisma.calendarEvent.create({
+            data: {
+                title: 'День знаний - начало учебного года',
+                description: 'Торжественная линейка и первые уроки',
+                startDate: getDateInQ3_2025(2025, 9, 1),
+                endDate: getDateInQ3_2025(2025, 9, 1),
+                location: 'Школьный двор',
+                isAllDay: true,
+                createdById: admin.id,
+            },
+        }),
+        prisma.calendarEvent.create({
+            data: {
+                title: 'Родительское собрание 10 классов',
+                description: 'Обсуждение планов на новый учебный год',
+                startDate: getDateInQ3_2025(2025, 9, 10),
+                endDate: getDateInQ3_2025(2025, 9, 10),
+                location: 'Актовый зал',
+                isAllDay: false,
+                createdById: admin.id,
+            },
+        }),
+        prisma.calendarEvent.create({
+            data: {
+                title: 'Контрольная работа по алгебре',
+                description: 'Итоговая контрольная работа за Q3',
+                startDate: getDateInQ3_2025(2025, 9, 15),
+                endDate: getDateInQ3_2025(2025, 9, 15),
+                location: 'Аудитория 101',
+                isAllDay: false,
+                createdById: teachers[0].id,
+            },
+        }),
+    ]);
+
+    console.log('📝 Создаем результаты уроков...');
+
+    // Создаем результаты уроков для студентов
+    await Promise.all([
+        // Результаты для урока алгебры
+        prisma.lessonResult.create({
+            data: {
+                lessonId: lessons[0].id, // Квадратные уравнения
+                studentId: studentUsers[0].student.id, // Айда
+                lessonScore: 5,
+                attendance: true,
+                lessonScorecomment: 'Отлично справилась с решением задач',
+            },
+        }),
+        prisma.lessonResult.create({
+            data: {
+                lessonId: lessons[0].id,
+                studentId: studentUsers[1].student.id, // Арман
+                lessonScore: 4,
+                attendance: true,
+                lessonScorecomment: 'Хорошо работал на уроке, но забыл домашнее задание',
+            },
+        }),
+        // Результаты для урока биологии
+        prisma.lessonResult.create({
+            data: {
+                lessonId: lessons[8].id, // Строение клетки
+                studentId: studentUsers[2].student.id, // Дана
+                lessonScore: 5,
+                attendance: true,
+                lessonScorecomment: 'Превосходное знание материала',
+            },
+        }),
+        // Результаты для урока физики
+        prisma.lessonResult.create({
+            data: {
+                lessonId: lessons[13].id, // МКТ
+                studentId: studentUsers[3].student.id, // Бекзат
+                lessonScore: 4,
+                attendance: true,
+                lessonScorecomment: 'Хорошее понимание теории',
+            },
+        }),
+    ]);
+
+    console.log('💬 Создаем чаты...');
+
+    // Создаем чаты между родителями и преподавателями
+    await Promise.all([
+        // Чат между родителем Айды и преподавателем алгебры
+        prisma.chatRoom.create({
+            data: {
+                name: 'Обсуждение успеваемости Айды',
+                isGroup: false,
+                createdBy: parents[0].id,
+                participants: {
+                    create: [
+                        { userId: parents[0].id },
+                        { userId: teachers[0].id },
+                    ],
+                },
+                messages: {
+                    create: [
+                        {
+                            senderId: parents[0].id,
+                            content: 'Добрый день! Как дела у Айды по алгебре?',
+                            createdAt: getDateInQ3_2025(2025, 8, 15),
+                        },
+                        {
+                            senderId: teachers[0].id,
+                            content: 'Здравствуйте! Айда показывает отличные результаты, очень старательная ученица.',
+                            createdAt: getDateInQ3_2025(2025, 8, 15),
+                        },
+                    ],
+                },
+            },
+        }),
+    ]);
+
+    console.log('📝 Создаем замечания и комментарии...');
+
+    // Создаем замечания для студентов
+    await Promise.all([
+        prisma.studentRemark.create({
+            data: {
+                studentId: studentUsers[1].student.id,
+                teacherId: teachers[0].id,
+                type: 'ACADEMIC',
+                title: 'Не выполнил домашнее задание',
+                content: 'Не выполнил домашнее задание по алгебре',
+                isPrivate: true,
+                createdAt: getDateInQ3_2025(2025, 8, 10),
+            },
+        }),
+        prisma.studentRemark.create({
+            data: {
+                studentId: studentUsers[1].student.id,
+                teacherId: admin.id,
+                type: 'BEHAVIOR',
+                title: 'Нарушение дисциплины',
+                content: 'Нарушение дисциплины на перемене',
+                isPrivate: true,
+                createdAt: getDateInQ3_2025(2025, 8, 14),
+            },
+        }),
+    ]);
+
+    // Создаем комментарии для студентов
+    await Promise.all([
+        prisma.studentComment.create({
+            data: {
+                studentId: studentUsers[0].student.id,
+                teacherId: teachers[0].id,
+                title: 'Отличная работа на уроке',
+                content: 'Отлично решила задачи на уроке, видно что готовилась дома',
+                type: 'ACADEMIC',
+                isPrivate: true,
+                createdAt: getDateInQ3_2025(2025, 8, 5),
+            },
+        }),
+        prisma.studentComment.create({
+            data: {
+                studentId: studentUsers[2].student.id,
+                teacherId: teachers[1].id,
+                title: 'Великолепная лабораторная работа',
+                content: 'Великолепная лабораторная работа по биологии!',
+                type: 'ACADEMIC',
+                isPrivate: true,
+                createdAt: getDateInQ3_2025(2025, 8, 18),
+            },
+        }),
+    ]);
+
+    console.log('📚 Создаем дополнительные материалы...');
+
+    // Создаем больше материалов для уроков
+    await Promise.all([
+        prisma.materials.create({
+            data: {
+                lecture: 'Строение клетки включает в себя мембрану, цитоплазму и органеллы...',
+                videoUrl: 'https://www.youtube.com/watch?v=biology1',
+                presentationUrl: 'https://docs.google.com/presentation/d/biology1',
+                lesson: {
+                    connect: { id: lessons[8].id }, // Строение клетки
+                },
+            },
+        }),
+        prisma.materials.create({
+            data: {
+                lecture: 'Молекулярно-кинетическая теория объясняет свойства газов...',
+                videoUrl: 'https://www.youtube.com/watch?v=physics1',
+                lesson: {
+                    connect: { id: lessons[13].id }, // МКТ
+                },
+            },
+        }),
+    ]);
+
     console.log('✅ База данных успешно заполнена!');
     console.log('\n📊 Создано:');
-    console.log(`👤 Пользователей: ${1 + teachers.length + studentUsers.length + parents.length}`);
+    console.log(`👤 Пользователей: ${2 + teachers.length + studentUsers.length + parents.length}`); // admin + financist + teachers + students + parents
     console.log(`👥 Групп: ${groups.length}`);
     console.log(`🏫 Аудиторий: ${classrooms.length}`);
     console.log(`📚 Учебных планов: ${studyPlans.length}`);
     console.log(`📖 Уроков: ${lessons.length}`);
     console.log('\n🔑 Тестовые аккаунты:');
-    console.log('👨‍💼 Администратор: admin@abai.edu.kz / password123');
-    console.log('💰 Финансист: financist@abai.edu.kz / password123');
+    console.log(`👨‍💼 Администратор: ${admin.email} / password123`);
+    console.log(`💰 Финансист: ${financist.email} / password123`);
     console.log('👨‍🏫 Преподаватель: ivanova@abai.edu.kz / password123');
     console.log('🎓 Студент: aida.student@abai.edu.kz / password123');
     console.log('👨‍👩‍👧‍👦 Родители:');

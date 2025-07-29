@@ -47,17 +47,18 @@ export class VacationsController {
   @ApiQuery({ name: 'type', required: false, enum: ['vacation', 'sick-leave', 'maternity-leave', 'unpaid-leave', 'business-trip'] })
   @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected', 'completed'] })
   @ApiQuery({ name: 'period', required: false, type: String, description: 'Период (current-year, next-year, previous-year)' })
-  findAll(@Query() filterDto: VacationFilterDto & { page?: string; limit?: string }) {
+  findAll(@Query() filterDto: VacationFilterDto & { page?: string; limit?: string }, @Req() req: any) {
     const page = filterDto.page ? parseInt(filterDto.page) : 1;
     const limit = filterDto.limit ? parseInt(filterDto.limit) : 10;
-    return this.vacationsService.findAll({ ...filterDto, page, limit });
+    const userId = req.user.id;
+    return this.vacationsService.findAll({ ...filterDto, page, limit }, userId);
   }
 
   @Get('summary')
   @ApiOperation({ summary: 'Получить статистику по отпускам' })
   @ApiResponse({ status: 200, description: 'Статистика успешно получена' })
-  getSummary() {
-    return this.vacationsService.getVacationsSummary();
+  getSummary(@Req() req: any) {
+    return this.vacationsService.getVacationsSummary(req.user.id);
   }
 
   @Get('substitutions')

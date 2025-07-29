@@ -30,8 +30,11 @@ export const performanceService = {
   },
 
   // Получить статистику по группам
-  async getClasses(): Promise<ClassesResponse> {
-    return await apiClient.get<ClassesResponse>('/performance/classes');
+  async getClasses(filter?: PerformanceFilter): Promise<ClassesResponse> {
+    const url = filter 
+      ? `/performance/classes?${new URLSearchParams(filter as any).toString()}`
+      : '/performance/classes';
+    return await apiClient.get<ClassesResponse>(url);
   },
 
   // Получить список отстающих студентов
@@ -80,5 +83,13 @@ export const performanceService = {
       ? `/performance/metrics?${new URLSearchParams(filter as any).toString()}`
       : '/performance/metrics';
     return await apiClient.get<PerformanceMetric[]>(url);
+  },
+
+  // Получить список всех студентов с успеваемостью
+  async getAllStudentsPerformance(filter?: PerformanceFilter): Promise<{ id: number; name: string; surname: string; group: string; averageGrade: number; attendanceRate: number; assignmentRate: number }[]> {
+    const url = filter 
+      ? `/performance/students/all?${new URLSearchParams(filter as any).toString()}`
+      : '/performance/students/all';
+    return await apiClient.get<{ id: number; name: string; surname: string; group: string; averageGrade: number; attendanceRate: number; assignmentRate: number }[]>(url);
   },
 };

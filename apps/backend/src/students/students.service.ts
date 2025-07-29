@@ -1286,13 +1286,22 @@ export class StudentsService {
 
   // === МЕТОДЫ ДЛЯ РАБОТЫ С ЗАМЕЧАНИЯМИ ===
 
-  async getStudentRemarks(studentId: number) {
-    await this.findOne(studentId); // Проверяем существование студента
+  async getStudentRemarks(studentId: number, currentUserRole?: string, currentUserId?: number) {
+    const student = await this.findOne(studentId); // Проверяем существование студента
+
+    // Если пользователь студент, проверяем что он запрашивает свои замечания
+    if (currentUserRole === 'STUDENT') {
+      if (student.userId !== currentUserId) {
+        throw new ForbiddenException('Students can only view their own remarks');
+      }
+    }
 
     const remarks = await this.prisma.studentRemark.findMany({
       where: {
         studentId,
         deletedAt: null,
+        // Студенты видят только публичные замечания (isPrivate: false), админы и учителя - все
+        ...(currentUserRole === 'STUDENT' ? { isPrivate: false } : {}),
       },
       include: {
         teacher: {

@@ -73,12 +73,12 @@ export class PerformanceController {
     type: ClassesResponseDto,
   })
   @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT')
-  async getClasses(@Req() req: any) {
+  async getClasses(@Query() filter: PerformanceFilterDto, @Req() req: any) {
     // Для родителей возвращаем группы только их детей
     if (req.user.role === 'PARENT') {
       return this.performanceService.getParentClasses(req.user.id);
     }
-    return this.performanceService.getClasses();
+    return this.performanceService.getClasses(filter);
   }
 
   @Get('students/low-performing')
@@ -163,5 +163,19 @@ export class PerformanceController {
   })
   async getPerformanceMetrics(@Query() filter: PerformanceFilterDto) {
     return this.performanceService.getPerformanceMetrics(filter);
+  }
+
+  @Get('students/all')
+  @ApiOperation({
+    summary: 'Получить список всех студентов с их успеваемостью',
+    description: 'Возвращает список всех студентов отсортированный по успеваемости',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Список студентов успешно получен',
+  })
+  @Roles('ADMIN', 'TEACHER')
+  async getAllStudentsPerformance(@Query() filter: PerformanceFilterDto) {
+    return this.performanceService.getAllStudentsPerformance(filter);
   }
 }

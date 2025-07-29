@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { groupService } from '../services/groupService';
 import { studentService } from '../services/studentService';
+import { performanceService } from '../services/performanceService';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { PerformanceOverview } from '../types/performance';
 
 interface GroupDetail {
   id: number;
@@ -47,6 +49,7 @@ const GroupDetail: React.FC = () => {
   
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [students, setStudents] = useState<GroupStudent[]>([]);
+  const [performance, setPerformance] = useState<PerformanceOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,13 +64,17 @@ const GroupDetail: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [groupResponse, studentsResponse] = await Promise.all([
+      const [groupResponse, studentsResponse, performanceResponse] = await Promise.all([
         groupService.getGroupById(parseInt(id!)),
-        studentService.getStudentsByGroup(parseInt(id!))
+        studentService.getStudentsByGroup(parseInt(id!)),
+        performanceService.getStatistics({ groupId: id! }).catch(() => null) // Обрабатываем ошибку статистики отдельно
       ]);
 
       setGroup(groupResponse);
       setStudents(studentsResponse);
+      if (performanceResponse) {
+        setPerformance(performanceResponse.overview);
+      }
     } catch (err) {
       console.error('Error loading group details:', err);
       setError('Не удалось загрузить информацию о группе');
@@ -197,8 +204,10 @@ const GroupDetail: React.FC = () => {
               </div>
             </div>
             <div className="ml-5">
-              <p className="text-sm font-medium text-gray-500">Средняя успеваемость</p>
-              <p className="text-2xl font-semibold text-gray-900">-</p>
+              <p className="text-sm font-medium text-gray-500">Средний балл</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {performance ? performance.averageGrade.toFixed(1) : '-'}
+              </p>
             </div>
           </div>
         </div>
@@ -212,7 +221,9 @@ const GroupDetail: React.FC = () => {
             </div>
             <div className="ml-5">
               <p className="text-sm font-medium text-gray-500">Посещаемость</p>
-              <p className="text-2xl font-semibold text-gray-900">-</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {performance ? `${performance.attendanceRate}%` : '-'}
+              </p>
             </div>
           </div>
         </div>

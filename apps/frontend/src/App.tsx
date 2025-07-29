@@ -60,6 +60,7 @@ import JasLife from './pages/JasLife';
 import EducationalReports from './pages/EducationalReports';
 import MyChildren from './pages/MyChildren';
 import GroupDetail from './pages/GroupDetail';
+import StudentProfile from './pages/StudentProfile';
 
 const App: React.FC = () => {
   return (
@@ -165,7 +166,7 @@ const App: React.FC = () => {
                       <Route path="calendar" element={<CalendarPage />} />
                       <Route path="tasks" element={<TasksPage />} />
                       <Route path="neuro-abai" element={<NeuroAbaiPage />} />
-                      <Route path="profile" element={<div>Profile Page</div>} />
+                      <Route path="profile" element={<StudentProfile />} />
 
                       {/* ERP routes */}
                       <Route path="erp">

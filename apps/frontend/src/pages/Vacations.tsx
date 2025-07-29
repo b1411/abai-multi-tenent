@@ -19,7 +19,7 @@ import {
 import { useVacations } from '../hooks/useVacations';
 import { useAuth } from '../hooks/useAuth';
 import { useTeachers } from '../hooks/useTeachers';
-import { useTeacherLessons } from '../hooks/useStudyPlans';
+import { useTeacherLessons } from '../hooks/useTeacherLessons';
 import { vacationService } from '../services/vacationService';
 import {
   Vacation,
@@ -130,7 +130,7 @@ const VacationCard: React.FC<{
           )}
         </div>
 
-        {canChangeStatus && vacation.status === 'pending' && (
+        {canChangeStatus && vacation.status === 'pending' && userRole !== 'TEACHER' && (
           <div className="flex space-x-2">
             <button
               onClick={() => onStatusChange(vacation.id, VacationStatus.approved)}
@@ -174,12 +174,19 @@ const VacationForm: React.FC<{
   const [errors, setErrors] = useState<string[]>([]);
   const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
 
-  // Получаем уроки преподавателя в указанном диапазоне дат
-  const { lessons, loading: lessonsLoading } = useTeacherLessons(
-    user?.role === 'TEACHER' ? user.id : undefined,
-    formData.startDate,
-    formData.endDate
-  );
+  // Получаем ID преподавателя для текущего пользователя (нужно найти teacher record по userId)
+  const [currentTeacherId, setCurrentTeacherId] = useState<number | undefined>(undefined);
+  
+  // Получаем уроки преподавателя
+  const { lessons, loading: lessonsLoading } = useTeacherLessons(currentTeacherId);
+
+  // Находим ID преподавателя по userId
+  useEffect(() => {
+    if (user?.role === 'TEACHER' && teachers.length > 0) {
+      const teacher = teachers.find(t => t.user.id === user.id);
+      setCurrentTeacherId(teacher?.id);
+    }
+  }, [user, teachers]);
 
   useEffect(() => {
     if (vacation) {
@@ -216,6 +223,7 @@ const VacationForm: React.FC<{
       ...formData,
       startDate: new Date(formData.startDate).toISOString(),
       endDate: new Date(formData.endDate).toISOString(),
+      lessonIds: selectedLessons.length > 0 ? selectedLessons : undefined,
     });
   };
 
@@ -344,18 +352,81 @@ const VacationForm: React.FC<{
             />
           </div>
 
-          {formData.substituteId && (
+          {/* Выбор уроков для замещения */}
+          {currentTeacherId && lessons.length > 0 && formData.substituteId && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Темы лекций для замещения
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Выберите уроки для замещения</span>
+                </div>
               </label>
-              <textarea
-                value={formData.lectureTopics}
-                onChange={(e) => setFormData(prev => ({ ...prev, lectureTopics: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={2}
-                placeholder="Укажите темы, которые должен изучить замещающий преподаватель..."
-              />
+              
+              {lessonsLoading ? (
+                <div className="flex justify-center py-4">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                  {lessons.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Нет доступных уроков для выбранного периода
+                    </p>
+                  ) : (
+                    lessons.map(lesson => (
+                      <div
+                        key={lesson.id}
+                        className="flex items-start space-x-3 p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          id={`lesson-${lesson.id}`}
+                          checked={selectedLessons.includes(lesson.id)}
+                          onChange={() => handleLessonToggle(lesson.id)}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label
+                          htmlFor={`lesson-${lesson.id}`}
+                          className="flex-1 cursor-pointer"
+                        >
+                          <div className="text-sm font-medium text-gray-900">
+                            {lesson.name}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            <div className="flex items-center space-x-4">
+                              <span className="flex items-center space-x-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>{new Date(lesson.date).toLocaleDateString('ru-RU')}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <BookOpen className="w-3 h-3" />
+                                <span>{lesson.studyPlan.name}</span>
+                              </span>
+                              {lesson.groups.length > 0 && (
+                                <span className="flex items-center space-x-1">
+                                  <Users className="w-3 h-3" />
+                                  <span>{lesson.groups.map(g => g.name).join(', ')}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {lesson.description && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {lesson.description}
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              
+              {selectedLessons.length > 0 && (
+                <div className="mt-2 text-sm text-blue-600">
+                  Выбрано уроков: {selectedLessons.length}
+                </div>
+              )}
             </div>
           )}
 
@@ -475,15 +546,6 @@ const VacationDetailsModal: React.FC<{
                 </div>
               )}
 
-              {vacation.lectureTopics && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Темы лекций для замещения</h3>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-700">{vacation.lectureTopics}</p>
-                  </div>
-                </div>
-              )}
-
               {vacation.comment && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Комментарий</h3>
@@ -494,6 +556,51 @@ const VacationDetailsModal: React.FC<{
               )}
             </div>
           </div>
+
+          {/* Затронутые уроки */}
+          {vacation.affectedLessons && vacation.affectedLessons.length > 0 ? (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Затронутые уроки</h3>
+              <div className="space-y-2">
+                {vacation.affectedLessons.map(lesson => (
+                  <div key={lesson.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center space-x-3">
+                      <BookOpen className="w-5 h-5 text-purple-500" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{lesson.name}</p>
+                        <div className="text-xs text-gray-600 flex items-center space-x-4">
+                          <span className="flex items-center space-x-1">
+                            <Calendar className="w-3 h-3" />
+                            <span>{new Date(lesson.date).toLocaleDateString('ru-RU')}</span>
+                          </span>
+                          <span className="flex items-center space-x-1">
+                            <BookOpen className="w-3 h-3" />
+                            <span>{lesson.studyPlan.name}</span>
+                          </span>
+                          {lesson.group && (
+                            <span className="flex items-center space-x-1">
+                              <Users className="w-3 h-3" />
+                              <span>{lesson.group.name}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-purple-600 font-medium">
+                      Требует замещения
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Затронутые уроки</h3>
+              <div className="text-sm text-gray-500">
+                Уроки для замещения не выбраны
+              </div>
+            </div>
+          )}
 
           {/* Документы */}
           {vacation.documents && vacation.documents.length > 0 && (
@@ -613,6 +720,8 @@ const Vacations: React.FC = () => {
   };
 
   const handleViewDetails = (vacation: Vacation) => {
+    console.log('Viewing vacation details:', vacation);
+    console.log('Affected lessons:', vacation.affectedLessons);
     setViewingVacation(vacation);
   };
 
@@ -643,8 +752,15 @@ const Vacations: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Управление отпусками</h1>
-          <p className="text-gray-600">Заявки на отпуск и больничные листы</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {user?.role === 'TEACHER' ? 'Мои отпуска' : 'Управление отпусками'}
+          </h1>
+          <p className="text-gray-600">
+            {user?.role === 'TEACHER' 
+              ? 'Ваши заявки на отпуск и больничные листы'
+              : 'Заявки на отпуск и больничные листы'
+            }
+          </p>
         </div>
         <button
           onClick={() => {

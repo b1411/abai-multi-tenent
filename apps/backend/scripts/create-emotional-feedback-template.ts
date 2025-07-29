@@ -494,7 +494,7 @@ async function createEmotionalFeedbackTemplate() {
     console.log('✅ Шаблоны для эмоционального анализа созданы:');
     console.log(`- Студенты: ${studentTemplate.name}`);
     console.log(`- Преподаватели: ${teacherTemplate.name}`);
-    
+
     return { studentTemplate, teacherTemplate };
 
   } catch (error) {

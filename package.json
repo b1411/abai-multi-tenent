@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "bootstrap": "lerna bootstrap",
-    "clean": "lerna clean"
+    "clean": "lerna clean",
+    "dev": "cd ./apps/backend; npm run dev; cd ../frontend; npm run dev"
   },
   "keywords": [],
   "author": "",

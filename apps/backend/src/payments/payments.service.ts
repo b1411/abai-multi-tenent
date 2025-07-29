@@ -4,12 +4,15 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentFilterDto } from './dto/payment-filter.dto';
+import { GenerateInvoiceDto, GenerateSummaryInvoiceDto } from './dto/invoice-generation.dto';
+import { InvoiceGeneratorService } from './invoice-generator.service';
 
 @Injectable()
 export class PaymentsService {
   constructor(
     private prisma: PrismaService,
-    private notificationsService: NotificationsService
+    private notificationsService: NotificationsService,
+    private invoiceGeneratorService: InvoiceGeneratorService
   ) { }
 
   async create(createPaymentDto: CreatePaymentDto) {
@@ -34,11 +37,53 @@ export class PaymentsService {
     });
   }
 
-  async findAll(filters: PaymentFilterDto = {}) {
+  async findAll(filters: PaymentFilterDto = {}, user?: any) {
     const where: any = {};
 
+    // Если пользователь родитель, показываем только платежи его детей
+    if (user && user.role === 'PARENT') {
+      // Сначала находим всех детей этого родителя
+      const parent = await this.prisma.parent.findUnique({
+        where: { userId: user.id },
+        include: {
+          students: {
+            select: { id: true }
+          }
+        }
+      });
+
+      if (parent && parent.students.length > 0) {
+        const studentIds = parent.students.map(student => student.id);
+        where.studentId = { in: studentIds };
+      } else {
+        // Если у родителя нет детей, возвращаем пустой результат
+        where.studentId = -1; // Несуществующий ID
+      }
+    }
+
     if (filters.studentId) {
-      where.studentId = filters.studentId;
+      const studentIdNum = parseInt(filters.studentId);
+      // Если указан конкретный studentId, проверяем права доступа
+      if (user && user.role === 'PARENT') {
+        const parent = await this.prisma.parent.findUnique({
+          where: { userId: user.id },
+          include: {
+            students: {
+              select: { id: true }
+            }
+          }
+        });
+        
+        const studentIds = parent?.students.map(student => student.id) || [];
+        if (!studentIds.includes(studentIdNum)) {
+          // Родитель пытается получить доступ к данным не своего ребенка
+          where.studentId = -1; // Несуществующий ID
+        } else {
+          where.studentId = studentIdNum;
+        }
+      } else {
+        where.studentId = studentIdNum;
+      }
     }
 
     if (filters.serviceType) {
@@ -105,7 +150,44 @@ export class PaymentsService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, user?: any) {
+    // Если пользователь родитель, проверяем что платеж относится к его ребенку
+    if (user && user.role === 'PARENT') {
+      const parent = await this.prisma.parent.findUnique({
+        where: { userId: user.id },
+        include: {
+          students: {
+            select: { id: true }
+          }
+        }
+      });
+
+      const payment = await this.prisma.payment.findUnique({
+        where: { id },
+        include: {
+          student: {
+            include: {
+              user: true,
+              group: true,
+            },
+          },
+        },
+      });
+
+      if (!payment) {
+        return null;
+      }
+
+      const studentIds = parent?.students.map(student => student.id) || [];
+      if (!studentIds.includes(payment.studentId)) {
+        // Родитель пытается получить доступ к платежу не своего ребенка
+        return null;
+      }
+
+      return payment;
+    }
+
+    // Для ADMIN и FINANCIST возвращаем платеж без ограничений
     return this.prisma.payment.findUnique({
       where: { id },
       include: {
@@ -232,9 +314,12 @@ export class PaymentsService {
     };
   }
 
-  generateInvoice(id: number) {
-    // Здесь будет логика генерации квитанции
-    return { message: 'Invoice generated successfully' };
+  async generateInvoice(id: number, generateDto: GenerateInvoiceDto, user?: any) {
+    return this.invoiceGeneratorService.generateInvoice(id, generateDto, user);
+  }
+
+  async generateSummaryInvoice(studentId: number, generateDto: GenerateSummaryInvoiceDto, user?: any) {
+    return this.invoiceGeneratorService.generateSummaryInvoice(studentId, generateDto, user);
   }
 
   private getServiceName(type: string): string {

@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { feedbackService, FeedbackTemplate } from '../services/feedbackService';
 import { Alert } from '../components/ui/Alert';
 import { Spinner } from '../components/ui/Spinner';
+import { useToastContext } from '../hooks/useToastContext';
 
 const FeedbackAdmin: React.FC = () => {
   const [templates, setTemplates] = useState<FeedbackTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<FeedbackTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<FeedbackTemplate | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [statistics, setStatistics] = useState<any>(null);
+  const toast = useToastContext();
 
   useEffect(() => {
     loadData();
@@ -35,8 +38,9 @@ const FeedbackAdmin: React.FC = () => {
     try {
       await feedbackService.toggleTemplateActive(id);
       await loadData();
+      toast.success('Статус шаблона изменен');
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Ошибка при изменении статуса шаблона');
     }
   };
 
@@ -46,8 +50,9 @@ const FeedbackAdmin: React.FC = () => {
     try {
       await feedbackService.deleteTemplate(id);
       await loadData();
+      toast.success('Шаблон успешно удален');
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Ошибка при удалении шаблона');
     }
   };
 
@@ -55,9 +60,14 @@ const FeedbackAdmin: React.FC = () => {
     try {
       await feedbackService.createDefaultTemplates();
       await loadData();
+      toast.success('Стандартные шаблоны созданы');
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Ошибка при создании стандартных шаблонов');
     }
+  };
+
+  const handleEditTemplate = (template: FeedbackTemplate) => {
+    setEditingTemplate(template);
   };
 
   if (loading) {
@@ -185,16 +195,16 @@ const FeedbackAdmin: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${template.priority > 0
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-gray-100 text-gray-800'
                       }`}>
                       {template.priority > 0 ? 'Обязательный' : 'Опциональный'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${template.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
                       }`}>
                       {template.isActive ? 'Активный' : 'Неактивный'}
                     </span>
@@ -208,10 +218,16 @@ const FeedbackAdmin: React.FC = () => {
                         Просмотр
                       </button>
                       <button
+                        onClick={() => handleEditTemplate(template)}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        Редактировать
+                      </button>
+                      <button
                         onClick={() => handleToggleActive(template.id)}
                         className={`${template.isActive
-                            ? 'text-red-600 hover:text-red-900'
-                            : 'text-green-600 hover:text-green-900'
+                          ? 'text-red-600 hover:text-red-900'
+                          : 'text-green-600 hover:text-green-900'
                           }`}
                       >
                         {template.isActive ? 'Деактивировать' : 'Активировать'}
@@ -245,6 +261,18 @@ const FeedbackAdmin: React.FC = () => {
           onClose={() => setShowCreateForm(false)}
           onSuccess={() => {
             setShowCreateForm(false);
+            loadData();
+          }}
+        />
+      )}
+
+      {/* Модальное окно редактирования шаблона */}
+      {editingTemplate && (
+        <EditTemplateModal
+          template={editingTemplate}
+          onClose={() => setEditingTemplate(null)}
+          onSuccess={() => {
+            setEditingTemplate(null);
             loadData();
           }}
         />
@@ -328,6 +356,7 @@ const CreateTemplateModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ onClose, onSuccess }) => {
+  const toast = useToastContext();
   const [formData, setFormData] = useState({
     name: '',
     title: '',
@@ -357,8 +386,9 @@ const CreateTemplateModal: React.FC<{
 
       await feedbackService.createTemplate(templateData);
       onSuccess();
-    } catch (error) {
-      console.error('Error creating template:', error);
+      toast.success('Шаблон успешно создан');
+    } catch (error: any) {
+      toast.error(error.message || 'Ошибка при создании шаблона');
     }
   };
 
@@ -460,7 +490,7 @@ const CreateTemplateModal: React.FC<{
               value={formData.priority}
               onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              
+
               max="10"
             />
           </div>
@@ -490,6 +520,316 @@ const CreateTemplateModal: React.FC<{
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               Создать
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Компонент для редактирования шаблона
+const EditTemplateModal: React.FC<{
+  template: FeedbackTemplate;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ template, onClose, onSuccess }) => {
+  const toast = useToastContext();
+  const [formData, setFormData] = useState({
+    name: template.name,
+    title: template.title,
+    description: template.description || '',
+    role: template.role,
+    frequency: template.frequency,
+    priority: template.priority,
+    isActive: template.isActive,
+  });
+  const [questions, setQuestions] = useState(template.questions);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const templateData = {
+        ...formData,
+        questions,
+      };
+
+      await feedbackService.updateTemplate(template.id, templateData);
+      onSuccess();
+      toast.success('Шаблон успешно обновлен');
+    } catch (error: any) {
+      toast.error(error.message || 'Ошибка при обновлении шаблона');
+    }
+  };
+
+  const handleQuestionChange = (index: number, field: string, value: any) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[index] = { ...updatedQuestions[index], [field]: value };
+    setQuestions(updatedQuestions);
+  };
+
+  const addQuestion = () => {
+    const newQuestion = {
+      id: `question_${Date.now()}`,
+      question: '',
+      type: 'RATING_1_5' as const,
+      category: 'general',
+      required: true,
+    };
+    setQuestions([...questions, newQuestion]);
+  };
+
+  const removeQuestion = (index: number) => {
+    if (questions.length > 1) {
+      setQuestions(questions.filter((_, i) => i !== index));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900">Редактировать шаблон</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Основная информация */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Название
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Заголовок
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Описание
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Роль
+              </label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="STUDENT">Студент</option>
+                <option value="TEACHER">Преподаватель</option>
+                <option value="HR">Сотрудник</option>
+                <option value="ADMIN">Администратор</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Частота
+              </label>
+              <select
+                value={formData.frequency}
+                onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="WEEKLY">Еженедельно</option>
+                <option value="MONTHLY">Ежемесячно</option>
+                <option value="QUARTERLY">Ежеквартально</option>
+                <option value="SEMESTER">Каждый семестр</option>
+                <option value="YEARLY">Ежегодно</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Приоритет
+              </label>
+              <input
+                type="number"
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                min="0"
+                max="10"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={formData.isActive}
+              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              className="h-4 w-4 text-blue-600"
+            />
+            <label className="ml-2 block text-sm text-gray-900">
+              Активный
+            </label>
+          </div>
+
+          {/* Вопросы */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Вопросы</h3>
+              <button
+                type="button"
+                onClick={addQuestion}
+                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+              >
+                Добавить вопрос
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {questions.map((question, index) => (
+                <div key={question.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-500">
+                      Вопрос {index + 1}
+                    </span>
+                    {questions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeQuestion(index)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Удалить
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Текст вопроса
+                      </label>
+                      <input
+                        type="text"
+                        value={question.question}
+                        onChange={(e) => handleQuestionChange(index, 'question', e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Тип вопроса
+                      </label>
+                      <select
+                        value={question.type}
+                        onChange={(e) => handleQuestionChange(index, 'type', e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                      >
+                        <option value="RATING_1_5">Рейтинг 1-5</option>
+                        <option value="RATING_1_10">Рейтинг 1-10</option>
+                        <option value="YES_NO">Да/Нет</option>
+                        <option value="TEXT">Текст</option>
+                        <option value="EMOTIONAL_SCALE">Эмоциональная шкала</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Категория
+                      </label>
+                      <select
+                        value={question.category}
+                        onChange={(e) => handleQuestionChange(index, 'category', e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                        required
+                      >
+                        <option value="general">Общее</option>
+                        <option value="teaching">Преподавание</option>
+                        <option value="content">Содержание</option>
+                        <option value="workload">Рабочая нагрузка</option>
+                        <option value="satisfaction">Удовлетворенность</option>
+                        <option value="environment">Рабочая среда</option>
+                        <option value="development">Развитие</option>
+                        <option value="balance">Баланс</option>
+                        <option value="support">Поддержка</option>
+                        <option value="loyalty">Лояльность</option>
+                        <option value="retention">Удержание</option>
+                        <option value="feedback">Обратная связь</option>
+                        <option value="quality">Качество</option>
+                        <option value="motivation">Мотивация</option>
+                        <option value="communication">Коммуникация</option>
+                        <option value="management">Управление</option>
+                        <option value="resources">Ресурсы</option>
+                        <option value="innovation">Инновации</option>
+                        <option value="culture">Культура</option>
+                        <option value="performance">Производительность</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center pt-6">
+                      <input
+                        type="checkbox"
+                        checked={question.required !== false}
+                        onChange={(e) => handleQuestionChange(index, 'required', e.target.checked)}
+                        className="h-4 w-4 text-blue-600"
+                      />
+                      <label className="ml-2 block text-sm text-gray-900">
+                        Обязательный
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Сохранить изменения
             </button>
           </div>
         </form>

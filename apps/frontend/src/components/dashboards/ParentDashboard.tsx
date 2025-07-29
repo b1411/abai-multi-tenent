@@ -146,47 +146,46 @@ const ParentDashboard: React.FC = () => {
             {/* Расписание и домашние задания */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Расписание на завтра</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Расписание на сегодня</h3>
                 <div className="space-y-2">
-                  <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                    <Clock className="h-5 w-5 text-gray-600 mr-3" />
-                    <div>
-                      <p className="font-medium text-gray-900">Математика</p>
-                      <p className="text-sm text-gray-600">09:00 - 10:30, Кабинет 201</p>
+                  {child.todaySchedule && child.todaySchedule.length > 0 ? (
+                    child.todaySchedule.map((lesson, index) => (
+                      <div key={index} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <Clock className="h-5 w-5 text-gray-600 mr-3" />
+                        <div>
+                          <p className="font-medium text-gray-900">{lesson.subject}</p>
+                          <p className="text-sm text-gray-600">{lesson.time}, {lesson.classroom}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                      <Clock className="h-5 w-5 text-gray-600 mr-3" />
+                      <p className="text-gray-600">Сегодня уроков нет</p>
                     </div>
-                  </div>
-                  <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                    <Clock className="h-5 w-5 text-gray-600 mr-3" />
-                    <div>
-                      <p className="font-medium text-gray-900">Физика</p>
-                      <p className="text-sm text-gray-600">11:00 - 12:30, Кабинет 305</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Домашние задания</h3>
                 <div className="space-y-2">
-                  {child.pendingHomework > 0 ? (
-                    <>
-                      <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                  {child.pendingAssignments && child.pendingAssignments.length > 0 ? (
+                    child.pendingAssignments.map((assignment, index) => (
+                      <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
+                        assignment.status === 'overdue' ? 'bg-red-50' : 'bg-yellow-50'
+                      }`}>
                         <div>
-                          <p className="font-medium text-gray-900">Решение уравнений</p>
-                          <p className="text-sm text-gray-600">Математика • Срок: завтра</p>
+                          <p className="font-medium text-gray-900">{assignment.title}</p>
+                          <p className="text-sm text-gray-600">{assignment.subject} • Срок: {assignment.dueDate}</p>
                         </div>
-                        <span className="text-yellow-600 text-sm font-medium">В процессе</span>
+                        <span className={`text-sm font-medium ${
+                          assignment.status === 'overdue' ? 'text-red-600' : 'text-yellow-600'
+                        }`}>
+                          {assignment.status === 'overdue' ? 'Просрочено' : 'К выполнению'}
+                        </span>
                       </div>
-                      {child.pendingHomework > 1 && (
-                        <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-gray-900">Лабораторная работа</p>
-                            <p className="text-sm text-gray-600">Физика • Срок: вчера</p>
-                          </div>
-                          <span className="text-red-600 text-sm font-medium">Просрочено</span>
-                        </div>
-                      )}
-                    </>
+                    ))
                   ) : (
                     <div className="flex items-center p-3 bg-green-50 rounded-lg">
                       <CheckCircle className="h-5 w-5 text-green-600 mr-3" />

@@ -129,7 +129,7 @@ const AdminDashboard: React.FC = () => {
               <UserCheck className="h-5 w-5 text-blue-600 mr-3" />
               <div>
                 <p className="font-medium text-gray-900">Новые сотрудники</p>
-                <p className="text-sm text-gray-600">3 заявления на трудоустройство</p>
+                <p className="text-sm text-gray-600">{stats?.totalTeachers} преподавателей в системе</p>
               </div>
             </div>
           </div>
@@ -164,7 +164,7 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Средняя посещаемость</span>
-              <span className="text-lg font-bold text-green-600">89.2%</span>
+              <span className="text-lg font-bold text-green-600">{stats?.completionRate}%</span>
             </div>
           </div>
         </div>

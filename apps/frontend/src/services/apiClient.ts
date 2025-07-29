@@ -129,6 +129,13 @@ class ApiClient {
     });
     return response.data;
   }
+
+  async postBlob(url: string, data?: unknown): Promise<Blob> {
+    const response: AxiosResponse<Blob> = await this.client.post(url, data, {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
 }
 
 export default new ApiClient();

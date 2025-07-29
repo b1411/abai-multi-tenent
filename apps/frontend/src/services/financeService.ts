@@ -66,8 +66,46 @@ class FinanceService {
     await apiClient.post(`/payments/${id}/remind`, data);
   }
 
-  async generateInvoice(id: string, format: 'pdf' | 'docx' = 'pdf'): Promise<Blob> {
-    return await apiClient.getBlob(`/payments/${id}/invoice?format=${format}`);
+  async generateInvoice(id: string, options: {
+    type?: 'payment' | 'debt' | 'summary';
+    format?: 'pdf' | 'html';
+    startDate?: string;
+    endDate?: string;
+    notes?: string;
+    includeQrCode?: boolean;
+  } = {}): Promise<Blob> {
+    const data: any = {
+      type: options.type || 'payment',
+      format: options.format || 'pdf',
+      notes: options.notes,
+      includeQrCode: options.includeQrCode !== false
+    };
+
+    // Даты нужны только для сводных квитанций
+    if (options.type === 'summary') {
+      data.startDate = options.startDate;
+      data.endDate = options.endDate;
+    }
+
+    return await apiClient.postBlob(`/payments/${id}/invoice`, data);
+  }
+
+  async generateSummaryInvoice(studentId: string, options: {
+    type?: 'payment' | 'debt' | 'summary';
+    format?: 'pdf' | 'html';
+    startDate?: string;
+    endDate?: string;
+    notes?: string;
+    includeQrCode?: boolean;
+  } = {}): Promise<Blob> {
+    return await apiClient.postBlob(`/payments/student/${studentId}/summary-invoice`, {
+      type: options.type || 'summary',
+      format: options.format || 'pdf',
+      startDate: options.startDate,
+      endDate: options.endDate,
+      notes: options.notes,
+      includeQrCode: options.includeQrCode !== false
+    });
   }
 
   // Бюджет
@@ -168,14 +206,11 @@ class FinanceService {
   }
 
   async generateReport(type: string, filters: any, format: 'pdf' | 'xlsx' = 'pdf'): Promise<Blob> {
-    const response = await fetch('/api/reports/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ type, filters, format })
+    return await apiClient.postBlob('/reports/generate', {
+      type,
+      filters,
+      format
     });
-    return await response.blob();
   }
 }
 

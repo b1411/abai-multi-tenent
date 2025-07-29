@@ -1,31 +1,83 @@
-import { IsString, IsIn, IsArray, IsOptional, IsBoolean, IsInt } from 'class-validator';
+import { 
+  IsString, 
+  IsIn, 
+  IsArray, 
+  IsOptional, 
+  IsBoolean, 
+  IsInt, 
+  IsNotEmpty,
+  Length,
+  Min,
+  Max,
+  ValidateNested,
+  ArrayNotEmpty,
+  IsEnum
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { UserRole, FeedbackFrequency } from 'generated/prisma';
 
+class QuestionDto {
+  @IsString({ message: 'ID вопроса должен быть строкой' })
+  @IsNotEmpty({ message: 'ID вопроса не может быть пустым' })
+  id: string;
+
+  @IsString({ message: 'Текст вопроса должен быть строкой' })
+  @IsNotEmpty({ message: 'Текст вопроса не может быть пустым' })
+  @Length(5, 500, { message: 'Текст вопроса должен быть от 5 до 500 символов' })
+  question: string;
+
+  @IsEnum(['RATING_1_5', 'RATING_1_10', 'TEXT', 'MULTIPLE_CHOICE', 'SINGLE_CHOICE', 'EMOTIONAL_SCALE', 'YES_NO'], {
+    message: 'Неверный тип вопроса'
+  })
+  type: string;
+
+  @IsString({ message: 'Категория должна быть строкой' })
+  @IsNotEmpty({ message: 'Категория не может быть пустой' })
+  category: string;
+
+  @IsOptional()
+  @IsBoolean({ message: 'required должно быть булевым значением' })
+  required?: boolean;
+}
+
 export class CreateFeedbackTemplateDto {
-  @IsString()
+  @IsString({ message: 'Название должно быть строкой' })
+  @IsNotEmpty({ message: 'Название не может быть пустым' })
+  @Length(3, 100, { message: 'Название должно быть от 3 до 100 символов' })
+  @Transform(({ value }) => value?.trim())
   name: string;
 
-  @IsIn(['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'FINANCIST', 'HR'])
+  @IsEnum(UserRole, { message: 'Неверная роль пользователя' })
   role: UserRole;
 
-  @IsString()
+  @IsString({ message: 'Заголовок должен быть строкой' })
+  @IsNotEmpty({ message: 'Заголовок не может быть пустым' })
+  @Length(5, 200, { message: 'Заголовок должен быть от 5 до 200 символов' })
+  @Transform(({ value }) => value?.trim())
   title: string;
 
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'Описание должно быть строкой' })
+  @Length(0, 1000, { message: 'Описание должно быть не более 1000 символов' })
+  @Transform(({ value }) => value?.trim())
   description?: string;
 
-  @IsArray()
-  questions: any[]; // JSON массив вопросов
+  @IsArray({ message: 'Вопросы должны быть массивом' })
+  @ArrayNotEmpty({ message: 'Должен быть хотя бы один вопрос' })
+  @ValidateNested({ each: true })
+  @Type(() => QuestionDto)
+  questions: QuestionDto[];
 
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({ message: 'isActive должно быть булевым значением' })
   isActive?: boolean;
 
-  @IsIn(['WEEKLY', 'MONTHLY', 'QUARTERLY', 'SEMESTER', 'YEARLY'])
+  @IsEnum(FeedbackFrequency, { message: 'Неверная частота опроса' })
   frequency: FeedbackFrequency;
 
   @IsOptional()
-  @IsInt()
+  @IsInt({ message: 'Приоритет должен быть числом' })
+  @Min(0, { message: 'Приоритет не может быть отрицательным' })
+  @Max(10, { message: 'Приоритет не может быть больше 10' })
   priority?: number;
 }

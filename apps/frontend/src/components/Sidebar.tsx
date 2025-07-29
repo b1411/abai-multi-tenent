@@ -32,7 +32,13 @@ import {
   Cog,
   Heart,
   MessageCircle,
-  X
+  X,
+  FolderOpen,
+  Plus,
+  CheckCircle,
+  Newspaper,
+  Activity,
+  Zap
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -49,6 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     finance: false,
     app: false,
     erp: false,
+    edo: false,
     settings: false
   });
 
@@ -64,6 +71,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: 'Главная',
       href: '/',
       icon: Home,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
+    },
+    {
+      name: 'Новости',
+      href: '/news',
+      icon: Newspaper,
       roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
     },
     {
@@ -92,6 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen },
         { name: 'Расписание', href: '/academic/schedule', icon: Calendar },
         { name: 'Аудитории', href: '/classrooms', icon: Building },
+        { name: 'Отчеты', href: '/educational-reports', icon: BarChart3 },
       ]
     },
     {
@@ -104,6 +118,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Группы', href: '/groups', icon: Users },
         { name: 'Успеваемость', href: '/performance', icon: TrendingUp },
       ]
+    },
+    {
+      name: 'Alumni',
+      href: '/alumni',
+      icon: GraduationCap,
+      roles: ['ADMIN', 'TEACHER', 'HR']
+    },
+    {
+      name: 'JAS.LIFE',
+      href: '/jas-life',
+      icon: Zap,
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR', 'FINANCIST']
     },
     {
       name: 'HR (Персонал)',
@@ -125,11 +151,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: ['ADMIN', 'FINANCIST', 'PARENT'],
       key: 'finance',
       children: [
-        { name: 'Оплаты и задолженности', href: '/finance/payments', icon: CreditCard },
-        { name: 'Финансовые отчеты', href: '/finance/reports', icon: FileText },
-        { name: 'Бюджет и прогноз', href: '/finance/budget', icon: BarChart3 },
-        { name: 'Анализ лояльности', href: '/finance/acl', icon: TrendingUp },
-        { name: 'Управление зарплатой', href: '/finance/payroll', icon: Briefcase },
+        { name: 'Оплаты и задолженности', href: '/finance/payments', icon: CreditCard, roles: ['ADMIN', 'FINANCIST', 'PARENT'] },
+        { name: 'Финансовые отчеты', href: '/finance/reports', icon: FileText, roles: ['ADMIN', 'FINANCIST'] },
+        { name: 'Бюджет и прогноз', href: '/finance/budget', icon: BarChart3, roles: ['ADMIN', 'FINANCIST'] },
+        { name: 'Анализ лояльности', href: '/finance/acl', icon: TrendingUp, roles: ['ADMIN', 'FINANCIST'] },
+        { name: 'Управление зарплатой', href: '/finance/payroll', icon: Briefcase, roles: ['ADMIN', 'FINANCIST'] },
       ]
     },
     {
@@ -140,6 +166,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       children: [
         { name: 'Digital инвентаризация', href: '/app/erp/inventory', icon: Package },
         { name: 'Запросы на снабжение', href: '/app/erp/supply', icon: ShoppingCart },
+        { name: 'Безопасность', href: '/app/erp/security', icon: Lock },
+      ]
+    },
+    {
+      name: 'ЭДО',
+      icon: FolderOpen,
+      roles: ['ADMIN', 'HR', 'TEACHER'],
+      key: 'edo',
+      children: [
+        { name: 'Документы', href: '/edo', icon: FileText },
+        { name: 'Создать документ', href: '/edo/create', icon: Plus },
       ]
     },
     {
@@ -154,6 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Брендинг', href: '/settings/branding', icon: Palette },
         { name: 'Система', href: '/settings/system', icon: Settings },
         { name: 'Обратная связь', href: '/settings/feedback', icon: MessageCircle },
+        { name: 'Мониторинг активности', href: '/settings/activity-monitoring', icon: Activity },
       ]
     },
   ];

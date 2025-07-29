@@ -163,6 +163,7 @@ export interface EmotionalData {
     priority: string;
     message: string;
   }>;
+  source?: 'feedback' | 'legacy' | 'no_data';
 }
 
 export interface CompleteStudentReport {

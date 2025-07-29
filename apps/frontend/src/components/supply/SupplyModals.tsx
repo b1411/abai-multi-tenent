@@ -8,7 +8,8 @@ import {
   CreatePurchaseRequest,
   CreateSupplier,
   CreatePurchaseRequestItem,
-  PurchaseRequestItem
+  PurchaseRequestItem,
+  supplyService
 } from '../../services/supplyService';
 
 // Re-export types for use in other components
@@ -32,6 +33,8 @@ const SupplyModals: React.FC<SupplyModalsProps> = ({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [items, setItems] = useState<CreatePurchaseRequestItem[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
 
   useEffect(() => {
     if (showModal) {
@@ -62,6 +65,9 @@ const SupplyModals: React.FC<SupplyModalsProps> = ({
           notes: orderData?.notes || ''
         });
         setItems(orderData?.items || []);
+        
+        // Загружаем поставщиков для формы заказа
+        loadSuppliers();
       } else {
         const supplierData = selectedData as Supplier;
         setFormData({
@@ -78,6 +84,18 @@ const SupplyModals: React.FC<SupplyModalsProps> = ({
       }
     }
   }, [showModal, modalType, selectedData]);
+
+  const loadSuppliers = async () => {
+    try {
+      setLoadingSuppliers(true);
+      const data = await supplyService.getSuppliers({ status: 'ACTIVE' });
+      setSuppliers(data.suppliers || []);
+    } catch (error) {
+      console.error('Ошибка загрузки поставщиков:', error);
+    } finally {
+      setLoadingSuppliers(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -454,16 +472,26 @@ const SupplyModals: React.FC<SupplyModalsProps> = ({
                     </label>
                     <select
                       required
-                      disabled={isReadOnly}
+                      disabled={isReadOnly || loadingSuppliers}
                       value={formData.supplierId || ''}
                       onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                     >
-                      <option value="">Выберите поставщика</option>
-                      <option value="1">ТОО "Техника Плюс"</option>
-                      <option value="2">ИП "Канцтовары"</option>
-                      <option value="3">ТОО "Мебель Офис"</option>
+                      <option value="">
+                        {loadingSuppliers ? 'Загрузка поставщиков...' : 'Выберите поставщика'}
+                      </option>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
                     </select>
+                    {loadingSuppliers && (
+                      <div className="mt-1 text-sm text-gray-500 flex items-center">
+                        <Loading />
+                        <span className="ml-2">Загрузка списка поставщиков...</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>

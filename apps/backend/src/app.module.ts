@@ -38,6 +38,8 @@ import { ChatModule } from './chat/chat.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { SystemModule } from './system/system.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ActivityMonitoringModule } from './activity-monitoring/activity-monitoring.module';
+import { EdoModule } from './edo/edo.module';
 import { DevtoolsModule } from '@nestjs/devtools-integration';
 
 @Module({
@@ -76,6 +78,8 @@ import { DevtoolsModule } from '@nestjs/devtools-integration';
     CalendarModule,
     SystemModule,
     DashboardModule,
+    ActivityMonitoringModule,
+    EdoModule,
     NotificationsModule,
     FilesModule,
     LessonResultsModule,

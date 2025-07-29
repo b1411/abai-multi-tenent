@@ -192,9 +192,37 @@ export class DashboardService {
       schedule.dayOfWeek === dayOfWeek
     );
 
-    // Mock pending grading and deadlines
-    const pendingGrading = Math.floor(Math.random() * 25) + 10;
-    const upcomingDeadlines = Math.floor(Math.random() * 5) + 1;
+    // Get real pending grading data
+    const pendingGrading = await this.prisma.homeworkSubmission.count({
+      where: {
+        status: 'PENDING',
+        homework: {
+          lesson: {
+            studyPlan: {
+              teacherId: teacher.id,
+            },
+          },
+        },
+      },
+    });
+
+    // Get real upcoming deadlines
+    const nextWeek = new Date();
+    nextWeek.setDate(new Date().getDate() + 7);
+    
+    const upcomingDeadlines = await this.prisma.homework.count({
+      where: {
+        deadline: {
+          gte: new Date(),
+          lte: nextWeek,
+        },
+        lesson: {
+          studyPlan: {
+            teacherId: teacher.id,
+          },
+        },
+      },
+    });
 
     // Calculate group performance
     const groupPerformance = teacher.studyPlans.map(plan => {
@@ -451,7 +479,12 @@ export class DashboardService {
       throw new Error('Parent not found');
     }
 
-    const children = parent.students.map(student => {
+    const today = new Date();
+    const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay(); // Convert Sunday from 0 to 7
+    const nextWeek = new Date();
+    nextWeek.setDate(today.getDate() + 7);
+
+    const children = await Promise.all(parent.students.map(async (student) => {
       const grades = student.lessonsResults
         .filter(result => result.lessonScore !== null)
         .map(result => result.lessonScore);
@@ -465,6 +498,36 @@ export class DashboardService {
       const attendedLessons = attendanceRecords.filter(result => result.attendance === true).length;
       const attendance = totalLessons > 0 ? Math.round((attendedLessons / totalLessons) * 100) : 0;
 
+      // Get upcoming lessons for this student
+      const upcomingLessons = await this.prisma.lesson.count({
+        where: {
+          date: {
+            gte: today,
+            lte: nextWeek,
+          },
+          studyPlan: {
+            group: {
+              some: {
+                id: student.groupId,
+              },
+            },
+          },
+        },
+      });
+
+      // Get today's schedule for this student
+      const todaySchedule = await this.prisma.schedule.findMany({
+        where: {
+          groupId: student.groupId,
+          dayOfWeek: dayOfWeek,
+        },
+        include: {
+          studyPlan: true,
+          classroom: true,
+        },
+        orderBy: { startTime: 'asc' },
+      });
+
       return {
         id: student.id,
         name: student.user.name,
@@ -472,12 +535,13 @@ export class DashboardService {
         grade: student.group.name,
         averageGrade: Math.round(averageGrade * 10) / 10,
         attendance,
-        upcomingLessons: 5, // Mock data
+        upcomingLessons,
         pendingHomework: student.HomeworkSubmission.length,
-        todaySchedule: [
-          { subject: 'Математика', time: '09:00 - 10:30', classroom: 'Кабинет 201' },
-          { subject: 'Физика', time: '11:00 - 12:30', classroom: 'Кабинет 305' },
-        ],
+        todaySchedule: todaySchedule.map(schedule => ({
+          subject: schedule.studyPlan.name,
+          time: `${schedule.startTime} - ${schedule.endTime}`,
+          classroom: schedule.classroom?.name || 'Не назначен',
+        })),
         pendingAssignments: student.HomeworkSubmission.map(submission => ({
           title: submission.homework.name,
           subject: submission.homework.lesson?.studyPlan?.name || 'Общее',
@@ -485,7 +549,7 @@ export class DashboardService {
           status: new Date() > submission.homework.deadline ? 'overdue' : 'pending',
         })),
       };
-    });
+    }));
 
     const totalPayments = parent.students.reduce((total, student) =>
       total + student.Payment.reduce((sum, payment) => sum + payment.amount, 0), 0
@@ -495,11 +559,29 @@ export class DashboardService {
       total + student.Payment.filter(payment => payment.status === 'overdue').length, 0
     );
 
+    // Get unread messages for this parent
+    const unreadMessages = await this.prisma.notification.count({
+      where: {
+        userId: parent.userId,
+        read: false,
+        type: 'message',
+      },
+    });
+
+    // Get recent notifications for this parent
+    const notifications = await this.prisma.notification.findMany({
+      where: {
+        userId: parent.userId,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
     return {
       children,
       totalPayments,
       overduePayments,
-      unreadMessages: 3, // Mock data
+      unreadMessages,
       payments: parent.students.flatMap(student =>
         student.Payment.map(payment => ({
           id: payment.id,
@@ -509,15 +591,13 @@ export class DashboardService {
           status: payment.status,
         }))
       ),
-      notifications: [
-        {
-          id: 1,
-          type: 'message',
-          title: 'Сообщение от учителя',
-          description: 'Отличные результаты по математике',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        },
-      ],
+      notifications: notifications.map(notification => ({
+        id: notification.id,
+        type: notification.type,
+        title: notification.message.split('•')[0]?.trim() || 'Уведомление',
+        description: notification.message,
+        timestamp: notification.createdAt.toISOString(),
+      })),
     };
   }
 
@@ -638,8 +718,8 @@ export class DashboardService {
       outstandingPayments: outstandingPayments._sum.amount || 0,
       overduePayments: overduePayments._sum.amount || 0,
       pendingBudgetRequests,
-      revenueGrowth: 15.2, // Mock - можно рассчитать сравнив с предыдущим периодом
-      expenseGrowth: 8.7, // Mock - можно рассчитать сравнив с предыдущим периодом
+      revenueGrowth: await this.calculateRevenueGrowth(startOfMonth, endOfMonth),
+      expenseGrowth: await this.calculateExpenseGrowth(startOfMonth, endOfMonth),
       revenueStructure,
       expenseStructure,
       recentTransactions: recentPayments.map(payment => ({
@@ -850,5 +930,83 @@ export class DashboardService {
 
     // Return only real calendar events, no fallback data
     return hrEvents;
+  }
+
+  private async calculateRevenueGrowth(startOfMonth: Date, endOfMonth: Date): Promise<number> {
+    // Get current month revenue
+    const currentRevenue = await this.prisma.payment.aggregate({
+      where: {
+        status: 'paid',
+        paymentDate: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      _sum: { amount: true },
+    });
+
+    // Get previous month revenue
+    const previousMonth = new Date(startOfMonth);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+    const endOfPreviousMonth = new Date(startOfMonth);
+    endOfPreviousMonth.setDate(0); // Last day of previous month
+
+    const previousRevenue = await this.prisma.payment.aggregate({
+      where: {
+        status: 'paid',
+        paymentDate: {
+          gte: previousMonth,
+          lte: endOfPreviousMonth,
+        },
+      },
+      _sum: { amount: true },
+    });
+
+    const current = currentRevenue._sum.amount || 0;
+    const previous = previousRevenue._sum.amount || 0;
+
+    if (previous === 0) return 0;
+    
+    return Math.round(((current - previous) / previous) * 100 * 10) / 10;
+  }
+
+  private async calculateExpenseGrowth(startOfMonth: Date, endOfMonth: Date): Promise<number> {
+    const currentMonth = startOfMonth.getMonth() + 1;
+    const currentYear = startOfMonth.getFullYear();
+    
+    // Get current quarter expenses
+    const currentQuarter = Math.ceil(currentMonth / 3);
+    const currentExpenses = await this.prisma.budgetItem.aggregate({
+      where: {
+        type: 'EXPENSE',
+        period: `${currentYear} Q${currentQuarter}`,
+        deletedAt: null,
+      },
+      _sum: { actualAmount: true },
+    });
+
+    // Get previous quarter expenses
+    let prevQuarter = currentQuarter - 1;
+    let prevYear = currentYear;
+    if (prevQuarter === 0) {
+      prevQuarter = 4;
+      prevYear = currentYear - 1;
+    }
+
+    const previousExpenses = await this.prisma.budgetItem.aggregate({
+      where: {
+        type: 'EXPENSE',
+        period: `${prevYear} Q${prevQuarter}`,
+        deletedAt: null,
+      },
+      _sum: { actualAmount: true },
+    });
+
+    const current = (currentExpenses._sum.actualAmount || 0) / 3; // Monthly estimate
+    const previous = (previousExpenses._sum.actualAmount || 0) / 3;
+
+    if (previous === 0) return 0;
+    
+    return Math.round(((current - previous) / previous) * 100 * 10) / 10;
   }
 }

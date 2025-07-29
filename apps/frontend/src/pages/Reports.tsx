@@ -226,9 +226,9 @@ const Reports: React.FC = () => {
 
   // Компоненты фильтров
   const FilterModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-        <h3 className="text-lg font-semibold mb-4">Фильтры</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg w-full max-w-sm sm:max-w-md">
+        <h3 className="text-base sm:text-lg font-semibold mb-4">Фильтры</h3>
         
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Тип отчета</label>
@@ -273,15 +273,15 @@ const Reports: React.FC = () => {
           </select>
         </div>
         
-        <div className="flex justify-end space-x-3">
+        <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
           <button
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm"
             onClick={handleResetFilters}
           >
             Сбросить
           </button>
           <button
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md text-sm"
             onClick={() => setShowFilterModal(false)}
           >
             Применить
@@ -314,10 +314,10 @@ const Reports: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 rounded-t-lg">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">{report.title}</h2>
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-sm sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg">
+            <div className="flex justify-between items-start">
+              <h2 className="text-lg sm:text-2xl font-bold text-white flex-1 min-w-0 pr-2">{report.title}</h2>
               <button onClick={onClose} className="text-white hover:text-gray-200">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -333,8 +333,8 @@ const Reports: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">{getTypeIcon(report.type)}</span>
@@ -367,13 +367,13 @@ const Reports: React.FC = () => {
               </div>
             </div>
 
-            <div className="border-t pt-4 mt-4 flex items-center justify-between text-sm text-gray-500">
+            <div className="border-t pt-4 mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between text-sm text-gray-500 space-y-3 sm:space-y-0">
               <span>Создан: {new Date(report.generatedAt).toLocaleDateString('ru-RU')}</span>
-              <div className="flex gap-2">
-                <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors text-sm">
                   Экспорт
                 </button>
-                <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 transition-colors">
+                <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 transition-colors text-sm">
                   Скачать PDF
                 </button>
               </div>
@@ -394,72 +394,74 @@ const Reports: React.FC = () => {
 
   // Рендер
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Финансовые отчеты и прогнозы</h1>
+    <div className="p-3 sm:p-4 lg:p-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 lg:mb-6">Финансовые отчеты и прогнозы</h1>
       
       {/* Фильтры и действия */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-4 lg:mb-6">
         <div className="flex items-center space-x-3">
           <button 
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
             onClick={() => setShowFilterModal(true)}
           >
-            <Filter className="mr-2 h-4 w-4" />
-            Фильтры
+            <Filter className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Фильтры</span>
+            <span className="sm:hidden">Фильтр</span>
             {(filters.period !== 'all' || filters.type !== 'all' || filters.status !== 'all') && (
-              <span className="ml-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="ml-2 bg-blue-600 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
                 {Object.values(filters).filter(v => v !== 'all').length}
               </span>
             )}
           </button>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0">
           <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
+            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
             onClick={() => handleGenerateReport('PERFORMANCE')}
           >
-            <BarChart3 className="mr-2 h-4 w-4" />
-            Сгенерировать отчет
+            <BarChart3 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Сгенерировать отчет</span>
+            <span className="sm:hidden">Создать</span>
           </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center">
-            <ExternalLink className="mr-2 h-4 w-4" />
+          <button className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center">
+            <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Экспорт
           </button>
         </div>
       </div>
 
       {/* Статистика */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl shadow-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 lg:mb-6">
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Общий доход</div>
-            <TrendingUp className="text-blue-600 h-5 w-5" />
+            <div className="text-xs sm:text-sm text-gray-600">Общий доход</div>
+            <TrendingUp className="text-blue-600 h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="text-2xl font-bold mt-2">{stats.totalIncome} KZT</div>
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2 truncate">{stats.totalIncome} KZT</div>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm">
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Средний платеж</div>
-            <DollarSign className="text-blue-600 h-5 w-5" />
+            <div className="text-xs sm:text-sm text-gray-600">Средний платеж</div>
+            <DollarSign className="text-blue-600 h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="text-2xl font-bold mt-2">{stats.avgPayment} KZT</div>
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2 truncate">{stats.avgPayment} KZT</div>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm">
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Активных учеников</div>
-            <Users className="text-blue-600 h-5 w-5" />
+            <div className="text-xs sm:text-sm text-gray-600">Активных учеников</div>
+            <Users className="text-blue-600 h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="text-2xl font-bold mt-2">{stats.activeStudents}</div>
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2">{stats.activeStudents}</div>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm">
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm col-span-2 sm:col-span-1">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Рост дохода</div>
-            <BarChart3 className="text-blue-600 h-5 w-5" />
+            <div className="text-xs sm:text-sm text-gray-600">Рост дохода</div>
+            <BarChart3 className="text-blue-600 h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="text-2xl font-bold mt-2">+{stats.growthRate}%</div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2">+{stats.growthRate}%</div>
+          <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5 mt-2">
             <div 
-              className="bg-blue-600 h-2.5 rounded-full" 
+              className="bg-blue-600 h-2 sm:h-2.5 rounded-full" 
               style={{ width: `${Math.min(stats.growthRate, 100)}%` }}
             ></div>
           </div>
@@ -467,9 +469,9 @@ const Reports: React.FC = () => {
       </div>
 
       {/* График доходов */}
-      <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Динамика доходов и расходов</h2>
-        <div className="h-80">
+      <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm mb-4 lg:mb-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Динамика доходов и расходов</h2>
+        <div className="h-64 sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={monthlyRevenueData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -498,83 +500,156 @@ const Reports: React.FC = () => {
 
       {/* Таблица отчетов */}
       <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">Список отчетов</h3>
+        <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800">Список отчетов</h3>
         </div>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Название отчета
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Тип
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Период
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Статус
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Дата создания
-              </th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Действия
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredReports.map((report) => (
-              <tr 
-                key={report.id} 
-                className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => handleRowClick(report)}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                    <div className="text-sm font-medium text-gray-900">{report.title}</div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{reportTypeLabels[report.type]}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{report.period}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[report.status]}`}>
-                    {statusLabels[report.status]}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{new Date(report.generatedAt).toLocaleDateString('ru-RU')}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Логика скачивания
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </button>
-                  <button 
-                    className="text-gray-600 hover:text-gray-900"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Логика экспорта
-                    }}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </button>
-                </td>
+        
+        {/* Desktop Table View */}
+        <div className="hidden lg:block">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Название отчета
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Тип
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Период
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Статус
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Дата создания
+                </th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Действия
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredReports.map((report) => (
+                <tr 
+                  key={report.id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleRowClick(report)}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 text-gray-400 mr-3" />
+                      <div className="text-sm font-medium text-gray-900">{report.title}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{reportTypeLabels[report.type]}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{report.period}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[report.status]}`}>
+                      {statusLabels[report.status]}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{new Date(report.generatedAt).toLocaleDateString('ru-RU')}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Логика скачивания
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                    <button 
+                      className="text-gray-600 hover:text-gray-900"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Логика экспорта
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden">
+          {filteredReports.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p>Отчеты не найдены</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {filteredReports.map((report) => (
+                <div 
+                  key={report.id}
+                  className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => handleRowClick(report)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center mb-2">
+                        <FileText className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <h3 className="text-sm font-medium text-gray-900 truncate">{report.title}</h3>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex items-center text-xs text-gray-500">
+                          <span>Тип: {reportTypeLabels[report.type]}</span>
+                        </div>
+                        <div className="flex items-center text-xs text-gray-500">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          <span>{report.period}</span>
+                        </div>
+                        <div className="flex items-center text-xs text-gray-500">
+                          <span>Создан: {new Date(report.generatedAt).toLocaleDateString('ru-RU')}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${statusColors[report.status]}`}>
+                          {statusLabels[report.status]}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-1 ml-2">
+                      <button 
+                        className="text-blue-600 hover:text-blue-900 p-1.5 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Логика скачивания
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                      <button 
+                        className="text-gray-600 hover:text-gray-900 p-1.5 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Логика экспорта
+                        }}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Модальные окна */}

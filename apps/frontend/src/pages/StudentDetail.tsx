@@ -30,6 +30,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import { studentService, AttendanceData, FinanceData, EmotionalData } from '../services/studentService';
+import { feedbackService } from '../services/feedbackService';
 import {
   LineChart,
   Line,
@@ -97,13 +98,55 @@ const StudentDetail: React.FC = () => {
 
     setLoadingData(prev => ({ ...prev, emotional: true }));
     try {
-      const data = await studentService.getStudentEmotionalState(Number(id));
-      setEmotionalData(data);
+      // Сначала пытаемся получить данные из системы фидбеков
+      let feedbackEmotionalData = null;
+      try {
+        feedbackEmotionalData = await feedbackService.getStudentEmotionalStateFromFeedbacks(Number(id));
+      } catch (feedbackError) {
+        console.warn('Не удалось загрузить данные из фидбеков:', feedbackError);
+      }
+
+      // Также получаем данные из старой системы для сравнения
+      let legacyEmotionalData = null;
+      try {
+        legacyEmotionalData = await studentService.getStudentEmotionalState(Number(id));
+      } catch (legacyError) {
+        console.warn('Не удалось загрузить данные из старой системы:', legacyError);
+      }
+
+      // Объединяем данные, приоритет у данных из фидбеков
+      const combinedData = combineEmotionalData(feedbackEmotionalData, legacyEmotionalData);
+      setEmotionalData(combinedData);
     } catch (error) {
       console.error('Ошибка загрузки эмоциональных данных:', error);
     }
     setLoadingData(prev => ({ ...prev, emotional: false }));
   }, [id]);
+
+  // Функция для объединения данных из разных источников
+  const combineEmotionalData = (feedbackData: any, legacyData: any) => {
+    // Сначала проверяем данные из фидбеков
+    if (feedbackData && feedbackData.currentState) {
+      // Используем данные из фидбеков если они есть
+      return {
+        currentState: feedbackData.currentState,
+        lastUpdated: feedbackData.lastUpdated,
+        trends: feedbackData.trends,
+        recommendations: feedbackData.recommendations,
+        source: 'feedback',
+        feedbackHistory: feedbackData.trends || [],
+      };
+    } else if (legacyData && legacyData.currentState) {
+      // Используем данные из старой системы как fallback
+      return {
+        ...legacyData,
+        source: 'legacy',
+      };
+    } else {
+      // Возвращаем null если нет реальных данных - не показываем моки
+      return null;
+    }
+  };
 
   useEffect(() => {
     if (student && activeTab === 'grades') {
@@ -738,7 +781,39 @@ const StudentDetail: React.FC = () => {
               {/* Текущее состояние */}
               {emotionalData.currentState && (
                 <div className="bg-white rounded-xl shadow-md p-6">
-                  <h2 className="text-xl font-semibold mb-6">Текущее эмоциональное состояние</h2>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold">Текущее эмоциональное состояние</h2>
+                    <div className="flex items-center gap-3">
+                      {/* Индикатор источника данных */}
+                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        emotionalData.source === 'feedback' ? 'bg-green-100 text-green-800' :
+                        emotionalData.source === 'legacy' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {emotionalData.source === 'feedback' ? '📊 Из фидбеков' :
+                         emotionalData.source === 'legacy' ? '💾 Старая система' :
+                         '⚠️ Нет данных'}
+                      </div>
+                      
+                      {/* Кнопка создания шаблонов если данных нет */}
+                      {emotionalData.source === 'no_data' && user?.role === 'ADMIN' && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await feedbackService.createDefaultTemplates();
+                              // Перезагружаем данные
+                              fetchEmotionalData();
+                            } catch (error) {
+                              console.error('Ошибка создания шаблонов:', error);
+                            }
+                          }}
+                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Создать шаблоны фидбеков
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                     <div className="text-center">
                       <FaSmile className="w-8 h-8 mx-auto mb-2 text-yellow-500" />

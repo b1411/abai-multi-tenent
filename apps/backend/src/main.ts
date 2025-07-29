@@ -3,6 +3,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Request, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -12,6 +13,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     snapshot: true, // Используем snapshot для создания документации
   });
+
+  // Настройка WebSocket адаптера для Socket.IO
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Обслуживание статических файлов
   app.useStaticAssets(path.join(__dirname, '..', 'uploads'), {

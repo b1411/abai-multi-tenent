@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaUser, FaCalendarAlt, FaMoneyBillWave } from 'react-icons/fa';
 import { Alert } from './ui';
-import { CreatePaymentDto, PaymentType, PaymentMethod } from '../types/finance';
-import { financeService } from '../services/financeService';
+import { CreatePaymentDto } from '../types/finance';
 import { studentService, Student } from '../services/studentService';
 
 interface PaymentFormProps {
@@ -44,10 +43,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [formData, setFormData] = useState<CreatePaymentDto>({
     studentId: 0,
     type: 'TUITION',
-    amount: '' as any,
-    method: 'CASH',
+    amount: 0,
     dueDate: '',
-    description: ''
+    serviceName: ''
   });
 
   // Загрузка списка студентов
@@ -86,7 +84,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       return;
     }
     
-    if (!formData.amount || parseFloat(formData.amount.toString()) <= 0) {
+    if (!formData.amount || formData.amount <= 0) {
       setError('Сумма должна быть больше 0');
       return;
     }
@@ -104,10 +102,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     setFormData({
       studentId: 0,
       type: 'TUITION',
-      amount: '' as any,
-      method: 'CASH',
+      amount: 0,
       dueDate: '',
-      description: ''
+      serviceName: ''
     });
     setError(null);
     onClose();
@@ -170,7 +167,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             </label>
             <select
               value={formData.type}
-              onChange={(e) => handleInputChange('type', e.target.value as PaymentType)}
+              onChange={(e) => handleInputChange('type', e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             >
@@ -190,31 +187,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             <input
               type="number"
               value={formData.amount}
-              onChange={(e) => handleInputChange('amount', e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
-              
+              onChange={(e) => handleInputChange('amount', parseFloat(e.target.value) || 0)}
               step="0.01"
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
-          </div>
-
-          {/* Способ оплаты */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Способ оплаты *
-            </label>
-            <select
-              value={formData.method}
-              onChange={(e) => handleInputChange('method', e.target.value as PaymentMethod)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            >
-              {PAYMENT_METHOD_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Дата платежа */}
@@ -233,17 +210,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             />
           </div>
 
-          {/* Описание */}
+          {/* Название услуги */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Описание
+              Название услуги
             </label>
-            <textarea
-              value={formData.description || ''}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Дополнительная информация о платеже"
-              rows={3}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            <input
+              type="text"
+              value={formData.serviceName || ''}
+              onChange={(e) => handleInputChange('serviceName', e.target.value)}
+              placeholder="Название услуги"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 

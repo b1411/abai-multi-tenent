@@ -23,6 +23,29 @@ enum UserRole {
   HR
 }
 
+// ЭДО типы и статусы
+enum DocumentType {
+  STUDENT_CERTIFICATE    // Справка об обучении
+  ADMINISTRATIVE_ORDER   // Административный приказ  
+  FINANCIAL_CONTRACT     // Финансовый договор
+  ENROLLMENT_ORDER       // Приказ о зачислении
+  ACADEMIC_TRANSCRIPT    // Академическая справка
+}
+
+enum DocumentStatus {
+  DRAFT         // Черновик
+  IN_PROGRESS   // На согласовании
+  APPROVED      // Согласован
+  REJECTED      // Отклонен
+  COMPLETED     // Завершен
+}
+
+enum ApprovalStatus {
+  PENDING   // Ожидает
+  APPROVED  // Согласован
+  REJECTED  // Отклонен
+}
+
 enum AbsentReason {
   SICK
   FAMILY
@@ -81,6 +104,18 @@ model User {
   createdEvents     CalendarEvent[]    @relation("CreatedEvents")
   eventParticipants EventParticipant[]
   eventReminders    EventReminder[]
+
+  // Activity monitoring relations
+  sessions      UserSession[]
+  activityLogs  ActivityLog[]
+  onlineStatus  UserOnlineStatus?
+
+  // EDO relations
+  createdDocuments     Document[] @relation("CreatedDocuments")
+  responsibleDocuments Document[] @relation("ResponsibleDocuments")
+  documentApprovals    DocumentApproval[]
+  documentComments     DocumentComment[]
+  documentTemplates    DocumentTemplate[]
 }
 
 model Student {
@@ -101,6 +136,7 @@ model Student {
   Payment            Payment[]
   reviews            StudentReview[]
   repeatPurchases    RepeatPurchase[]
+  documents          Document[]
 }
 
 model LessonResult {
@@ -253,6 +289,7 @@ model File {
   Homework           Homework?           @relation(fields: [homeworkId], references: [id])
   homeworkId         Int?
   VacationDocument   VacationDocument[]
+  DocumentFile       DocumentFile[]
 }
 
 model Quiz {
@@ -1353,4 +1390,241 @@ model EventReminder {
   updatedAt DateTime      @updatedAt
 
   @@unique([eventId, userId, minutes])
+}
+
+// --- Activity Monitoring System ---
+
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  PAGE_VIEW
+  CREATE
+  UPDATE
+  DELETE
+  FILE_UPLOAD
+  FILE_DOWNLOAD
+  CHAT_MESSAGE
+  API_REQUEST
+  SEARCH
+  EXPORT
+  IMPORT
+}
+
+enum SessionStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+model UserSession {
+  id            String        @id @default(uuid())
+  userId        Int
+  user          User          @relation(fields: [userId], references: [id])
+  sessionToken  String        @unique
+  ipAddress     String?
+  userAgent     String?       @db.Text
+  device        String?       // mobile, desktop, tablet
+  browser       String?
+  os            String?
+  location      String?       // город/страна на основе IP
+  status        SessionStatus @default(ACTIVE)
+  loginAt       DateTime      @default(now())
+  lastActivityAt DateTime     @default(now())
+  logoutAt      DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Связь с логами активности
+  activityLogs ActivityLog[]
+
+  @@index([userId, status])
+  @@index([sessionToken])
+  @@index([lastActivityAt])
+}
+
+model UserOnlineStatus {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  user         User     @relation(fields: [userId], references: [id])
+  isOnline     Boolean  @default(false)
+  lastSeen     DateTime @default(now())
+  currentPage  String?  // текущая страница
+  sessionCount Int      @default(0) // количество активных сессий
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isOnline])
+  @@index([lastSeen])
+}
+
+model ActivityLog {
+  id           String      @id @default(uuid())
+  userId       Int
+  user         User        @relation(fields: [userId], references: [id])
+  sessionId    String?
+  session      UserSession? @relation(fields: [sessionId], references: [id])
+  
+  // Тип и детали активности
+  type         ActivityType
+  action       String      // конкретное действие
+  description  String?     // описание действия
+  
+  // HTTP данные
+  method       String?     // GET, POST, PUT, DELETE
+  url          String?     // URL запроса
+  route        String?     // роут в приложении
+  statusCode   Int?        // HTTP статус код
+  
+  // Данные запроса/ответа
+  requestData  Json?       // параметры запроса (безопасные)
+  responseData Json?       // данные ответа (безопасные)
+  
+  // Метаданные
+  ipAddress    String?
+  userAgent    String?     @db.Text
+  referer      String?     // откуда пришел пользователь
+  duration     Int?        // время выполнения в мс
+  
+  // Контекст
+  entityType   String?     // тип сущности (User, Student, etc.)
+  entityId     String?     // ID сущности
+  
+  // Результат
+  success      Boolean     @default(true)
+  errorMessage String?     @db.Text
+  
+  createdAt    DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@index([userId, type])
+}
+
+// Статистика активности по дням
+model DailyActivityStats {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @unique // дата (только дата, без времени)
+  totalUsers      Int      @default(0) // всего пользователей
+  activeUsers     Int      @default(0) // активных пользователей
+  newUsers        Int      @default(0) // новых пользователей
+  totalSessions   Int      @default(0) // всего сессий
+  totalPageViews  Int      @default(0) // всего просмотров страниц
+  totalActions    Int      @default(0) // всего действий
+  avgSessionTime  Int?     // средняя длительность сессии в минутах
+  peakOnlineUsers Int      @default(0) // пик одновременных пользователей
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([date])
+}
+
+// Настройки мониторинга
+model ActivityMonitoringSettings {
+  id                    Int      @id @default(autoincrement())
+  logPageViews          Boolean  @default(true)
+  logApiRequests        Boolean  @default(true)
+  logFileOperations     Boolean  @default(true)
+  logChatMessages       Boolean  @default(false) // может быть чувствительно
+  retentionDays         Int      @default(180) // 6 месяцев
+  sessionTimeoutMinutes Int      @default(60)
+  batchLoggingEnabled   Boolean  @default(true)
+  batchSize             Int      @default(100)
+  enableRealTimeUpdates Boolean  @default(true)
+  maskSensitiveData     Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// --- ЭДО (Электронный документооборот) ---
+
+// Основная модель документа
+model Document {
+  id            String @id @default(uuid())
+  title         String
+  number        String? @unique
+  type          DocumentType
+  status        DocumentStatus @default(DRAFT)
+  content       String? @db.Text
+  
+  // Создатель и ответственный
+  createdById   Int
+  createdBy     User @relation("CreatedDocuments", fields: [createdById], references: [id])
+  responsibleId Int?
+  responsible   User? @relation("ResponsibleDocuments", fields: [responsibleId], references: [id])
+  
+  // Связи с сущностями
+  studentId     Int?
+  student       Student? @relation(fields: [studentId], references: [id])
+  
+  // Файлы и согласования
+  files         DocumentFile[]
+  approvals     DocumentApproval[]
+  comments      DocumentComment[]
+  
+  // Сроки
+  deadline      DateTime?
+  completedAt   DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Согласования
+model DocumentApproval {
+  id          String @id @default(uuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id])
+  approverId  Int
+  approver    User @relation(fields: [approverId], references: [id])
+  
+  status      ApprovalStatus @default(PENDING)
+  comment     String?
+  order       Int // Порядок согласования
+  deadline    DateTime?
+  completedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Файлы документов
+model DocumentFile {
+  id         String @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  fileId     Int
+  file       File @relation(fields: [fileId], references: [id])
+  
+  createdAt  DateTime @default(now())
+}
+
+// Комментарии
+model DocumentComment {
+  id         String @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  authorId   Int
+  author     User @relation(fields: [authorId], references: [id])
+  content    String @db.Text
+  
+  createdAt  DateTime @default(now())
+}
+
+// Шаблоны документов
+model DocumentTemplate {
+  id          String @id @default(uuid())
+  name        String
+  type        DocumentType
+  content     String @db.Text // HTML шаблон
+  variables   Json? // Список переменных
+  isActive    Boolean @default(true)
+  
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

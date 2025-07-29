@@ -1211,11 +1211,11 @@ const SchedulePage: React.FC = () => {
 
   return (
     <>
-      <div className="p-6 max-w-[1600px] mx-auto">
-        {/* Заголовок и кнопки */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-3xl font-bold text-gray-900">
+      <div className="p-3 md:p-6 max-w-[1600px] mx-auto">
+        {/* Заголовок и кнопки - мобильная адаптация */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6 space-y-3 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
+            <h1 className="text-xl md:text-3xl font-bold text-gray-900">
               {role === 'STUDENT' ? 'Моё расписание' :
                 role === 'PARENT' ? 'Расписание занятий' :
                   role === 'TEACHER' ? 'Мои занятия' :
@@ -1227,41 +1227,49 @@ const SchedulePage: React.FC = () => {
               <button
                 onClick={() => setIsAILessonModalOpen(true)}
                 disabled={isLoading}
-                className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center transition-colors disabled:opacity-50"
+                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm md:text-base"
               >
                 <Bot className="h-4 w-4 mr-2" />
-                AI Планирование
+                <span className="hidden sm:inline">AI Планирование</span>
+                <span className="sm:hidden">AI План</span>
               </button>
             )}
           </div>
 
-          {/* Переключатель вида доступен всем */}
-          <div className="flex items-center space-x-2">
+          {/* Кнопки управления */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
             {canEditSchedule() && (
               <button
                 onClick={() => handleAddClick()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center transition-colors mr-2"
+                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center transition-colors text-sm md:text-base"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Добавить занятие
+                <span className="hidden sm:inline">Добавить занятие</span>
+                <span className="sm:hidden">Добавить</span>
               </button>
             )}
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-4 py-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            
+            {/* Переключатель вида */}
+            <div className="flex rounded-lg overflow-hidden border border-gray-300">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${
+                  viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
-            >
-              <Table className="h-4 w-4 inline-block mr-2" />
-              Таблица
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`px-4 py-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              >
+                <Table className="h-4 w-4 inline-block mr-1 md:mr-2" />
+                Таблица
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${
+                  viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
-            >
-              <Calendar className="h-4 w-4 inline-block mr-2" />
-              Сетка
-            </button>
+              >
+                <Calendar className="h-4 w-4 inline-block mr-1 md:mr-2" />
+                Сетка
+              </button>
+            </div>
           </div>
         </div>
 

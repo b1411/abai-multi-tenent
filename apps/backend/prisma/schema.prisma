@@ -144,7 +144,7 @@ model Student {
   Parents            Parent[]
   lessonsResults     LessonResult[]
   HomeworkSubmission HomeworkSubmission[]
-  QuizSubmission     QuizSubmission[]
+  quizAttempts       QuizAttempt[]
   EmotionalState     EmotionalState?
   Payment            Payment[]
   reviews            StudentReview[]
@@ -322,22 +322,23 @@ model Quiz {
   maxScore    Int?
   startDate   DateTime?
   endDate     DateTime?
-  isActive    Boolean?         @default(false)
+  isActive    Boolean          @default(false)
   materials   Materials?
   questions   Question[]
-  submissions QuizSubmission[]
+  attempts    QuizAttempt[]
 }
 
 model Question {
-  id        Int        @id @default(autoincrement())
-  name      String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  deletedAt DateTime?
-  quizId    Int
-  quiz      Quiz       @relation(fields: [quizId], references: [id])
-  type      AnswerType
-  answers   Answer[]
+  id             Int             @id @default(autoincrement())
+  name           String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt  
+  deletedAt      DateTime?
+  quizId         Int
+  quiz           Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type           AnswerType
+  answers        Answer[]
+  studentAnswers StudentAnswer[]
 }
 
 enum AnswerType {
@@ -346,15 +347,22 @@ enum AnswerType {
   TEXT
 }
 
+enum QuizAttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  REVIEWED
+}
+
 model Answer {
-  id         Int       @id @default(autoincrement())
-  name       String
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
-  questionId Int
-  question   Question  @relation(fields: [questionId], references: [id])
-  isCorrect  Boolean
+  id             Int             @id @default(autoincrement())
+  name           String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  questionId     Int
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  isCorrect      Boolean
+  studentAnswers StudentAnswer[]
 }
 
 model HomeworkSubmission {
@@ -374,19 +382,37 @@ model HomeworkSubmission {
   LessonResult LessonResult?
 }
 
-model QuizSubmission {
-  id          Int       @id @default(autoincrement())
-  student     Student   @relation(fields: [studentId], references: [id])
-  studentId   Int
-  quiz        Quiz      @relation(fields: [quizId], references: [id])
-  quizId      Int
-  answers     String? // JSON-строка с ответами
-  submittedAt DateTime  @default(now())
-  score       Int?
-  feedback    String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+model QuizAttempt {
+  id             Int               @id @default(autoincrement())
+  student        Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId      Int
+  quiz           Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId         Int
+  startTime      DateTime          @default(now())
+  endTime        DateTime?
+  score          Int?
+  status         QuizAttemptStatus @default(IN_PROGRESS)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+  studentAnswers StudentAnswer[]
+}
+
+model StudentAnswer {
+  id            Int         @id @default(autoincrement())
+  quizAttempt   QuizAttempt @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+  quizAttemptId Int
+  question      Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId    Int
+  answer        Answer?     @relation(fields: [answerId], references: [id], onDelete: SetNull)
+  answerId      Int?
+  textAnswer    String?
+  isCorrect     Boolean?
+  answeredAt    DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([quizAttemptId, questionId])
 }
 
 model Notification {

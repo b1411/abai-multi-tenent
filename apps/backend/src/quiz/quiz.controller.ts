@@ -1,22 +1,26 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { QuizService } from './quiz.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
-import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Paginate } from '../common/decorators/paginate.decorator';
 import { PaginateQueryDto } from '../common/dtos/paginate.dto';
+import { QuizAttemptService } from './quiz-attempt.service';
+import { AnswerQuestionDto } from './dto/answer-question.dto';
 
 @ApiTags('Quizzes')
 @Controller('quiz')
 @ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 export class QuizController {
-  constructor(private readonly quizService: QuizService) {}
+  constructor(
+    private readonly quizService: QuizService,
+    private readonly quizAttemptService: QuizAttemptService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Создать новый тест' })
@@ -43,12 +47,13 @@ export class QuizController {
     return this.quizService.findActive();
   }
 
-  @Get('my-submissions')
-  @ApiOperation({ summary: 'Получить мои результаты тестов (для студентов)' })
-  @ApiResponse({ status: 200, description: 'Результаты студента' })
-  @Roles('STUDENT')
-  getMySubmissions(@Query('studentId') studentId: string) {
-    return this.quizService.getStudentSubmissions(+studentId);
+  @Get(':id/all-attempts')
+  @ApiOperation({ summary: 'Получить все попытки по тесту' })
+  @ApiResponse({ status: 200, description: 'Все попытки теста' })
+  @ApiParam({ name: 'id', description: 'ID теста' })
+  @Roles('TEACHER', 'ADMIN')
+  getAllAttemptsByQuiz(@Param('id') id: string) {
+    return this.quizService.getAllAttemptsByQuiz(+id);
   }
 
   @Get(':id')
@@ -57,8 +62,8 @@ export class QuizController {
   @ApiResponse({ status: 404, description: 'Тест не найден' })
   @ApiParam({ name: 'id', description: 'ID теста' })
   @Roles('TEACHER', 'ADMIN', 'STUDENT')
-  findOne(@Param('id') id: string) {
-    return this.quizService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req) {
+    return this.quizService.findOne(+id, req.user.role);
   }
 
   @Get(':id/questions')
@@ -79,23 +84,69 @@ export class QuizController {
     return this.quizService.addQuestion(+id, createQuestionDto);
   }
 
-  @Get(':id/submissions')
-  @ApiOperation({ summary: 'Получить все результаты теста' })
-  @ApiResponse({ status: 200, description: 'Результаты теста' })
-  @ApiParam({ name: 'id', description: 'ID теста' })
-  @Roles('TEACHER', 'ADMIN')
-  getSubmissions(@Param('id') id: string) {
-    return this.quizService.getQuizSubmissions(+id);
-  }
-
-  @Post(':id/submit')
-  @ApiOperation({ summary: 'Отправить ответы на тест' })
-  @ApiResponse({ status: 201, description: 'Ответы отправлены' })
-  @ApiResponse({ status: 400, description: 'Некорректные данные или тест неактивен' })
+  @Post(':id/start')
+  @ApiOperation({ summary: 'Начать прохождение теста' })
+  @ApiResponse({ status: 201, description: 'Попытка создана' })
   @ApiParam({ name: 'id', description: 'ID теста' })
   @Roles('STUDENT')
-  submitQuiz(@Param('id') id: string, @Body() submissionDto: CreateQuizSubmissionDto) {
-    return this.quizService.submitQuiz(+id, submissionDto);
+  startAttempt(@Param('id') id: string, @Req() req) {
+    return this.quizAttemptService.startAttempt(+id, req.user.id);
+  }
+
+  @Post('answer')
+  @ApiOperation({ summary: 'Ответить на вопрос теста' })
+  @ApiResponse({ status: 201, description: 'Ответ сохранен' })
+  @Roles('STUDENT')
+  answerQuestion(@Body() answerQuestionDto: AnswerQuestionDto, @Req() req) {
+    return this.quizAttemptService.answerQuestion(answerQuestionDto, req.user.id);
+  }
+
+  @Post('attempt/:id/finish')
+  @ApiOperation({ summary: 'Завершить попытку теста' })
+  @ApiResponse({ status: 200, description: 'Попытка завершена, результат посчитан' })
+  @ApiParam({ name: 'id', description: 'ID попытки' })
+  @Roles('STUDENT')
+  finishAttempt(@Param('id') id: string, @Req() req) {
+    return this.quizAttemptService.finishAttempt(+id, req.user.id);
+  }
+
+  @Get('attempt/:id/result')
+  @ApiOperation({ summary: 'Получить результат попытки' })
+  @ApiResponse({ status: 200, description: 'Результат попытки' })
+  @ApiParam({ name: 'id', description: 'ID попытки' })
+  @Roles('STUDENT', 'TEACHER', 'ADMIN')
+  getAttemptResult(@Param('id') id: string, @Req() req) {
+    return this.quizAttemptService.getAttemptResult(+id, req.user.id);
+  }
+
+  @Get('my-attempts')
+  @ApiOperation({ summary: 'Получить мои попытки по всем тестам' })
+  @ApiResponse({ status: 200, description: 'Мои попытки' })
+  @Roles('STUDENT')
+  getMyAttempts(@Req() req) {
+    return this.quizService.getMyAttempts(req.user.id);
+  }
+
+  @Get(':id/status')
+  @ApiOperation({ summary: 'Получить статус теста для студента' })
+  @ApiResponse({ status: 200, description: 'Статус теста' })
+  @ApiParam({ name: 'id', description: 'ID теста' })
+  @Roles('STUDENT')
+  getQuizStatus(@Param('id') id: string, @Req() req) {
+    return this.quizService.getQuizStatusForStudent(+id, req.user.id);
+  }
+
+  @Get('student-attempt/:studentId/:quizId')
+  @ApiOperation({ summary: 'Получить результаты попыток студента по тесту' })
+  @ApiResponse({ status: 200, description: 'Результаты попыток' })
+  @ApiParam({ name: 'studentId', description: 'ID студента' })
+  @ApiParam({ name: 'quizId', description: 'ID теста' })
+  @Roles('TEACHER', 'ADMIN')
+  getStudentAttemptResult(
+    @Param('studentId') studentId: string,
+    @Param('quizId') quizId: string,
+  ) {
+    return this.quizService.getStudentAttemptsByQuiz(+studentId, +quizId);
   }
 
   @Get(':id/statistics')

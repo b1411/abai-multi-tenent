@@ -9,7 +9,8 @@ import {
   Save,
   X,
   ExternalLink,
-  Play
+  Play,
+  BarChart
 } from 'lucide-react';
 import { Button, Loading, Modal, Input } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
@@ -17,8 +18,114 @@ import { Lesson } from '../types/lesson';
 import { lessonService } from '../services/lessonService';
 import { Material, materialService, CreateLessonMaterialsRequest, QuizQuestion } from '../services/materialService';
 import VideoPlayer from '../components/VideoPlayer';
+import { quizService } from '../services/quizService';
 
 type ActiveTab = 'content' | 'video' | 'presentation' | 'test';
+
+// Компонент кнопки для действий с тестом студентов
+const QuizActionButton: React.FC<{ quizId?: number }> = ({ quizId }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [quizStatus, setQuizStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (quizId && user?.role === 'STUDENT') {
+      checkQuizStatus();
+    }
+  }, [quizId, user]);
+
+  const checkQuizStatus = async () => {
+    if (!quizId) return;
+    
+    try {
+      setLoading(true);
+      const status = await quizService.getQuizStatus(quizId);
+      setQuizStatus(status);
+    } catch (error) {
+      console.error('Ошибка при проверке статуса теста:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartQuiz = () => {
+    navigate(`/quiz/${quizId}/take`);
+  };
+
+  const handleViewResult = () => {
+    if (quizStatus?.attempt?.id) {
+      navigate(`/quiz/attempt/${quizStatus.attempt.id}/result`);
+    }
+  };
+
+  if (!quizId || loading) {
+    return (
+      <div className="w-full py-3 px-4 bg-gray-100 text-gray-500 rounded-lg text-center">
+        Загрузка...
+      </div>
+    );
+  }
+
+  if (quizStatus?.hasAttempt) {
+    // Студент уже проходил тест
+    return (
+      <div className="space-y-3">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-green-900">Тест пройден</h4>
+              <p className="text-sm text-green-700 mt-1">
+                Результат: {quizStatus.attempt.score || 0} баллов
+                {quizStatus.attempt.quiz?.maxScore && (
+                  <span className="ml-1">
+                    (из {quizStatus.attempt.quiz.maxScore})
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                Пройден: {new Date(quizStatus.attempt.startTime).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                ✓ Завершено
+              </span>
+            </div>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          onClick={handleViewResult}
+          className="w-full"
+        >
+          <BarChart className="h-4 w-4 mr-2" />
+          Посмотреть результат
+        </Button>
+      </div>
+    );
+  }
+
+  // Студент еще не проходил тест
+  return (
+    <div className="space-y-3">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="font-medium text-blue-900 mb-2">Тест доступен для прохождения</h4>
+        <p className="text-sm text-blue-700">
+          Вы можете пройти этот тест только один раз. Убедитесь, что готовы к прохождению.
+        </p>
+      </div>
+      <Button
+        variant="primary"
+        onClick={handleStartQuiz}
+        className="w-full"
+      >
+        <Play className="h-4 w-4 mr-2" />
+        Начать тест
+      </Button>
+    </div>
+  );
+};
 
 // Локальный интерфейс для формы с поддержкой вопросов
 interface LocalQuizForm {
@@ -44,7 +151,7 @@ const LessonMaterialsPage: React.FC = () => {
   const { user, hasRole } = useAuth();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [materials, setMaterials] = useState<Material[]>([]);
+  const [materials, setMaterials] = useState<Material>({} as Material);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -178,9 +285,10 @@ const LessonMaterialsPage: React.FC = () => {
       ]);
 
       setLesson(lessonData);
+      setMaterials(materialsData); // Сохраняем массив материалов
 
       // Материалы приходят из отдельного запроса к materials API
-      const material: any = materialsData;
+      const material: any = Array.isArray(materialsData) ? materialsData[0] : materialsData;
 
       console.log('Loaded lesson data:', lessonData);
       console.log('Loaded materials data (this is our main source):', materialsData);
@@ -550,7 +658,7 @@ const LessonMaterialsPage: React.FC = () => {
           {/* Test Tab */}
           {activeTab === 'test' && (
             <div>
-              {materialForm.quiz?.name && materialForm.quiz.questions && materialForm.quiz.questions.length > 0 ? (
+              {materialForm.quiz?.name ? (
                 <div className="space-y-6">
                   {/* Quiz Header */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
@@ -560,11 +668,11 @@ const LessonMaterialsPage: React.FC = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                           <div className="flex items-center">
                             <span className="font-medium">Вопросов:</span>
-                            <span className="ml-2">{materialForm.quiz.questions.length}</span>
+                            <span className="ml-2">{materialForm.quiz.questions?.length || 0}</span>
                           </div>
                           <div className="flex items-center">
                             <span className="font-medium">Максимум баллов:</span>
-                            <span className="ml-2">{materialForm.quiz.questions.reduce((sum, q) => sum + q.score, 0)}</span>
+                            <span className="ml-2">{materialForm.quiz.maxScore}</span>
                           </div>
                           <div className="flex items-center">
                             <span className="font-medium">Длительность:</span>
@@ -579,127 +687,142 @@ const LessonMaterialsPage: React.FC = () => {
                         </div>
                       </div>
                       {canEdit && (
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowCreateModal(true)}
-                        >
-                          Редактировать
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(`/quiz/results?quizId=${materials?.quiz?.id || materials?.quizId || ''}`)}
+                          >
+                            <BarChart className="h-4 w-4 mr-2" />
+                            Результаты
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowCreateModal(true)}
+                          >
+                            Редактировать
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
 
                   {/* Quiz Preview */}
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <HelpCircle className="h-5 w-5 mr-2 text-blue-600" />
-                      Предпросмотр теста
-                    </h4>
-
-                    <div className="space-y-6">
-                      {materialForm.quiz.questions.map((question, index) => (
-                        <div key={index} className="border border-gray-100 rounded-lg p-4 bg-gray-50">
-                          {/* Question Header */}
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-medium text-gray-900">
-                              Вопрос {index + 1}
-                              {question.multipleAnswers && (
-                                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                  Множественный выбор
-                                </span>
-                              )}
-                            </h5>
-                            <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                              {question.score} {question.score === 1 ? 'балл' : 'балла'}
-                            </span>
-                          </div>
-
-                          {/* Question Text */}
-                          <p className="text-gray-800 mb-4 font-medium">{question.question || 'Вопрос не задан'}</p>
-
-                          {/* Options */}
-                          <div className="space-y-2">
-                            {question.options.map((option, optionIndex) => {
-                              const isCorrect = question.multipleAnswers
-                                ? Array.isArray(question.correctAnswer) && question.correctAnswer.includes(optionIndex)
-                                : question.correctAnswer === optionIndex;
-
-                              return (
-                                <div
-                                  key={optionIndex}
-                                  className={`flex items-center p-3 rounded-lg border-2 transition-colors ${isCorrect
-                                    ? 'border-green-200 bg-green-50'
-                                    : 'border-gray-200 bg-white'
-                                    }`}
-                                >
-                                  <div className="flex items-center">
-                                    {question.multipleAnswers ? (
-                                      <div className={`w-4 h-4 rounded border-2 mr-3 flex items-center justify-center ${isCorrect ? 'border-green-500 bg-green-500' : 'border-gray-300'
-                                        }`}>
-                                        {isCorrect && (
-                                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                          </svg>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div className={`w-4 h-4 rounded-full border-2 mr-3 ${isCorrect ? 'border-green-500 bg-green-500' : 'border-gray-300'
-                                        }`}>
-                                        {isCorrect && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
-                                      </div>
-                                    )}
-                                    <span className={`text-sm ${isCorrect ? 'text-green-800 font-medium' : 'text-gray-700'}`}>
-                                      {option || `Вариант ${optionIndex + 1} не заполнен`}
-                                    </span>
-                                  </div>
-                                  {isCorrect && (
-                                    <span className="ml-auto text-xs text-green-600 font-medium">
-                                      ✓ Правильный ответ
+                    {!canEdit && (
+                      <QuizActionButton quizId={materials?.quiz?.id || materials?.quizId || undefined} />
+                    )}
+                    {canEdit && materialForm.quiz.questions && materialForm.quiz.questions.length > 0 && (
+                      <>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                          <HelpCircle className="h-5 w-5 mr-2 text-blue-600" />
+                          Предпросмотр теста
+                        </h4>
+                        <div className="space-y-6">
+                          {materialForm.quiz.questions.map((question, index) => (
+                            <div key={index} className="border border-gray-100 rounded-lg p-4 bg-gray-50">
+                              {/* Question Header */}
+                              <div className="flex items-center justify-between mb-3">
+                                <h5 className="font-medium text-gray-900">
+                                  Вопрос {index + 1}
+                                  {question.multipleAnswers && (
+                                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                      Множественный выбор
                                     </span>
                                   )}
-                                </div>
-                              );
-                            })}
-                          </div>
+                                </h5>
+                                <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                                  {question.score} {question.score === 1 ? 'балл' : 'балла'}
+                                </span>
+                              </div>
 
-                          {/* Question Summary */}
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="flex items-center justify-between text-sm text-gray-600">
-                              <span>
-                                {question.multipleAnswers ? (
-                                  <>
-                                    Правильных ответов: {
-                                      Array.isArray(question.correctAnswer) ? question.correctAnswer.length : 0
-                                    }
-                                  </>
-                                ) : (
-                                  <>
-                                    Правильный ответ: {
-                                      typeof question.correctAnswer === 'number'
-                                        ? `Вариант ${question.correctAnswer + 1}`
-                                        : 'Не выбран'
-                                    }
-                                  </>
-                                )}
-                              </span>
-                              <span>Тип: {question.multipleAnswers ? 'Множественный выбор' : 'Одиночный выбор'}</span>
+                              {/* Question Text */}
+                              <p className="text-gray-800 mb-4 font-medium">{question.question || 'Вопрос не задан'}</p>
+
+                              {/* Options */}
+                              <div className="space-y-2">
+                                {question.options.map((option, optionIndex) => {
+                                  const isCorrect = question.multipleAnswers
+                                    ? Array.isArray(question.correctAnswer) && question.correctAnswer.includes(optionIndex)
+                                    : question.correctAnswer === optionIndex;
+
+                                  return (
+                                    <div
+                                      key={optionIndex}
+                                      className={`flex items-center p-3 rounded-lg border-2 transition-colors ${isCorrect
+                                        ? 'border-green-200 bg-green-50'
+                                        : 'border-gray-200 bg-white'
+                                        }`}
+                                    >
+                                      <div className="flex items-center">
+                                        {question.multipleAnswers ? (
+                                          <div className={`w-4 h-4 rounded border-2 mr-3 flex items-center justify-center ${isCorrect ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                                            }`}>
+                                            {isCorrect && (
+                                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div className={`w-4 h-4 rounded-full border-2 mr-3 ${isCorrect ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                                            }`}>
+                                            {isCorrect && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                                          </div>
+                                        )}
+                                        <span className={`text-sm ${isCorrect ? 'text-green-800 font-medium' : 'text-gray-700'}`}>
+                                          {option || `Вариант ${optionIndex + 1} не заполнен`}
+                                        </span>
+                                      </div>
+                                      {isCorrect && (
+                                        <span className="ml-auto text-xs text-green-600 font-medium">
+                                          ✓ Правильный ответ
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Question Summary */}
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <div className="flex items-center justify-between text-sm text-gray-600">
+                                  <span>
+                                    {question.multipleAnswers ? (
+                                      <>
+                                        Правильных ответов: {
+                                          Array.isArray(question.correctAnswer) ? question.correctAnswer.length : 0
+                                        }
+                                      </>
+                                    ) : (
+                                      <>
+                                        Правильный ответ: {
+                                          typeof question.correctAnswer === 'number'
+                                            ? `Вариант ${question.correctAnswer + 1}`
+                                            : 'Не выбран'
+                                        }
+                                      </>
+                                    )}
+                                  </span>
+                                  <span>Тип: {question.multipleAnswers ? 'Множественный выбор' : 'Одиночный выбор'}</span>
+                                </div>
+                              </div>
                             </div>
+                          ))}
+                        </div>
+
+                        {/* Quiz Footer */}
+                        <div className="mt-6 pt-4 border-t border-gray-200">
+                          <div className="flex items-center justify-between text-sm text-gray-600">
+                            <span>
+                              Общий балл за тест: <strong>{materialForm.quiz.questions.reduce((sum, q) => sum + q.score, 0)}</strong>
+                            </span>
+                            <span>
+                              Всего вопросов: <strong>{materialForm.quiz.questions.length}</strong>
+                            </span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-
-                    {/* Quiz Footer */}
-                    <div className="mt-6 pt-4 border-t border-gray-200">
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>
-                          Общий балл за тест: <strong>{materialForm.quiz.questions.reduce((sum, q) => sum + q.score, 0)}</strong>
-                        </span>
-                        <span>
-                          Всего вопросов: <strong>{materialForm.quiz.questions.length}</strong>
-                        </span>
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -726,6 +849,8 @@ const LessonMaterialsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Create Materials Modal */}
 
       {/* Create Materials Modal */}
       <Modal

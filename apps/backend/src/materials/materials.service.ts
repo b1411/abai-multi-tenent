@@ -88,26 +88,31 @@ export class MaterialsService {
   }
 
   // Специальные методы для работы с материалами урока
-  async findByLessonId(lessonId: number) {
+  async findByLessonId(lessonId: number, userRole: string) {
+    const quizInclude =
+      userRole === 'STUDENT'
+        ? true
+        : {
+            include: {
+              questions: {
+                include: {
+                  answers: true,
+                },
+                orderBy: { createdAt: 'asc' as const },
+              },
+            },
+          };
+
     // Сначала находим урок с его материалами
     const lesson = await this.prisma.lesson.findFirst({
-      where: { 
+      where: {
         id: lessonId,
-        deletedAt: null 
+        deletedAt: null,
       },
       include: {
         materials: {
           include: {
-            quiz: {
-              include: {
-                questions: {
-                  include: {
-                    answers: true,
-                  },
-                  orderBy: { createdAt: 'asc' },
-                },
-              },
-            },
+            quiz: quizInclude,
             homework: {
               include: {
                 additionalFiles: true,
@@ -119,7 +124,12 @@ export class MaterialsService {
       },
     });
 
-    console.log('Lesson found:', lessonId, 'with materials:', JSON.stringify(lesson?.materials, null, 2));
+    console.log(
+      'Lesson found:',
+      lessonId,
+      'with materials:',
+      JSON.stringify(lesson?.materials, null, 2),
+    );
     return lesson?.materials || null;
   }
 

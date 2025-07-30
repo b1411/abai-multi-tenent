@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { MaterialsService } from './materials.service';
 import { CreateMaterialDto } from './dto/create-material.dto';
 import { UpdateMaterialDto } from './dto/update-material.dto';
@@ -44,8 +44,8 @@ export class MaterialsController {
   @ApiResponse({ status: 200, description: 'Материалы урока' })
   @ApiResponse({ status: 404, description: 'Урок не найден' })
   @Roles('ADMIN', 'TEACHER', 'STUDENT')
-  findByLesson(@Param('lessonId') lessonId: string) {
-    return this.materialsService.findByLessonId(+lessonId);
+  findByLesson(@Param('lessonId') lessonId: string, @Req() req) {
+    return this.materialsService.findByLessonId(+lessonId, req.user.role);
   }
 
   @Patch(':id')

@@ -61,6 +61,9 @@ import EducationalReports from './pages/EducationalReports';
 import MyChildren from './pages/MyChildren';
 import GroupDetail from './pages/GroupDetail';
 import StudentProfile from './pages/StudentProfile';
+import QuizTakingPage from './pages/QuizTakingPage';
+import QuizResultsPage from './pages/QuizResultsPage';
+import QuizAttemptResultPage from './pages/QuizAttemptResultPage';
 import Teachers from './pages/Teachers';
 import TeacherProfile from './pages/TeacherProfile';
 
@@ -143,6 +146,9 @@ const App: React.FC = () => {
                     {/* Teachers routes */}
                     <Route path="teachers" element={<Teachers />} />
                     <Route path="teachers/:teacherId" element={<TeacherProfile />} />
+                    <Route path="quiz/:quizId/take" element={<QuizTakingPage />} />
+                    <Route path="quiz/results" element={<QuizResultsPage />} />
+                    <Route path="quiz/attempt/:attemptId/result" element={<QuizAttemptResultPage />} />
 
                     {/* HR routes */}
                     <Route path="hr">

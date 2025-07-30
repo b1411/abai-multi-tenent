@@ -133,7 +133,7 @@ export class PerformanceService {
         lessons: {
           include: {
             LessonResult: {
-              where: { 
+              where: {
                 deletedAt: null,
                 ...(filter.groupId && {
                   Student: {
@@ -639,14 +639,14 @@ export class PerformanceService {
 
       // Посещаемость
       const attendanceRecords = allResults.filter(r => r.attendance !== null);
-      const attendanceRate = attendanceRecords.length > 0 
-        ? (attendanceRecords.filter(r => r.attendance).length / attendanceRecords.length) * 100 
+      const attendanceRate = attendanceRecords.length > 0
+        ? (attendanceRecords.filter(r => r.attendance).length / attendanceRecords.length) * 100
         : 0;
 
       // Выполнение заданий
       const assignmentRecords = allResults.filter(r => r.homeworkScore !== null);
-      const assignmentRate = assignmentRecords.length > 0 
-        ? (assignmentRecords.filter(r => r.homeworkScore >= 3).length / assignmentRecords.length) * 100 
+      const assignmentRate = assignmentRecords.length > 0
+        ? (assignmentRecords.filter(r => r.homeworkScore >= 3).length / assignmentRecords.length) * 100
         : 0;
 
       return {
@@ -686,22 +686,33 @@ export class PerformanceService {
     const assignmentRate = assignments.length > 0 ? (assignments.filter(r => r.homeworkScore >= 3).length / assignments.length) * 100 : 0;
 
     // Получаем данные о тестах (квизах)
-    const quizResults = await this.prisma.quizSubmission.findMany({
+    const quizResults = await this.prisma.quizAttempt.findMany({
       where: {
         deletedAt: null,
         score: { not: null },
+        status: 'COMPLETED',
         ...(filter.groupId && {
           student: {
             groupId: parseInt(filter.groupId),
           },
         }),
       },
+      include: {
+        quiz: {
+          select: {
+            maxScore: true,
+          },
+        },
+      },
     });
 
     const quizScores = quizResults.map(r => r.score).filter(s => s !== null);
     const avgQuizScore = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length : 0;
-    const maxQuizScore = quizScores.length > 0 ? Math.max(...quizScores) : 100; // Предполагаем максимум 100
-    const quizRate = maxQuizScore > 0 ? Math.round((avgQuizScore / maxQuizScore) * 100) : 0;
+    
+    // Получаем максимальный балл из настроек тестов или используем средний максимальный балл
+    const maxScores = quizResults.map(r => r.quiz?.maxScore || 100).filter(s => s > 0);
+    const avgMaxScore = maxScores.length > 0 ? maxScores.reduce((a, b) => a + b, 0) / maxScores.length : 100;
+    const quizRate = avgMaxScore > 0 ? Math.round((avgQuizScore / avgMaxScore) * 100) : 0;
 
     return [
       { subject: 'Оценки', value: Math.round((avgGrade / 5) * 100) }, // Преобразуем из 5-балльной в проценты
@@ -856,10 +867,10 @@ export class PerformanceService {
 
     // Собираем все результаты детей по предметам
     const allResults = parent.students.flatMap(student => student.lessonsResults);
-    
+
     // Группируем результаты по предметам (studyPlan)
     const subjectResultsMap = new Map<string, any[]>();
-    
+
     allResults.forEach(result => {
       if (result.Lesson?.studyPlan) {
         const subjectName = result.Lesson.studyPlan.name;
@@ -933,7 +944,7 @@ export class PerformanceService {
 
     // Группируем детей по группам
     const groupsMap = new Map<number, { group: any; students: any[] }>();
-    
+
     parent.students.forEach(student => {
       if (student.group) {
         const groupId = student.group.id;

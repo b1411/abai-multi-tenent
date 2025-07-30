@@ -86,16 +86,16 @@ export interface CreateLessonMaterialsRequest {
 }
 
 export class MaterialService {
-  async getMaterials(): Promise<Material[]> {
-    return await apiClient.get<Material[]>('/materials');
+  async getMaterials(): Promise<Material> {
+    return await apiClient.get<Material>('/materials');
   }
 
   async getMaterial(id: number): Promise<Material> {
     return await apiClient.get<Material>(`/materials/${id}`);
   }
 
-  async getMaterialsByLesson(lessonId: number): Promise<Material[]> {
-    return await apiClient.get<Material[]>(`/materials/lesson/${lessonId}`);
+  async getMaterialsByLesson(lessonId: number): Promise<Material> {
+    return await apiClient.get<Material>(`/materials/lesson/${lessonId}`);
   }
 
   async createMaterial(data: CreateMaterialRequest): Promise<Material> {

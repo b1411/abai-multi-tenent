@@ -26,6 +26,13 @@ export interface QuizQuestion {
   deletedAt?: string | null;
 }
 
+export interface AnswerQuestionPayload {
+  quizAttemptId: number;
+  questionId: number;
+  answerId?: number;
+  textAnswer?: string;
+}
+
 export interface QuizAnswer {
   id?: number;
   name: string;
@@ -123,7 +130,7 @@ export class QuizService {
     return await apiClient.get<Quiz[]>('/quiz/active');
   }
 
-  async getQuiz(id: number): Promise<Quiz> {
+  async getQuizById(id: number): Promise<Quiz> {
     return await apiClient.get<Quiz>(`/quiz/${id}`);
   }
 
@@ -171,6 +178,38 @@ export class QuizService {
 
   async getQuizStatistics(quizId: number): Promise<any> {
     return await apiClient.get(`/quiz/${quizId}/statistics`);
+  }
+
+  async startAttempt(quizId: number): Promise<any> {
+    return await apiClient.post(`/quiz/${quizId}/start`);
+  }
+
+  async answerQuestion(payload: AnswerQuestionPayload): Promise<any> {
+    return await apiClient.post('/quiz/answer', payload);
+  }
+
+  async finishAttempt(attemptId: number): Promise<any> {
+    return await apiClient.post(`/quiz/attempt/${attemptId}/finish`);
+  }
+
+  async getStudentAttemptsByQuiz(studentId: number | string, quizId: number | string): Promise<any[]> {
+    return await apiClient.get(`/quiz/student-attempt/${studentId}/${quizId}`);
+  }
+
+  async getAllAttemptsByQuiz(quizId: number | string): Promise<any[]> {
+    return await apiClient.get(`/quiz/${quizId}/all-attempts`);
+  }
+
+  async getMyAttempts(): Promise<any[]> {
+    return await apiClient.get('/quiz/my-attempts');
+  }
+
+  async getQuizStatus(quizId: number): Promise<any> {
+    return await apiClient.get(`/quiz/${quizId}/status`);
+  }
+
+  async getAttemptResult(attemptId: number): Promise<any> {
+    return await apiClient.get(`/quiz/attempt/${attemptId}/result`);
   }
 
   // Утилитные методы для конвертации данных между фронтендом и бекендом

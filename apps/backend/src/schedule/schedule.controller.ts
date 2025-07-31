@@ -7,7 +7,6 @@ import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
-import { AIScheduleResponseDto } from '../ai-assistant/dto/ai-schedule-response.dto';
 
 @ApiTags('Schedule')
 @Controller('schedule')
@@ -106,6 +105,17 @@ export class ScheduleController {
     return this.scheduleService.remove(id);
   }
 
+  @Post('update-statuses')
+  @ApiOperation({ 
+    summary: 'Принудительно обновить статусы прошедших занятий',
+    description: 'Обновляет статусы занятий на COMPLETED если их время окончания уже прошло'
+  })
+  @ApiResponse({ status: 200, description: 'Статусы успешно обновлены' })
+  @Roles('ADMIN', 'TEACHER')
+  updateStatuses() {
+    return this.scheduleService.updatePastScheduleStatuses();
+  }
+
   // ================================
   // AI Schedule Generation Endpoints
   // ================================
@@ -193,7 +203,7 @@ export class ScheduleController {
 
     const aiResult = await this.aiAssistantService.getCompletion(prompt.system, prompt.user);
 
-    const proposedSchedules = this.scheduleService.processAiSchedulerResponse(aiResult, studyPlans, classrooms);
+    const proposedSchedules = await this.scheduleService.processAiSchedulerResponse(aiResult, studyPlans, classrooms);
 
     return {
       success: true,
@@ -463,7 +473,7 @@ ${existingSchedules.map(schedule => `
     generatedLessons: any[]; 
     replaceExisting?: boolean 
   }) {
-    const { generatedLessons, replaceExisting = false } = applyData;
+    const { generatedLessons } = applyData;
     
     const results = [];
     const errors = [];
@@ -476,7 +486,7 @@ ${existingSchedules.map(schedule => `
           teacherId: lesson.teacherId,
           classroomId: lesson.classroomId,
           lessonId: lesson.lessonId,
-          date: new Date(lesson.date),
+          date: lesson.date,
           startTime: lesson.startTime,
           endTime: lesson.endTime,
           dayOfWeek: new Date(lesson.date).getDay(),
@@ -506,6 +516,46 @@ ${existingSchedules.map(schedule => `
         errors: errors.length
       }
     };
+  }
+
+  @Patch(':id/reschedule')
+  @ApiOperation({ 
+    summary: 'Перенести занятие на другую дату и время',
+    description: 'Позволяет изменить дату и время конкретного занятия'
+  })
+  @ApiResponse({ status: 200, description: 'Занятие успешно перенесено' })
+  @ApiResponse({ status: 400, description: 'Конфликт расписания' })
+  @ApiResponse({ status: 404, description: 'Занятие не найдено' })
+  @Roles('ADMIN')
+  async rescheduleLesson(@Param('id') id: string, @Body() rescheduleData: {
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    classroomId?: number;
+    reason?: string;
+  }) {
+    const updateData: UpdateScheduleDto = {};
+    
+    if (rescheduleData.date) {
+      const newDate = new Date(rescheduleData.date);
+      const dayOfWeek = newDate.getDay() === 0 ? 7 : newDate.getDay();
+      updateData.date = rescheduleData.date;
+      updateData.dayOfWeek = dayOfWeek;
+    }
+    
+    if (rescheduleData.startTime) {
+      updateData.startTime = rescheduleData.startTime;
+    }
+    
+    if (rescheduleData.endTime) {
+      updateData.endTime = rescheduleData.endTime;
+    }
+    
+    if (rescheduleData.classroomId !== undefined) {
+      updateData.classroomId = rescheduleData.classroomId;
+    }
+
+    return this.scheduleService.update(id, updateData);
   }
 
   private convertDayToNumber(day: string): number {

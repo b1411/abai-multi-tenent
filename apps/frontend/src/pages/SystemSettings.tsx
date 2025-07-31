@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { FaCog, FaSave, FaEnvelope, FaBell, FaLock, FaServer, FaDownload } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaCog, FaSave, FaEnvelope, FaBell, FaLock, FaServer, FaDownload, FaClock } from 'react-icons/fa';
 import { useSystemSettings } from '../hooks/useSystem';
 import { SystemSettings } from '../types/system';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { systemService } from '../services/systemService';
 
-type TabType = 'general' | 'email' | 'notifications' | 'security' | 'maintenance';
+type TabType = 'general' | 'email' | 'notifications' | 'security' | 'maintenance' | 'academic';
 
 const SystemSettingsPage: React.FC = () => {
   const { settings, loading, error, updateSettings, downloadBackup } = useSystemSettings();
@@ -13,12 +14,60 @@ const SystemSettingsPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<SystemSettings>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  
+  // Состояние для академического часа
+  const [academicHourDuration, setAcademicHourDuration] = useState<number>(45);
+  const [academicHourLoading, setAcademicHourLoading] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (settings) {
       setFormData(settings);
     }
   }, [settings]);
+
+  // Загружаем продолжительность академического часа при переходе на вкладку
+  useEffect(() => {
+    if (activeTab === 'academic') {
+      loadAcademicHourDuration();
+    }
+  }, [activeTab]);
+
+  const loadAcademicHourDuration = async () => {
+    try {
+      setAcademicHourLoading(true);
+      const result = await systemService.getAcademicHourDuration();
+      setAcademicHourDuration(result.minutes);
+    } catch (error) {
+      console.error('Ошибка загрузки продолжительности академического часа:', error);
+    } finally {
+      setAcademicHourLoading(false);
+    }
+  };
+
+  const handleSaveAcademicHour = async () => {
+    if (academicHourDuration < 20 || academicHourDuration > 90) {
+      setSaveMessage('Продолжительность академического часа должна быть от 20 до 90 минут');
+      setTimeout(() => setSaveMessage(null), 3000);
+      return;
+    }
+
+    try {
+      setAcademicHourLoading(true);
+      await systemService.updateAcademicHourDuration(academicHourDuration);
+      setSaveMessage('Продолжительность академического часа успешно обновлена');
+      setTimeout(() => setSaveMessage(null), 3000);
+    } catch (error) {
+      console.error('Ошибка сохранения:', error);
+      setSaveMessage('Ошибка при сохранении настроек');
+      setTimeout(() => setSaveMessage(null), 3000);
+    } finally {
+      setAcademicHourLoading(false);
+    }
+  };
+
+  const calculateExampleHours = (minutes: number) => {
+    return systemService.convertMinutesToAcademicHours(minutes, academicHourDuration);
+  };
 
   const handleSettingChange = (key: keyof SystemSettings, value: any) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -136,6 +185,15 @@ const SystemSettingsPage: React.FC = () => {
               <FaServer className="text-xs" />
               <span>Обслуживание</span>
             </button>
+            <button
+              className={`flex-shrink-0 px-4 py-3 flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                activeTab === 'academic' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('academic')}
+            >
+              <FaClock className="text-xs" />
+              <span>Акад. часы</span>
+            </button>
           </div>
         </div>
       </div>
@@ -188,6 +246,15 @@ const SystemSettingsPage: React.FC = () => {
             >
               <FaServer />
               <span>Обслуживание</span>
+            </button>
+            <button
+              className={`w-full p-4 flex items-center gap-3 text-left ${
+                activeTab === 'academic' ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('academic')}
+            >
+              <FaClock />
+              <span>Академические часы</span>
             </button>
           </div>
         </div>
@@ -409,6 +476,81 @@ const SystemSettingsPage: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {activeTab === 'academic' && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Настройки академического часа</h2>
+                {academicHourLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Spinner size="lg" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Продолжительность (минуты)
+                      </label>
+                      <div className="flex items-center space-x-4">
+                        <input
+                          type="number"
+                          min="20"
+                          max="90"
+                          value={academicHourDuration}
+                          onChange={(e) => setAcademicHourDuration(parseInt(e.target.value) || 45)}
+                          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                        />
+                        <button
+                          onClick={handleSaveAcademicHour}
+                          disabled={academicHourLoading}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                        >
+                          {academicHourLoading ? (
+                            <Spinner size="sm" />
+                          ) : (
+                            <FaSave className="mr-2" />
+                          )}
+                          Сохранить
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Допустимые значения: от 20 до 90 минут
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-medium text-gray-900 mb-3">Примеры конвертации:</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>40 минут:</span>
+                          <span className="font-medium">{calculateExampleHours(40).toFixed(2)} акад. ч.</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>50 минут:</span>
+                          <span className="font-medium">{calculateExampleHours(50).toFixed(2)} акад. ч.</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>60 минут:</span>
+                          <span className="font-medium">{calculateExampleHours(60).toFixed(2)} акад. ч.</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>90 минут:</span>
+                          <span className="font-medium">{calculateExampleHours(90).toFixed(2)} акад. ч.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-medium text-blue-900 mb-2">Важная информация</h3>
+                  <div className="text-sm text-blue-800 space-y-1">
+                    <p>• Изменение продолжительности академического часа повлияет на все расчеты в системе</p>
+                    <p>• Это касается зарплатных ведомостей, отчетов об отработанных часах и аналитики</p>
+                    <p>• Рекомендуется вносить изменения в начале учебного периода</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -627,6 +769,83 @@ const SystemSettingsPage: React.FC = () => {
                   <span>Скачать резервную копию</span>
                 </button>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'academic' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Настройки академического часа</h2>
+              {academicHourLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Spinner size="lg" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Продолжительность (минуты)
+                    </label>
+                    <div className="space-y-3">
+                      <input
+                        type="number"
+                        min="20"
+                        max="90"
+                        value={academicHourDuration}
+                        onChange={(e) => setAcademicHourDuration(parseInt(e.target.value) || 45)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-3 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                      />
+                      <button
+                        onClick={handleSaveAcademicHour}
+                        disabled={academicHourLoading}
+                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      >
+                        {academicHourLoading ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          <>
+                            <FaSave className="mr-2" />
+                            Сохранить
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Допустимые значения: от 20 до 90 минут
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-3">Примеры конвертации:</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>40 минут:</span>
+                        <span className="font-medium">{calculateExampleHours(40).toFixed(2)} акад. ч.</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>50 минут:</span>
+                        <span className="font-medium">{calculateExampleHours(50).toFixed(2)} акад. ч.</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>60 минут:</span>
+                        <span className="font-medium">{calculateExampleHours(60).toFixed(2)} акад. ч.</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>90 минут:</span>
+                        <span className="font-medium">{calculateExampleHours(90).toFixed(2)} акад. ч.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="font-medium text-blue-900 mb-2">Важная информация</h3>
+                    <div className="text-sm text-blue-800 space-y-1">
+                      <p>• Изменение продолжительности академического часа повлияет на все расчеты в системе</p>
+                      <p>• Это касается зарплатных ведомостей, отчетов об отработанных часах и аналитики</p>
+                      <p>• Рекомендуется вносить изменения в начале учебного периода</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

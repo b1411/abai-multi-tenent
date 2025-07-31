@@ -132,16 +132,16 @@ class SystemService {
   }
 
   async getAvailablePermissions(): Promise<ApiResponse<{ module: string; permissions: string[] }[]>> {
-    return this.request('/system/permissions');
+    return this.request('system/permissions');
   }
 
   // Branding
   async getBrandingSettings(): Promise<ApiResponse<BrandingSettings>> {
-    return this.request('/system/branding');
+    return this.request('system/branding');
   }
 
   async updateBrandingSettings(settings: Partial<BrandingSettings>): Promise<ApiResponse<BrandingSettings>> {
-    return this.request('/system/branding', {
+    return this.request('system/branding', {
       method: 'PUT',
       body: JSON.stringify(settings),
     });
@@ -191,49 +191,98 @@ class SystemService {
 
   // Integrations
   async getIntegrations(): Promise<ApiResponse<Integration[]>> {
-    return this.request('/system/integrations');
+    return this.request('system/integrations');
   }
 
   async getIntegration(id: string): Promise<ApiResponse<Integration>> {
-    return this.request(`/system/integrations/${id}`);
+    return this.request(`system/integrations/${id}`);
   }
 
   async createIntegration(data: CreateIntegrationDto): Promise<ApiResponse<Integration>> {
-    return this.request('/system/integrations', {
+    return this.request('system/integrations', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async updateIntegration(id: string, data: UpdateIntegrationDto): Promise<ApiResponse<Integration>> {
-    return this.request(`/system/integrations/${id}`, {
+    return this.request(`system/integrations/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
   async deleteIntegration(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/system/integrations/${id}`, {
+    return this.request(`system/integrations/${id}`, {
       method: 'DELETE',
     });
   }
 
   async connectIntegration(id: string): Promise<ApiResponse<Integration>> {
-    return this.request(`/system/integrations/${id}/connect`, {
+    return this.request(`system/integrations/${id}/connect`, {
       method: 'POST',
     });
   }
 
   async disconnectIntegration(id: string): Promise<ApiResponse<Integration>> {
-    return this.request(`/system/integrations/${id}/disconnect`, {
+    return this.request(`system/integrations/${id}/disconnect`, {
       method: 'POST',
     });
   }
 
   async syncIntegration(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/system/integrations/${id}/sync`, {
+    return this.request(`system/integrations/${id}/sync`, {
       method: 'POST',
     });
+  }
+
+  // Academic Hour Settings
+  async getAcademicHourDuration(): Promise<{ minutes: number }> {
+    const response = await this.request<{ data: { minutes: number } }>('system/academic-hour/duration');
+    return response.data;
+  }
+
+  async updateAcademicHourDuration(minutes: number): Promise<{ minutes: number }> {
+    const response = await this.request<{ data: { minutes: number } }>('system/academic-hour/duration', {
+      method: 'PUT',
+      body: JSON.stringify({ minutes }),
+    });
+    return response.data;
+  }
+
+  // System Settings Extensions
+  async getAllSystemSettings(): Promise<Array<{ key: string; value: string; description: string | null }>> {
+    const response = await this.request<{ data: Array<{ key: string; value: string; description: string | null }> }>('system/settings/all');
+    return response.data;
+  }
+
+  async updateSystemSetting(key: string, value: string): Promise<{ key: string; value: string; description: string | null }> {
+    const response = await this.request<{ data: { key: string; value: string; description: string | null } }>(`system/settings/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    });
+    return response.data;
+  }
+
+  // Utility Methods
+  convertMinutesToAcademicHours(minutes: number, academicHourDuration: number): number {
+    return minutes / academicHourDuration;
+  }
+
+  convertAcademicHoursToMinutes(academicHours: number, academicHourDuration: number): number {
+    return academicHours * academicHourDuration;
+  }
+
+  calculateScheduleDurationInAcademicHours(
+    startTime: string, 
+    endTime: string, 
+    academicHourDuration: number
+  ): number {
+    const start = new Date(`1970-01-01T${startTime}:00`);
+    const end = new Date(`1970-01-01T${endTime}:00`);
+    const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    
+    return this.convertMinutesToAcademicHours(durationMinutes, academicHourDuration);
   }
 }
 

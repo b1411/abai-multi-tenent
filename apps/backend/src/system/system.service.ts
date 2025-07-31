@@ -28,6 +28,7 @@ export class SystemService {
       debugMode: false,
       backupEnabled: true,
       backupFrequency: 'daily',
+      academicHourDuration: await this.getAcademicHourDuration(), // Добавляем академический час
     };
   }
 
@@ -591,5 +592,92 @@ export class SystemService {
     }
     // Имитация синхронизации
     return { message: 'Синхронизация завершена' };
+  }
+
+  // Academic Hour Settings - Настройки академического часа
+  async getAcademicHourDuration(): Promise<number> {
+    try {
+      const setting = await this.prisma.systemSettings.findUnique({
+        where: { key: 'academic_hour_duration' }
+      });
+      return setting ? parseInt(setting.value, 10) : 45; // По умолчанию 45 минут
+    } catch (error) {
+      console.warn('SystemSettings таблица не найдена, используем значение по умолчанию: 45 минут');
+      return 45;
+    }
+  }
+
+  async setAcademicHourDuration(minutes: number): Promise<{ minutes: number }> {
+    if (minutes < 20 || minutes > 90) {
+      throw new BadRequestException('Продолжительность академического часа должна быть от 20 до 90 минут');
+    }
+
+    try {
+      await this.prisma.systemSettings.upsert({
+        where: { key: 'academic_hour_duration' },
+        update: { 
+          value: minutes.toString(),
+          updatedAt: new Date()
+        },
+        create: { 
+          key: 'academic_hour_duration', 
+          value: minutes.toString(),
+          description: 'Продолжительность академического часа в минутах'
+        }
+      });
+    } catch (error) {
+      console.warn('SystemSettings таблица не найдена, настройка не сохранена');
+    }
+
+    return { minutes };
+  }
+
+  async getAllSystemSettings(): Promise<Array<{ key: string; value: string; description: string | null }>> {
+    try {
+      const settings = await this.prisma.systemSettings.findMany({
+        orderBy: { key: 'asc' }
+      });
+      
+      return settings.map(setting => ({
+        key: setting.key,
+        value: setting.value,
+        description: setting.description
+      }));
+    } catch (error) {
+      console.warn('SystemSettings таблица не найдена, возвращаем настройки по умолчанию');
+      return [
+        {
+          key: 'academic_hour_duration',
+          value: '45',
+          description: 'Продолжительность академического часа в минутах'
+        }
+      ];
+    }
+  }
+
+  async updateSystemSetting(key: string, value: string): Promise<{ key: string; value: string; description: string | null }> {
+    try {
+      const updated = await this.prisma.systemSettings.upsert({
+        where: { key },
+        update: { 
+          value,
+          updatedAt: new Date()
+        },
+        create: { 
+          key, 
+          value,
+          description: null
+        }
+      });
+
+      return {
+        key: updated.key,
+        value: updated.value,
+        description: updated.description
+      };
+    } catch (error) {
+      console.warn('SystemSettings таблица не найдена, настройка не сохранена');
+      return { key, value, description: null };
+    }
   }
 }

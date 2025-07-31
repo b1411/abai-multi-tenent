@@ -33,13 +33,14 @@ export class CreateScheduleDto {
   lessonId?: number;
 
   @ApiPropertyOptional({ 
-    description: 'Дата занятия в формате YYYY-MM-DD',
+    description: 'Конкретная дата проведения занятия в формате YYYY-MM-DD',
     type: String,
-    nullable: true 
+    nullable: true,
+    example: '2025-02-15'
   })
   @IsDateString()
   @IsOptional()
-  date?: Date;
+  date?: string;
 
   @ApiProperty({ 
     description: 'День недели (1-7: понедельник-воскресенье)',

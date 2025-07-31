@@ -42,7 +42,7 @@ import Supply from './pages/Supply';
 import TasksPage from './pages/Tasks';
 import ChatPage from './pages/Chat';
 import CalendarPage from './pages/Calendar';
-import SystemSettingsPage from './pages/SystemSettings';
+import SystemSettings from './pages/SystemSettings';
 import UsersPage from './pages/Users';
 import PermissionsPage from './pages/Permissions';
 import BrandingPage from './pages/Branding';
@@ -197,7 +197,7 @@ const App: React.FC = () => {
                       <Route path="integrations" element={<IntegrationsPage />} />
                       <Route path="branding" element={<BrandingPage />} />
                       <Route path="feedback" element={<FeedbackAdmin />} />
-                      <Route path="system" element={<SystemSettingsPage />} />
+                      <Route path="system" element={<SystemSettings />} />
                       <Route path="activity-monitoring" element={<ActivityMonitoring />} />
                     </Route>
                   </Route>

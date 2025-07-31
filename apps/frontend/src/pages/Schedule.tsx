@@ -80,6 +80,7 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
   const [formData, setFormData] = useState<Partial<ScheduleItem>>({
     id: initialData?.id || '',
     day: (initialData?.day || '') as ScheduleItem['day'],
+    date: initialData?.date || '',
     startTime: initialData?.startTime || '',
     endTime: initialData?.endTime || '',
     classId: initialData?.classId || '',
@@ -98,6 +99,7 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
       setFormData({
         id: initialData.id || '',
         day: (initialData.day || '') as ScheduleItem['day'],
+        date: initialData.date || '',
         startTime: initialData.startTime || '',
         endTime: initialData.endTime || '',
         classId: initialData.classId || '',
@@ -273,27 +275,45 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
             )}
           </AnimatePresence>
 
+          {/* Дата проведения занятия */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Дата проведения занятия
+            </label>
+            <input
+              type="date"
+              value={formData.date || ''}
+              onChange={(e) => {
+                const selectedDate = new Date(e.target.value);
+                const dayOfWeek = selectedDate.getDay();
+                const dayNames: ScheduleItem['day'][] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+                setFormData({
+                  ...formData,
+                  date: e.target.value,
+                  day: dayNames[dayOfWeek]
+                });
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            {formData.date && (
+              <div className="text-xs text-gray-500 mt-1">
+                День недели: {
+                  formData.day === 'monday' ? 'Понедельник' :
+                    formData.day === 'tuesday' ? 'Вторник' :
+                      formData.day === 'wednesday' ? 'Среда' :
+                        formData.day === 'thursday' ? 'Четверг' :
+                          formData.day === 'friday' ? 'Пятница' :
+                            formData.day === 'saturday' ? 'Суббота' :
+                              'Воскресенье'
+                }
+              </div>
+            )}
+          </div>
+
           {/* Планирование времени и длительности */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                День недели
-              </label>
-              <select
-                value={formData.day}
-                onChange={(e) => setFormData({ ...formData, day: e.target.value as ScheduleItem['day'] })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Выберите день</option>
-                <option value="monday">Понедельник</option>
-                <option value="tuesday">Вторник</option>
-                <option value="wednesday">Среда</option>
-                <option value="thursday">Четверг</option>
-                <option value="friday">Пятница</option>
-                <option value="saturday">Суббота</option>
-              </select>
-            </div>
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <TimePicker
                 label="Время начала"
@@ -347,6 +367,27 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
               <option value="biweekly">Раз в две недели</option>
               <option value="once">Один раз</option>
             </select>
+          </div>
+
+          {/* Статус занятия */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Статус занятия
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as ScheduleItem['status'] })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="upcoming">Запланировано</option>
+              <option value="completed">Проведено</option>
+              <option value="cancelled">Отменено</option>
+            </select>
+            <div className="text-xs text-gray-500 mt-1">
+              {formData.status === 'upcoming' && '📅 Занятие запланировано'}
+              {formData.status === 'completed' && '✅ Занятие проведено и засчитается в отработанные часы'}
+              {formData.status === 'cancelled' && '❌ Занятие отменено и не засчитается в отработанные часы'}
+            </div>
           </div>
 
           {/* Время окончания (автоматически) */}
@@ -806,26 +847,59 @@ const SchedulePage: React.FC = () => {
     try {
       if (id) {
         // Редактирование существующего занятия
-        // Пока оставляем локальное обновление, так как нужны дополнительные данные для конвертации
-        const updatedSchedule = schedule.map(item => {
-          if (item.id === id) {
-            return {
-              ...item,
-              ...scheduleItem,
-              // Обновляем имя преподавателя на основе загруженных данных
-              teacherName: teachers.find(t => t.id.toString() === scheduleItem.teacherId)?.name + ' ' +
-                teachers.find(t => t.id.toString() === scheduleItem.teacherId)?.surname ||
-                scheduleItem.teacherName || item.teacherName,
-            };
+        console.log('Редактирование занятия:', id, scheduleItem);
+
+        // Создаем DTO для обновления
+        const updateData: any = {};
+        
+        if (scheduleItem.day) {
+          updateData.dayOfWeek = getDayNumber(scheduleItem.day);
+        }
+        if (scheduleItem.date) {
+          updateData.date = scheduleItem.date;
+        }
+        if (scheduleItem.startTime) {
+          updateData.startTime = scheduleItem.startTime;
+        }
+        if (scheduleItem.endTime) {
+          updateData.endTime = scheduleItem.endTime;
+        }
+        if (scheduleItem.roomId) {
+          const selectedClassroom = classrooms.find(c => c.name === scheduleItem.roomId || c.id.toString() === scheduleItem.roomId);
+          if (selectedClassroom) {
+            updateData.classroomId = selectedClassroom.id;
           }
-          return item;
-        });
+        }
+        if (scheduleItem.subject) {
+          const selectedStudyPlan = studyPlans.find(sp => sp.name === scheduleItem.subject);
+          if (selectedStudyPlan) {
+            updateData.studyPlanId = selectedStudyPlan.id;
+          }
+        }
+        if (scheduleItem.teacherId) {
+          updateData.teacherId = parseInt(scheduleItem.teacherId);
+        }
+        if (scheduleItem.classId) {
+          const selectedGroup = groups.find(g => g.name === scheduleItem.classId);
+          if (selectedGroup) {
+            updateData.groupId = selectedGroup.id;
+          }
+        }
 
-        setSchedule(updatedSchedule);
+        console.log('Отправляем обновление с данными:', updateData);
 
-        // TODO: Реализовать вызов API для обновления
-        // const updateDto = ScheduleService.convertToUpdateDto(scheduleItem);
-        // await scheduleService.update(id, updateDto);
+        // Вызываем API для обновления
+        const updatedSchedule = await scheduleService.update(id, updateData);
+        
+        // Конвертируем ответ API в формат для отображения
+        const updatedScheduleItem = ScheduleService.convertToScheduleItem(updatedSchedule);
+
+        // Обновляем локальное состояние
+        setSchedule(prev => prev.map(item => 
+          item.id === id ? updatedScheduleItem : item
+        ));
+
+        console.log('Занятие успешно обновлено');
       } else {
         // Создание нового занятия
         // Нужно найти реальные ID для создания через API
@@ -845,6 +919,7 @@ const SchedulePage: React.FC = () => {
           teacherId: selectedTeacher.id,
           classroomId: scheduleItem.roomId ? parseInt(scheduleItem.roomId, 10) : undefined,
           dayOfWeek: getDayNumber(scheduleItem.day!),
+          date: scheduleItem.date,
           startTime: scheduleItem.startTime!,
           endTime: scheduleItem.endTime || getEndTime(scheduleItem.startTime!, 50),
           repeat: scheduleItem.repeat
@@ -1205,7 +1280,7 @@ const SchedulePage: React.FC = () => {
         console.warn('Invalid drop zone:', droppableId);
         return;
       }
-      
+
       // Проверяем, изменилась ли позиция
       if (activeItem.day === newDay && activeItem.startTime === newTime) {
         return; // Ничего не делаем, если позиция не изменилась
@@ -1268,6 +1343,29 @@ const SchedulePage: React.FC = () => {
                 <Bot className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">AI Планирование</span>
                 <span className="sm:hidden">AI План</span>
+              </button>
+            )}
+
+            {/* Кнопка обновления статусов */}
+            {(role === 'ADMIN' || role === 'TEACHER') && (
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await scheduleService.updateStatuses();
+                    alert(`Статусы обновлены! Изменено записей: ${result.updated}`);
+                    // Перезагружаем данные для отображения изменений
+                    loadScheduleData();
+                  } catch (error) {
+                    console.error('Ошибка при обновлении статусов:', error);
+                    alert('Ошибка при обновлении статусов');
+                  }
+                }}
+                disabled={isLoading}
+                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm md:text-base"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Обновить статусы</span>
+                <span className="sm:hidden">Обновить</span>
               </button>
             )}
           </div>
@@ -1482,7 +1580,7 @@ const SchedulePage: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    День недели
+                    Дата / День недели
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Время
@@ -1519,10 +1617,30 @@ const SchedulePage: React.FC = () => {
                 {getFilteredSchedule().map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.day === 'monday' ? 'Понедельник' :
-                        item.day === 'tuesday' ? 'Вторник' :
-                          item.day === 'wednesday' ? 'Среда' :
-                            item.day === 'thursday' ? 'Четверг' : 'Пятница'}
+                      <div>
+                        {item.date ? (
+                          <div>
+                            <div className="font-medium">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
+                            <div className="text-xs text-gray-500">
+                              {item.day === 'monday' ? 'Понедельник' :
+                                item.day === 'tuesday' ? 'Вторник' :
+                                  item.day === 'wednesday' ? 'Среда' :
+                                    item.day === 'thursday' ? 'Четверг' :
+                                      item.day === 'friday' ? 'Пятница' :
+                                        item.day === 'saturday' ? 'Суббота' : 'Воскресенье'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            {item.day === 'monday' ? 'Понедельник' :
+                              item.day === 'tuesday' ? 'Вторник' :
+                                item.day === 'wednesday' ? 'Среда' :
+                                  item.day === 'thursday' ? 'Четверг' :
+                                    item.day === 'friday' ? 'Пятница' :
+                                      item.day === 'saturday' ? 'Суббота' : 'Воскресенье'}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div className="flex items-center">

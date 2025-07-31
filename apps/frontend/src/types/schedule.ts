@@ -8,6 +8,10 @@ export interface Schedule {
   dayOfWeek: number; // 1-7: понедельник-воскресенье
   startTime: string; // HH:MM
   endTime: string; // HH:MM
+  date?: string | Date | null; // конкретная дата проведения занятия
+  type?: string; // REGULAR, MAKEUP, SUBSTITUTE, EXTRA
+  status?: string; // SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED, POSTPONED, MOVED
+  repeat?: string; // weekly, biweekly, once
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -50,6 +54,7 @@ export interface CreateScheduleDto {
   teacherId: number;
   classroomId?: number;
   dayOfWeek: number; // 1-7
+  date?: string; // конкретная дата в формате YYYY-MM-DD
   startTime: string; // HH:MM
   endTime: string; // HH:MM
   repeat?: 'weekly' | 'biweekly' | 'once';
@@ -70,6 +75,7 @@ export interface UpdateScheduleDto {
 export interface ScheduleItem {
   id: string;
   day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+  date?: string; // конкретная дата проведения занятия в формате YYYY-MM-DD
   startTime: string;
   endTime: string;
   classId: string; // group name

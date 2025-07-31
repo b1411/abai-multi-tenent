@@ -167,18 +167,24 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
       return;
     }
 
+    console.log(`[SalaryForm] Загружаем ставку для преподавателя ID: ${formData.teacherId}`);
+
     try {
       const teacherRate = await salaryService.getTeacherSalaryRate(formData.teacherId);
+      console.log('[SalaryForm] Получены данные о ставке:', teacherRate);
+      
       if (teacherRate && teacherRate.totalRate) {
         handleInputChange('hourlyRate', teacherRate.totalRate);
+        console.log(`[SalaryForm] Ставка установлена: ${teacherRate.totalRate}`);
         
         alert(`Ставка загружена: ${formatCurrency(teacherRate.totalRate)}/час (включая все факторы)`);
       } else {
+        console.log('[SalaryForm] Ставка не найдена или пустая:', teacherRate);
         alert('У преподавателя не настроена ставка. Перейдите в профиль преподавателя для настройки ставки.');
       }
     } catch (error) {
-      console.error('Ошибка при загрузке ставки:', error);
-      alert('Ошибка при загрузке ставки преподавателя');
+      console.error('[SalaryForm] Ошибка при загрузке ставки:', error);
+      alert(`Ошибка при загрузке ставки преподавателя: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
     }
   };
 
@@ -189,34 +195,73 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
       return;
     }
 
+    console.log(`[SalaryForm] Загружаем отработанные часы для преподавателя ID: ${formData.teacherId}, месяц: ${formData.month}, год: ${formData.year}`);
+
     try {
-      const workedHours = await salaryService.getWorkedHours(
+      const workedHoursData = await salaryService.getWorkedHours(
         formData.teacherId, 
         formData.month, 
         formData.year
       );
       
-      if (workedHours && workedHours.totalHours) {
-        handleInputChange('hoursWorked', workedHours.totalHours);
-        alert(`Часы загружены: ${workedHours.totalHours} часов`);
+      console.log('[SalaryForm] Полученные данные отработанных часов:', workedHoursData);
+      
+      if (workedHoursData) {
+        // Backend возвращает объект TeacherWorkedHours напрямую
+        const totalWorkedHours = workedHoursData.workedHours || 0;
+        const scheduledHours = workedHoursData.scheduledHours || 0;
+        const substitutedHours = workedHoursData.substitutedHours || 0;
+        const substitutedByOthers = workedHoursData.substitutedByOthers || 0;
+        
+        console.log(`[SalaryForm] Разбор данных:`);
+        console.log(`  - totalWorkedHours: ${totalWorkedHours}`);
+        console.log(`  - scheduledHours: ${scheduledHours}`);
+        console.log(`  - substitutedHours: ${substitutedHours}`);
+        console.log(`  - substitutedByOthers: ${substitutedByOthers}`);
+        
+        // Используем фактически отработанные часы (включая замещения)
+        const hoursToUse = totalWorkedHours + substitutedHours;
+        
+        console.log(`[SalaryForm] Итого часов к использованию: ${hoursToUse}`);
+        
+        handleInputChange('hoursWorked', hoursToUse);
+        
+        alert(`Часы загружены: ${hoursToUse} часов\n` +
+              `Детали:\n` +
+              `• Основные часы: ${totalWorkedHours}\n` +
+              `• Замещения: ${substitutedHours}\n` +
+              `• Замещено другими: ${substitutedByOthers}\n` +
+              `• Запланировано: ${scheduledHours}`);
       } else {
         // Если нет данных, пытаемся рассчитать часы
+        console.log('[SalaryForm] Данные не найдены, пытаемся рассчитать часы...');
         const calculatedHours = await salaryService.calculateWorkedHours(
           formData.teacherId,
           formData.month,
           formData.year
         );
         
-        if (calculatedHours && calculatedHours.totalHours) {
-          handleInputChange('hoursWorked', calculatedHours.totalHours);
-          alert(`Часы рассчитаны из расписания: ${calculatedHours.totalHours} часов`);
+        console.log('[SalaryForm] Рассчитанные часы:', calculatedHours);
+        
+        if (calculatedHours) {
+          const totalCalculatedHours = (calculatedHours.workedHours || 0) + (calculatedHours.substitutedHours || 0);
+          console.log(`[SalaryForm] Итого рассчитанных часов: ${totalCalculatedHours}`);
+          
+          handleInputChange('hoursWorked', totalCalculatedHours);
+          alert(`Часы рассчитаны из расписания: ${totalCalculatedHours} часов\n` +
+                `Детали:\n` +
+                `• Основные часы: ${calculatedHours.workedHours || 0}\n` +
+                `• Замещения: ${calculatedHours.substitutedHours || 0}\n` +
+                `• Замещено другими: ${calculatedHours.substitutedByOthers || 0}\n` +
+                `• Запланировано: ${calculatedHours.scheduledHours || 0}`);
         } else {
+          console.log('[SalaryForm] Рассчитанные данные тоже пусты');
           alert('Не удалось найти данные о расписании для выбранного периода');
         }
       }
     } catch (error) {
-      console.error('Ошибка при загрузке часов:', error);
-      alert('Ошибка при загрузке отработанных часов');
+      console.error('[SalaryForm] Ошибка при загрузке часов:', error);
+      alert(`Ошибка при загрузке отработанных часов: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
     }
   };
 

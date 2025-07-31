@@ -69,10 +69,25 @@ class ScheduleService {
     return apiClient.post<any>(`${this.baseUrl}/lessons/apply`, applyData);
   }
 
+  async updateStatuses(): Promise<{ updated: number }> {
+    return apiClient.post<{ updated: number }>(`${this.baseUrl}/update-statuses`);
+  }
+
   async updateScheduleDayAndTime(id: string, day: string, startTime: string, endTime: string) {
     const dayOfWeek = this.getDayNumber(day);
     const response = await apiClient.patch<{ data: Schedule }>(`/schedule/${id}`, { dayOfWeek, startTime, endTime });
     return response.data;
+  }
+
+  // Новый метод для переноса занятия на конкретную дату
+  async rescheduleLesson(id: string, rescheduleData: {
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    classroomId?: number;
+    reason?: string;
+  }): Promise<Schedule> {
+    return apiClient.patch<Schedule>(`${this.baseUrl}/${id}/reschedule`, rescheduleData);
   }
 
   private getDayNumber(day: string): number {
@@ -191,19 +206,100 @@ class ScheduleService {
   static convertToScheduleItem(schedule: Schedule): ScheduleItem {
     const dayNames = ['', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
+    // Конвертация статусов из backend в frontend формат с проверкой времени
+    const convertStatus = (backendStatus: string, startTime: string, endTime: string, date?: Date, dayOfWeek?: number): ScheduleItem['status'] => {
+      // Если backend уже установил статус как завершенный или отмененный, используем его
+      if (backendStatus === 'COMPLETED') return 'completed';
+      if (backendStatus === 'CANCELLED') return 'cancelled';
+      
+      // Для статуса SCHEDULED проверяем время на фронтенде
+      if (backendStatus === 'SCHEDULED') {
+        const now = new Date();
+        
+        // Если есть конкретная дата, используем её
+        if (date) {
+          const scheduleDate = new Date(date);
+          const endDateTime = new Date(scheduleDate);
+          const [hours, minutes] = endTime.split(':');
+          endDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          
+          return endDateTime <= now ? 'completed' : 'upcoming';
+        }
+        
+        // Если нет конкретной даты, проверяем по дню недели и времени
+        if (dayOfWeek) {
+          const currentDayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
+          
+          // Если это сегодняшний день недели
+          if (currentDayOfWeek === dayOfWeek) {
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const endDateTime = new Date(today);
+            const [hours, minutes] = endTime.split(':');
+            endDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            
+            return endDateTime <= now ? 'completed' : 'upcoming';
+          }
+        }
+        
+        return 'upcoming';
+      }
+      
+      // Перенесенные показываем как предстоящие
+      if (['RESCHEDULED', 'MOVED', 'POSTPONED'].includes(backendStatus)) {
+        return 'upcoming';
+      }
+      
+      return 'upcoming';
+    };
+
+    // Конвертация типов занятий из backend в frontend формат
+    const convertType = (backendType: string): ScheduleItem['type'] => {
+      switch (backendType) {
+        case 'REGULAR':
+          return 'lesson';
+        case 'MAKEUP':
+        case 'SUBSTITUTE':
+        case 'EXTRA':
+          return 'extra';
+        default:
+          return 'lesson';
+      }
+    };
+
+    // Конвертация периодичности из backend в frontend формат
+    const convertRepeat = (backendRepeat: string): ScheduleItem['repeat'] => {
+      switch (backendRepeat) {
+        case 'weekly':
+          return 'weekly';
+        case 'biweekly':
+          return 'biweekly';
+        case 'once':
+          return 'once';
+        default:
+          return 'weekly';
+      }
+    };
+
     return {
       id: schedule.id,
       day: dayNames[schedule.dayOfWeek] as ScheduleItem['day'],
+      date: schedule.date ? new Date(schedule.date).toISOString().split('T')[0] : undefined,
       startTime: schedule.startTime,
       endTime: schedule.endTime,
       classId: schedule.group?.name || '',
-      subject: schedule.studyPlan?.name || '', // используем name вместо subject
+      subject: schedule.studyPlan?.name || '',
       teacherId: schedule.teacherId.toString(),
       teacherName: schedule.teacher ? `${schedule.teacher.user.name} ${schedule.teacher.user.surname}` : '',
       roomId: schedule.classroom?.name || schedule.classroomId?.toString() || '',
-      type: 'lesson', // Default type, можно расширить логику
-      repeat: 'weekly', // Default repeat
-      status: 'upcoming'
+      type: convertType(schedule.type || 'REGULAR'),
+      repeat: convertRepeat(schedule.repeat || 'weekly'),
+      status: convertStatus(
+        schedule.status || 'SCHEDULED',
+        schedule.startTime,
+        schedule.endTime,
+        schedule.date ? new Date(schedule.date) : undefined,
+        schedule.dayOfWeek
+      )
     };
   }
 

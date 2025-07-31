@@ -16,7 +16,7 @@ export class SalariesService {
   ) {}
 
   async create(createSalaryDto: CreateSalaryDto) {
-    const { bonuses, deductions, ...salaryData } = createSalaryDto;
+    const { allowances, bonuses, deductions, hourlyRate, hoursWorked, ...salaryData } = createSalaryDto;
 
     // Проверяем, что учитель существует
     const teacher = await this.prisma.teacher.findUnique({
@@ -42,17 +42,45 @@ export class SalariesService {
       throw new BadRequestException('Зарплата за этот период уже существует');
     }
 
+    // Вычисляем базовую зарплату
+    const baseSalary = Math.round(hourlyRate * hoursWorked);
+
     // Вычисляем общие суммы
-    const totalBonuses = bonuses?.reduce((sum, bonus) => sum + bonus.amount, 0) || 0;
-    const totalDeductions = deductions?.reduce((sum, deduction) => sum + deduction.amount, 0) || 0;
-    const totalGross = salaryData.baseSalary + totalBonuses;
+    const totalAllowances = allowances?.reduce((sum, allowance) => {
+      if (allowance.isPercentage) {
+        return sum + (baseSalary * allowance.amount / 100);
+      }
+      return sum + allowance.amount;
+    }, 0) || 0;
+
+    const totalBonuses = bonuses?.reduce((sum, bonus) => {
+      if (bonus.isPercentage) {
+        return sum + (baseSalary * bonus.amount / 100);
+      }
+      return sum + bonus.amount;
+    }, 0) || 0;
+
+    const totalDeductions = deductions?.reduce((sum, deduction) => {
+      if (deduction.isPercentage) {
+        return sum + (baseSalary * deduction.amount / 100);
+      }
+      return sum + deduction.amount;
+    }, 0) || 0;
+
+    const totalGross = baseSalary + totalAllowances + totalBonuses;
     const totalNet = totalGross - totalDeductions;
 
     return this.prisma.salary.create({
       data: {
         ...salaryData,
+        hourlyRate,
+        hoursWorked,
+        baseSalary,
         totalGross,
         totalNet,
+        allowances: allowances ? {
+          create: allowances,
+        } : undefined,
         bonuses: bonuses ? {
           create: bonuses,
         } : undefined,
@@ -66,6 +94,7 @@ export class SalariesService {
             user: true,
           },
         },
+        allowances: true,
         bonuses: true,
         deductions: true,
       },
@@ -157,7 +186,7 @@ export class SalariesService {
   async update(id: number, updateSalaryDto: UpdateSalaryDto) {
     const existingSalary = await this.findOne(id);
 
-    const { bonuses, deductions, ...salaryData } = updateSalaryDto;
+    const { bonuses, deductions, allowances, hourlyRate, hoursWorked, ...salaryData } = updateSalaryDto;
 
     // Если меняется учитель, месяц или год, проверяем уникальность
     if (
@@ -165,14 +194,14 @@ export class SalariesService {
       updateSalaryDto.month ||
       updateSalaryDto.year
     ) {
-      const teacherId = updateSalaryDto.teacherId || existingSalary.teacherId;
+      const newTeacherId = updateSalaryDto.teacherId || existingSalary.teacherId;
       const month = updateSalaryDto.month || existingSalary.month;
       const year = updateSalaryDto.year || existingSalary.year;
 
       const conflictingSalary = await this.prisma.salary.findUnique({
         where: {
           teacherId_month_year: {
-            teacherId,
+            teacherId: newTeacherId,
             month,
             year,
           },
@@ -184,7 +213,7 @@ export class SalariesService {
       }
     }
 
-    // Удаляем старые бонусы и удержания
+    // Удаляем старые бонусы, удержания и надбавки
     await this.prisma.salaryBonus.deleteMany({
       where: { salaryId: id },
     });
@@ -193,19 +222,52 @@ export class SalariesService {
       where: { salaryId: id },
     });
 
-    // Вычисляем новые суммы
-    const newBaseSalary = updateSalaryDto.baseSalary || existingSalary.baseSalary;
-    const totalBonuses = bonuses?.reduce((sum, bonus) => sum + bonus.amount, 0) || 0;
-    const totalDeductions = deductions?.reduce((sum, deduction) => sum + deduction.amount, 0) || 0;
-    const totalGross = newBaseSalary + totalBonuses;
-    const totalNet = totalGross - totalDeductions;
+    await this.prisma.salaryAllowance.deleteMany({
+      where: { salaryId: id },
+    });
 
+    // Вычисляем базовую зарплату
+    const newHourlyRate = hourlyRate || existingSalary.hourlyRate;
+    const newHoursWorked = hoursWorked || existingSalary.hoursWorked;
+    const baseSalary = Math.round(newHourlyRate * newHoursWorked);
+
+    // Вычисляем общие суммы
+    const totalAllowances = allowances?.reduce((sum, allowance) => {
+      if (allowance.isPercentage) {
+        return sum + (baseSalary * allowance.amount / 100);
+      }
+      return sum + allowance.amount;
+    }, 0) || 0;
+
+    const totalBonuses = bonuses?.reduce((sum, bonus) => {
+      if (bonus.isPercentage) {
+        return sum + (baseSalary * bonus.amount / 100);
+      }
+      return sum + bonus.amount;
+    }, 0) || 0;
+
+    const totalDeductions = deductions?.reduce((sum, deduction) => {
+      if (deduction.isPercentage) {
+        return sum + (baseSalary * deduction.amount / 100);
+      }
+      return sum + deduction.amount;
+    }, 0) || 0;
+
+    const totalGross = baseSalary + totalAllowances + totalBonuses;
+    const totalNet = totalGross - totalDeductions;
+    
     return this.prisma.salary.update({
       where: { id },
       data: {
         ...salaryData,
+        hourlyRate: newHourlyRate,
+        hoursWorked: newHoursWorked,
+        baseSalary,
         totalGross,
         totalNet,
+        allowances: allowances ? {
+          create: allowances,
+        } : undefined,
         bonuses: bonuses ? {
           create: bonuses,
         } : undefined,
@@ -219,6 +281,7 @@ export class SalariesService {
             user: true,
           },
         },
+        allowances: true,
         bonuses: true,
         deductions: true,
       },
@@ -226,7 +289,7 @@ export class SalariesService {
   }
 
   async remove(id: number) {
-    const salary = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.salary.update({
       where: { id },
@@ -604,7 +667,9 @@ export class SalariesService {
 
   async exportSalaries(filterDto: SalaryFilterDto, format: 'xlsx' | 'csv' | 'pdf' = 'xlsx'): Promise<Buffer> {
     // Получаем все данные без пагинации для экспорта
-    const { page, limit, ...filters } = filterDto;
+    const { ...filters } = filterDto;
+    delete (filters as any).page;
+    delete (filters as any).limit;
     
     const where: Prisma.SalaryWhereInput = {};
     

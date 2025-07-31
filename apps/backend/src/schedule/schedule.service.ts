@@ -32,7 +32,7 @@ export class ScheduleService {
       data.lessonId = createScheduleDto.lessonId;
     }
     if (createScheduleDto.date) {
-      data.date = createScheduleDto.date;
+      data.date = new Date(createScheduleDto.date);
     }
     if (createScheduleDto.type) {
       data.type = createScheduleDto.type;
@@ -60,6 +60,9 @@ export class ScheduleService {
   }
 
   async findAll() {
+    // Сначала обновляем статусы прошедших занятий
+    await this.updatePastScheduleStatuses();
+    
     return this.prisma.schedule.findMany({
       where: { deletedAt: null },
       include: {
@@ -134,7 +137,7 @@ export class ScheduleService {
     if (updateScheduleDto.teacherId !== undefined) data.teacherId = updateScheduleDto.teacherId;
     if (updateScheduleDto.classroomId !== undefined) data.classroomId = updateScheduleDto.classroomId;
     if (updateScheduleDto.lessonId !== undefined) data.lessonId = updateScheduleDto.lessonId;
-    if (updateScheduleDto.date !== undefined) data.date = updateScheduleDto.date;
+    if (updateScheduleDto.date !== undefined) data.date = updateScheduleDto.date ? new Date(updateScheduleDto.date) : null;
     if (updateScheduleDto.dayOfWeek !== undefined) data.dayOfWeek = updateScheduleDto.dayOfWeek;
     if (updateScheduleDto.startTime !== undefined) data.startTime = updateScheduleDto.startTime;
     if (updateScheduleDto.endTime !== undefined) data.endTime = updateScheduleDto.endTime;
@@ -310,12 +313,12 @@ export class ScheduleService {
         groupId: group.id,
         teacherId: studyPlan.teacherId,
         classroomId: classroom?.id,
-        date: new Date(scheduleItem.date),
+        date: scheduleItem.date,
         dayOfWeek: dayMapping[dayOfWeek],
         startTime: scheduleItem.startTime,
         endTime: scheduleItem.endTime,
-        type: 'lesson',
-        status: 'upcoming',
+        type: 'REGULAR',
+        status: 'SCHEDULED',
         repeat: 'once',
       };
       
@@ -489,5 +492,248 @@ export class ScheduleService {
         `Group has a schedule conflict on this day and time`
       );
     }
+  }
+
+  // Метод для автоматического обновления статусов прошедших занятий
+  async updatePastScheduleStatuses(): Promise<{ updated: number }> {
+    // Используем часовой пояс Алматы (UTC+5)
+    const now = new Date();
+    const almaty_now = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // Добавляем 5 часов для UTC+5
+    const today = new Date(almaty_now.getFullYear(), almaty_now.getMonth(), almaty_now.getDate());
+    
+    console.log(`[ScheduleService] Текущее время UTC: ${now.toISOString()}`);
+    console.log(`[ScheduleService] Текущее время Алматы: ${almaty_now.toISOString()}`);
+    console.log(`[ScheduleService] Сегодняшняя дата Алматы: ${today.toISOString().split('T')[0]}`);
+    console.log(`[ScheduleService] День недели: ${almaty_now.getDay() === 0 ? 7 : almaty_now.getDay()} (четверг = 4)`);
+    
+    // 1. Обновляем занятия с датами из прошлых дней (вчера и раньше)
+    const updatedPastDates = await this.prisma.schedule.updateMany({
+      where: {
+        deletedAt: null,
+        status: { in: ['SCHEDULED'] },
+        date: {
+          lt: today, // Дата меньше сегодняшней (вчера и раньше)
+        },
+      },
+      data: {
+        status: 'COMPLETED',
+      },
+    });
+
+    // 2. Обновляем занятия с сегодняшней датой, где время окончания уже прошло
+    const todaySchedules = await this.prisma.schedule.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ['SCHEDULED'] },
+        date: today, // Сегодняшняя дата
+      },
+    });
+
+    let updatedTodayCount = 0;
+    
+    for (const schedule of todaySchedules) {
+      // Создаем объект Date для времени окончания занятия сегодня в часовом поясе Алматы
+      const endDateTime = new Date(today);
+      const [hours, minutes] = schedule.endTime.split(':');
+      endDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      console.log(`[ScheduleService] Проверяем занятие с датой: ${schedule.startTime}-${schedule.endTime}, окончание: ${endDateTime.toISOString()}, текущее время: ${almaty_now.toISOString()}`);
+      
+      // Сравниваем с временем Алматы
+      if (endDateTime <= almaty_now) {
+        await this.prisma.schedule.update({
+          where: { id: schedule.id },
+          data: { status: 'COMPLETED' },
+        });
+        updatedTodayCount++;
+        console.log(`[ScheduleService] Обновлено занятие с конкретной датой: ${schedule.startTime}-${schedule.endTime}`);
+      }
+    }
+
+    // 3. Обновляем периодические занятия без конкретной даты на основе дня недели и времени
+    const currentDayOfWeek = almaty_now.getDay() === 0 ? 7 : almaty_now.getDay(); // Используем время Алматы
+    
+    console.log(`[ScheduleService] Ищем периодические занятия для дня недели: ${currentDayOfWeek} (четверг = 4)`);
+    
+    // Находим периодические занятия сегодняшнего дня недели без конкретной даты
+    const periodicTodaySchedules = await this.prisma.schedule.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ['SCHEDULED'] },
+        date: null, // Без конкретной даты (периодические)
+        dayOfWeek: currentDayOfWeek, // Сегодняшний день недели
+      },
+    });
+
+    console.log(`[ScheduleService] Найдено ${periodicTodaySchedules.length} периодических занятий на день ${currentDayOfWeek}`);
+    
+    let updatedPeriodicCount = 0;
+    
+    for (const schedule of periodicTodaySchedules) {
+      // Создаем объект Date для времени окончания занятия сегодня в часовом поясе Алматы
+      const endDateTime = new Date(today);
+      const [hours, minutes] = schedule.endTime.split(':');
+      endDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      console.log(`[ScheduleService] Проверяем периодическое занятие: ${schedule.startTime}-${schedule.endTime}, окончание: ${endDateTime.toISOString()}, текущее время: ${almaty_now.toISOString()}`);
+      
+      // Сравниваем с временем Алматы
+      if (endDateTime <= almaty_now) {
+        // Проверяем, что экземпляр для сегодня еще не создан
+        const existingInstance = await this.prisma.schedule.findFirst({
+          where: {
+            teacherId: schedule.teacherId,
+            groupId: schedule.groupId,
+            studyPlanId: schedule.studyPlanId,
+            date: today,
+            startTime: schedule.startTime,
+            deletedAt: null,
+          }
+        });
+        
+        if (!existingInstance) {
+          // Создаем завершенный экземпляр для сегодня
+          await this.prisma.schedule.create({
+            data: {
+              studyPlanId: schedule.studyPlanId,
+              groupId: schedule.groupId,
+              teacherId: schedule.teacherId,
+              classroomId: schedule.classroomId,
+              lessonId: schedule.lessonId,
+              dayOfWeek: schedule.dayOfWeek,
+              date: today,
+              startTime: schedule.startTime,
+              endTime: schedule.endTime,
+              type: schedule.type || 'REGULAR',
+              status: 'COMPLETED',
+              repeat: 'once', // Экземпляр не повторяется
+            },
+          });
+          updatedPeriodicCount++;
+          console.log(`[ScheduleService] Создан завершенный экземпляр для периодического занятия: ${schedule.startTime}-${schedule.endTime}`);
+        } else {
+          console.log(`[ScheduleService] Экземпляр уже существует для занятия: ${schedule.startTime}-${schedule.endTime}`);
+        }
+      } else {
+        console.log(`[ScheduleService] Занятие ${schedule.startTime}-${schedule.endTime} еще не завершилось`);
+      }
+    }
+    
+    const totalUpdated = updatedPastDates.count + updatedTodayCount + updatedPeriodicCount;
+    
+    if (totalUpdated > 0) {
+      console.log(`[ScheduleService] Автоматически обновлено ${totalUpdated} занятий на COMPLETED (${updatedPastDates.count} из прошлых дней, ${updatedTodayCount} из сегодняшних с датой, ${updatedPeriodicCount} периодических сегодняшних)`);
+    }
+
+    return { updated: totalUpdated };
+  }
+
+  // Метод для генерации конкретных занятий из периодических записей
+  async generateScheduleInstances(
+    startDate: Date, 
+    endDate: Date, 
+    scheduleId?: string
+  ): Promise<{ generated: number }> {
+    // Находим периодические записи расписания
+    const periodicSchedules = await this.prisma.schedule.findMany({
+      where: {
+        deletedAt: null,
+        repeat: { in: ['weekly', 'biweekly'] },
+        ...(scheduleId && { id: scheduleId }),
+      },
+      include: {
+        studyPlan: true,
+        group: true,
+        teacher: { include: { user: true } },
+        classroom: true,
+      },
+    });
+
+    let generatedCount = 0;
+
+    for (const schedule of periodicSchedules) {
+      const instances = this.generateInstancesForSchedule(schedule, startDate, endDate);
+      
+      for (const instance of instances) {
+        try {
+          // Проверяем, что такой экземпляр еще не существует
+          const existing = await this.prisma.schedule.findFirst({
+            where: {
+              teacherId: schedule.teacherId,
+              groupId: schedule.groupId,
+              date: instance.date,
+              startTime: schedule.startTime,
+              deletedAt: null,
+            },
+          });
+
+          if (!existing) {
+            await this.prisma.schedule.create({
+              data: {
+                studyPlanId: schedule.studyPlanId,
+                groupId: schedule.groupId,
+                teacherId: schedule.teacherId,
+                classroomId: schedule.classroomId,
+                lessonId: schedule.lessonId,
+                dayOfWeek: schedule.dayOfWeek,
+                date: instance.date,
+                startTime: schedule.startTime,
+                endTime: schedule.endTime,
+                type: schedule.type || 'REGULAR',
+                status: instance.status,
+                repeat: 'once', // Экземпляры не повторяются
+              },
+            });
+            generatedCount++;
+          }
+        } catch (error) {
+          console.error(`Ошибка при создании экземпляра расписания:`, error);
+        }
+      }
+    }
+
+    if (generatedCount > 0) {
+      console.log(`[ScheduleService] Сгенерировано ${generatedCount} экземпляров расписания`);
+    }
+
+    return { generated: generatedCount };
+  }
+
+  // Генерация экземпляров для одной записи расписания
+  private generateInstancesForSchedule(
+    schedule: any, 
+    startDate: Date, 
+    endDate: Date
+  ): Array<{ date: Date; status: 'COMPLETED' | 'SCHEDULED' | 'CANCELLED' | 'POSTPONED' | 'MOVED' | 'RESCHEDULED' }> {
+    const instances: Array<{ date: Date; status: 'COMPLETED' | 'SCHEDULED' | 'CANCELLED' | 'POSTPONED' | 'MOVED' | 'RESCHEDULED' }> = [];
+    const current = new Date(startDate);
+    const now = new Date();
+    
+    // Находим первую дату с нужным днем недели
+    while (current <= endDate) {
+      const currentDayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
+      
+      if (currentDayOfWeek === schedule.dayOfWeek) {
+        // Определяем статус на основе текущего времени
+        const instanceDateTime = new Date(current);
+        const [hours, minutes] = schedule.endTime.split(':');
+        instanceDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        const status: 'COMPLETED' | 'SCHEDULED' = instanceDateTime < now ? 'COMPLETED' : 'SCHEDULED';
+        
+        instances.push({
+          date: new Date(current),
+          status,
+        });
+        
+        // Для двухнедельных занятий увеличиваем на 14 дней, для еженедельных на 7
+        const increment = schedule.repeat === 'biweekly' ? 14 : 7;
+        current.setDate(current.getDate() + increment);
+      } else {
+        current.setDate(current.getDate() + 1);
+      }
+    }
+    
+    return instances;
   }
 }

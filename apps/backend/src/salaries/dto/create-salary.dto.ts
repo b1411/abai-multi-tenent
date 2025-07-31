@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsOptional, IsString, IsEnum, Min, Max } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, IsEnum, Min, Max, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum BonusType {
@@ -7,6 +7,39 @@ export enum BonusType {
   OVERTIME = 'OVERTIME',
   HOLIDAY = 'HOLIDAY',
   OTHER = 'OTHER',
+}
+
+export enum AllowanceType {
+  EXPERIENCE = 'EXPERIENCE',
+  CATEGORY = 'CATEGORY',
+  CONDITIONS = 'CONDITIONS',
+  QUALIFICATION = 'QUALIFICATION',
+  OTHER = 'OTHER',
+}
+
+export class CreateSalaryAllowanceDto {
+  @ApiProperty({ enum: AllowanceType })
+  @IsEnum(AllowanceType)
+  type: AllowanceType;
+
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  amount: number;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isPercentage?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  comment?: string;
 }
 
 export class CreateSalaryBonusDto {
@@ -19,9 +52,14 @@ export class CreateSalaryBonusDto {
   name: string;
 
   @ApiProperty()
-  @IsInt()
+  @IsNumber()
   @Min(0)
   amount: number;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isPercentage?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -35,9 +73,14 @@ export class CreateSalaryDeductionDto {
   name: string;
 
   @ApiProperty()
-  @IsInt()
+  @IsNumber()
   @Min(0)
   amount: number;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isPercentage?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -51,9 +94,18 @@ export class CreateSalaryDto {
   teacherId: number;
 
   @ApiProperty()
-  @IsInt()
+  @IsNumber()
   @Min(0)
-  baseSalary: number;
+  hourlyRate: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  hoursWorked: number;
+
+  @ApiProperty({ type: [CreateSalaryAllowanceDto], required: false })
+  @IsOptional()
+  allowances?: CreateSalaryAllowanceDto[];
 
   @ApiProperty({ type: [CreateSalaryBonusDto], required: false })
   @IsOptional()

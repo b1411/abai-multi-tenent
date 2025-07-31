@@ -78,9 +78,13 @@ export class PayrollCalculationService {
       // Создаем новую запись зарплаты
       const newSalary = await this.prisma.salary.create({
         data: {
-          teacherId,
+          teacher: {
+            connect: { id: teacherId }
+          },
           month,
           year,
+          hourlyRate: rate.totalRate,
+          hoursWorked: workedHours.workedHours,
           baseSalary,
           totalGross: baseSalary,
           totalNet: baseSalary,

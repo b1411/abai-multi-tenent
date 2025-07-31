@@ -184,4 +184,29 @@ export class SystemController {
     const result = await this.systemService.syncIntegration(id);
     return result;
   }
+
+  // Academic Hour Settings
+  @Get('academic-hour/duration')
+  async getAcademicHourDuration() {
+    const minutes = await this.systemService.getAcademicHourDuration();
+    return { data: { minutes } };
+  }
+
+  @Put('academic-hour/duration')
+  async updateAcademicHourDuration(@Body() body: { minutes: number }) {
+    const result = await this.systemService.setAcademicHourDuration(body.minutes);
+    return { data: result };
+  }
+
+  @Get('settings/all')
+  async getAllSystemSettings() {
+    const settings = await this.systemService.getAllSystemSettings();
+    return { data: settings };
+  }
+
+  @Put('settings/:key')
+  async updateSystemSetting(@Param('key') key: string, @Body() body: { value: string }) {
+    const result = await this.systemService.updateSystemSetting(key, body.value);
+    return { data: result };
+  }
 }

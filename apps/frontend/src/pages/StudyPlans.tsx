@@ -589,7 +589,7 @@ const StudyPlansPage: React.FC = () => {
                                 onClick={() => navigate(`/lessons/${lesson.id}`)}
                                 className="text-corporate-primary hover:text-purple-800 hover:underline"
                               >
-                                {lesson.title}
+                                {lesson.name}
                               </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">

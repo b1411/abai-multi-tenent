@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Paperclip, Smile, Phone, Video, MoreVertical, Search, Loader, Plus, MessageCircle, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, Paperclip, Smile, Phone, Video, MoreVertical, Search, Loader, Plus, MessageCircle, CheckCircle, AlertCircle, Settings } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { parentService } from '../services/parentService';
 import NewChatModal from '../components/NewChatModal';
+import { Link } from 'react-router-dom';
 
 const Chat: React.FC = () => {
   const { user } = useAuth();
@@ -180,12 +181,23 @@ const Chat: React.FC = () => {
         <div className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">Сообщения</h1>
-            <button
-              onClick={() => setShowNewChatModal(true)}
-              className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-            </button>
+            <div className="flex items-center space-x-2">
+              {user?.role === 'ADMIN' && (
+                <Link
+                  to="/app/admin-chats"
+                  className="p-1.5 sm:p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
+                  title="Чаты сотрудников"
+                >
+                  <Settings className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+                </Link>
+              )}
+              <button
+                onClick={() => setShowNewChatModal(true)}
+                className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />

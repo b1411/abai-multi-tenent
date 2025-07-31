@@ -87,6 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       key: 'app',
       children: [
         { name: 'Чат', href: '/app/chat', icon: MessageSquare },
+        { name: 'Чаты сотрудников', href: '/app/admin-chats', icon: Users, roles: ['ADMIN'] },
         { name: 'AI чат', href: '/app/ai-chat', icon: Bot, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { name: 'Календарь', href: '/app/calendar', icon: Calendar },
         { name: 'Список дел', href: '/app/tasks', icon: List, roles: ['ADMIN', 'TEACHER'] },

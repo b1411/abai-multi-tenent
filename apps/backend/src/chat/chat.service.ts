@@ -454,4 +454,141 @@ export class ChatService {
 
     return chat;
   }
+
+  // Админские методы
+  async getAllEmployeeChats() {
+    const chats = await this.prisma.chatRoom.findMany({
+      where: {
+        deletedAt: null,
+        participants: {
+          some: {
+            isActive: true,
+            user: {
+              role: { in: ['TEACHER', 'HR', 'FINANCIST'] },
+            },
+          },
+        },
+      },
+      include: {
+        participants: {
+          where: {
+            isActive: true,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                avatar: true,
+                role: true,
+              },
+            },
+          },
+        },
+        messages: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            messages: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    return chats.map(chat => ({
+      ...chat,
+      lastMessage: chat.messages[0] || null,
+      messageCount: chat._count.messages,
+      // Для личного чата показываем участников
+      participants: chat.participants.map(p => ({
+        ...p,
+        user: {
+          ...p.user,
+          roleDisplay: this.getRoleDisplay(p.user.role),
+        },
+      })),
+    }));
+  }
+
+  async getAdminChatMessages(chatId: number, page = 1, limit = 50) {
+    const messages = await this.prisma.chatMessage.findMany({
+      where: {
+        chatId,
+        deletedAt: null,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            avatar: true,
+            role: true,
+          },
+        },
+        replyTo: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const total = await this.prisma.chatMessage.count({
+      where: {
+        chatId,
+        deletedAt: null,
+      },
+    });
+
+    return {
+      data: messages.reverse(), // Возвращаем в хронологическом порядке
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  private getRoleDisplay(role: string): string {
+    const roleMap = {
+      TEACHER: 'Преподаватель',
+      HR: 'HR-специалист',
+      FINANCIST: 'Финансист',
+      ADMIN: 'Администратор',
+      STUDENT: 'Студент',
+      PARENT: 'Родитель',
+    };
+    return roleMap[role] || role;
+  }
 }

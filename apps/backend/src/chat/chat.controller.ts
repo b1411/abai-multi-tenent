@@ -16,6 +16,8 @@ import { ChatService } from './chat.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
+import { RolesGuard } from 'src/common/guards/role.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
 
 @ApiTags('Chat')
 @ApiBearerAuth()
@@ -91,5 +93,41 @@ export class ChatController {
     @Req() req: any,
   ) {
     return this.chatService.deleteMessage(messageId, req.user.id);
+  }
+
+  // Админские эндпоинты
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Получить все чаты сотрудников (админ)' })
+  @ApiResponse({ status: 200, description: 'Список всех чатов получен успешно' })
+  async getAllEmployeeChats(@Req() req: any) {
+    return this.chatService.getAllEmployeeChats();
+  }
+
+  @Get('admin/:chatId/messages')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Просмотр сообщений чата (админ)' })
+  @ApiResponse({ status: 200, description: 'Сообщения чата получены успешно' })
+  async getAdminChatMessages(
+    @Param('chatId', ParseIntPipe) chatId: number,
+    @Query('page') page = 1,
+    @Query('limit') limit = 50,
+  ) {
+    return this.chatService.getAdminChatMessages(
+      chatId,
+      Number(page),
+      Number(limit),
+    );
+  }
+
+  @Get('admin/:chatId/info')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Получить информацию о чате (админ)' })
+  @ApiResponse({ status: 200, description: 'Информация о чате получена успешно' })
+  async getAdminChatInfo(@Param('chatId', ParseIntPipe) chatId: number) {
+    return this.chatService.getChatInfo(chatId);
   }
 }

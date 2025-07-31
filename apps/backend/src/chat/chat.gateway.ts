@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { JwtService } from '../jwt/jwt.service';
@@ -113,9 +113,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (offlineParticipants.length > 0) {
         try {
           const senderName = message.sender?.name || 'Пользователь';
-          const chatName = chat.isGroup
-            ? chat.name || 'Групповой чат'
-            : `${senderName}`;
 
           await this.notificationsService.addNotification({
             userIds: offlineParticipants,

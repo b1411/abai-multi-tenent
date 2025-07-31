@@ -66,6 +66,7 @@ import QuizResultsPage from './pages/QuizResultsPage';
 import QuizAttemptResultPage from './pages/QuizAttemptResultPage';
 import Teachers from './pages/Teachers';
 import TeacherProfile from './pages/TeacherProfile';
+import AdminChats from './pages/AdminChats';
 
 const App: React.FC = () => {
   return (
@@ -174,6 +175,7 @@ const App: React.FC = () => {
                     {/* Applications routes */}
                     <Route path="app">
                       <Route path="chat" element={<ChatPage />} />
+                      <Route path="admin-chats" element={<AdminChats />} />
                       <Route path="ai-chat" element={<AiChatPage />} />
                       <Route path="calendar" element={<CalendarPage />} />
                       <Route path="tasks" element={<TasksPage />} />

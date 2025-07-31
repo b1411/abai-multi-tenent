@@ -6,10 +6,14 @@ import { SalaryFilterDto } from './dto/salary-filter.dto';
 import { Prisma } from '../../generated/prisma';
 import * as ExcelJS from 'exceljs';
 import * as PDFDocument from 'pdfkit';
+import { PayrollNotificationsService } from '../teachers/payroll-notifications.service';
 
 @Injectable()
 export class SalariesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: PayrollNotificationsService,
+  ) {}
 
   async create(createSalaryDto: CreateSalaryDto) {
     const { bonuses, deductions, ...salaryData } = createSalaryDto;
@@ -239,7 +243,7 @@ export class SalariesService {
       throw new BadRequestException('Можно утверждать только черновики зарплат');
     }
 
-    return this.prisma.salary.update({
+    const approvedSalary = await this.prisma.salary.update({
       where: { id },
       data: {
         status: 'APPROVED',
@@ -256,6 +260,15 @@ export class SalariesService {
         deductions: true,
       },
     });
+
+    // Отправляем уведомление о подтверждении зарплаты
+    await this.notificationsService.notifyPayrollApproved(
+      approvedSalary.teacherId,
+      approvedSalary.month,
+      approvedSalary.year
+    );
+
+    return approvedSalary;
   }
 
   async markAsPaid(id: number) {
@@ -265,7 +278,7 @@ export class SalariesService {
       throw new BadRequestException('Можно отметить как выплаченную только утвержденную зарплату');
     }
 
-    return this.prisma.salary.update({
+    const paidSalary = await this.prisma.salary.update({
       where: { id },
       data: {
         status: 'PAID',
@@ -281,6 +294,225 @@ export class SalariesService {
         deductions: true,
       },
     });
+
+    // Отправляем уведомление о выплате зарплаты
+    await this.notificationsService.notifyPayrollPaid(
+      paidSalary.teacherId,
+      paidSalary.month,
+      paidSalary.year
+    );
+
+    return paidSalary;
+  }
+
+  async editSalaryAdjustments(id: number, adjustments: { bonuses?: any[], deductions?: any[], comment?: string }) {
+    const salary = await this.findOne(id);
+
+    if (salary.status === 'PAID') {
+      throw new BadRequestException('Нельзя редактировать выплаченную зарплату');
+    }
+
+    // Удаляем старые бонусы и удержания
+    await this.prisma.salaryBonus.deleteMany({
+      where: { salaryId: id },
+    });
+
+    await this.prisma.salaryDeduction.deleteMany({
+      where: { salaryId: id },
+    });
+
+    // Вычисляем новые суммы
+    const totalBonuses = adjustments.bonuses?.reduce((sum, bonus) => sum + bonus.amount, 0) || 0;
+    const totalDeductions = adjustments.deductions?.reduce((sum, deduction) => sum + deduction.amount, 0) || 0;
+    const totalGross = salary.baseSalary + totalBonuses;
+    const totalNet = totalGross - totalDeductions;
+
+    return this.prisma.salary.update({
+      where: { id },
+      data: {
+        totalGross,
+        totalNet,
+        comment: adjustments.comment || salary.comment,
+        bonuses: adjustments.bonuses ? {
+          create: adjustments.bonuses.map(bonus => ({
+            type: 'OTHER',
+            name: bonus.name,
+            amount: bonus.amount,
+            comment: bonus.comment,
+          })),
+        } : undefined,
+        deductions: adjustments.deductions ? {
+          create: adjustments.deductions.map(deduction => ({
+            name: deduction.name,
+            amount: deduction.amount,
+            comment: deduction.comment,
+          })),
+        } : undefined,
+      },
+      include: {
+        teacher: {
+          include: {
+            user: true,
+          },
+        },
+        bonuses: true,
+        deductions: true,
+      },
+    });
+  }
+
+  async getPendingApprovals() {
+    return this.prisma.salary.findMany({
+      where: {
+        status: 'DRAFT',
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+              },
+            },
+          },
+        },
+        bonuses: true,
+        deductions: true,
+      },
+      orderBy: [
+        { year: 'desc' },
+        { month: 'desc' },
+        { createdAt: 'asc' },
+      ],
+    });
+  }
+
+  async getApprovedSalaries(filters?: { month?: number; year?: number }) {
+    const where: any = {
+      status: 'APPROVED',
+      deletedAt: null,
+    };
+
+    if (filters?.month) {
+      where.month = filters.month;
+    }
+
+    if (filters?.year) {
+      where.year = filters.year;
+    }
+
+    return this.prisma.salary.findMany({
+      where,
+      include: {
+        teacher: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+              },
+            },
+          },
+        },
+        bonuses: true,
+        deductions: true,
+      },
+      orderBy: [
+        { year: 'desc' },
+        { month: 'desc' },
+        { approvedAt: 'desc' },
+      ],
+    });
+  }
+
+  async rejectSalary(id: number, rejectedBy: number, reason: string) {
+    const salary = await this.findOne(id);
+
+    if (salary.status !== 'DRAFT') {
+      throw new BadRequestException('Можно отклонять только черновики зарплат');
+    }
+
+    return this.prisma.salary.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+        comment: `Отклонено: ${reason}. ${salary.comment || ''}`.trim(),
+        updatedAt: new Date(),
+      },
+      include: {
+        teacher: {
+          include: {
+            user: true,
+          },
+        },
+        bonuses: true,
+        deductions: true,
+      },
+    });
+  }
+
+  async getSalaryWorkflow(id: number) {
+    const salary = await this.findOne(id);
+
+    // Получаем информацию о том, кто может подтверждать
+    const approvers = await this.prisma.user.findMany({
+      where: {
+        role: { in: ['ADMIN', 'FINANCIST'] },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        surname: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    // Информация о текущем статусе workflow
+    const workflow = {
+      currentStatus: salary.status,
+      canEdit: salary.status === 'DRAFT',
+      canApprove: salary.status === 'DRAFT',
+      canReject: salary.status === 'DRAFT',
+      canMarkAsPaid: salary.status === 'APPROVED',
+      approvers,
+      timeline: [
+        {
+          status: 'DRAFT',
+          date: salary.createdAt,
+          completed: true,
+          description: 'Зарплата создана',
+        },
+        {
+          status: 'APPROVED',
+          date: salary.approvedAt,
+          completed: salary.status === 'APPROVED' || salary.status === 'PAID',
+          description: 'Зарплата утверждена',
+          approver: salary.approvedBy ? {
+            id: salary.approvedBy,
+            // Здесь можно добавить информацию о том, кто утвердил
+          } : null,
+        },
+        {
+          status: 'PAID',
+          date: salary.paidAt,
+          completed: salary.status === 'PAID',
+          description: 'Зарплата выплачена',
+        },
+      ],
+    };
+
+    return {
+      salary,
+      workflow,
+    };
   }
 
   async getSalaryStatistics(year?: number, month?: number) {
@@ -457,27 +689,69 @@ export class SalariesService {
       include: {
         bonuses: true,
         deductions: true,
+        teacher: {
+          include: {
+            salaryRates: {
+              where: { isActive: true },
+              take: 1,
+            },
+            workedHours: {
+              where: {
+                month: filters?.month,
+                year: filters?.year,
+              },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
     let updatedCount = 0;
 
     for (const salary of salaries) {
-      const totalBonuses = salary.bonuses.reduce((sum, bonus) => sum + bonus.amount, 0);
-      const totalDeductions = salary.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
-      const totalGross = salary.baseSalary + totalBonuses;
-      const totalNet = totalGross - totalDeductions;
+      // Получаем актуальную ставку и отработанные часы
+      const currentRate = salary.teacher.salaryRates[0];
+      const workedHours = salary.teacher.workedHours[0];
 
-      // Обновляем только если изменились расчеты
-      if (salary.totalGross !== totalGross || salary.totalNet !== totalNet) {
-        await this.prisma.salary.update({
-          where: { id: salary.id },
-          data: {
-            totalGross,
-            totalNet,
-          },
-        });
-        updatedCount++;
+      if (currentRate && workedHours) {
+        // Пересчитываем базовую зарплату на основе отработанных часов и ставки
+        const newBaseSalary = Math.round(workedHours.workedHours * currentRate.totalRate);
+        
+        const totalBonuses = salary.bonuses.reduce((sum, bonus) => sum + bonus.amount, 0);
+        const totalDeductions = salary.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+        const totalGross = newBaseSalary + totalBonuses;
+        const totalNet = totalGross - totalDeductions;
+
+        // Обновляем если изменились расчеты
+        if (salary.baseSalary !== newBaseSalary || salary.totalGross !== totalGross || salary.totalNet !== totalNet) {
+          await this.prisma.salary.update({
+            where: { id: salary.id },
+            data: {
+              baseSalary: newBaseSalary,
+              totalGross,
+              totalNet,
+            },
+          });
+          updatedCount++;
+        }
+      } else {
+        // Старый способ расчета, если нет данных о ставке или часах
+        const totalBonuses = salary.bonuses.reduce((sum, bonus) => sum + bonus.amount, 0);
+        const totalDeductions = salary.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+        const totalGross = salary.baseSalary + totalBonuses;
+        const totalNet = totalGross - totalDeductions;
+
+        if (salary.totalGross !== totalGross || salary.totalNet !== totalNet) {
+          await this.prisma.salary.update({
+            where: { id: salary.id },
+            data: {
+              totalGross,
+              totalNet,
+            },
+          });
+          updatedCount++;
+        }
       }
     }
 

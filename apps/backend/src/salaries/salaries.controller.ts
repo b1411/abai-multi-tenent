@@ -152,4 +152,61 @@ export class SalariesController {
   ) {
     return this.salariesService.recalculateSalaries(filters);
   }
+
+  // Новые эндпоинты для workflow и редактирования
+
+  @Get('pending-approvals')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Получить зарплаты, ожидающие подтверждения' })
+  @ApiResponse({ status: 200, description: 'Список зарплат на подтверждение' })
+  getPendingApprovals() {
+    return this.salariesService.getPendingApprovals();
+  }
+
+  @Get('approved')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Получить подтвержденные зарплаты' })
+  @ApiResponse({ status: 200, description: 'Список подтвержденных зарплат' })
+  getApprovedSalaries(
+    @Query('month') month?: number,
+    @Query('year') year?: number,
+  ) {
+    return this.salariesService.getApprovedSalaries({ month, year });
+  }
+
+  @Get(':id/workflow')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Получить информацию о workflow зарплаты' })
+  @ApiResponse({ status: 200, description: 'Информация о workflow' })
+  @ApiResponse({ status: 404, description: 'Зарплата не найдена' })
+  getSalaryWorkflow(@Param('id', ParseIntPipe) id: number) {
+    return this.salariesService.getSalaryWorkflow(id);
+  }
+
+  @Patch(':id/adjustments')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Редактировать надбавки и удержания' })
+  @ApiResponse({ status: 200, description: 'Надбавки и удержания обновлены' })
+  @ApiResponse({ status: 400, description: 'Нельзя редактировать выплаченную зарплату' })
+  @ApiResponse({ status: 404, description: 'Зарплата не найдена' })
+  editSalaryAdjustments(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() adjustments: { bonuses?: any[], deductions?: any[], comment?: string },
+  ) {
+    return this.salariesService.editSalaryAdjustments(id, adjustments);
+  }
+
+  @Post(':id/reject')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Отклонить зарплату' })
+  @ApiResponse({ status: 200, description: 'Зарплата отклонена' })
+  @ApiResponse({ status: 400, description: 'Нельзя отклонить зарплату' })
+  @ApiResponse({ status: 404, description: 'Зарплата не найдена' })
+  rejectSalary(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { reason: string },
+  ) {
+    // Временно используем ID 1 как rejectedBy
+    return this.salariesService.rejectSalary(id, 1, body.reason);
+  }
 }

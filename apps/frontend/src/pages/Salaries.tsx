@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaFilter, 
   FaFileExport, 
@@ -19,7 +20,8 @@ import {
   FaEdit,
   FaTrash,
   FaCalculator,
-  FaSync
+  FaSync,
+  FaUser
 } from 'react-icons/fa';
 import {
   BarChart,
@@ -40,8 +42,12 @@ import { useSalaries } from '../hooks/useSalaries';
 import { useTeachers } from '../hooks/useTeachers';
 import { salaryService } from '../services/salaryService';
 import SalaryForm from '../components/SalaryForm';
+import TeacherSalaryRateForm from '../components/TeacherSalaryRateForm';
+import SalaryAdjustmentsModal from '../components/SalaryAdjustmentsModal';
 
 const Salaries: React.FC = () => {
+  const navigate = useNavigate();
+  
   // Хуки для данных
   const {
     salaries,
@@ -70,10 +76,21 @@ const Salaries: React.FC = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyEmployee, setHistoryEmployee] = useState<any>(null);
   
+  // Новые состояния для управления ставками и корректировками
+  const [showSalaryRateForm, setShowSalaryRateForm] = useState(false);
+  const [selectedTeacherForRate, setSelectedTeacherForRate] = useState<any>(null);
+  const [currentTeacherRate, setCurrentTeacherRate] = useState<any>(null);
+  const [showAdjustmentsModal, setShowAdjustmentsModal] = useState(false);
+  const [selectedSalaryForAdjustments, setSelectedSalaryForAdjustments] = useState<any>(null);
+  
   // Состояния для истории выплат
   const [salaryHistory, setSalaryHistory] = useState<Salary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  
+  // Состояния для ставки преподавателя в модальном окне
+  const [selectedEmployeeRate, setSelectedEmployeeRate] = useState<any>(null);
+  const [rateLoading, setRateLoading] = useState(false);
 
   // Локальные фильтры для UI
   const [localFilters, setLocalFilters] = useState({
@@ -107,8 +124,93 @@ const Salaries: React.FC = () => {
 
   const handleRecalculate = async () => {
     setIsRecalculating(true);
-    await recalculateSalaries();
-    setIsRecalculating(false);
+    
+    try {
+      // Получаем текущий месяц и год для пересчета
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+      
+      // Вызываем новую систему пересчета зарплат
+      const result = await recalculateSalaries({
+        month: currentMonth,
+        year: currentYear
+      });
+      
+      if (result) {
+        // Показываем уведомление об успешном пересчете
+        alert(`Пересчет завершен успешно! Обновлено записей: ${result.summary?.successful || 0}`);
+      }
+    } catch (error) {
+      console.error('Ошибка при пересчете:', error);
+      alert('Произошла ошибка при пересчете зарплат');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  // Обработчики для управления ставками
+  const handleManageTeacherRate = async (teacher: any) => {
+    try {
+      setSelectedTeacherForRate(teacher);
+      // Загружаем текущую ставку преподавателя
+      const currentRate = await salaryService.getTeacherSalaryRate(teacher.id);
+      setCurrentTeacherRate(currentRate);
+      setShowSalaryRateForm(true);
+    } catch (error) {
+      console.error('Ошибка при загрузке ставки преподавателя:', error);
+      setCurrentTeacherRate(null);
+      setShowSalaryRateForm(true);
+    }
+  };
+
+  const handleSubmitTeacherRate = async (rateData: any) => {
+    if (!selectedTeacherForRate) return;
+
+    try {
+      if (currentTeacherRate) {
+        // Обновляем существующую ставку
+        await salaryService.updateTeacherSalaryRate(currentTeacherRate.id, rateData);
+      } else {
+        // Создаем новую ставку
+        await salaryService.createTeacherSalaryRate(selectedTeacherForRate.id, rateData);
+      }
+      
+      // Сбрасываем состояния
+      setShowSalaryRateForm(false);
+      setSelectedTeacherForRate(null);
+      setCurrentTeacherRate(null);
+      
+      alert('Ставка преподавателя успешно сохранена!');
+    } catch (error) {
+      console.error('Ошибка при сохранении ставки:', error);
+      alert('Произошла ошибка при сохранении ставки');
+    }
+  };
+
+  // Обработчики для редактирования корректировок
+  const handleEditAdjustments = (salary: any) => {
+    setSelectedSalaryForAdjustments(salary);
+    setShowAdjustmentsModal(true);
+  };
+
+  const handleSubmitAdjustments = async (adjustments: any) => {
+    if (!selectedSalaryForAdjustments) return;
+
+    try {
+      await salaryService.editSalaryAdjustments(selectedSalaryForAdjustments.id, adjustments);
+      
+      // Обновляем список зарплат
+      // Здесь можно вызвать refresh из useSalaries
+      
+      setShowAdjustmentsModal(false);
+      setSelectedSalaryForAdjustments(null);
+      
+      alert('Корректировки успешно сохранены!');
+    } catch (error) {
+      console.error('Ошибка при сохранении корректировок:', error);
+      alert('Произошла ошибка при сохранении корректировок');
+    }
   };
 
   const handleExport = async () => {
@@ -294,6 +396,58 @@ const Salaries: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Информация о ставке преподавателя */}
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-purple-800">Ставка преподавателя</h3>
+                      {rateLoading && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                      )}
+                    </div>
+                    
+                    {selectedEmployeeRate ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-purple-700">Базовая ставка:</span>
+                          <span className="font-medium text-purple-900">{formatCurrency(selectedEmployeeRate.baseRate)}</span>
+                        </div>
+                        
+                        {selectedEmployeeRate.factors && selectedEmployeeRate.factors.length > 0 && (
+                          <div>
+                            <div className="text-sm text-purple-700 mb-2">Факторы:</div>
+                            <div className="space-y-1">
+                              {selectedEmployeeRate.factors.map((factor: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between text-sm">
+                                  <span className="text-purple-600">{factor.name}</span>
+                                  <span className="font-medium text-purple-800">+{formatCurrency(factor.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="border-t border-purple-300 pt-2 flex items-center justify-between">
+                          <span className="text-sm font-medium text-purple-700">Итоговая ставка:</span>
+                          <span className="text-lg font-bold text-purple-900">{formatCurrency(selectedEmployeeRate.totalRate)}/час</span>
+                        </div>
+                        
+                        {selectedEmployeeRate.createdAt && (
+                          <div className="text-xs text-purple-600">
+                            Настроена: {new Date(selectedEmployeeRate.createdAt).toLocaleDateString('ru-RU')}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        {rateLoading ? (
+                          <div className="text-purple-600">Загрузка ставки...</div>
+                        ) : (
+                          <div className="text-purple-600">Ставка не настроена</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="text-lg font-semibold mb-4">Надбавки</h3>
                     <div className="space-y-2">
@@ -430,6 +584,30 @@ const Salaries: React.FC = () => {
       loadSalaryHistory();
     }
   }, [historyEmployee]);
+
+  // Загружаем ставку преподавателя при открытии модального окна
+  useEffect(() => {
+    const loadEmployeeRate = async () => {
+      if (!selectedEmployee?.teacher?.id) return;
+      
+      try {
+        setRateLoading(true);
+        const rate = await salaryService.getTeacherSalaryRate(selectedEmployee.teacher.id);
+        setSelectedEmployeeRate(rate);
+      } catch (error) {
+        console.error('Ошибка загрузки ставки преподавателя:', error);
+        setSelectedEmployeeRate(null);
+      } finally {
+        setRateLoading(false);
+      }
+    };
+
+    if (selectedEmployee) {
+      loadEmployeeRate();
+    } else {
+      setSelectedEmployeeRate(null);
+    }
+  }, [selectedEmployee]);
 
   // Компонент модального окна истории выплат
   const HistoryModal = () => {
@@ -606,17 +784,10 @@ const Salaries: React.FC = () => {
             Фильтры
           </button>
           <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
-            onClick={() => setShowSalaryForm(true)}
-          >
-            <FaPlus className="mr-2" />
-            Расчет зарплаты
-          </button>
-          <button 
-            className={`px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center ${
+            className={`px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center ${
               isRecalculating 
-                ? 'bg-yellow-100 text-yellow-700 cursor-not-allowed' 
-                : 'hover:bg-gray-50'
+                ? 'bg-green-400 cursor-not-allowed' 
+                : 'hover:bg-green-700'
             }`}
             onClick={handleRecalculate}
             disabled={isRecalculating}
@@ -624,12 +795,12 @@ const Salaries: React.FC = () => {
             {isRecalculating ? (
               <>
                 <FaSync className="mr-2 animate-spin" />
-                Пересчет...
+                Перерасчет...
               </>
             ) : (
               <>
                 <FaCalculator className="mr-2" />
-                Перерасчет
+                Массовый перерасчет
               </>
             )}
           </button>
@@ -815,11 +986,25 @@ const Salaries: React.FC = () => {
                         <FaEye />
                       </button>
                       <button
+                        onClick={() => navigate(`/teachers/${salary.teacher?.id}`)}
+                        className="text-indigo-600 hover:text-indigo-900"
+                        title="Профиль преподавателя"
+                      >
+                        <FaUser />
+                      </button>
+                      <button
                         onClick={() => handleEditSalary(salary)}
                         className="text-green-600 hover:text-green-900"
                         title="Редактировать"
                       >
                         <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleEditAdjustments(salary)}
+                        className="text-purple-600 hover:text-purple-900"
+                        title="Корректировки"
+                      >
+                        <FaCalculator />
                       </button>
                       {salary.status === 'APPROVED' && (
                         <button
@@ -863,6 +1048,33 @@ const Salaries: React.FC = () => {
         onSubmit={handleCreateSalary}
         teachers={teachers}
         editingSalary={editingSalary}
+        isLoading={loading}
+      />
+
+      {/* Форма управления ставками преподавателей */}
+      <TeacherSalaryRateForm
+        isOpen={showSalaryRateForm}
+        onClose={() => {
+          setShowSalaryRateForm(false);
+          setSelectedTeacherForRate(null);
+          setCurrentTeacherRate(null);
+        }}
+        onSubmit={handleSubmitTeacherRate}
+        teacherId={selectedTeacherForRate?.id || 0}
+        teacherName={selectedTeacherForRate ? `${selectedTeacherForRate.user?.surname} ${selectedTeacherForRate.user?.name}` : ''}
+        currentRate={currentTeacherRate}
+        isLoading={loading}
+      />
+
+      {/* Модальное окно редактирования корректировок */}
+      <SalaryAdjustmentsModal
+        isOpen={showAdjustmentsModal}
+        onClose={() => {
+          setShowAdjustmentsModal(false);
+          setSelectedSalaryForAdjustments(null);
+        }}
+        onSubmit={handleSubmitAdjustments}
+        salary={selectedSalaryForAdjustments}
         isLoading={loading}
       />
     </div>

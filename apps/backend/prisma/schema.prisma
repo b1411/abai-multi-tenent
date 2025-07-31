@@ -194,6 +194,10 @@ model Teacher {
   
   // Замещения в расписании
   substituteSchedules Schedule[]     @relation("ScheduleSubstitute")
+  
+  // Система ставок и отработанных часов
+  salaryRates      TeacherSalaryRate[]
+  workedHours      TeacherWorkedHours[]
 }
 
 model Parent {
@@ -1700,4 +1704,40 @@ model DocumentTemplate {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// --- Система ставок и отработанных часов ---
+
+// Ставки преподавателя
+model TeacherSalaryRate {
+  id         Int      @id @default(autoincrement())
+  teacherId  Int
+  teacher    Teacher  @relation(fields: [teacherId], references: [id])
+  baseRate   Int      // базовая ставка в тенге за час
+  factors    Json     // [{name: "За опыт", amount: 2000}, {name: "За опыт в академии", amount: 3000}]
+  totalRate  Int      // итоговая почасовая ставка
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  @@index([teacherId, isActive])
+}
+
+// Отработанные часы преподавателя
+model TeacherWorkedHours {
+  id              Int      @id @default(autoincrement())
+  teacherId       Int
+  teacher         Teacher  @relation(fields: [teacherId], references: [id])
+  month           Int      // 1-12
+  year            Int
+  scheduledHours  Int      // запланированные часы из расписания
+  workedHours     Int      // фактически отработанные часы (с учетом замещений)
+  substitutedHours Int     @default(0) // часы замещения других
+  substitutedByOthers Int  @default(0) // часы, замещенные другими
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([teacherId, month, year])
+  @@index([teacherId, year, month])
 }

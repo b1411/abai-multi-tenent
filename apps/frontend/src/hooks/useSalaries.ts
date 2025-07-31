@@ -184,10 +184,134 @@ export const useSalaries = (initialFilters?: SalaryFilter) => {
     updateFilters({ page: 1, limit });
   };
 
-  // Пересчет зарплат (перезагрузка данных)
-  const recalculateSalaries = async () => {
-    await fetchSalaries();
-    await fetchStatistics();
+  // Пересчет зарплат через новую систему
+  const recalculateSalaries = async (filters?: { month?: number; year?: number }) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Используем новую систему пересчета зарплат
+      const result = await salaryService.recalculateSalaries(filters);
+      
+      // Обновляем данные после пересчета
+      await fetchSalaries();
+      await fetchStatistics();
+      
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при пересчете зарплат');
+      console.error('Error recalculating salaries:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Получить сводку по зарплатам
+  const getPayrollSummary = async (month: number, year: number) => {
+    try {
+      return await salaryService.getPayrollSummary(month, year);
+    } catch (err) {
+      console.error('Error fetching payroll summary:', err);
+      return null;
+    }
+  };
+
+  // Получить детали расчета зарплаты
+  const getPayrollDetails = async (teacherId: number, month: number, year: number) => {
+    try {
+      return await salaryService.getPayrollDetails(teacherId, month, year);
+    } catch (err) {
+      console.error('Error fetching payroll details:', err);
+      return null;
+    }
+  };
+
+  // Управление ставками преподавателей
+  const getTeacherSalaryRate = async (teacherId: number) => {
+    try {
+      return await salaryService.getTeacherSalaryRate(teacherId);
+    } catch (err) {
+      console.error('Error fetching teacher salary rate:', err);
+      return null;
+    }
+  };
+
+  const createTeacherSalaryRate = async (teacherId: number, rateData: any) => {
+    try {
+      setLoading(true);
+      const result = await salaryService.createTeacherSalaryRate(teacherId, rateData);
+      
+      // Обновляем данные после изменения ставки
+      await fetchSalaries();
+      await fetchStatistics();
+      
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при создании ставки');
+      console.error('Error creating teacher salary rate:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Отработанные часы
+  const getWorkedHours = async (teacherId: number, month: number, year: number) => {
+    try {
+      return await salaryService.getWorkedHours(teacherId, month, year);
+    } catch (err) {
+      console.error('Error fetching worked hours:', err);
+      return null;
+    }
+  };
+
+  // Workflow управления зарплатами
+  const getPendingApprovals = async () => {
+    try {
+      return await salaryService.getPendingApprovals();
+    } catch (err) {
+      console.error('Error fetching pending approvals:', err);
+      return [];
+    }
+  };
+
+  const editSalaryAdjustments = async (salaryId: number, adjustments: any) => {
+    try {
+      setLoading(true);
+      const result = await salaryService.editSalaryAdjustments(salaryId, adjustments);
+      
+      // Обновляем данные после редактирования
+      await fetchSalaries();
+      await fetchStatistics();
+      
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при редактировании надбавок');
+      console.error('Error editing salary adjustments:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const rejectSalary = async (salaryId: number, reason: string) => {
+    try {
+      setLoading(true);
+      const result = await salaryService.rejectSalary(salaryId, reason);
+      
+      // Обновляем данные после отклонения
+      await fetchSalaries();
+      await fetchStatistics();
+      
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при отклонении зарплаты');
+      console.error('Error rejecting salary:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Начальная загрузка данных

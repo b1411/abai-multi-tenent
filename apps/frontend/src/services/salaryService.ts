@@ -79,8 +79,100 @@ export const salaryService = {
     return await apiClient.getBlob(`/salaries/export?${params.toString()}`);
   },
 
-  // Пересчитать зарплаты
-  async recalculateSalaries(filters?: { month?: number; year?: number }): Promise<void> {
-    return await apiClient.post('/salaries/recalculate', filters);
+  // Пересчитать зарплаты через новую систему
+  async recalculateSalaries(filters?: { month?: number; year?: number }): Promise<any> {
+    return await apiClient.post('/payroll/recalculate', filters);
+  },
+
+  // Получить сводку по зарплатам
+  async getPayrollSummary(month: number, year: number): Promise<any> {
+    return await apiClient.get(`/payroll/summary/${year}/${month}`);
+  },
+
+  // Получить детали расчета зарплаты конкретного преподавателя
+  async getPayrollDetails(teacherId: number, month: number, year: number): Promise<any> {
+    return await apiClient.get(`/payroll/details/${teacherId}/${year}/${month}`);
+  },
+
+  // Управление ставками преподавателей
+  async getTeacherSalaryRate(teacherId: number): Promise<any> {
+    return await apiClient.get(`/teachers/${teacherId}/salary-rate`);
+  },
+
+  async createTeacherSalaryRate(teacherId: number, rateData: any): Promise<any> {
+    return await apiClient.post(`/teachers/${teacherId}/salary-rate`, rateData);
+  },
+
+  async updateTeacherSalaryRate(rateId: number, rateData: any): Promise<any> {
+    return await apiClient.patch(`/teachers/salary-rate/${rateId}`, rateData);
+  },
+
+  // Отработанные часы
+  async getWorkedHours(teacherId: number, month: number, year: number): Promise<any> {
+    return await apiClient.get(`/teachers/${teacherId}/worked-hours/${year}/${month}`);
+  },
+
+  async calculateWorkedHours(teacherId: number, month: number, year: number): Promise<any> {
+    return await apiClient.post(`/teachers/${teacherId}/calculate-worked-hours/${year}/${month}`);
+  },
+
+  async getWorkedHoursDetails(teacherId: number, month: number, year: number): Promise<any> {
+    return await apiClient.get(`/teachers/${teacherId}/worked-hours-details/${year}/${month}`);
+  },
+
+  // Система замещений
+  async getAvailableTeachers(date: string, startTime: string, endTime: string, excludeTeacherId?: number): Promise<any> {
+    const params = new URLSearchParams({
+      date,
+      startTime,
+      endTime,
+    });
+    if (excludeTeacherId) {
+      params.append('excludeTeacherId', excludeTeacherId.toString());
+    }
+    return await apiClient.get(`/substitutions/available-teachers?${params.toString()}`);
+  },
+
+  async createSubstitution(substitutionData: any): Promise<any> {
+    return await apiClient.post('/substitutions', substitutionData);
+  },
+
+  async removeSubstitution(scheduleId: string): Promise<any> {
+    return await apiClient.delete(`/substitutions/${scheduleId}`);
+  },
+
+  async getSubstitutions(filters?: any): Promise<any> {
+    const params = new URLSearchParams();
+    if (filters?.teacherId) params.append('teacherId', filters.teacherId.toString());
+    if (filters?.substituteId) params.append('substituteId', filters.substituteId.toString());
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+
+    return await apiClient.get(`/substitutions?${params.toString()}`);
+  },
+
+  // Workflow управления зарплатами
+  async getPendingApprovals(): Promise<any> {
+    return await apiClient.get('/salaries/pending-approvals');
+  },
+
+  async getApprovedSalaries(filters?: { month?: number; year?: number }): Promise<any> {
+    const params = new URLSearchParams();
+    if (filters?.month) params.append('month', filters.month.toString());
+    if (filters?.year) params.append('year', filters.year.toString());
+
+    return await apiClient.get(`/salaries/approved?${params.toString()}`);
+  },
+
+  async getSalaryWorkflow(salaryId: number): Promise<any> {
+    return await apiClient.get(`/salaries/${salaryId}/workflow`);
+  },
+
+  async editSalaryAdjustments(salaryId: number, adjustments: any): Promise<any> {
+    return await apiClient.patch(`/salaries/${salaryId}/adjustments`, adjustments);
+  },
+
+  async rejectSalary(salaryId: number, reason: string): Promise<any> {
+    return await apiClient.post(`/salaries/${salaryId}/reject`, { reason });
   },
 };

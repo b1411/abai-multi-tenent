@@ -1,637 +1,421 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  FaSearch, 
-  FaDownload, 
-  FaPlus, 
-  FaTimes, 
-  FaEnvelope, 
-  FaPhone, 
-  FaGraduationCap, 
-  FaCalendarAlt, 
-  FaIdCard, 
-  FaMapMarkerAlt, 
-  FaExchangeAlt,
-  FaEllipsisV,
-  FaChalkboardTeacher,
+  FaUser, 
   FaUsers,
-  FaClock,
-  FaFileAlt
+  FaSearch,
+  FaFilter,
+  FaPlus,
+  FaEnvelope,
+  FaPhone,
+  FaCalendar,
+  FaGraduationCap,
+  FaMedal,
+  FaChartLine,
+  FaDollarSign,
+  FaEye,
+  FaCog,
+  FaUserTie
 } from 'react-icons/fa';
-import { useTeachers, useTeacherActions } from '../hooks/useTeachers';
-import { Spinner } from '../components/ui/Spinner';
-import { Alert } from '../components/ui/Alert';
-import type { Teacher, TeacherFilters } from '../types/teacher';
+import { formatCurrency } from '../utils/formatters';
+import { useTeachers } from '../hooks/useTeachers';
+import { salaryService } from '../services/salaryService';
+import TeacherSalaryRateForm from '../components/TeacherSalaryRateForm';
 
 const Teachers: React.FC = () => {
-  const [filters, setFilters] = useState<TeacherFilters>({
-    search: '',
-    employmentType: 'all',
-    subject: '',
-    status: 'all'
-  });
-  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const navigate = useNavigate();
+  const { teachers, loading, error } = useTeachers();
+  
+  // Состояния для UI
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSalaryRateForm, setShowSalaryRateForm] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [currentTeacherRate, setCurrentTeacherRate] = useState<any>(null);
+  const [teacherStats, setTeacherStats] = useState<{[key: number]: any}>({});
 
-  const { teachers, loading, error, refreshTeachers } = useTeachers(filters);
-  const { exportTeachers, deleteTeacher, changeEmploymentType, loading: actionLoading } = useTeacherActions();
-
-  // Разделение сотрудников на штатных и совместителей
-  const filteredTeachers = teachers.filter(teacher => {
-    // Фильтр по поиску
-    const matchesSearch = !filters.search || 
-      teacher.user.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      teacher.user.surname.toLowerCase().includes(filters.search.toLowerCase()) ||
-      teacher.user.email.toLowerCase().includes(filters.search.toLowerCase());
-    
-    // Фильтр по типу занятости
-    const matchesEmploymentType = filters.employmentType === 'all' || 
-      teacher.employmentType === filters.employmentType;
-    
-    return matchesSearch && matchesEmploymentType;
-  });
-
-  const staffTeachers = filteredTeachers.filter(teacher => teacher.employmentType === 'STAFF');
-  const partTimeTeachers = filteredTeachers.filter(teacher => teacher.employmentType === 'PART_TIME');
-
-  const getEmploymentTypeColor = (type: 'STAFF' | 'PART_TIME') => {
-    return type === 'STAFF' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800';
-  };
-
-  const getEmploymentTypeText = (type: 'STAFF' | 'PART_TIME') => {
-    return type === 'STAFF' ? 'Штатный' : 'Совместитель';
-  };
-
-  const handleExport = async () => {
-    try {
-      await exportTeachers('xlsx');
-    } catch (error) {
-      console.error('Ошибка экспорта:', error);
-    }
-  };
-
-  const handleDeleteTeacher = async (teacherId: number) => {
-    if (window.confirm('Вы уверены, что хотите удалить преподавателя?')) {
-      try {
-        await deleteTeacher(teacherId);
-        refreshTeachers();
-        if (selectedTeacher?.id === teacherId) {
-          setSelectedTeacher(null);
-        }
-      } catch (error) {
-        console.error('Ошибка удаления:', error);
-      }
-    }
-  };
-
-  const handleChangeEmploymentType = async (teacherId: number, currentType: 'STAFF' | 'PART_TIME') => {
-    const newType = currentType === 'STAFF' ? 'PART_TIME' : 'STAFF';
-    const actionText = newType === 'STAFF' ? 'в штатные' : 'в совместители';
-    
-    if (window.confirm(`Вы уверены, что хотите перевести преподавателя ${actionText}?`)) {
-      try {
-        await changeEmploymentType(teacherId, newType);
-        refreshTeachers();
-        if (selectedTeacher?.id === teacherId) {
-          setSelectedTeacher(null);
-        }
-      } catch (error) {
-        console.error('Ошибка изменения типа занятости:', error);
-      }
-    }
-  };
-
-  const getDayName = (dayNumber: number) => {
-    const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-    return days[dayNumber] || '';
-  };
-
-  const formatTime = (time: string) => {
-    return time.substring(0, 5); // HH:MM
-  };
-
-  // Компонент таблицы преподавателей
-  const TeacherTable = ({ teachers, title }: { teachers: Teacher[], title: string }) => (
-    <div className="bg-white rounded-lg shadow">
-      <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 bg-gray-50 border-b border-gray-200">
-        <h2 className="text-base sm:text-lg font-medium text-gray-900">{title} ({teachers.length})</h2>
-        <p className="text-xs sm:text-sm text-gray-500">Всего: {teachers.length} человек</p>
-      </div>
+  // Фильтрация преподавателей
+  const filteredTeachers = useMemo(() => {
+    return teachers.filter(teacher => {
+      const matchesSearch = 
+        teacher.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        teacher.user.surname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        teacher.user.email.toLowerCase().includes(searchQuery.toLowerCase());
       
-      {/* Desktop Table View */}
-      <div className="hidden lg:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Преподаватель
-              </th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Предметы
-              </th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Нагрузка
-              </th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Контакты
-              </th>
-              <th className="px-6 py-3 bg-gray-50"></th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {teachers.map((teacher) => (
-              <tr 
-                key={teacher.id} 
-                className="hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => setSelectedTeacher(teacher)}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-medium text-sm">
-                        {teacher.user.surname.charAt(0)}{teacher.user.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {teacher.user.surname} {teacher.user.name}
-                        {teacher.user.middlename && ` ${teacher.user.middlename}`}
-                      </div>
-                      <div className="text-sm text-gray-500">{teacher.user.email}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900">
-                    {teacher.studyPlans && teacher.studyPlans.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {teacher.studyPlans.slice(0, 3).map((plan) => (
-                          <span 
-                            key={plan.id}
-                            className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs"
-                          >
-                            {plan.name}
-                          </span>
-                        ))}
-                        {teacher.studyPlans.length > 3 && (
-                          <span className="text-xs text-gray-500">
-                            +{teacher.studyPlans.length - 3} еще
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-500 text-sm">Предметы не назначены</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {teacher.studyPlans ? (
-                      <>
-                        <div className="flex items-center">
-                          <FaUsers className="w-3 h-3 text-gray-400 mr-1" />
-                          <span>{teacher.studyPlans.reduce((total, plan) => total + (plan.group?.length || 0), 0)} групп</span>
-                        </div>
-                        <div className="flex items-center">
-                          <FaClock className="w-3 h-3 text-gray-400 mr-1" />
-                          <span>{teacher.schedules?.length || 0} часов/нед</span>
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-gray-500">—</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">
-                    {teacher.user.phone && (
-                      <div className="flex items-center">
-                        <FaPhone className="w-3 h-3 mr-1" />
-                        {teacher.user.phone}
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end gap-2">
-                    <button 
-                      className="text-gray-400 hover:text-blue-500 p-1 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleChangeEmploymentType(teacher.id, teacher.employmentType);
-                      }}
-                      title={teacher.employmentType === 'STAFF' ? 'Перевести в совместители' : 'Перевести в штатные'}
-                    >
-                      <FaExchangeAlt className="w-4 h-4" />
-                    </button>
-                    <button 
-                      className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTeacher(teacher.id);
-                      }}
-                      title="Удалить преподавателя"
-                    >
-                      <FaTimes className="w-4 h-4" />
-                    </button>
-                    <button 
-                      className="text-gray-400 hover:text-gray-500 p-1 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTeacher(teacher);
-                      }}
-                    >
-                      <FaEllipsisV className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {teachers.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                  В этой категории нет преподавателей
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      const matchesDepartment = selectedDepartment === 'all' || 
+        (teacher as any).department === selectedDepartment;
+      
+      const matchesCategory = selectedCategory === 'all' || 
+        (teacher as any).category === selectedCategory;
+      
+      return matchesSearch && matchesDepartment && matchesCategory;
+    });
+  }, [teachers, searchQuery, selectedDepartment, selectedCategory]);
 
-      {/* Mobile Card View */}
-      <div className="lg:hidden">
-        {teachers.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
-            В этой категории нет преподавателей
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {teachers.map((teacher) => (
-              <div 
-                key={teacher.id}
-                className="p-3 sm:p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => setSelectedTeacher(teacher)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-blue-600 font-medium text-sm">
-                        {teacher.user.surname.charAt(0)}{teacher.user.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm sm:text-base font-medium text-gray-900 truncate">
-                        {teacher.user.surname} {teacher.user.name}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-500 truncate">{teacher.user.email}</p>
-                      
-                      {/* Предметы */}
-                      {teacher.studyPlans && teacher.studyPlans.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {teacher.studyPlans.slice(0, 2).map((plan) => (
-                            <span 
-                              key={plan.id}
-                              className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs"
-                            >
-                              {plan.name}
-                            </span>
-                          ))}
-                          {teacher.studyPlans.length > 2 && (
-                            <span className="text-xs text-gray-500 px-2 py-1">
-                              +{teacher.studyPlans.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Нагрузка и контакты */}
-                      <div className="mt-2 space-y-1">
-                        {teacher.studyPlans && (
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <div className="flex items-center">
-                              <FaUsers className="w-3 h-3 mr-1" />
-                              <span>{teacher.studyPlans.reduce((total, plan) => total + (plan.group?.length || 0), 0)} групп</span>
-                            </div>
-                            <div className="flex items-center">
-                              <FaClock className="w-3 h-3 mr-1" />
-                              <span>{teacher.schedules?.length || 0} ч/нед</span>
-                            </div>
-                          </div>
-                        )}
-                        {teacher.user.phone && (
-                          <div className="flex items-center text-xs text-gray-500">
-                            <FaPhone className="w-3 h-3 mr-1" />
-                            <span>{teacher.user.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-1 ml-2">
-                    <button 
-                      className="text-gray-400 hover:text-blue-500 p-2 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleChangeEmploymentType(teacher.id, teacher.employmentType);
-                      }}
-                      title={teacher.employmentType === 'STAFF' ? 'Перевести в совместители' : 'Перевести в штатные'}
-                    >
-                      <FaExchangeAlt className="w-4 h-4" />
-                    </button>
-                    <button 
-                      className="text-gray-400 hover:text-red-500 p-2 rounded transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTeacher(teacher.id);
-                      }}
-                      title="Удалить преподавателя"
-                    >
-                      <FaTimes className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // Загрузка статистики по преподавателю
+  const loadTeacherStats = async (teacherId: number) => {
+    try {
+      const history = await salaryService.getSalaryHistory(teacherId);
+      const stats = {
+        totalSalaries: history.length,
+        totalAmount: history.reduce((sum, s) => sum + s.totalNet, 0),
+        avgSalary: history.length > 0 ? history.reduce((sum, s) => sum + s.totalNet, 0) / history.length : 0,
+        lastSalary: history.length > 0 ? history[0] : null
+      };
+      
+      setTeacherStats(prev => ({
+        ...prev,
+        [teacherId]: stats
+      }));
+    } catch (error) {
+      console.error('Ошибка загрузки статистики:', error);
+      // Устанавливаем пустую статистику в случае ошибки
+      setTeacherStats(prev => ({
+        ...prev,
+        [teacherId]: {
+          totalSalaries: 0,
+          totalAmount: 0,
+          avgSalary: 0,
+          lastSalary: null
+        }
+      }));
+    }
+  };
+
+  // Обработчики
+  const handleViewProfile = (teacher: any) => {
+    navigate(`/teachers/${teacher.id}`);
+  };
+
+  const handleManageRate = async (teacher: any) => {
+    try {
+      setSelectedTeacher(teacher);
+      const rate = await salaryService.getTeacherSalaryRate(teacher.id);
+      setCurrentTeacherRate(rate);
+      setShowSalaryRateForm(true);
+    } catch (error) {
+      console.error('Ошибка при загрузке ставки:', error);
+      setCurrentTeacherRate(null);
+      setShowSalaryRateForm(true);
+    }
+  };
+
+  const handleSubmitRate = async (rateData: any) => {
+    if (!selectedTeacher) return;
+
+    try {
+      if (currentTeacherRate) {
+        await salaryService.updateTeacherSalaryRate(currentTeacherRate.id, rateData);
+      } else {
+        await salaryService.createTeacherSalaryRate(selectedTeacher.id, rateData);
+      }
+      
+      setShowSalaryRateForm(false);
+      setSelectedTeacher(null);
+      setCurrentTeacherRate(null);
+      
+      alert('Ставка преподавателя успешно сохранена!');
+    } catch (error) {
+      console.error('Ошибка при сохранении ставки:', error);
+      throw error;
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spinner size="lg" />
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-red-500 py-12">
+        <p>Ошибка при загрузке списка преподавателей: {error}</p>
       </div>
     );
   }
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6">
-      <div className="flex flex-col space-y-4 lg:flex-row lg:justify-between lg:items-center lg:space-y-0 mb-4 lg:mb-6">
+    <div className="p-6">
+      {/* Заголовок и действия */}
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Сотрудники и преподаватели</h1>
-          <p className="text-sm text-gray-500">Управление кадровым составом образовательного учреждения</p>
+          <h1 className="text-2xl font-bold text-gray-800">Преподаватели</h1>
+          <p className="text-gray-600 mt-1">Управление профилями и ставками преподавателей</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <button 
-            className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
-            onClick={handleExport}
-            disabled={actionLoading}
+        <div className="flex gap-3">
+          <button
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+            onClick={() => setShowFilters(!showFilters)}
           >
-            <FaDownload className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Экспорт</span>
-            <span className="sm:hidden">Скачать</span>
+            <FaFilter className="mr-2" />
+            Фильтры
           </button>
-          <button 
-            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
-            onClick={() => setShowAddModal(true)}
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
           >
-            <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Добавить преподавателя</span>
-            <span className="sm:hidden">Добавить</span>
+            <FaPlus className="mr-2" />
+            Добавить преподавателя
           </button>
         </div>
       </div>
 
-      {error && (
-        <Alert variant="error" className="mb-4 lg:mb-6">
-          {error}
-        </Alert>
-      )}
-
-      <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:gap-4 mb-4 lg:mb-6">
-        <div className="flex-1 relative">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
-          <input
-            type="text"
-            placeholder="Поиск по преподавателям..."
-            className="w-full pl-8 sm:pl-10 pr-4 py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-          />
+      {/* Статистика */}
+      <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">Всего преподавателей</div>
+            <FaUsers className="text-blue-600" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold">{teachers.length}</div>
+          </div>
         </div>
-        <select
-          className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-          value={filters.employmentType}
-          onChange={(e) => setFilters(prev => ({ ...prev, employmentType: e.target.value as any }))}
-        >
-          <option value="all">Все типы занятости</option>
-          <option value="STAFF">Штатные</option>
-          <option value="PART_TIME">Совместители</option>
-        </select>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">Активных</div>
+            <FaUserTie className="text-green-600" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-green-600">{teachers.length}</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">Со ставками</div>
+            <FaDollarSign className="text-purple-600" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-purple-600">
+              {Object.keys(teacherStats).length}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">Средний стаж</div>
+            <FaChartLine className="text-orange-600" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-orange-600">
+              {teachers.length > 0 
+                ? Math.round(teachers.reduce((sum, t) => sum + ((t as any).experience || 0), 0) / teachers.length)
+                : 0
+              } лет
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Двухколоночный макет */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-        {/* Колонка штатных преподавателей */}
-        <TeacherTable teachers={staffTeachers} title="🟦 Штатные преподаватели" />
-        
-        {/* Колонка совместителей */}
-        <TeacherTable teachers={partTimeTeachers} title="🟨 Совместители" />
+      {/* Поиск и фильтры */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Поиск */}
+          <div className="flex-1">
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Поиск по имени, фамилии или email..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Фильтры */}
+          {showFilters && (
+            <div className="flex gap-4">
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+              >
+                <option value="all">Все отделы</option>
+                <option value="Информатика">Информатика</option>
+                <option value="Математика">Математика</option>
+                <option value="Физика">Физика</option>
+                <option value="Химия">Химия</option>
+              </select>
+
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="all">Все категории</option>
+                <option value="Высшая категория">Высшая категория</option>
+                <option value="Первая категория">Первая категория</option>
+                <option value="Вторая категория">Вторая категория</option>
+                <option value="Без категории">Без категории</option>
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Модальное окно преподавателя */}
-      {selectedTeacher && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              {/* Заголовок */}
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center">
-                  <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-blue-600 text-xl font-medium">
-                      {selectedTeacher.user.surname.charAt(0)}{selectedTeacher.user.name.charAt(0)}
-                    </span>
+      {/* Список преподавателей */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredTeachers.map((teacher) => {
+          const stats = teacherStats[teacher.id];
+          
+          return (
+            <div key={teacher.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              {/* Заголовок карточки */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <FaUser className="w-6 h-6 text-blue-600" />
                   </div>
-                  <div className="ml-4">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        {selectedTeacher.user.surname} {selectedTeacher.user.name}
-                        {selectedTeacher.user.middlename && ` ${selectedTeacher.user.middlename}`}
-                      </h2>
-                    </div>
-                    <p className="text-gray-600">{selectedTeacher.user.email}</p>
-                    <div className="flex gap-2 mt-2">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getEmploymentTypeColor(selectedTeacher.employmentType)}`}>
-                        {getEmploymentTypeText(selectedTeacher.employmentType)}
-                      </span>
-                    </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      {teacher.user.surname} {teacher.user.name}
+                    </h3>
+                    <p className="text-sm text-gray-500">{teacher.user.middlename}</p>
                   </div>
                 </div>
-                <button 
-                  className="text-gray-400 hover:text-gray-500"
-                  onClick={() => setSelectedTeacher(null)}
-                >
-                  <FaTimes className="w-6 h-6" />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleViewProfile(teacher)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Профиль"
+                  >
+                    <FaEye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleManageRate(teacher)}
+                    className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                    title="Настроить ставку"
+                  >
+                    <FaCog className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Основная информация */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Контактная информация</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <FaEnvelope className="w-5 h-5 text-gray-400 mr-3" />
-                      <span>{selectedTeacher.user.email}</span>
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <FaEnvelope className="text-gray-400 w-4 h-4" />
+                  <span className="text-gray-600 truncate">{teacher.user.email}</span>
+                </div>
+                
+                {/* Отдел преподавателя */}
+                {(teacher as any).department && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <FaGraduationCap className="text-gray-400 w-4 h-4" />
+                    <span className="text-gray-600">
+                      {(teacher as any).department}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Категория преподавателя */}
+                {(teacher as any).category && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <FaMedal className="text-gray-400 w-4 h-4" />
+                    <span className="text-gray-600">
+                      {(teacher as any).category}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Статистика */}
+              {stats ? (
+                <div className="border-t pt-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-500">Выплат</div>
+                      <div className="font-semibold">{stats.totalSalaries}</div>
                     </div>
-                    {selectedTeacher.user.phone && (
-                      <div className="flex items-center">
-                        <FaPhone className="w-5 h-5 text-gray-400 mr-3" />
-                        <span>{selectedTeacher.user.phone}</span>
+                    <div>
+                      <div className="text-gray-500">Общая сумма</div>
+                      <div className="font-semibold text-green-600">
+                        {formatCurrency(stats.totalAmount)}
                       </div>
-                    )}
+                    </div>
                   </div>
+                  
+                  {stats.lastSalary && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="text-xs text-gray-500 mb-1">Последняя выплата</div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">
+                          {stats.lastSalary.month}/{stats.lastSalary.year}
+                        </span>
+                        <span className="text-sm font-bold text-blue-600">
+                          {formatCurrency(stats.lastSalary.totalNet)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Профессиональная информация</h3>
-                  <div className="space-y-3">
-                    {selectedTeacher.specialization && (
-                      <div className="flex items-center">
-                        <FaGraduationCap className="w-5 h-5 text-gray-400 mr-3" />
-                        <span>{selectedTeacher.specialization}</span>
-                      </div>
-                    )}
-                    {selectedTeacher.qualification && (
-                      <div className="flex items-center">
-                        <FaIdCard className="w-5 h-5 text-gray-400 mr-3" />
-                        <span>{selectedTeacher.qualification}</span>
-                      </div>
-                    )}
-                    {selectedTeacher.experience && (
-                      <div className="flex items-center">
-                        <FaCalendarAlt className="w-5 h-5 text-gray-400 mr-3" />
-                        <span>Опыт: {selectedTeacher.experience} лет</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Предметы */}
-              {selectedTeacher.studyPlans && selectedTeacher.studyPlans.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Преподаваемые предметы</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedTeacher.studyPlans.map((plan) => (
-                      <div key={plan.id} className="p-4 bg-gray-50 rounded-lg">
-                        <div className="font-medium text-gray-900 mb-2">{plan.name}</div>
-                        {plan.description && (
-                          <div className="text-sm text-gray-600 mb-2">{plan.description}</div>
-                        )}
-                        {plan.group && plan.group.length > 0 && (
-                          <div className="text-sm text-gray-500">
-                            Группы: {plan.group.map(g => g.name).join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Расписание */}
-              {selectedTeacher.schedules && selectedTeacher.schedules.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Расписание</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedTeacher.schedules.map((schedule) => (
-                      <div key={schedule.id} className="p-3 bg-blue-50 rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {getDayName(schedule.dayOfWeek)} {formatTime(schedule.startTime)}-{formatTime(schedule.endTime)}
-                            </div>
-                            <div className="text-sm text-gray-600">{schedule.studyPlan.name}</div>
-                            <div className="text-sm text-gray-500">Группа: {schedule.group.name}</div>
-                          </div>
-                          {schedule.classroom && (
-                            <div className="text-sm text-gray-500">
-                              {schedule.classroom.building}-{schedule.classroom.name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Кнопки действий */}
-              <div className="flex justify-between pt-4 border-t">
-                <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    Редактировать
-                  </button>
-                  <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
-                    Скачать личное дело
-                  </button>
-                  <button 
-                    className="px-4 py-2 bg-orange-50 text-orange-700 rounded-md hover:bg-orange-100 flex items-center gap-2"
-                    onClick={() => handleChangeEmploymentType(selectedTeacher.id, selectedTeacher.employmentType)}
+              ) : (
+                <div className="border-t pt-4">
+                  <button
+                    onClick={() => loadTeacherStats(teacher.id)}
+                    className="w-full py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    <FaExchangeAlt className="w-4 h-4" />
-                    {selectedTeacher.employmentType === 'STAFF' ? 'В совместители' : 'В штатные'}
+                    Загрузить статистику
                   </button>
                 </div>
-                <button 
-                  className="px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100"
-                  onClick={() => handleDeleteTeacher(selectedTeacher.id)}
+              )}
+
+              {/* Действия */}
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => handleViewProfile(teacher)}
+                  className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Удалить
+                  Профиль
+                </button>
+                <button
+                  onClick={() => handleManageRate(teacher)}
+                  className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Ставка
                 </button>
               </div>
             </div>
-          </div>
+          );
+        })}
+      </div>
+
+      {/* Пустое состояние */}
+      {filteredTeachers.length === 0 && (
+        <div className="text-center py-12">
+          <FaUsers className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+          <p className="text-gray-500">
+            {searchQuery || selectedDepartment !== 'all' || selectedCategory !== 'all'
+              ? 'Преподаватели не найдены по заданным критериям'
+              : 'Список преподавателей пуст'
+            }
+          </p>
         </div>
       )}
 
-      {/* Модальное окно добавления преподавателя */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Добавить преподавателя</h2>
-                <button 
-                  className="text-gray-400 hover:text-gray-500"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  <FaTimes className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="mb-6">
-                <p className="mb-4 text-gray-700">Выберите тип занятости:</p>
-                <div className="flex gap-4">
-                  <div className="flex-1 p-4 border border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer">
-                    <h3 className="font-medium mb-2">Штатный преподаватель</h3>
-                    <p className="text-sm text-gray-500">Полная занятость, официальное трудоустройство</p>
-                  </div>
-                  <div className="flex-1 p-4 border border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer">
-                    <h3 className="font-medium mb-2">Совместитель</h3>
-                    <p className="text-sm text-gray-500">Частичная занятость, почасовая оплата</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <button 
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  Отмена
-                </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                  Продолжить
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Форма управления ставками */}
+      <TeacherSalaryRateForm
+        isOpen={showSalaryRateForm}
+        onClose={() => {
+          setShowSalaryRateForm(false);
+          setSelectedTeacher(null);
+          setCurrentTeacherRate(null);
+        }}
+        onSubmit={handleSubmitRate}
+        teacherId={selectedTeacher?.id || 0}
+        teacherName={selectedTeacher ? `${selectedTeacher.user.surname} ${selectedTeacher.user.name}` : ''}
+        currentRate={currentTeacherRate}
+        isLoading={false}
+      />
     </div>
   );
 };

@@ -21,6 +21,7 @@ import { formatCurrency } from '../utils/formatters';
 import { Input } from './ui/Input';
 import { Modal } from './ui/Modal';
 import { salaryPDFService } from '../services/salaryPDFService';
+import { salaryService } from '../services/salaryService';
 import { FaDownload } from 'react-icons/fa';
 
 interface SalaryFormData extends Omit<CreateSalaryDto, 'hourlyRate' | 'hoursWorked'> {
@@ -157,6 +158,66 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // Функция для загрузки ставки преподавателя
+  const loadTeacherRate = async () => {
+    if (!formData.teacherId) {
+      alert('Сначала выберите преподавателя');
+      return;
+    }
+
+    try {
+      const teacherRate = await salaryService.getTeacherSalaryRate(formData.teacherId);
+      if (teacherRate && teacherRate.totalRate) {
+        handleInputChange('hourlyRate', teacherRate.totalRate);
+        
+        alert(`Ставка загружена: ${formatCurrency(teacherRate.totalRate)}/час (включая все факторы)`);
+      } else {
+        alert('У преподавателя не настроена ставка. Перейдите в профиль преподавателя для настройки ставки.');
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке ставки:', error);
+      alert('Ошибка при загрузке ставки преподавателя');
+    }
+  };
+
+  // Функция для загрузки отработанных часов
+  const loadWorkedHours = async () => {
+    if (!formData.teacherId) {
+      alert('Сначала выберите преподавателя');
+      return;
+    }
+
+    try {
+      const workedHours = await salaryService.getWorkedHours(
+        formData.teacherId, 
+        formData.month, 
+        formData.year
+      );
+      
+      if (workedHours && workedHours.totalHours) {
+        handleInputChange('hoursWorked', workedHours.totalHours);
+        alert(`Часы загружены: ${workedHours.totalHours} часов`);
+      } else {
+        // Если нет данных, пытаемся рассчитать часы
+        const calculatedHours = await salaryService.calculateWorkedHours(
+          formData.teacherId,
+          formData.month,
+          formData.year
+        );
+        
+        if (calculatedHours && calculatedHours.totalHours) {
+          handleInputChange('hoursWorked', calculatedHours.totalHours);
+          alert(`Часы рассчитаны из расписания: ${calculatedHours.totalHours} часов`);
+        } else {
+          alert('Не удалось найти данные о расписании для выбранного периода');
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке часов:', error);
+      alert('Ошибка при загрузке отработанных часов');
+    }
   };
 
   // Функции для работы с надбавками
@@ -493,15 +554,36 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <Input
-                  label="Базовая ставка за час (₸) *"
-                  type="number"
-                  value={formData.hourlyRate}
-                  onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
-                  placeholder="15000"
-                  icon={<Coins className="h-4 w-4" />}
-                  required
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ставка за час (₸) *
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={formData.hourlyRate}
+                      onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
+                      placeholder="15000"
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#ca181f]/20 focus:border-[#ca181f] transition-all duration-200"
+                      required
+                    />
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      onClick={loadTeacherRate}
+                      disabled={!formData.teacherId}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Загрузить ставку преподавателя"
+                    >
+                      <FaUser className="w-4 h-4 mr-2" />
+                      Ставка
+                    </motion.button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Нажмите "Ставка" для загрузки настроенной ставки преподавателя
+                  </div>
+                </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -520,12 +602,9 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       type="button"
-                      onClick={() => {
-                        // Демо данные - в реальности будет запрос к API расписания
-                        const demoHours = Math.floor(Math.random() * 50) + 100; // От 100 до 150 часов
-                        handleInputChange('hoursWorked', demoHours);
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center text-sm whitespace-nowrap"
+                      onClick={loadWorkedHours}
+                      disabled={!formData.teacherId}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Загрузить часы из расписания"
                     >
                       <Calendar className="w-4 h-4 mr-2" />

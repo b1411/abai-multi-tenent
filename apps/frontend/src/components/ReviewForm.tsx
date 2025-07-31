@@ -87,7 +87,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
               value={formData.teacherId || ''}
               onChange={(e) => setFormData(prev => ({ 
                 ...prev, 
-                teacherId: parseInt(e.target.value) || 0 
+                teacherId: parseInt(e.target.value)
               }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Введите ID преподавателя"
@@ -106,7 +106,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
               value={formData.groupId || ''}
               onChange={(e) => setFormData(prev => ({ 
                 ...prev, 
-                groupId: parseInt(e.target.value) || 0 
+                groupId: parseInt(e.target.value) 
               }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Введите ID группы"

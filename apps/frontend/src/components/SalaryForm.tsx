@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaPlus, 
-  FaTrash, 
-  FaCalculator, 
+import {
+  FaPlus,
+  FaTrash,
+  FaCalculator,
   FaTimes,
   FaUser,
   FaCalendar,
@@ -172,11 +172,11 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
     try {
       const teacherRate = await salaryService.getTeacherSalaryRate(formData.teacherId);
       console.log('[SalaryForm] Получены данные о ставке:', teacherRate);
-      
+
       if (teacherRate && teacherRate.totalRate) {
         handleInputChange('hourlyRate', teacherRate.totalRate);
         console.log(`[SalaryForm] Ставка установлена: ${teacherRate.totalRate}`);
-        
+
         alert(`Ставка загружена: ${formatCurrency(teacherRate.totalRate)}/час (включая все факторы)`);
       } else {
         console.log('[SalaryForm] Ставка не найдена или пустая:', teacherRate);
@@ -199,39 +199,39 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
 
     try {
       const workedHoursData = await salaryService.getWorkedHours(
-        formData.teacherId, 
-        formData.month, 
+        formData.teacherId,
+        formData.month,
         formData.year
       );
-      
+
       console.log('[SalaryForm] Полученные данные отработанных часов:', workedHoursData);
-      
+
       if (workedHoursData) {
         // Backend возвращает объект TeacherWorkedHours напрямую
         const totalWorkedHours = workedHoursData.workedHours || 0;
         const scheduledHours = workedHoursData.scheduledHours || 0;
         const substitutedHours = workedHoursData.substitutedHours || 0;
         const substitutedByOthers = workedHoursData.substitutedByOthers || 0;
-        
+
         console.log(`[SalaryForm] Разбор данных:`);
         console.log(`  - totalWorkedHours: ${totalWorkedHours}`);
         console.log(`  - scheduledHours: ${scheduledHours}`);
         console.log(`  - substitutedHours: ${substitutedHours}`);
         console.log(`  - substitutedByOthers: ${substitutedByOthers}`);
-        
+
         // Используем фактически отработанные часы (включая замещения)
         const hoursToUse = totalWorkedHours + substitutedHours;
-        
+
         console.log(`[SalaryForm] Итого часов к использованию: ${hoursToUse}`);
-        
+
         handleInputChange('hoursWorked', hoursToUse);
-        
+
         alert(`Часы загружены: ${hoursToUse} часов\n` +
-              `Детали:\n` +
-              `• Основные часы: ${totalWorkedHours}\n` +
-              `• Замещения: ${substitutedHours}\n` +
-              `• Замещено другими: ${substitutedByOthers}\n` +
-              `• Запланировано: ${scheduledHours}`);
+          `Детали:\n` +
+          `• Основные часы: ${totalWorkedHours}\n` +
+          `• Замещения: ${substitutedHours}\n` +
+          `• Замещено другими: ${substitutedByOthers}\n` +
+          `• Запланировано: ${scheduledHours}`);
       } else {
         // Если нет данных, пытаемся рассчитать часы
         console.log('[SalaryForm] Данные не найдены, пытаемся рассчитать часы...');
@@ -240,20 +240,20 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
           formData.month,
           formData.year
         );
-        
+
         console.log('[SalaryForm] Рассчитанные часы:', calculatedHours);
-        
+
         if (calculatedHours) {
           const totalCalculatedHours = (calculatedHours.workedHours || 0) + (calculatedHours.substitutedHours || 0);
           console.log(`[SalaryForm] Итого рассчитанных часов: ${totalCalculatedHours}`);
-          
+
           handleInputChange('hoursWorked', totalCalculatedHours);
           alert(`Часы рассчитаны из расписания: ${totalCalculatedHours} часов\n` +
-                `Детали:\n` +
-                `• Основные часы: ${calculatedHours.workedHours || 0}\n` +
-                `• Замещения: ${calculatedHours.substitutedHours || 0}\n` +
-                `• Замещено другими: ${calculatedHours.substitutedByOthers || 0}\n` +
-                `• Запланировано: ${calculatedHours.scheduledHours || 0}`);
+            `Детали:\n` +
+            `• Основные часы: ${calculatedHours.workedHours || 0}\n` +
+            `• Замещения: ${calculatedHours.substitutedHours || 0}\n` +
+            `• Замещено другими: ${calculatedHours.substitutedByOthers || 0}\n` +
+            `• Запланировано: ${calculatedHours.scheduledHours || 0}`);
         } else {
           console.log('[SalaryForm] Рассчитанные данные тоже пусты');
           alert('Не удалось найти данные о расписании для выбранного периода');
@@ -292,7 +292,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
   const updateAllowance = (index: number, field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
-      allowances: prev.allowances?.map((allowance, i) => 
+      allowances: prev.allowances?.map((allowance, i) =>
         i === index ? { ...allowance, [field]: value } : allowance
       ) || []
     }));
@@ -325,7 +325,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
   const updateBonus = (index: number, field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
-      bonuses: prev.bonuses?.map((bonus, i) => 
+      bonuses: prev.bonuses?.map((bonus, i) =>
         i === index ? { ...bonus, [field]: value } : bonus
       ) || []
     }));
@@ -357,7 +357,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
   const updateDeduction = (index: number, field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
-      deductions: prev.deductions?.map((deduction, i) => 
+      deductions: prev.deductions?.map((deduction, i) =>
         i === index ? { ...deduction, [field]: value } : deduction
       ) || []
     }));
@@ -367,7 +367,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
     e.preventDefault();
     const hourlyRate = typeof formData.hourlyRate === 'string' ? (parseFloat(formData.hourlyRate) || 0) : formData.hourlyRate;
     const hoursWorked = typeof formData.hoursWorked === 'string' ? (parseFloat(formData.hoursWorked) || 0) : formData.hoursWorked;
-    
+
     if (formData.teacherId && hourlyRate >= 0 && hoursWorked >= 0) {
       // Сначала сохраняем данные
       onSubmit({
@@ -375,7 +375,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
         hourlyRate: hourlyRate,
         hoursWorked: hoursWorked
       });
-      
+
       // Затем генерируем PDF
       handleGeneratePDF();
     }
@@ -383,7 +383,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
 
   const handleGeneratePDF = async () => {
     console.log('Начинаем генерацию PDF...');
-    
+
     if (!formData.teacherId || !formData.hourlyRate || !formData.hoursWorked) {
       alert('Пожалуйста, заполните основные данные для генерации PDF');
       return;
@@ -455,7 +455,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
       console.log('Вызываем salaryPDFService.generateSalarySlip...');
       await salaryPDFService.generateSalarySlip(tempSalary);
       console.log('PDF генерация завершена');
-      
+
     } catch (error) {
       console.error('Ошибка при генерации PDF в handleGeneratePDF:', error);
       alert(`Ошибка при создании PDF: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
@@ -514,7 +514,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
               <Calculator className="mr-3 h-6 w-6" />
               {editingSalary ? 'Редактировать зарплату' : 'Расчет зарплаты'}
             </h2>
-            <button 
+            <button
               type="button"
               onClick={onClose}
               className="text-white hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -532,7 +532,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                 <User className="mr-2 h-5 w-5 text-[#ca181f]" />
                 Основная информация
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Выбор сотрудника */}
                 <div>
@@ -597,7 +597,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                 <Calculator className="mr-2 h-5 w-5 text-blue-600" />
                 Расчет базовой зарплаты
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -629,7 +629,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                     Нажмите "Ставка" для загрузки настроенной ставки преподавателя
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Отработано часов *
@@ -704,7 +704,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   Добавить надбавку
                 </motion.button>
               </div>
-              
+
               <AnimatePresence>
                 {formData.allowances?.map((allowance, index) => (
                   <motion.div
@@ -754,11 +754,10 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                           <button
                             type="button"
                             onClick={() => updateAllowance(index, 'isPercentage', !allowance.isPercentage)}
-                            className={`px-2 py-1 border-l-0 border border-gray-300 rounded-r-md text-xs ${
-                              allowance.isPercentage 
-                                ? 'bg-purple-100 text-purple-700' 
+                            className={`px-2 py-1 border-l-0 border border-gray-300 rounded-r-md text-xs ${allowance.isPercentage
+                                ? 'bg-purple-100 text-purple-700'
                                 : 'bg-gray-100 text-gray-600'
-                            }`}
+                              }`}
                           >
                             %
                           </button>
@@ -789,7 +788,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   </motion.div>
                 ))}
               </AnimatePresence>
-              
+
               {formData.allowances?.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <FaStar className="mx-auto h-12 w-12 text-gray-300 mb-4" />
@@ -816,7 +815,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   Добавить бонус
                 </motion.button>
               </div>
-              
+
               <AnimatePresence>
                 {formData.bonuses?.map((bonus, index) => (
                   <motion.div
@@ -866,11 +865,10 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                           <button
                             type="button"
                             onClick={() => updateBonus(index, 'isPercentage', !bonus.isPercentage)}
-                            className={`px-2 py-1 border-l-0 border border-gray-300 rounded-r-md text-xs ${
-                              bonus.isPercentage 
-                                ? 'bg-green-100 text-green-700' 
+                            className={`px-2 py-1 border-l-0 border border-gray-300 rounded-r-md text-xs ${bonus.isPercentage
+                                ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-600'
-                            }`}
+                              }`}
                           >
                             %
                           </button>
@@ -901,7 +899,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   </motion.div>
                 ))}
               </AnimatePresence>
-              
+
               {formData.bonuses?.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <FaGift className="mx-auto h-12 w-12 text-gray-300 mb-4" />
@@ -928,7 +926,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   Добавить удержание
                 </motion.button>
               </div>
-              
+
               <AnimatePresence>
                 {formData.deductions?.map((deduction, index) => (
                   <motion.div
@@ -958,17 +956,16 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                           <input
                             type="number"
                             value={deduction.amount}
-                            onChange={(e) => updateDeduction(index, 'amount', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
+                            onChange={(e) => updateDeduction(index, 'amount', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                             className="flex-1 border border-gray-300 rounded-l-md px-2 py-1 text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                           />
                           <button
                             type="button"
                             onClick={() => updateDeduction(index, 'isPercentage', !deduction.isPercentage)}
-                            className={`px-2 py-1 border-l-0 border border-gray-300 rounded-r-md text-xs ${
-                              deduction.isPercentage 
-                                ? 'bg-red-100 text-red-700' 
+                            className={`px-2 py-1 border-l-0 border border-gray-300 rounded-r-md text-xs ${deduction.isPercentage
+                                ? 'bg-red-100 text-red-700'
                                 : 'bg-gray-100 text-gray-600'
-                            }`}
+                              }`}
                           >
                             %
                           </button>
@@ -1000,7 +997,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   </motion.div>
                 ))}
               </AnimatePresence>
-              
+
               {formData.deductions?.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <FaMinus className="mx-auto h-12 w-12 text-gray-300 mb-4" />
@@ -1021,9 +1018,9 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                 </div>
                 Итоговый расчет
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.02 }}
                   className="bg-gradient-to-br from-white to-gray-50 p-4 rounded-lg border-2 border-gray-200 shadow-md"
                 >
@@ -1033,8 +1030,8 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   </div>
                   <div className="text-lg font-bold text-gray-900">{formatCurrency(calculatedTotals.baseSalary)}</div>
                 </motion.div>
-                
-                <motion.div 
+
+                <motion.div
                   whileHover={{ scale: 1.02 }}
                   className="bg-gradient-to-br from-white to-purple-50 p-4 rounded-lg border-2 border-purple-200 shadow-md"
                 >
@@ -1044,8 +1041,8 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   </div>
                   <div className="text-lg font-bold text-purple-600">+{formatCurrency(calculatedTotals.totalAllowances)}</div>
                 </motion.div>
-                
-                <motion.div 
+
+                <motion.div
                   whileHover={{ scale: 1.02 }}
                   className="bg-gradient-to-br from-white to-green-50 p-4 rounded-lg border-2 border-green-200 shadow-md"
                 >
@@ -1055,8 +1052,8 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   </div>
                   <div className="text-lg font-bold text-green-600">+{formatCurrency(calculatedTotals.totalBonuses)}</div>
                 </motion.div>
-                
-                <motion.div 
+
+                <motion.div
                   whileHover={{ scale: 1.02 }}
                   className="bg-gradient-to-br from-white to-red-50 p-4 rounded-lg border-2 border-red-200 shadow-md"
                 >
@@ -1066,11 +1063,11 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                   </div>
                   <div className="text-lg font-bold text-red-600">-{formatCurrency(calculatedTotals.totalDeductions)}</div>
                 </motion.div>
-                
-                <motion.div 
+
+                <motion.div
                   whileHover={{ scale: 1.05 }}
-                  animate={{ 
-                    boxShadow: calculatedTotals.totalNet > 0 
+                  animate={{
+                    boxShadow: calculatedTotals.totalNet > 0
                       ? ["0 4px 6px -1px rgba(0, 0, 0, 0.1)", "0 10px 15px -3px rgba(202, 24, 31, 0.3)", "0 4px 6px -1px rgba(0, 0, 0, 0.1)"]
                       : "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
                   }}
@@ -1114,7 +1111,7 @@ const SalaryForm: React.FC<SalaryFormProps> = ({
                 </motion.button>
               )}
             </div>
-            
+
             <div className="flex space-x-3">
               <motion.button
                 whileHover={{ scale: 1.02 }}

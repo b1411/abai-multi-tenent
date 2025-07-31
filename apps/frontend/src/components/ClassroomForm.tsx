@@ -260,7 +260,7 @@ const ClassroomForm: React.FC<ClassroomFormProps> = ({
                 min="1"
                 max="50"
                 value={formData.floor}
-                onChange={(e) => setFormData(prev => ({ ...prev, floor: parseInt(e.target.value) || 1 }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, floor: parseInt(e.target.value)}))}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.floor ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -280,7 +280,7 @@ const ClassroomForm: React.FC<ClassroomFormProps> = ({
                 min="1"
                 max="1000"
                 value={formData.capacity}
-                onChange={(e) => setFormData(prev => ({ ...prev, capacity: parseInt(e.target.value) || 1 }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, capacity: parseInt(e.target.value) }))}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.capacity ? 'border-red-300' : 'border-gray-300'
                 }`}

@@ -213,6 +213,30 @@ class VacationService {
   }> {
     return await apiClient.get(`${this.baseUrl}/teacher/${teacherId}/lessons`);
   }
+
+  // Получение расписания преподавателя на период отпуска
+  async getTeacherSchedule(teacherId: number, startDate: string, endDate: string): Promise<{
+    id: string | number;
+    type: 'schedule' | 'lesson';
+    name: string;
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    studyPlan: {
+      id: number;
+      name: string;
+    };
+    groups: {
+      id: number;
+      name: string;
+    }[];
+    classroom?: {
+      id: number;
+      name: string;
+    };
+  }[]> {
+    return await apiClient.get(`${this.baseUrl}/teacher/${teacherId}/schedule?startDate=${startDate}&endDate=${endDate}`);
+  }
 }
 
 export const vacationService = new VacationService();

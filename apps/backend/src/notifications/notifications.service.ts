@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateNotificationDto, AddNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -177,7 +177,7 @@ export class NotificationsService {
   }
 
   async markAsRead(id: number) {
-    const notification = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.notification.update({
       where: { id },
@@ -286,6 +286,29 @@ export class NotificationsService {
       message: `${senderName}: ${messagePreview}`,
       url: `/chat?chatId=${chatId}`,
       createdBy: senderId,
+    });
+  }
+
+  // Уведомления для системы отпусков
+  async notifyVacationCreated(teacherName: string, hrUserIds: number[], adminUserIds: number[], vacationId: number, startDate: Date, endDate: Date) {
+    const allRecipients = [...hrUserIds, ...adminUserIds];
+    
+    if (allRecipients.length === 0) return [];
+
+    return this.addNotification({
+      userIds: allRecipients,
+      type: 'VACATION_REQUEST_CREATED',
+      message: `Создана заявка на отпуск: ${teacherName} с ${startDate.toLocaleDateString()} по ${endDate.toLocaleDateString()}`,
+      url: `/vacations/${vacationId}`,
+    });
+  }
+
+  async notifySubstituteAssigned(substituteUserId: number, teacherName: string, vacationId: number, startDate: Date, endDate: Date) {
+    return this.addNotification({
+      userIds: [substituteUserId],
+      type: 'VACATION_SUBSTITUTE_ASSIGNED',
+      message: `Вы назначены замещающим для ${teacherName} с ${startDate.toLocaleDateString()} по ${endDate.toLocaleDateString()}`,
+      url: `/vacations/${vacationId}`,
     });
   }
 }

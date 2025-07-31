@@ -173,6 +173,11 @@ const VacationForm: React.FC<{
 
   const [errors, setErrors] = useState<string[]>([]);
   const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
+  const [affectedSchedule, setAffectedSchedule] = useState<any[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  // Для админов и HR - выбор преподавателя, для которого создается заявка
+  const [selectedTeacherId, setSelectedTeacherId] = useState<number | undefined>(undefined);
 
   // Получаем ID преподавателя для текущего пользователя (нужно найти teacher record по userId)
   const [currentTeacherId, setCurrentTeacherId] = useState<number | undefined>(undefined);
@@ -180,13 +185,18 @@ const VacationForm: React.FC<{
   // Получаем уроки преподавателя
   const { lessons, loading: lessonsLoading } = useTeacherLessons(currentTeacherId);
 
-  // Находим ID преподавателя по userId
+  // Проверяем, может ли пользователь создавать заявки от имени других
+  const canCreateForOthers = user?.role === 'HR' || user?.role === 'ADMIN';
+
+  // Находим ID преподавателя по userId или используем выбранного
   useEffect(() => {
     if (user?.role === 'TEACHER' && teachers.length > 0) {
       const teacher = teachers.find(t => t.user.id === user.id);
       setCurrentTeacherId(teacher?.id);
+    } else if (canCreateForOthers && selectedTeacherId) {
+      setCurrentTeacherId(selectedTeacherId);
     }
-  }, [user, teachers]);
+  }, [user, teachers, selectedTeacherId, canCreateForOthers]);
 
   useEffect(() => {
     if (vacation) {
@@ -206,8 +216,33 @@ const VacationForm: React.FC<{
     if (formData.startDate && formData.endDate) {
       const days = vacationService.calculateDays(formData.startDate, formData.endDate);
       setFormData(prev => ({ ...prev, days }));
+      
+      // Загружаем затронутое расписание
+      if (currentTeacherId) {
+        loadAffectedSchedule();
+      }
     }
-  }, [formData.startDate, formData.endDate]);
+  }, [formData.startDate, formData.endDate, currentTeacherId]);
+
+  // Загрузка затронутого расписания
+  const loadAffectedSchedule = async () => {
+    if (!currentTeacherId || !formData.startDate || !formData.endDate) return;
+    
+    setScheduleLoading(true);
+    try {
+      const schedule = await vacationService.getTeacherSchedule(
+        currentTeacherId,
+        formData.startDate,
+        formData.endDate
+      );
+      setAffectedSchedule(schedule);
+    } catch (error) {
+      console.error('Ошибка при загрузке расписания:', error);
+      setAffectedSchedule([]);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,12 +253,19 @@ const VacationForm: React.FC<{
       return;
     }
 
+    // Для админов и HR - проверяем что выбран преподаватель
+    if (canCreateForOthers && !selectedTeacherId) {
+      setErrors(['Необходимо выбрать преподавателя']);
+      return;
+    }
+
     setErrors([]);
     onSubmit({
       ...formData,
       startDate: new Date(formData.startDate).toISOString(),
       endDate: new Date(formData.endDate).toISOString(),
       lessonIds: selectedLessons.length > 0 ? selectedLessons : undefined,
+      teacherId: canCreateForOthers ? selectedTeacherId : undefined, // Передаем ID выбранного преподавателя
     });
   };
 
@@ -255,6 +297,31 @@ const VacationForm: React.FC<{
                 ))}
               </ul>
             </Alert>
+          )}
+
+          {/* Выбор преподавателя для админов и HR */}
+          {canCreateForOthers && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center space-x-2">
+                  <User className="w-4 h-4" />
+                  <span>Преподаватель</span>
+                </div>
+              </label>
+              <select
+                value={selectedTeacherId || ''}
+                onChange={(e) => setSelectedTeacherId(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Выберите преподавателя</option>
+                {teachers.map(teacher => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.user.name} {teacher.user.surname}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
@@ -289,11 +356,14 @@ const VacationForm: React.FC<{
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Выберите преподавателя</option>
-                {teachers.map(teacher => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.user.name} {teacher.user.surname}
-                  </option>
-                ))}
+                {teachers
+                  .filter(teacher => teacher.id !== selectedTeacherId) // Исключаем выбранного преподавателя из списка замещающих
+                  .map(teacher => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.user.name} {teacher.user.surname}
+                    </option>
+                  ))
+                }
               </select>
             </div>
           </div>
@@ -352,79 +422,95 @@ const VacationForm: React.FC<{
             />
           </div>
 
-          {/* Выбор уроков для замещения */}
-          {currentTeacherId && lessons.length > 0 && formData.substituteId && (
+          {/* Затронутое расписание */}
+          {formData.startDate && formData.endDate && currentTeacherId && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 <div className="flex items-center space-x-2">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Выберите уроки для замещения</span>
+                  <Calendar className="w-4 h-4" />
+                  <span>Затронутое расписание</span>
                 </div>
               </label>
               
-              {lessonsLoading ? (
+              {scheduleLoading ? (
                 <div className="flex justify-center py-4">
                   <Spinner size="sm" />
                 </div>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                  {lessons.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      Нет доступных уроков для выбранного периода
-                    </p>
-                  ) : (
-                    lessons.map(lesson => (
-                      <div
-                        key={lesson.id}
-                        className="flex items-start space-x-3 p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          id={`lesson-${lesson.id}`}
-                          checked={selectedLessons.includes(lesson.id)}
-                          onChange={() => handleLessonToggle(lesson.id)}
-                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <label
-                          htmlFor={`lesson-${lesson.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
+              ) : affectedSchedule.length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto border border-amber-200 rounded-lg p-4 bg-amber-50">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-amber-800">
+                      Найдено {affectedSchedule.length} занятий в выбранном периоде
+                    </span>
+                  </div>
+                  
+                  {affectedSchedule.map((item, index) => (
+                    <div
+                      key={`${item.type}-${item.id}-${index}`}
+                      className="flex items-center justify-between p-3 bg-white border border-amber-200 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        {item.type === 'schedule' ? (
+                          <Clock className="w-4 h-4 text-amber-600" />
+                        ) : (
+                          <BookOpen className="w-4 h-4 text-amber-600" />
+                        )}
+                        <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {lesson.name}
+                            {item.name}
                           </div>
                           <div className="text-xs text-gray-600 mt-1">
                             <div className="flex items-center space-x-4">
                               <span className="flex items-center space-x-1">
                                 <Calendar className="w-3 h-3" />
-                                <span>{new Date(lesson.date).toLocaleDateString('ru-RU')}</span>
+                                <span>{new Date(item.date).toLocaleDateString('ru-RU')}</span>
                               </span>
-                              <span className="flex items-center space-x-1">
-                                <BookOpen className="w-3 h-3" />
-                                <span>{lesson.studyPlan.name}</span>
-                              </span>
-                              {lesson.groups.length > 0 && (
+                              {item.startTime && item.endTime && (
+                                <span className="flex items-center space-x-1">
+                                  <Clock className="w-3 h-3" />
+                                  <span>{item.startTime} - {item.endTime}</span>
+                                </span>
+                              )}
+                              {item.groups.length > 0 && (
                                 <span className="flex items-center space-x-1">
                                   <Users className="w-3 h-3" />
-                                  <span>{lesson.groups.map(g => g.name).join(', ')}</span>
+                                  <span>{item.groups.map((g: any) => g.name).join(', ')}</span>
+                                </span>
+                              )}
+                              {item.classroom && (
+                                <span className="flex items-center space-x-1">
+                                  <div className="w-3 h-3 bg-gray-400 rounded-sm"></div>
+                                  <span>{item.classroom.name}</span>
                                 </span>
                               )}
                             </div>
                           </div>
-                          {lesson.description && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {lesson.description}
-                            </div>
-                          )}
-                        </label>
+                        </div>
                       </div>
-                    ))
+                      <div className="text-xs text-amber-700 font-medium bg-amber-100 px-2 py-1 rounded">
+                        {item.type === 'schedule' ? 'Расписание' : 'Урок'}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {formData.substituteId && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center space-x-2 text-blue-700">
+                        <User className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                          Эти занятия требуют замещения выбранным преподавателем
+                        </span>
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
-              
-              {selectedLessons.length > 0 && (
-                <div className="mt-2 text-sm text-blue-600">
-                  Выбрано уроков: {selectedLessons.length}
+              ) : (
+                <div className="text-center py-6 border border-gray-200 rounded-lg bg-gray-50">
+                  <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">
+                    В выбранном периоде нет запланированных занятий
+                  </p>
                 </div>
               )}
             </div>
@@ -456,6 +542,35 @@ const VacationDetailsModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
 }> = ({ vacation, isOpen, onClose }) => {
+  const [affectedSchedule, setAffectedSchedule] = useState<any[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  // Загружаем затронутое расписание при открытии модалки
+  useEffect(() => {
+    if (vacation && isOpen) {
+      loadAffectedSchedule();
+    }
+  }, [vacation, isOpen]);
+
+  const loadAffectedSchedule = async () => {
+    if (!vacation) return;
+    
+    setScheduleLoading(true);
+    try {
+      const schedule = await vacationService.getTeacherSchedule(
+        vacation.teacherId,
+        vacation.startDate.split('T')[0],
+        vacation.endDate.split('T')[0]
+      );
+      setAffectedSchedule(schedule);
+    } catch (error) {
+      console.error('Ошибка при загрузке расписания:', error);
+      setAffectedSchedule([]);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
   if (!isOpen || !vacation) return null;
 
   return (
@@ -557,10 +672,97 @@ const VacationDetailsModal: React.FC<{
             </div>
           </div>
 
+          {/* Затронутое расписание */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Затронутое расписание</h3>
+            
+            {scheduleLoading ? (
+              <div className="flex justify-center py-4">
+                <Spinner size="sm" />
+              </div>
+            ) : affectedSchedule.length > 0 ? (
+              <div className="space-y-2 max-h-60 overflow-y-auto border border-amber-200 rounded-lg p-4 bg-amber-50">
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-amber-800">
+                    Найдено {affectedSchedule.length} занятий в периоде отпуска
+                  </span>
+                </div>
+                
+                {affectedSchedule.map((item, index) => (
+                  <div
+                    key={`${item.type}-${item.id}-${index}`}
+                    className="flex items-center justify-between p-3 bg-white border border-amber-200 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      {item.type === 'schedule' ? (
+                        <Clock className="w-4 h-4 text-amber-600" />
+                      ) : (
+                        <BookOpen className="w-4 h-4 text-amber-600" />
+                      )}
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {item.name}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          <div className="flex items-center space-x-4">
+                            <span className="flex items-center space-x-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{new Date(item.date).toLocaleDateString('ru-RU')}</span>
+                            </span>
+                            {item.startTime && item.endTime && (
+                              <span className="flex items-center space-x-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{item.startTime} - {item.endTime}</span>
+                              </span>
+                            )}
+                            {item.groups.length > 0 && (
+                              <span className="flex items-center space-x-1">
+                                <Users className="w-3 h-3" />
+                                <span>{item.groups.map((g: any) => g.name).join(', ')}</span>
+                              </span>
+                            )}
+                            {item.classroom && (
+                              <span className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-gray-400 rounded-sm"></div>
+                                <span>{item.classroom.name}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-amber-700 font-medium bg-amber-100 px-2 py-1 rounded">
+                      {item.type === 'schedule' ? 'Расписание' : 'Урок'}
+                    </div>
+                  </div>
+                ))}
+                
+                {vacation.substitute && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-2 text-blue-700">
+                      <User className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        Эти занятия замещает: {vacation.substitute.user.name} {vacation.substitute.user.surname}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6 border border-gray-200 rounded-lg bg-gray-50">
+                <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">
+                  В периоде отпуска нет запланированных занятий
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Затронутые уроки */}
-          {vacation.affectedLessons && vacation.affectedLessons.length > 0 ? (
+          {vacation.affectedLessons && vacation.affectedLessons.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Затронутые уроки</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Дополнительные уроки для замещения</h3>
               <div className="space-y-2">
                 {vacation.affectedLessons.map(lesson => (
                   <div key={lesson.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
@@ -591,13 +793,6 @@ const VacationDetailsModal: React.FC<{
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Затронутые уроки</h3>
-              <div className="text-sm text-gray-500">
-                Уроки для замещения не выбраны
               </div>
             </div>
           )}

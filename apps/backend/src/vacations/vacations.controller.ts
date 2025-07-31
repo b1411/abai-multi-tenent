@@ -57,8 +57,8 @@ export class VacationsController {
   @Get('summary')
   @ApiOperation({ summary: 'Получить статистику по отпускам' })
   @ApiResponse({ status: 200, description: 'Статистика успешно получена' })
-  getSummary(@Req() req: any) {
-    return this.vacationsService.getVacationsSummary(req.user.id);
+  getSummary() {
+    return this.vacationsService.getVacationsSummary();
   }
 
   @Get('substitutions')
@@ -133,5 +133,23 @@ export class VacationsController {
   @ApiResponse({ status: 404, description: 'Преподаватель не найден' })
   getTeacherLessons(@Param('teacherId', ParseIntPipe) teacherId: number) {
     return this.vacationsService.getTeacherLessons(teacherId);
+  }
+
+  @Get('teacher/:teacherId/schedule')
+  @ApiOperation({ summary: 'Получить расписание преподавателя на период отпуска' })
+  @ApiResponse({ status: 200, description: 'Расписание успешно получено' })
+  @ApiResponse({ status: 404, description: 'Преподаватель не найден' })
+  @ApiQuery({ name: 'startDate', required: true, type: String, description: 'Дата начала отпуска (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'endDate', required: true, type: String, description: 'Дата окончания отпуска (YYYY-MM-DD)' })
+  getTeacherSchedule(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string
+  ) {
+    return this.vacationsService.getTeacherScheduleForVacation(
+      teacherId, 
+      new Date(startDate), 
+      new Date(endDate)
+    );
   }
 }

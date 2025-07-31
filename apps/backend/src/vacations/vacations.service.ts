@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateVacationDto } from './dto/create-vacation.dto';
 import { UpdateVacationDto } from './dto/update-vacation.dto';
 import { VacationFilterDto } from './dto/vacation-filter.dto';
@@ -7,7 +8,10 @@ import { UpdateVacationStatusDto } from './dto/update-vacation-status.dto';
 
 @Injectable()
 export class VacationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService
+  ) { }
 
   async create(createVacationDto: CreateVacationDto, userId: number) {
     // Получаем информацию о пользователе
@@ -25,9 +29,23 @@ export class VacationsService {
       throw new BadRequestException('Данная роль не может создавать заявки на отпуск');
     }
 
-    // Для преподавателей ищем teacher record, для остальных временно используем teacherId = userId
-    let teacherId = userId;
-    if (user.role === 'TEACHER') {
+    // Определяем ID преподавателя для заявки
+    let teacherId: number;
+
+    if (createVacationDto.teacherId && (user.role === 'HR' || user.role === 'ADMIN')) {
+      // Администраторы и HR могут создавать заявки от имени других преподавателей
+      teacherId = createVacationDto.teacherId;
+
+      // Проверяем, что указанный преподаватель существует
+      const targetTeacher = await this.prisma.teacher.findUnique({
+        where: { id: teacherId }
+      });
+
+      if (!targetTeacher) {
+        throw new BadRequestException('Указанный преподаватель не найден');
+      }
+    } else if (user.role === 'TEACHER') {
+      // Для преподавателей ищем их teacher record
       const teacher = await this.prisma.teacher.findUnique({
         where: { userId },
         include: { user: true }
@@ -37,6 +55,21 @@ export class VacationsService {
         throw new NotFoundException('Запись преподавателя не найдена');
       }
       teacherId = teacher.id;
+    } else {
+      // Для других ролей (HR, ADMIN, FINANCIST) требуется указание teacherId
+      if (!createVacationDto.teacherId) {
+        throw new BadRequestException('Необходимо указать преподавателя для создания заявки');
+      }
+      teacherId = createVacationDto.teacherId;
+
+      // Проверяем, что указанный преподаватель существует
+      const targetTeacher = await this.prisma.teacher.findUnique({
+        where: { id: teacherId }
+      });
+
+      if (!targetTeacher) {
+        throw new BadRequestException('Указанный преподаватель не найден');
+      }
     }
 
     // Проверяем замещающего, если указан
@@ -113,6 +146,9 @@ export class VacationsService {
         )
       );
     }
+
+    // Отправляем уведомления
+    await this.sendVacationCreatedNotifications(vacation);
 
     // Возвращаем обновленный отпуск с уроками через findOne для корректной трансформации
     return this.findOne(vacation.id);
@@ -266,9 +302,9 @@ export class VacationsService {
 
   async findOne(id: number) {
     const vacation = await this.prisma.vacation.findFirst({
-      where: { 
+      where: {
         id,
-        deletedAt: null 
+        deletedAt: null
       },
       include: {
         teacher: {
@@ -436,7 +472,7 @@ export class VacationsService {
     });
   }
 
-  async getVacationsSummary(userId?: number) {
+  async getVacationsSummary() {
     const currentYear = new Date().getFullYear();
     const startOfYear = new Date(`${currentYear}-01-01`);
     const endOfYear = new Date(`${currentYear}-12-31`);
@@ -754,5 +790,220 @@ export class VacationsService {
       },
       lessons
     };
+  }
+
+  // Получение расписания преподавателя на период отпуска
+  async getTeacherScheduleForVacation(teacherId: number, startDate: Date, endDate: Date) {
+    // Получаем все расписания преподавателя (по аналогии с teacher-worked-hours.service.ts)
+    const allSchedules = await this.prisma.schedule.findMany({
+      where: {
+        teacherId,
+        deletedAt: null,
+      },
+      include: {
+        studyPlan: {
+          include: {
+            group: true
+          }
+        },
+        lesson: true,
+        classroom: true
+      }
+    });
+
+    // Разворачиваем периодические занятия в конкретные даты для указанного периода
+    const expandedSchedules = this.expandSchedulesForPeriod(allSchedules, startDate, endDate);
+
+    // Трансформируем в нужный формат
+    const affectedItems = expandedSchedules.map(schedule => ({
+      id: schedule.date ? schedule.id : `schedule-${schedule.id}-${schedule.actualDate.toISOString().split('T')[0]}`,
+      type: schedule.date ? 'lesson' : 'schedule',
+      name: schedule.studyPlan?.name || schedule.lesson?.name || 'Занятие',
+      date: schedule.actualDate,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      studyPlan: schedule.studyPlan ? {
+        id: schedule.studyPlan.id,
+        name: schedule.studyPlan.name
+      } : null,
+      groups: schedule.studyPlan?.group?.map((group: any) => ({
+        id: group.id,
+        name: group.name
+      })) || [],
+      classroom: schedule.classroom ? {
+        id: schedule.classroom.id,
+        name: schedule.classroom.name
+      } : null
+    }));
+
+    // Сортируем по дате и времени
+    affectedItems.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) {
+        return dateA - dateB;
+      }
+      return a.startTime?.localeCompare(b.startTime || '') || 0;
+    });
+
+    return affectedItems;
+  }
+
+  /**
+   * Разворачивает расписания (периодические и разовые) в конкретные даты для указанного периода
+   * Адаптировано из teacher-worked-hours.service.ts
+   */
+  private expandSchedulesForPeriod(schedules: any[], startDate: Date, endDate: Date): any[] {
+    const expandedSchedules = [];
+
+    for (const schedule of schedules) {
+      // Если у занятия есть конкретная дата проведения
+      if (schedule.date) {
+        const scheduleDate = new Date(schedule.date);
+
+        // Проверяем, попадает ли дата в наш период
+        if (scheduleDate >= startDate && scheduleDate <= endDate) {
+          expandedSchedules.push({
+            ...schedule,
+            actualDate: scheduleDate,
+          });
+        }
+      }
+      // Если это периодическое занятие (есть день недели и периодичность)
+      else if (schedule.dayOfWeek && schedule.repeat) {
+        const instances = this.generatePeriodicInstances(
+          schedule,
+          startDate,
+          endDate,
+          schedule.excludedDates || []
+        );
+
+        for (const instance of instances) {
+          expandedSchedules.push({
+            ...schedule,
+            actualDate: instance.date,
+          });
+        }
+      }
+    }
+
+    return expandedSchedules;
+  }
+
+  /**
+   * Генерирует экземпляры периодического занятия
+   * Адаптировано из teacher-worked-hours.service.ts
+   */
+  private generatePeriodicInstances(
+    schedule: any,
+    startDate: Date,
+    endDate: Date,
+    excludedDates: Date[] = []
+  ): Array<{ date: Date }> {
+    const instances = [];
+    const current = new Date(startDate);
+
+    // Преобразуем день недели (1=понедельник в нашем формате, 0=воскресенье в JS)
+    const targetDay = schedule.dayOfWeek === 7 ? 0 : schedule.dayOfWeek; // 7 (воскресенье) -> 0
+
+    // Найти первое вхождение нужного дня недели в периоде
+    while (current.getDay() !== targetDay && current <= endDate) {
+      current.setDate(current.getDate() + 1);
+    }
+
+    // Определяем интервал в зависимости от периодичности
+    let intervalDays = 7; // по умолчанию еженедельно
+
+    switch (schedule.repeat) {
+      case 'weekly':
+        intervalDays = 7;
+        break;
+      case 'biweekly':
+        intervalDays = 14; // раз в две недели
+        break;
+      case 'once':
+        // Для разовых занятий добавляем только первое вхождение
+        if (current <= endDate) {
+          const dateToCheck = new Date(current);
+          const isExcluded = excludedDates.some(excludedDate =>
+            new Date(excludedDate).toDateString() === dateToCheck.toDateString()
+          );
+
+          if (!isExcluded) {
+            instances.push({
+              date: new Date(dateToCheck),
+            });
+          }
+        }
+        return instances;
+      default:
+        intervalDays = 7; // по умолчанию еженедельно
+    }
+
+    // Генерируем даты с учетом интервала
+    while (current <= endDate) {
+      const dateToCheck = new Date(current);
+
+      // Проверяем, не исключена ли эта дата
+      const isExcluded = excludedDates.some(excludedDate =>
+        new Date(excludedDate).toDateString() === dateToCheck.toDateString()
+      );
+
+      if (!isExcluded) {
+        instances.push({
+          date: new Date(dateToCheck),
+        });
+      }
+
+      current.setDate(current.getDate() + intervalDays);
+    }
+
+    return instances;
+  }
+
+  // Отправка уведомлений при создании заявки на отпуск
+  private async sendVacationCreatedNotifications(vacation: any) {
+    try {
+      const teacherName = `${vacation.teacher.user.name} ${vacation.teacher.user.surname}`;
+
+      // Получаем пользователей с ролями HR и ADMIN
+      const [hrUsers, adminUsers] = await Promise.all([
+        this.prisma.user.findMany({
+          where: { role: 'HR', deletedAt: null },
+          select: { id: true }
+        }),
+        this.prisma.user.findMany({
+          where: { role: 'ADMIN', deletedAt: null },
+          select: { id: true }
+        })
+      ]);
+
+      const hrUserIds = hrUsers.map(user => user.id);
+      const adminUserIds = adminUsers.map(user => user.id);
+
+      // Отправляем уведомления HR и админам
+      await this.notificationsService.notifyVacationCreated(
+        teacherName,
+        hrUserIds,
+        adminUserIds,
+        vacation.id,
+        vacation.startDate,
+        vacation.endDate
+      );
+
+      // Если указан замещающий, отправляем ему уведомление
+      if (vacation.substitute && vacation.substitute.user) {
+        await this.notificationsService.notifySubstituteAssigned(
+          vacation.substitute.user.id,
+          teacherName,
+          vacation.id,
+          vacation.startDate,
+          vacation.endDate
+        );
+      }
+    } catch (error) {
+      console.error('Ошибка при отправке уведомлений о создании отпуска:', error);
+      // Не прерываем выполнение, если уведомления не отправились
+    }
   }
 }

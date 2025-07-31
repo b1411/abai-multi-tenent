@@ -80,4 +80,12 @@ export class CreateVacationDto {
   @IsOptional()
   @IsString()
   workTasks?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID преподавателя (для создания заявки от имени другого преподавателя администраторами и HR)',
+    example: 5
+  })
+  @IsOptional()
+  @IsInt()
+  teacherId?: number;
 }

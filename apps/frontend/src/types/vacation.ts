@@ -86,6 +86,7 @@ export interface CreateVacationRequest {
   comment?: string;
   lectureTopics?: string;
   lessonIds?: number[];
+  teacherId?: number; // Для админов и HR - ID преподавателя, для которого создается заявка
 }
 
 export interface UpdateVacationRequest {
@@ -190,3 +191,48 @@ export const VACATION_STATUS_COLORS: Record<VacationStatus, string> = {
   [VacationStatus.rejected]: 'bg-red-100 text-red-800',
   [VacationStatus.completed]: 'bg-gray-100 text-gray-800'
 };
+
+export interface TeacherScheduleItem {
+  id: string | number;
+  type: 'schedule' | 'lesson';
+  name: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  studyPlan: {
+    id: number;
+    name: string;
+  };
+  groups: {
+    id: number;
+    name: string;
+  }[];
+  classroom?: {
+    id: number;
+    name: string;
+  };
+}
+
+export interface TeacherLesson {
+  id: number;
+  name: string;
+  description?: string;
+  date: string;
+  studyPlan: {
+    id: number;
+    name: string;
+    description?: string;
+  };
+  groups: {
+    id: number;
+    name: string;
+  }[];
+}
+
+export interface TeacherLessonsResponse {
+  teacher: {
+    id: number;
+    name: string;
+  };
+  lessons: TeacherLesson[];
+}

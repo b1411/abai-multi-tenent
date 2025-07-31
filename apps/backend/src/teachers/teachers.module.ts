@@ -34,4 +34,4 @@ import { SystemService } from '../system/system.service';
     PayrollNotificationsService,
   ],
 })
-export class TeachersModule { }
+export class TeachersModule {}

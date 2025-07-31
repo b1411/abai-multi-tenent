@@ -7,7 +7,8 @@ import {
   FaCheck,
   FaClock,
   FaExclamationTriangle,
-  FaMoneyBill
+  FaMoneyBill,
+  FaUsers
 } from 'react-icons/fa';
 import { Alert } from '../components/ui';
 import {
@@ -18,8 +19,10 @@ import {
 } from '../types/finance';
 import paymentsService, { Payment, PaymentSummary, PaymentFilters } from '../services/paymentsService';
 import PaymentForm from '../components/PaymentForm';
+import GroupPaymentForm from '../components/GroupPaymentForm';
 import InvoiceGenerator from '../components/InvoiceGenerator';
 import { useAuth } from '../hooks/useAuth';
+import { groupPaymentService, CreateGroupPaymentDto, GroupPaymentResult } from '../services/groupPaymentService';
 
 const PaymentsPage: React.FC = () => {
   const { user } = useAuth();
@@ -35,7 +38,9 @@ const PaymentsPage: React.FC = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCreatePaymentModal, setShowCreatePaymentModal] = useState(false);
+  const [showGroupPaymentModal, setShowGroupPaymentModal] = useState(false);
   const [createPaymentLoading, setCreatePaymentLoading] = useState(false);
+  const [groupPaymentLoading, setGroupPaymentLoading] = useState(false);
   const [showInvoiceGenerator, setShowInvoiceGenerator] = useState(false);
   const [invoicePaymentId, setInvoicePaymentId] = useState<string | null>(null);
   const [invoiceStudentId, setInvoiceStudentId] = useState<string | null>(null);
@@ -186,6 +191,38 @@ const PaymentsPage: React.FC = () => {
       setError('Ошибка при создании платежа');
     } finally {
       setCreatePaymentLoading(false);
+    }
+  };
+
+  const handleCreateGroupPayment = async (paymentData: CreateGroupPaymentDto) => {
+    try {
+      setGroupPaymentLoading(true);
+      const result = await groupPaymentService.createGroupPayment(paymentData);
+      setShowGroupPaymentModal(false);
+      
+      // Показываем результат
+      let message = `Групповой платеж создан для группы "${result.groupName}":\n`;
+      message += `• Создано платежей: ${result.createdPayments}\n`;
+      message += `• Обработано студентов: ${result.processedStudents} из ${result.totalStudents}\n`;
+      
+      if (result.errors.length > 0) {
+        message += `\nОшибки:\n`;
+        result.errors.forEach(error => {
+          message += `• ${error.studentName}: ${error.error}\n`;
+        });
+      }
+      
+      alert(message);
+      
+      // Перезагружаем данные
+      const response = await paymentsService.getPayments(filters);
+      setPayments(response.payments);
+      setStats(response.summary);
+    } catch (err) {
+      console.error('Ошибка при создании группового платежа:', err);
+      setError('Ошибка при создании группового платежа');
+    } finally {
+      setGroupPaymentLoading(false);
     }
   };
 
@@ -396,13 +433,22 @@ const PaymentsPage: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3">
           {canCreatePayments && (
-            <button 
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
-              onClick={() => setShowCreatePaymentModal(true)}
-            >
-              <FaMoneyBill className="mr-2" />
-              Добавить оплату
-            </button>
+            <>
+              <button 
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
+                onClick={() => setShowCreatePaymentModal(true)}
+              >
+                <FaMoneyBill className="mr-2" />
+                Добавить оплату
+              </button>
+              <button 
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center"
+                onClick={() => setShowGroupPaymentModal(true)}
+              >
+                <FaUsers className="mr-2" />
+                Групповой платеж
+              </button>
+            </>
           )}
           <button 
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
@@ -566,6 +612,14 @@ const PaymentsPage: React.FC = () => {
         onClose={() => setShowCreatePaymentModal(false)}
         onSubmit={handleCreatePayment}
         isLoading={createPaymentLoading}
+      />
+
+      {/* Форма группового платежа */}
+      <GroupPaymentForm
+        isOpen={showGroupPaymentModal}
+        onClose={() => setShowGroupPaymentModal(false)}
+        onSubmit={handleCreateGroupPayment}
+        isLoading={groupPaymentLoading}
       />
 
       {/* Генератор квитанций */}

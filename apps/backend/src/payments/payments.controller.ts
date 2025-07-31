@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Re
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateGroupPaymentDto } from './dto/create-group-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentFilterDto } from './dto/payment-filter.dto';
 import { GenerateInvoiceDto, GenerateSummaryInvoiceDto } from './dto/invoice-generation.dto';
@@ -20,6 +21,14 @@ export class PaymentsController {
   @Roles('ADMIN', 'FINANCIST')
   create(@Body() createPaymentDto: CreatePaymentDto) {
     return this.paymentsService.create(createPaymentDto);
+  }
+
+  @Post('group')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Создать платежи для группы студентов' })
+  @ApiResponse({ status: 201, description: 'Платежи успешно созданы для группы' })
+  createGroupPayment(@Body() createGroupPaymentDto: CreateGroupPaymentDto) {
+    return this.paymentsService.createGroupPayment(createGroupPaymentDto);
   }
 
   @Get()

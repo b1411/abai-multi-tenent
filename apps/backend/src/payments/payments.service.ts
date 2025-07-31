@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateGroupPaymentDto, PaymentRecurrence } from './dto/create-group-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentFilterDto } from './dto/payment-filter.dto';
 import { GenerateInvoiceDto, GenerateSummaryInvoiceDto } from './dto/invoice-generation.dto';
@@ -35,6 +36,161 @@ export class PaymentsService {
         },
       },
     });
+  }
+
+  async createGroupPayment(createGroupPaymentDto: CreateGroupPaymentDto) {
+    // Получаем всех студентов группы
+    const group = await this.prisma.group.findUnique({
+      where: { id: createGroupPaymentDto.groupId },
+      include: {
+        students: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!group) {
+      throw new Error(`Group with ID ${createGroupPaymentDto.groupId} not found`);
+    }
+
+    const excludedIds = createGroupPaymentDto.excludedStudentIds || [];
+    const overrides = createGroupPaymentDto.studentOverrides || [];
+    
+    // Создаем мапу для быстрого поиска переопределений
+    const overrideMap = new Map();
+    overrides.forEach(override => {
+      overrideMap.set(override.studentId, override);
+    });
+
+    // Фильтруем студентов для создания платежей
+    const studentsToProcess = group.students.filter(student => {
+      const override = overrideMap.get(student.id);
+      
+      // Исключаем студентов из списка исключений
+      if (excludedIds.includes(student.id)) {
+        return false;
+      }
+      
+      // Исключаем студентов с флагом excluded в переопределениях
+      if (override?.excluded) {
+        return false;
+      }
+      
+      return true;
+    });
+
+    const createdPayments = [];
+    const errors = [];
+    const allParentUserIds = new Set<number>();
+
+    // Определяем даты для периодических платежей
+    const paymentDates = this.calculatePaymentDates(createGroupPaymentDto);
+
+    // Создаем платежи для каждого студента
+    for (const student of studentsToProcess) {
+      try {
+        const override = overrideMap.get(student.id);
+        const amount = override?.amount || createGroupPaymentDto.amount;
+        const serviceName = createGroupPaymentDto.serviceName || this.getServiceName(createGroupPaymentDto.type);
+
+        // Создаем платежи для всех дат (включая периодические)
+        for (let i = 0; i < paymentDates.length; i++) {
+          const paymentDate = paymentDates[i];
+          const isRecurring = i > 0;
+          const finalServiceName = isRecurring ? `${serviceName} (${i + 1}/${paymentDates.length})` : serviceName;
+
+          const payment = await this.prisma.payment.create({
+            data: {
+              studentId: student.id,
+              serviceType: createGroupPaymentDto.type,
+              serviceName: finalServiceName,
+              amount,
+              currency: 'KZT',
+              dueDate: paymentDate,
+              status: 'unpaid',
+            },
+            include: {
+              student: {
+                include: {
+                  user: true,
+                  group: true,
+                  Parents: {
+                    include: {
+                      user: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          createdPayments.push(payment);
+
+          // Собираем ID родителей для уведомлений
+          if (createGroupPaymentDto.sendNotifications !== false) {
+            payment.student.Parents.forEach(parent => {
+              allParentUserIds.add(parent.user.id);
+            });
+          }
+        }
+      } catch (error) {
+        errors.push({
+          studentId: student.id,
+          studentName: `${student.user.name} ${student.user.surname}`,
+          error: error.message,
+        });
+      }
+    }
+
+    // Отправляем уведомления родителям, если включено
+    if (createGroupPaymentDto.sendNotifications !== false && allParentUserIds.size > 0) {
+      try {
+        const serviceName = createGroupPaymentDto.serviceName || this.getServiceName(createGroupPaymentDto.type);
+        const isRecurring = paymentDates.length > 1;
+        
+        let message = `Новый платеж для группы ${group.name}: ${serviceName}`;
+        message += `\nСумма: ${createGroupPaymentDto.amount} тенге`;
+        message += `\nСрок первой оплаты: ${new Date(createGroupPaymentDto.dueDate).toLocaleDateString()}`;
+        
+        if (isRecurring) {
+          message += `\nПериодичность: ${this.getRecurrenceLabel(createGroupPaymentDto.recurrence)}`;
+          message += `\nВсего платежей: ${paymentDates.length}`;
+        }
+
+        await this.notificationsService.addNotification({
+          userIds: Array.from(allParentUserIds),
+          type: 'PAYMENT_DUE',
+          message,
+          url: '/payments',
+        });
+      } catch (notificationError) {
+        console.error('Ошибка отправки уведомлений:', notificationError);
+      }
+    }
+
+    return {
+      groupId: createGroupPaymentDto.groupId,
+      groupName: group.name,
+      totalStudents: group.students.length,
+      processedStudents: studentsToProcess.length,
+      createdPayments: createdPayments.length,
+      errors,
+      payments: createdPayments.map(payment => ({
+        id: payment.id.toString(),
+        studentId: payment.studentId.toString(),
+        studentName: `${payment.student.user.name} ${payment.student.user.surname}`,
+        grade: payment.student.group.name,
+        serviceType: payment.serviceType.toLowerCase(),
+        serviceName: payment.serviceName,
+        amount: payment.amount,
+        currency: 'KZT',
+        dueDate: payment.dueDate.toISOString(),
+        status: this.mapStatus(payment.status),
+        createdAt: payment.createdAt.toISOString(),
+      })),
+    };
   }
 
   async findAll(filters: PaymentFilterDto = {}, user?: any) {
@@ -439,5 +595,67 @@ export class PaymentsService {
       paidCount,
       collectionRate,
     };
+  }
+
+  private calculatePaymentDates(dto: CreateGroupPaymentDto): Date[] {
+    const dates: Date[] = [];
+    const startDate = new Date(dto.dueDate);
+    
+    // Добавляем первую дату
+    dates.push(new Date(startDate));
+
+    // Если нет периодичности или она ONCE, возвращаем только одну дату
+    if (!dto.recurrence || dto.recurrence === PaymentRecurrence.ONCE) {
+      return dates;
+    }
+
+    // Определяем количество повторений
+    let count = dto.recurrenceCount || 1;
+    const endDate = dto.recurrenceEndDate ? new Date(dto.recurrenceEndDate) : null;
+
+    // Ограничиваем максимальное количество повторений для безопасности
+    count = Math.min(count, 12);
+
+    for (let i = 1; i < count; i++) {
+      const nextDate = new Date(startDate);
+      
+      switch (dto.recurrence) {
+        case PaymentRecurrence.WEEKLY:
+          nextDate.setDate(startDate.getDate() + (i * 7));
+          break;
+        case PaymentRecurrence.MONTHLY:
+          nextDate.setMonth(startDate.getMonth() + i);
+          break;
+        case PaymentRecurrence.QUARTERLY:
+          nextDate.setMonth(startDate.getMonth() + (i * 3));
+          break;
+        case PaymentRecurrence.YEARLY:
+          nextDate.setFullYear(startDate.getFullYear() + i);
+          break;
+        default:
+          break;
+      }
+
+      // Проверяем не превышает ли дата конечную дату
+      if (endDate && nextDate > endDate) {
+        break;
+      }
+
+      dates.push(nextDate);
+    }
+
+    return dates;
+  }
+
+  private getRecurrenceLabel(recurrence?: PaymentRecurrence): string {
+    const labels = {
+      [PaymentRecurrence.ONCE]: 'Однократно',
+      [PaymentRecurrence.WEEKLY]: 'Еженедельно',
+      [PaymentRecurrence.MONTHLY]: 'Ежемесячно',
+      [PaymentRecurrence.QUARTERLY]: 'Ежеквартально',
+      [PaymentRecurrence.YEARLY]: 'Ежегодно',
+    };
+    
+    return labels[recurrence] || 'Однократно';
   }
 }

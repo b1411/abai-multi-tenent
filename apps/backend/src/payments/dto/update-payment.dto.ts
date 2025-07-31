@@ -1,17 +1,24 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialType } from '@nestjs/swagger';
+import { IsOptional, IsNumber, IsString, IsDateString, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { CreatePaymentDto } from './create-payment.dto';
-import { IsOptional, IsString, IsNumber, IsDateString } from 'class-validator';
 
 export class UpdatePaymentDto extends PartialType(CreatePaymentDto) {
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Transform(({ value }) => parseFloat(value))
+  paidAmount?: number;
+
   @IsOptional()
   @IsString()
   status?: string;
 
   @IsOptional()
-  @IsNumber()
-  paidAmount?: number;
-
-  @IsOptional()
   @IsDateString()
   paymentDate?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

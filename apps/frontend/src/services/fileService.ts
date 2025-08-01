@@ -13,6 +13,19 @@ export interface UploadedFile {
   updatedAt: string;
 }
 
+export interface FileUploadResponse {
+  id: number;
+  name: string;
+  originalName: string;
+  url: string;
+  type: string;
+  size: number;
+  category: string;
+  uploadedBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 class FileService {
   /**
    * Загрузить файл
@@ -87,6 +100,37 @@ class FileService {
    */
   async deleteFile(id: number): Promise<{ message: string }> {
     return await apiClient.delete<{ message: string }>(`/files/${id}`);
+  }
+
+  /**
+   * Скачать файл
+   */
+  async downloadFile(id: number, filename?: string): Promise<void> {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/files/${id}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка при скачивании файла');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `file_${id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      throw error;
+    }
   }
 
   /**

@@ -69,6 +69,10 @@ class ScheduleService {
     return apiClient.post<any>(`${this.baseUrl}/lessons/apply`, applyData);
   }
 
+  async generateWithAI(params: any): Promise<any> {
+    return apiClient.post<any>(`${this.baseUrl}/generate-ai`, params);
+  }
+
   async updateStatuses(): Promise<{ updated: number }> {
     return apiClient.post<{ updated: number }>(`${this.baseUrl}/update-statuses`);
   }

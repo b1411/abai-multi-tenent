@@ -96,6 +96,7 @@ const KpiSettingsModal: React.FC<KpiSettingsModalProps> = ({
       successThreshold: 85,
       warningThreshold: 70,
       isActive: true,
+      type: 'constant',
     };
 
     setSettings({
@@ -209,7 +210,7 @@ const KpiSettingsModal: React.FC<KpiSettingsModalProps> = ({
                   </div>
 
                   {/* Metrics List */}
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-medium text-gray-900">Метрики KPI</h3>
                       <button
@@ -221,101 +222,215 @@ const KpiSettingsModal: React.FC<KpiSettingsModalProps> = ({
                       </button>
                     </div>
 
-                    {settings.metrics.map((metric, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Название метрики
-                            </label>
-                            <input
-                              type="text"
-                              value={metric.name}
-                              onChange={(e) => updateMetric(index, 'name', e.target.value)}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
+                    {/* Постоянные метрики */}
+                    <div className="space-y-4">
+                      <h4 className="text-md font-medium text-gray-800 border-b border-gray-200 pb-2">
+                        Постоянные метрики
+                      </h4>
+                      {settings.metrics.filter(m => m.type === 'constant').map((metric) => {
+                        const originalIndex = settings.metrics.findIndex(m => m === metric);
+                        return (
+                          <div key={originalIndex} className="border border-gray-200 rounded-lg p-4 bg-green-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Название метрики
+                                </label>
+                                <input
+                                  type="text"
+                                  value={metric.name}
+                                  onChange={(e) => updateMetric(originalIndex, 'name', e.target.value)}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Вес (%)
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={metric.weight}
-                              onChange={(e) => updateMetric(index, 'weight', Number(e.target.value))}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Вес (%)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.weight}
+                                  onChange={(e) => updateMetric(originalIndex, 'weight', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Целевое значение
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={metric.target}
-                              onChange={(e) => updateMetric(index, 'target', Number(e.target.value))}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Целевое значение
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.target}
+                                  onChange={(e) => updateMetric(originalIndex, 'target', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Порог успеха
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={metric.successThreshold}
-                              onChange={(e) => updateMetric(index, 'successThreshold', Number(e.target.value))}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Порог успеха
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.successThreshold}
+                                  onChange={(e) => updateMetric(originalIndex, 'successThreshold', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Порог предупреждения
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={metric.warningThreshold}
-                              onChange={(e) => updateMetric(index, 'warningThreshold', Number(e.target.value))}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Порог предупреждения
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.warningThreshold}
+                                  onChange={(e) => updateMetric(originalIndex, 'warningThreshold', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
 
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                id={`metric-active-${index}`}
-                                checked={metric.isActive}
-                                onChange={(e) => updateMetric(index, 'isActive', e.target.checked)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                              <label htmlFor={`metric-active-${index}`} className="ml-2 text-sm text-gray-700">
-                                Активна
-                              </label>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    id={`metric-active-${originalIndex}`}
+                                    checked={metric.isActive}
+                                    onChange={(e) => updateMetric(originalIndex, 'isActive', e.target.checked)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                  <label htmlFor={`metric-active-${originalIndex}`} className="ml-2 text-sm text-gray-700">
+                                    Активна
+                                  </label>
+                                </div>
+                                <button
+                                  onClick={() => removeMetric(originalIndex)}
+                                  className="text-red-600 hover:text-red-800 transition-colors"
+                                  title="Удалить метрику"
+                                >
+                                  <FaTrash size={16} />
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => removeMetric(index)}
-                              className="text-red-600 hover:text-red-800 transition-colors"
-                              title="Удалить метрику"
-                            >
-                              <FaTrash size={16} />
-                            </button>
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
+
+                    {/* Периодические метрики */}
+                    <div className="space-y-4">
+                      <h4 className="text-md font-medium text-gray-800 border-b border-gray-200 pb-2">
+                        Периодические метрики
+                      </h4>
+                      {settings.metrics.filter(m => m.type === 'periodic').map((metric) => {
+                        const originalIndex = settings.metrics.findIndex(m => m === metric);
+                        return (
+                          <div key={originalIndex} className="border border-gray-200 rounded-lg p-4 bg-blue-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Название метрики
+                                </label>
+                                <input
+                                  type="text"
+                                  value={metric.name}
+                                  onChange={(e) => updateMetric(originalIndex, 'name', e.target.value)}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Вес (%)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.weight}
+                                  onChange={(e) => updateMetric(originalIndex, 'weight', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Целевое значение
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.target}
+                                  onChange={(e) => updateMetric(originalIndex, 'target', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Порог успеха
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.successThreshold}
+                                  onChange={(e) => updateMetric(originalIndex, 'successThreshold', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Порог предупреждения
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={metric.warningThreshold}
+                                  onChange={(e) => updateMetric(originalIndex, 'warningThreshold', Number(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    id={`metric-active-${originalIndex}`}
+                                    checked={metric.isActive}
+                                    onChange={(e) => updateMetric(originalIndex, 'isActive', e.target.checked)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                  <label htmlFor={`metric-active-${originalIndex}`} className="ml-2 text-sm text-gray-700">
+                                    Активна
+                                  </label>
+                                </div>
+                                <button
+                                  onClick={() => removeMetric(originalIndex)}
+                                  className="text-red-600 hover:text-red-800 transition-colors"
+                                  title="Удалить метрику"
+                                >
+                                  <FaTrash size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Calculation Period */}

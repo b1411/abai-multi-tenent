@@ -349,69 +349,278 @@ const KPI: React.FC = () => {
 
       {/* Детальные метрики */}
       {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          {overview.metrics.map((metric, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-sm p-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">{metric.name}</h4>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl font-bold text-gray-900">{metric.value}{metric.unit}</span>
-                <div className="flex items-center">
-                  {getTrendIcon(metric.change)}
-                  <span className="text-sm ml-1">{Math.abs(metric.change)}</span>
+        <div className="mb-8 space-y-6">
+          {/* Общие показатели */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {overview.metrics.map((metric, index) => (
+              <div key={index} className="bg-white rounded-lg shadow-sm p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">{metric.name}</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-2xl font-bold text-gray-900">{metric.value}{metric.unit}</span>
+                  <div className="flex items-center">
+                    {getTrendIcon(metric.change)}
+                    <span className="text-sm ml-1">{Math.abs(metric.change)}</span>
+                  </div>
+                </div>
+                <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(metric.status)}`}>
+                  Цель: {metric.target}{metric.unit}
                 </div>
               </div>
-              <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(metric.status)}`}>
-                Цель: {metric.target}{metric.unit}
+            ))}
+          </div>
+
+          {/* Новые KPI метрики - заглушка для демонстрации */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold mb-4">Новые метрики KPI</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Постоянные метрики */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-green-700 border-b border-green-200 pb-1">Постоянные</h4>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Прогресс по контрольным</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Заполнение журнала</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">План работ</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Доп. материалы</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-green-700 border-b border-green-200 pb-1">&nbsp;</h4>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Обратная связь</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Отзывы родителей</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Удержание учеников</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Стабильность</div>
+                  <div className="text-lg font-bold text-green-700">В разработке</div>
+                </div>
+              </div>
+
+              {/* Периодические метрики */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-blue-700 border-b border-blue-200 pb-1">Периодические</h4>
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Олимпиады</div>
+                  <div className="text-lg font-bold text-blue-700">В разработке</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">РФМШ/НИШ/БИЛ</div>
+                  <div className="text-lg font-bold text-blue-700">В разработке</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Лицеи/частные</div>
+                  <div className="text-lg font-bold text-blue-700">В разработке</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-blue-700 border-b border-blue-200 pb-1">&nbsp;</h4>
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Повышение квалификации</div>
+                  <div className="text-lg font-bold text-blue-700">В разработке</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Командные мероприятия</div>
+                  <div className="text-lg font-bold text-blue-700">В разработке</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600">Помощь в проектах</div>
+                  <div className="text-lg font-bold text-blue-700">В разработке</div>
+                </div>
               </div>
             </div>
-          ))}
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>Примечание:</strong> Новые метрики KPI находятся в стадии разработки. 
+                Для настройки метрик используйте кнопку "Настроить KPI" выше.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Графики */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Тренды */}
-        {trends && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-4">Динамика KPI</h3>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trends.trends}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="period" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="value" stroke="#3B82F6" fillOpacity={1} fill="url(#colorValue)" />
-                  <Line type="monotone" dataKey="target" stroke="#E5E7EB" strokeDasharray="5 5" />
-                </AreaChart>
-              </ResponsiveContainer>
+        {/* Распределение метрик по типам */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Распределение метрик KPI</h3>
+          <div className="h-[300px] flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Постоянные метрики', value: 90, fill: '#10B981' },
+                    { name: 'Периодические метрики', value: 10, fill: '#3B82F6' }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  <Cell fill="#10B981" />
+                  <Cell fill="#3B82F6" />
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+              <span className="text-sm text-gray-600">Постоянные: 90% веса</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
+              <span className="text-sm text-gray-600">Периодические: 10% веса</span>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* KPI по отделам */}
-        {departments && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-4">KPI по отделам</h3>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={departments.departments} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} />
-                  <Tooltip />
-                  <Bar dataKey="averageKpi" fill="#3B82F6" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+        {/* Прогресс выполнения постоянных метрик */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Постоянные метрики (статус)</h3>
+          <div className="space-y-4">
+            {[
+              { name: 'Прогресс по контрольным', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
+              { name: 'Заполнение журнала', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
+              { name: 'План работ', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
+              { name: 'Обратная связь', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
+              { name: 'Отзывы родителей', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
+              { name: 'Удержание учеников', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
+              { name: 'Стабильность', progress: 0, status: 'В разработке', color: 'bg-gray-400' }
+            ].map((metric, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium text-gray-700">{metric.name}</span>
+                    <span className="text-xs text-gray-500">{metric.status}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${metric.color}`}
+                      style={{ width: `${metric.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Дополнительные графики */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Периодические достижения */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Периодические достижения</h3>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { category: 'Олимпиады', value: 0, target: 70 },
+                  { category: 'РФМШ/НИШ', value: 0, target: 60 },
+                  { category: 'Лицеи', value: 0, target: 65 },
+                  { category: 'Квалификация', value: 0, target: 70 },
+                  { category: 'Мероприятия', value: 0, target: 75 }
+                ]}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" angle={-45} textAnchor="end" height={80} fontSize={10} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#3B82F6" name="Текущий" />
+                <Bar dataKey="target" fill="#E5E7EB" name="Цель" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Тренд KPI за год */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Тренд общего KPI</h3>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={[
+                  { month: 'Янв', kpi: 75 },
+                  { month: 'Фев', kpi: 77 },
+                  { month: 'Мар', kpi: 79 },
+                  { month: 'Апр', kpi: 81 },
+                  { month: 'Май', kpi: 78 },
+                  { month: 'Июн', kpi: 82 },
+                  { month: 'Июл', kpi: 85 },
+                  { month: 'Авг', kpi: 83 }
+                ]}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis domain={[60, 100]} />
+                <Tooltip />
+                <Line 
+                  type="monotone" 
+                  dataKey="kpi" 
+                  stroke="#10B981" 
+                  strokeWidth={3}
+                  dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Топ преподаватели по новым критериям */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold mb-4">Готовность к новым метрикам</h3>
+          <div className="space-y-3">
+            {teachers?.teachers.slice(0, 6).map((teacher, index) => (
+              <div key={teacher.id} className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-xs font-medium text-blue-600">#{index + 1}</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 truncate">
+                    {teacher.name.split(' ').slice(0, 2).join(' ')}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                    <div 
+                      className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-2 rounded-full"
+                      style={{ width: '25%' }}
+                    ></div>
+                  </div>
+                  <span className="text-xs text-gray-500">25%</span>
+                </div>
+              </div>
+            )) || []}
+            <div className="mt-4 text-xs text-gray-500 text-center">
+              Показатель готовности к внедрению новых метрик
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Таблица преподавателей */}

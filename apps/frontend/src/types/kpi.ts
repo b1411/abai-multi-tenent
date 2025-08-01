@@ -119,6 +119,7 @@ export interface KpiMetricSetting {
   successThreshold: number;
   warningThreshold: number;
   isActive?: boolean;
+  type: 'constant' | 'periodic'; // Добавляем тип метрики
 }
 
 export interface KpiSettings {

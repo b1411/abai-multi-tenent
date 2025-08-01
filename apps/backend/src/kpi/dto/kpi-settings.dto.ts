@@ -3,7 +3,7 @@ import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min, Max } fro
 import { Type } from 'class-transformer';
 
 export class KpiMetricSettingDto {
-  @ApiProperty({ description: 'Название метрики', example: 'Качество преподавания' })
+  @ApiProperty({ description: 'Название метрики', example: 'Прогресс ученика по контрольным работам' })
   @IsString()
   name: string;
 
@@ -34,6 +34,10 @@ export class KpiMetricSettingDto {
   @ApiProperty({ description: 'Активна ли метрика', example: true })
   @IsOptional()
   isActive?: boolean;
+
+  @ApiProperty({ description: 'Тип метрики', enum: ['constant', 'periodic'], example: 'constant' })
+  @IsString()
+  type: 'constant' | 'periodic';
 }
 
 export class CreateKpiGoalDto {

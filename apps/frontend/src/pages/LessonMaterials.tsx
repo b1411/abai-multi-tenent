@@ -19,6 +19,9 @@ import { lessonService } from '../services/lessonService';
 import { Material, materialService, CreateLessonMaterialsRequest, QuizQuestion } from '../services/materialService';
 import VideoPlayer from '../components/VideoPlayer';
 import { quizService } from '../services/quizService';
+import RichTextEditor from '../components/RichTextEditor';
+import MathRenderer from '../components/MathRenderer';
+import fileService from '../services/fileService';
 
 type ActiveTab = 'content' | 'video' | 'presentation' | 'test';
 
@@ -367,6 +370,14 @@ const LessonMaterialsPage: React.FC = () => {
     }
   };
 
+  // Функция для преобразования Math узлов обратно в LaTeX
+  const convertMathNodesToLatex = (html: string): string => {
+    // Преобразуем span[data-math] обратно в $formula$
+    return html.replace(/<span[^>]*data-math="([^"]*)"[^>]*>.*?<\/span>/g, (match, formula) => {
+      return `$${formula}$`;
+    });
+  };
+
   const handleSaveMaterials = async () => {
     if (!lesson) return;
 
@@ -377,7 +388,8 @@ const LessonMaterialsPage: React.FC = () => {
       const cleanData: CreateLessonMaterialsRequest = {};
 
       if (materialForm.lecture?.trim()) {
-        cleanData.lecture = materialForm.lecture.trim();
+        // Преобразуем Math узлы обратно в LaTeX перед сохранением
+        cleanData.lecture = convertMathNodesToLatex(materialForm.lecture.trim());
       }
 
       if (materialForm.videoUrl?.trim()) {
@@ -389,6 +401,34 @@ const LessonMaterialsPage: React.FC = () => {
       }
 
       if (materialForm.quiz?.name?.trim()) {
+        // Отладочная информация
+        console.log('Original quiz questions:', materialForm.quiz.questions);
+        
+        const processedQuestions = materialForm.quiz.questions?.filter(q => {
+          const hasQuestion = q.question?.trim();
+          const hasOptions = q.options?.some(opt => opt?.trim());
+          const hasCorrectAnswer = typeof q.correctAnswer === 'number' || 
+            (Array.isArray(q.correctAnswer) && q.correctAnswer.length > 0);
+          
+          console.log(`Question ${materialForm.quiz?.questions?.indexOf(q)}:`, {
+            hasQuestion,
+            hasOptions,
+            hasCorrectAnswer,
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer
+          });
+          
+          return hasQuestion && hasOptions && hasCorrectAnswer;
+        }).map(q => ({
+          ...q,
+          // Преобразуем Math узлы в вопросе и вариантах ответов
+          question: convertMathNodesToLatex(q.question),
+          options: q.options.map(opt => convertMathNodesToLatex(opt))
+        })) || [];
+
+        console.log('Processed questions:', processedQuestions);
+
         cleanData.quiz = {
           name: materialForm.quiz.name.trim(),
           duration: materialForm.quiz.duration,
@@ -396,12 +436,7 @@ const LessonMaterialsPage: React.FC = () => {
           isActive: materialForm.quiz.isActive,
           startDate: materialForm.quiz.startDate ? new Date(materialForm.quiz.startDate).toISOString() : undefined,
           endDate: materialForm.quiz.endDate ? new Date(materialForm.quiz.endDate).toISOString() : undefined,
-          questions: materialForm.quiz.questions?.filter(q =>
-            q.question?.trim() &&
-            q.options?.some(opt => opt?.trim()) &&
-            (typeof q.correctAnswer === 'number' ||
-              (Array.isArray(q.correctAnswer) && q.correctAnswer.length > 0))
-          ) || []
+          questions: processedQuestions
         };
       }
 
@@ -523,9 +558,7 @@ const LessonMaterialsPage: React.FC = () => {
           {activeTab === 'content' && (
             <div>
               {materialForm.lecture ? (
-                <div className="prose max-w-none">
-                  <div>{materialForm.lecture}</div>
-                </div>
+                <MathRenderer content={materialForm.lecture} />
               ) : (
                 <div className="text-center py-12">
                   <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -736,7 +769,9 @@ const LessonMaterialsPage: React.FC = () => {
                               </div>
 
                               {/* Question Text */}
-                              <p className="text-gray-800 mb-4 font-medium">{question.question || 'Вопрос не задан'}</p>
+                              <div className="text-gray-800 mb-4 font-medium">
+                                <MathRenderer content={question.question || 'Вопрос не задан'} />
+                              </div>
 
                               {/* Options */}
                               <div className="space-y-2">
@@ -769,9 +804,9 @@ const LessonMaterialsPage: React.FC = () => {
                                             {isCorrect && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
                                           </div>
                                         )}
-                                        <span className={`text-sm ${isCorrect ? 'text-green-800 font-medium' : 'text-gray-700'}`}>
-                                          {option || `Вариант ${optionIndex + 1} не заполнен`}
-                                        </span>
+                                        <div className={`text-sm ${isCorrect ? 'text-green-800 font-medium' : 'text-gray-700'}`}>
+                                          <MathRenderer content={option || `Вариант ${optionIndex + 1} не заполнен`} />
+                                        </div>
                                       </div>
                                       {isCorrect && (
                                         <span className="ml-auto text-xs text-green-600 font-medium">
@@ -865,10 +900,17 @@ const LessonMaterialsPage: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Содержание лекции
             </label>
-            <textarea
-              value={materialForm.lecture || ''}
-              onChange={(e) => setMaterialForm({ ...materialForm, lecture: e.target.value })}
-              className="w-full h-32 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <RichTextEditor
+              content={materialForm.lecture || ''}
+              onChange={(content) => setMaterialForm({ ...materialForm, lecture: content })}
+              onImageUpload={async (file) => {
+                try {
+                  return await fileService.uploadLessonImage(file);
+                } catch (error) {
+                  console.error('Error uploading image:', error);
+                  throw error;
+                }
+              }}
               placeholder="Введите содержание лекции..."
             />
           </div>
@@ -1035,40 +1077,75 @@ const LessonMaterialsPage: React.FC = () => {
                     </div>
 
                     <div className="space-y-3">
-                      <Input
-                        placeholder="Текст вопроса"
-                        value={question.question}
-                        onChange={(e) => updateQuestion(index, { ...question, question: e.target.value })}
-                      />
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Текст вопроса
+                        </label>
+                        <RichTextEditor
+                          content={question.question}
+                          onChange={(content) => updateQuestion(index, { ...question, question: content })}
+                          onImageUpload={async (file) => {
+                            try {
+                              return await fileService.uploadQuizImage(file);
+                            } catch (error) {
+                              console.error('Error uploading image:', error);
+                              throw error;
+                            }
+                          }}
+                          placeholder="Введите текст вопроса..."
+                        />
+                      </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Варианты ответов
+                        </label>
                         {question.options.map((option, optionIndex) => (
-                          <div key={optionIndex} className="flex items-center space-x-2">
-                            {question.multipleAnswers ? (
-                              <input
-                                type="checkbox"
-                                checked={Array.isArray(question.correctAnswer) ? question.correctAnswer.includes(optionIndex) : false}
-                                onChange={() => toggleCorrectAnswer(index, optionIndex)}
-                                className="text-green-600 border-gray-300 rounded focus:ring-green-500"
-                              />
-                            ) : (
-                              <input
-                                type="radio"
-                                name={`correct-${index}`}
-                                checked={question.correctAnswer === optionIndex}
-                                onChange={() => toggleCorrectAnswer(index, optionIndex)}
-                                className="text-green-600"
-                              />
-                            )}
-                            <Input
-                              placeholder={`Вариант ${optionIndex + 1}`}
-                              value={option}
-                              onChange={(e) => {
+                          <div key={optionIndex} className="border border-gray-200 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                {question.multipleAnswers ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={Array.isArray(question.correctAnswer) ? question.correctAnswer.includes(optionIndex) : false}
+                                    onChange={() => toggleCorrectAnswer(index, optionIndex)}
+                                    className="text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                  />
+                                ) : (
+                                  <input
+                                    type="radio"
+                                    name={`correct-${index}`}
+                                    checked={question.correctAnswer === optionIndex}
+                                    onChange={() => toggleCorrectAnswer(index, optionIndex)}
+                                    className="text-green-600"
+                                  />
+                                )}
+                                <label className="text-xs font-medium text-gray-700">
+                                  Вариант {optionIndex + 1}
+                                  {((question.multipleAnswers && Array.isArray(question.correctAnswer) && question.correctAnswer.includes(optionIndex)) ||
+                                    (!question.multipleAnswers && question.correctAnswer === optionIndex)) && (
+                                    <span className="ml-1 text-green-600">✓ Правильный</span>
+                                  )}
+                                </label>
+                              </div>
+                            </div>
+                            <RichTextEditor
+                              content={option}
+                              onChange={(content) => {
                                 const newOptions = [...question.options];
-                                newOptions[optionIndex] = e.target.value;
+                                newOptions[optionIndex] = content;
                                 updateQuestion(index, { ...question, options: newOptions });
                               }}
-                              className="flex-1"
+                              onImageUpload={async (file) => {
+                                try {
+                                  return await fileService.uploadQuizImage(file);
+                                } catch (error) {
+                                  console.error('Error uploading image:', error);
+                                  throw error;
+                                }
+                              }}
+                              placeholder={`Введите текст варианта ${optionIndex + 1}...`}
+                              compact={true}
                             />
                           </div>
                         ))}

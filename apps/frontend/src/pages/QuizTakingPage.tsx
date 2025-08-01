@@ -4,6 +4,7 @@ import { quizService } from '../services/quizService';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { AuthContext } from '../contexts/AuthContext';
+import MathRenderer from '../components/MathRenderer';
 
 const QuizTakingPage = () => {
   const { quizId } = useParams<{ quizId: string }>();
@@ -110,26 +111,30 @@ const QuizTakingPage = () => {
 
       {quiz.questions.map((q: any, index: number) => (
         <div key={q.id} className="p-4 border rounded-lg mb-4">
-          <h3 className="font-bold">
-            Вопрос {index + 1}: {q.name}
-          </h3>
-          <div className="mt-2">
+          <div className="font-bold mb-3">
+            <span>Вопрос {index + 1}: </span>
+            <MathRenderer content={q.name} className="inline" />
+          </div>
+          <div className="mt-2 space-y-2">
             {q.type === 'SINGLE_CHOICE' &&
               q.answers.map((a: any) => (
-                <div key={a.id} className="flex items-center space-x-2">
+                <div key={a.id} className="flex items-start space-x-2">
                   <input
                     type="radio"
                     name={`question-${q.id}`}
                     value={a.id}
                     id={`q${q.id}-a${a.id}`}
                     onChange={(e) => handleAnswerChange(q.id, parseInt(e.target.value), q.type)}
+                    className="mt-1"
                   />
-                  <label htmlFor={`q${q.id}-a${a.id}`}>{a.name}</label>
+                  <label htmlFor={`q${q.id}-a${a.id}`} className="flex-1 cursor-pointer">
+                    <MathRenderer content={a.name} />
+                  </label>
                 </div>
               ))}
             {q.type === 'MULTIPLE_CHOICE' &&
               q.answers.map((a: any) => (
-                <div key={a.id} className="flex items-center space-x-2">
+                <div key={a.id} className="flex items-start space-x-2">
                   <input
                     type="checkbox"
                     id={`q${q.id}-a${a.id}`}
@@ -140,8 +145,11 @@ const QuizTakingPage = () => {
                         : currentAnswers.filter((id: number) => id !== a.id);
                       handleAnswerChange(q.id, newAnswers, q.type);
                     }}
+                    className="mt-1"
                   />
-                  <label htmlFor={`q${q.id}-a${a.id}`}>{a.name}</label>
+                  <label htmlFor={`q${q.id}-a${a.id}`} className="flex-1 cursor-pointer">
+                    <MathRenderer content={a.name} />
+                  </label>
                 </div>
               ))}
             {q.type === 'TEXT' && (

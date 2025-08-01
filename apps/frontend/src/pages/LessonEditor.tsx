@@ -5,6 +5,10 @@ import {
   FaClipboardCheck, FaHome, FaBookOpen, FaUpload, FaCheck, FaTimes
 } from 'react-icons/fa';
 import { formatDate } from '../utils';
+import QuizMaterialEditor from '../components/QuizMaterialEditor';
+import { QuizQuestion } from '../components/QuizEditor';
+import RichTextEditor from '../components/RichTextEditor';
+import fileService from '../services/fileService';
 
 interface Material {
   id: number;
@@ -650,7 +654,53 @@ const LessonEditor: React.FC = () => {
       </div>
 
       {/* Модальное окно создания/редактирования материала */}
-      {showCreateMaterial && (
+      {showCreateMaterial && materialType === 'quiz' && (
+        <QuizMaterialEditor
+          quiz={editingMaterial?.quiz ? {
+            questions: editingMaterial.quiz.questions.map(q => ({
+              id: q.id.toString(),
+              name: q.question,
+              type: q.type === 'single' ? 'SINGLE_CHOICE' as const : 
+                    q.type === 'multiple' ? 'MULTIPLE_CHOICE' as const : 'TEXT' as const,
+              points: q.points,
+              answers: q.options?.map((option, index) => ({
+                id: `${q.id}_${index}`,
+                name: option,
+                isCorrect: q.correctAnswers?.includes(index) || false
+              })) || []
+            })),
+            timeLimit: editingMaterial.quiz.timeLimit,
+            maxAttempts: editingMaterial.quiz.maxAttempts
+          } : undefined}
+          onSave={(quizData) => {
+            const materialData = {
+              title: editingMaterial?.title || 'Новый тест',
+              description: editingMaterial?.description || '',
+              isPublished: editingMaterial?.isPublished || false,
+              quiz: {
+                questions: quizData.questions.map((q, index) => ({
+                  id: index + 1,
+                  question: q.name,
+                  type: q.type === 'SINGLE_CHOICE' ? 'single' as const :
+                        q.type === 'MULTIPLE_CHOICE' ? 'multiple' as const : 'text' as const,
+                  options: q.answers.map(a => a.name),
+                  correctAnswers: q.answers.map((a, i) => a.isCorrect ? i : -1).filter(i => i >= 0),
+                  points: q.points || 1
+                })),
+                timeLimit: quizData.timeLimit,
+                maxAttempts: quizData.maxAttempts
+              }
+            };
+            handleSaveMaterial(materialData);
+          }}
+          onClose={() => {
+            setShowCreateMaterial(false);
+            setEditingMaterial(null);
+          }}
+        />
+      )}
+
+      {showCreateMaterial && materialType !== 'quiz' && (
         <MaterialEditor
           type={materialType}
           material={editingMaterial}
@@ -745,12 +795,18 @@ const MaterialEditor: React.FC<{
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Контент лекции
                 </label>
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  rows={8}
-                  placeholder="Введите текст лекции (поддерживается Markdown)"
+                <RichTextEditor
+                  content={formData.content}
+                  onChange={(content) => setFormData({ ...formData, content })}
+                  onImageUpload={async (file) => {
+                    try {
+                      return await fileService.uploadLessonImage(file);
+                    } catch (error) {
+                      console.error('Error uploading image:', error);
+                      throw error;
+                    }
+                  }}
+                  placeholder="Введите текст лекции..."
                 />
               </div>
             )}

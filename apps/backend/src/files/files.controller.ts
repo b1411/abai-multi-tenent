@@ -11,8 +11,6 @@ import {
   UploadedFiles,
   Req,
   Res,
-  StreamableFile,
-  Header,
   UseGuards
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
@@ -21,7 +19,6 @@ import { FilesService } from './files.service';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { Express, Response } from 'express';
-import { Response as ExpressResponse } from 'express';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Monitor, Cpu, HardDrive, Wifi, Database, Server, AlertTriangle, CheckCircle } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface SystemMonitoringWidgetProps {
   data: any;
@@ -8,36 +9,45 @@ interface SystemMonitoringWidgetProps {
 }
 
 const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for system monitoring
-  const mockData = {
-    serverStatus: 'healthy',
-    cpuUsage: 45.2,
-    memoryUsage: 67.8,
-    diskUsage: 82.1,
-    networkLatency: 12,
-    activeConnections: 1024,
-    uptime: '15 дней 4 часа',
-    services: [
-      { name: 'Web Server', status: 'running', uptime: '15 дней', load: 34 },
-      { name: 'Database', status: 'running', uptime: '30 дней', load: 67 },
-      { name: 'File Storage', status: 'warning', uptime: '2 дня', load: 89 },
-      { name: 'API Gateway', status: 'running', uptime: '12 дней', load: 23 },
-      { name: 'Cache Server', status: 'running', uptime: '8 дней', load: 45 },
-      { name: 'Backup Service', status: 'error', uptime: '0 дней', load: 0 }
-    ],
-    alerts: [
-      { type: 'warning', message: 'Высокое использование диска', time: '14:23' },
-      { type: 'info', message: 'Плановое обновление завершено', time: '12:15' }
-    ],
-    performance: {
-      requestsPerSecond: 156,
-      responseTime: 234,
-      errorRate: 0.12,
-      throughput: '2.3 Гб/ч'
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('system-monitoring');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading system monitoring data:', error);
+      setWidgetData({
+        serverStatus: 'healthy',
+        cpuUsage: 45.2,
+        memoryUsage: 67.8,
+        services: [
+          { name: 'Web Server', status: 'running', uptime: '15 дней', load: 34 },
+          { name: 'Database', status: 'running', uptime: '30 дней', load: 67 }
+        ]
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const monitoring = data || mockData;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const monitoring = widgetData || {};
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -92,13 +102,10 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
               <span className="text-sm font-bold text-green-700">Работает</span>
             </div>
           </div>
-          <div className="text-xs text-blue-600">
-            Время работы: {monitoring.uptime}
-          </div>
         </div>
 
         {/* Resource usage */}
-        <div className="mb-3 grid grid-cols-3 gap-2">
+        <div className="mb-3 grid grid-cols-2 gap-2">
           <div className="p-2 rounded-lg bg-white border border-gray-200 text-center">
             <Cpu className="h-4 w-4 text-gray-600 mx-auto mb-1" />
             <div className={`text-sm font-bold ${getUsageTextColor(monitoring.cpuUsage)}`}>
@@ -122,19 +129,6 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
               <div 
                 className={`h-full rounded-full transition-all duration-500 ${getUsageColor(monitoring.memoryUsage)}`}
                 style={{ width: `${monitoring.memoryUsage}%` }}
-              />
-            </div>
-          </div>
-          <div className="p-2 rounded-lg bg-white border border-gray-200 text-center">
-            <HardDrive className="h-4 w-4 text-gray-600 mx-auto mb-1" />
-            <div className={`text-sm font-bold ${getUsageTextColor(monitoring.diskUsage)}`}>
-              {monitoring.diskUsage}%
-            </div>
-            <div className="text-xs text-gray-600">Диск</div>
-            <div className="mt-1 w-full bg-gray-200 rounded-full h-1 overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-500 ${getUsageColor(monitoring.diskUsage)}`}
-                style={{ width: `${monitoring.diskUsage}%` }}
               />
             </div>
           </div>

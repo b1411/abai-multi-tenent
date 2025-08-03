@@ -86,6 +86,7 @@ model User {
   phone             String?
   middlename        String?
   avatar            String? // URL или путь к аватарке
+  birthDate         DateTime? // Дата рождения
   role              UserRole            @default(STUDENT)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -1803,4 +1804,24 @@ model SystemSettings {
   updatedAt            DateTime @updatedAt
 
   @@index([key])
+}
+
+// --- Dashboard Widgets ---
+
+model DashboardWidget {
+  id       String @id @default(uuid())
+  userId   Int
+  type     String
+  title    String
+  size     String @default("medium")
+  position Json
+  config   Json?
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId])
+  @@index([userId, isActive])
 }

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Building, CheckCircle, Clock, Users, MapPin } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface ClassroomUsageWidgetProps {
   data: any;
@@ -8,79 +9,66 @@ interface ClassroomUsageWidgetProps {
 }
 
 const ClassroomUsageWidget: React.FC<ClassroomUsageWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for classroom usage
-  const mockData = {
-    totalRooms: 45,
-    occupiedRooms: 32,
-    freeRooms: 13,
-    utilizationRate: 71.1,
-    rooms: [
-      { 
-        number: 'А-101', 
-        status: 'occupied', 
-        subject: 'Математика', 
-        teacher: 'Аманжолова Г.К.',
-        group: '10А',
-        timeLeft: '25 мин',
-        nextClass: '14:00 - Физика'
-      },
-      { 
-        number: 'Б-205', 
-        status: 'occupied', 
-        subject: 'История', 
-        teacher: 'Султанов Д.Б.',
-        group: '9Б',
-        timeLeft: '15 мин',
-        nextClass: '14:00 - Химия'
-      },
-      { 
-        number: 'В-301', 
-        status: 'free', 
-        nextClass: '14:00 - Английский',
-        teacher: 'Нурланова Т.И.',
-        group: '8А'
-      },
-      { 
-        number: 'Г-102', 
-        status: 'occupied', 
-        subject: 'Физика', 
-        teacher: 'Кенесарова А.М.',
-        group: '11А',
-        timeLeft: '35 мин',
-        nextClass: '15:00 - Математика'
-      },
-      { 
-        number: 'А-203', 
-        status: 'free', 
-        nextClass: '15:00 - Литература',
-        teacher: 'Жумабекова С.А.',
-        group: '10Б'
-      },
-      { 
-        number: 'Б-104', 
-        status: 'occupied', 
-        subject: 'Химия', 
-        teacher: 'Байжанов К.С.',
-        group: '9А',
-        timeLeft: '45 мин',
-        nextClass: '16:00 - Биология'
-      }
-    ],
-    floors: [
-      { floor: '1 этаж', total: 15, occupied: 11, utilization: 73.3 },
-      { floor: '2 этаж', total: 18, occupied: 13, utilization: 72.2 },
-      { floor: '3 этаж', total: 12, occupied: 8, utilization: 66.7 }
-    ],
-    peakHours: [
-      { time: '09:00', usage: 89 },
-      { time: '10:00', usage: 93 },
-      { time: '11:00', usage: 87 },
-      { time: '12:00', usage: 84 },
-      { time: '13:00', usage: 91 }
-    ]
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('classroom-usage');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading classroom usage data:', error);
+      setWidgetData({
+        totalRooms: 45,
+        occupiedRooms: 32,
+        freeRooms: 13,
+        utilizationRate: 71.1,
+        rooms: [
+          { 
+            number: 'А-101', 
+            status: 'occupied', 
+            subject: 'Математика', 
+            teacher: 'Аманжолова Г.К.',
+            group: '10А',
+            timeLeft: '25 мин',
+            nextClass: '14:00 - Физика'
+          },
+          { 
+            number: 'Б-205', 
+            status: 'occupied', 
+            subject: 'История', 
+            teacher: 'Султанов Д.Б.',
+            group: '9Б',
+            timeLeft: '15 мин',
+            nextClass: '14:00 - Химия'
+          }
+        ],
+        floors: [
+          { floor: '1 этаж', total: 15, occupied: 11, utilization: 73.3 },
+          { floor: '2 этаж', total: 18, occupied: 13, utilization: 72.2 }
+        ]
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const usage = data || mockData;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const usage = widgetData || {};
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Bell, Calendar, Users, ExternalLink } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface NewsWidgetProps {
   data: any;
@@ -8,58 +9,37 @@ interface NewsWidgetProps {
 }
 
 const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for news
-  const mockData = {
-    news: [
-      {
-        id: 1,
-        title: 'Объявление о зимних каникулах',
-        summary: 'Информация о расписании каникул и важных датах',
-        date: '2025-01-27',
-        author: 'Администрация',
-        category: 'announcement',
-        priority: 'high'
-      },
-      {
-        id: 2,
-        title: 'Новые курсы по программированию',
-        summary: 'Открыта запись на дополнительные курсы Python и JavaScript',
-        date: '2025-01-26',
-        author: 'Кенесарова А.М.',
-        category: 'education',
-        priority: 'medium'
-      },
-      {
-        id: 3,
-        title: 'Спортивные соревнования',
-        summary: 'Межшкольные соревнования по баскетболу в следующем месяце',
-        date: '2025-01-25',
-        author: 'Спортивный отдел',
-        category: 'sports',
-        priority: 'medium'
-      },
-      {
-        id: 4,
-        title: 'Родительское собрание',
-        summary: 'Приглашаем всех родителей на общее собрание',
-        date: '2025-01-24',
-        author: 'Классные руководители',
-        category: 'meeting',
-        priority: 'high'
-      },
-      {
-        id: 5,
-        title: 'Изменения в расписании',
-        summary: 'Временные изменения в расписании на следующую неделю',
-        date: '2025-01-23',
-        author: 'Учебная часть',
-        category: 'schedule',
-        priority: 'low'
-      }
-    ]
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('news');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading news data:', error);
+      setWidgetData({ news: [] });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const news = data?.news || mockData.news;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const news = widgetData?.news || [];
 
   if (news.length === 0) {
     return (
@@ -146,14 +126,16 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
               key={newsItem.id}
               className={`p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 border-l-4 ${getPriorityColor(newsItem.priority)}`}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  {getCategoryIcon(newsItem.category)}
-                  <span className={`text-xs px-2 py-1 rounded-full border ${getCategoryColor(newsItem.category)}`}>
+              <div className="flex items-start justify-between mb-2 min-w-0 gap-2">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                  <div className="flex-shrink-0">
+                    {getCategoryIcon(newsItem.category)}
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getCategoryColor(newsItem.category)}`}>
                     {getCategoryName(newsItem.category)}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 whitespace-nowrap">
                   {new Date(newsItem.date).toLocaleDateString('ru-RU')}
                 </div>
               </div>
@@ -170,12 +152,12 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
               </div>
               
               {newsItem.author && (
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-500 truncate">
+                <div className="flex items-center justify-between min-w-0 gap-2">
+                  <div className="text-xs text-gray-500 truncate flex-1">
                     {newsItem.author}
                   </div>
                   {newsItem.priority === 'high' && (
-                    <div className="text-xs font-medium text-red-600">
+                    <div className="text-xs font-medium text-red-600 whitespace-nowrap">
                       Важно
                     </div>
                   )}

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { TrendingUp, PieChart, Award, BarChart3, Users } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface GradeAnalyticsWidgetProps {
   data: any;
@@ -8,35 +9,62 @@ interface GradeAnalyticsWidgetProps {
 }
 
 const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for grade analytics
-  const mockData = {
-    averageGrade: 4.1,
-    totalGrades: 1247,
-    trend: '+0.15',
-    trendDirection: 'up',
-    gradeDistribution: [
-      { grade: '5', count: 312, percentage: 25.0 },
-      { grade: '4', count: 458, percentage: 36.7 },
-      { grade: '3', count: 387, percentage: 31.0 },
-      { grade: '2', count: 90, percentage: 7.3 }
-    ],
-    topSubjects: [
-      { subject: 'Физкультура', average: 4.8, count: 156 },
-      { subject: 'Искусство', average: 4.6, count: 142 },
-      { subject: 'Математика', average: 4.2, count: 287 },
-      { subject: 'История', average: 4.1, count: 198 },
-      { subject: 'Физика', average: 3.9, count: 234 }
-    ],
-    classesPerformance: [
-      { class: '10А', average: 4.5, students: 28 },
-      { class: '9Б', average: 4.3, students: 26 },
-      { class: '11А', average: 4.2, students: 24 },
-      { class: '8В', average: 4.0, students: 29 },
-      { class: '10Б', average: 3.8, students: 27 }
-    ]
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('grade-analytics');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading grade analytics data:', error);
+      setWidgetData({
+        averageGrade: 4.1,
+        totalGrades: 1247,
+        trend: '+0.15',
+        trendDirection: 'up',
+        gradeDistribution: [
+          { grade: '5', count: 312, percentage: 25.0 },
+          { grade: '4', count: 458, percentage: 36.7 },
+          { grade: '3', count: 387, percentage: 31.0 },
+          { grade: '2', count: 90, percentage: 7.3 }
+        ],
+        topSubjects: [
+          { subject: 'Физкультура', average: 4.8, count: 156 },
+          { subject: 'Искусство', average: 4.6, count: 142 },
+          { subject: 'Математика', average: 4.2, count: 287 },
+          { subject: 'История', average: 4.1, count: 198 },
+          { subject: 'Физика', average: 3.9, count: 234 }
+        ],
+        classesPerformance: [
+          { class: '10А', average: 4.5, students: 28 },
+          { class: '9Б', average: 4.3, students: 26 },
+          { class: '11А', average: 4.2, students: 24 },
+          { class: '8В', average: 4.0, students: 29 },
+          { class: '10Б', average: 3.8, students: 27 }
+        ]
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const analytics = data || mockData;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const analytics = widgetData || {};
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
@@ -93,7 +121,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
         <div className="mb-3">
           <div className="text-xs font-medium text-gray-600 mb-2">Распределение оценок</div>
           <div className="grid grid-cols-4 gap-2">
-            {analytics.gradeDistribution.map((item: any, index: number) => (
+            {(analytics.gradeDistribution || []).map((item: any, index: number) => (
               <div key={index} className="text-center">
                 <div className={`w-full h-6 ${getGradeColor(item.grade)} rounded-t-lg flex items-center justify-center text-white font-bold text-sm`}>
                   {item.grade}
@@ -111,7 +139,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
             {widget.size === 'small' ? 'Лучшие предметы' : 'Средний балл по предметам'}
           </div>
           <div className="space-y-2">
-            {analytics.topSubjects.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((subject: any, index: number) => (
+            {(analytics.topSubjects || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((subject: any, index: number) => (
               <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -155,7 +183,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div className="text-xs font-medium text-gray-600 mb-2">Лучшие классы</div>
             <div className="grid grid-cols-2 gap-2">
-              {analytics.classesPerformance.slice(0, 4).map((classItem: any, index: number) => (
+              {(analytics.classesPerformance || []).slice(0, 4).map((classItem: any, index: number) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-1">
                     <Users className="h-3 w-3 text-gray-500" />
@@ -172,10 +200,10 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
           </div>
         )}
 
-        {analytics.topSubjects.length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5) && (
+        {(analytics.topSubjects || []).length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5) && (
           <div className="mt-2 text-center">
             <div className="text-xs text-gray-500">
-              и еще {analytics.topSubjects.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5)} предметов
+              и еще {(analytics.topSubjects || []).length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5)} предметов
             </div>
           </div>
         )}

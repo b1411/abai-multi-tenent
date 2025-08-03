@@ -20,7 +20,6 @@ export type WidgetType =
   | 'grades' 
   | 'attendance' 
   | 'calendar' 
-  | 'weather' 
   | 'news' 
   | 'tasks'
   // Teacher widgets
@@ -149,7 +148,9 @@ export type WidgetType =
   | 'vacancies'
   | 'birthdays'
   | 'hr-calendar'
-  | 'hr-documents';
+  | 'hr-documents'
+  // Universal/utility widgets
+  | 'weather';
 
 export type WidgetSize = 'small' | 'medium' | 'large';
 
@@ -201,155 +202,69 @@ export interface DashboardLayout {
   updatedAt: string;
 }
 
-// Widget configurations by role
+// Widget configurations by role - matching backend RBAC
 export const ROLE_WIDGETS: Record<UserRole, WidgetType[]> = {
   STUDENT: [
     'schedule', 
     'assignments', 
     'grades', 
     'attendance', 
-    'calendar', 
-    'weather', 
-    'news', 
-    'tasks'
+    'tasks',
+    'news',
+    'weather'
   ],
   TEACHER: [
     'teacher-schedule', 
-    'my-groups', 
-    'journal', 
-    'homework-check', 
-    'classroom-status', 
-    'teacher-calendar', 
-    'group-stats', 
-    'materials', 
-    'tasks'
+    'teacher-workload',
+    'school-attendance',
+    'grade-analytics',
+    'classroom-usage',
+    // All student widgets
+    'schedule', 
+    'assignments', 
+    'grades', 
+    'attendance', 
+    'tasks',
+    'news',
+    'weather'
   ],
   ADMIN: [
-    // Основные
+    // Admin exclusive
     'system-stats', 
-    'finance-overview', 
     'system-alerts', 
+    'system-monitoring',
+    'finance-overview',
+    'activity-monitoring',
+    'birthdays',
+    // Shared with teachers
     'school-attendance', 
     'teacher-workload', 
     'classroom-usage', 
-    'grade-analytics', 
-    'admin-calendar', 
-    'system-monitoring',
-    // Академические
-    'academic-performance',
-    'student-enrollment',
-    'class-schedules',
-    'exam-results',
-    'homework-completion',
-    'lesson-analytics',
-    'curriculum-progress',
-    'subject-statistics',
-    // Персонал
-    'staff-overview',
-    'teacher-performance',
-    'staff-attendance',
-    'payroll-summary',
-    'recruitment-status',
-    'staff-training',
-    'performance-reviews',
-    'substitution-requests',
-    // Финансы
-    'budget-overview',
-    'revenue-tracking',
-    'expense-analysis',
-    'payment-status',
-    'financial-forecasts',
-    'invoice-management',
-    'fund-allocation',
-    'cost-per-student',
-    // Инфраструктура
-    'facility-utilization',
-    'equipment-status',
-    'maintenance-alerts',
-    'resource-allocation',
-    'inventory-levels',
-    'supply-requests',
-    'energy-consumption',
-    'safety-incidents',
-    // Коммуникации
-    'parent-engagement',
-    'communication-stats',
-    'feedback-summary',
-    'announcement-reach',
-    'support-tickets',
-    'chat-activity',
-    'notification-delivery',
-    'community-events',
-    // Технологии
-    'system-performance',
-    'user-activity',
-    'security-logs',
-    'backup-status',
-    'integration-health',
-    'ai-assistant-usage',
-    'neuro-abai-stats',
-    'digital-adoption',
-    // Аналитика
-    'kpi-dashboard',
-    'trend-analysis',
-    'comparative-reports',
-    'predictive-insights',
-    'performance-metrics',
-    'benchmark-comparison',
-    'goal-tracking',
-    'success-indicators',
-    // Безопасность
-    'security-overview',
-    'access-control',
-    'incident-reports',
-    'compliance-status',
-    'emergency-alerts',
-    'visitor-tracking',
-    'biometric-logs',
-    'surveillance-status',
-    // Специальные
-    'loyalty-program',
-    'branding-metrics',
-    'document-workflow',
-    'activity-monitoring',
-    'fake-positions',
-    'jas-life-engagement',
-    'news-management',
-    'vacation-calendar',
-    // Универсальные
-    'weather',
+    'grade-analytics',
+    // Universal
     'news',
-    'tasks'
+    'tasks',
+    'weather'
   ],
   PARENT: [
     'child-grades', 
     'child-schedule', 
     'child-attendance', 
-    'child-homework', 
-    'school-events', 
-    'payments', 
-    'teacher-messages', 
-    'parent-calendar'
+    'child-homework',
+    'news',
+    'weather'
   ],
   FINANCIST: [
-    'finance-summary', 
-    'debts', 
-    'daily-payments', 
-    'budget', 
-    'salaries', 
-    'payment-analytics', 
-    'bills', 
-    'finance-calendar'
+    'finance-overview',
+    'news',
+    'weather'
   ],
   HR: [
-    'staff-overview', 
-    'vacations', 
-    'sick-leaves', 
-    'teacher-load', 
-    'vacancies', 
-    'birthdays', 
-    'hr-calendar', 
-    'hr-documents'
+    'activity-monitoring',
+    'teacher-workload',
+    'birthdays',
+    'news',
+    'weather'
   ]
 };
 
@@ -601,15 +516,6 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
 
   // Universal widgets
   {
-    type: 'weather',
-    title: 'Погода',
-    description: 'Прогноз погоды на сегодня',
-    category: 'personal',
-    icon: 'Cloud',
-    defaultSize: 'small',
-    availableRoles: ['STUDENT', 'TEACHER', 'ADMIN', 'PARENT', 'FINANCIST', 'HR']
-  },
-  {
     type: 'news',
     title: 'Новости школы',
     description: 'Последние объявления и новости',
@@ -626,6 +532,24 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     icon: 'CheckSquare',
     defaultSize: 'medium',
     availableRoles: ['STUDENT', 'TEACHER', 'ADMIN', 'PARENT', 'FINANCIST', 'HR']
+  },
+  {
+    type: 'weather',
+    title: 'Погода',
+    description: 'Текущая погода и прогноз',
+    category: 'personal',
+    icon: 'Cloud',
+    defaultSize: 'small',
+    availableRoles: ['STUDENT', 'TEACHER', 'ADMIN', 'PARENT', 'FINANCIST', 'HR']
+  },
+  {
+    type: 'birthdays',
+    title: 'Дни рождения',
+    description: 'Предстоящие дни рождения сотрудников',
+    category: 'personal',
+    icon: 'Gift',
+    defaultSize: 'medium',
+    availableRoles: ['HR', 'ADMIN']
   }
 ];
 

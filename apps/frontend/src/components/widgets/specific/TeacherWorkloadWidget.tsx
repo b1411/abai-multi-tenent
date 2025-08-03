@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Clock, User, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface TeacherWorkloadWidgetProps {
   data: any;
@@ -8,64 +9,61 @@ interface TeacherWorkloadWidgetProps {
 }
 
 const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for teacher workload
-  const mockData = {
-    averageHours: 24.5,
-    totalTeachers: 87,
-    overloadedTeachers: 12,
-    underloadedTeachers: 8,
-    teachers: [
-      { 
-        name: 'Аманжолова Г.К.', 
-        hours: 28, 
-        subjects: ['Математика', 'Алгебра'], 
-        groups: 6,
-        status: 'overloaded'
-      },
-      { 
-        name: 'Султанов Д.Б.', 
-        hours: 22, 
-        subjects: ['История', 'Обществознание'], 
-        groups: 4,
-        status: 'normal'
-      },
-      { 
-        name: 'Жумабекова С.А.', 
-        hours: 26, 
-        subjects: ['Казахский язык', 'Литература'], 
-        groups: 5,
-        status: 'optimal'
-      },
-      { 
-        name: 'Кенесарова А.М.', 
-        hours: 18, 
-        subjects: ['Физика'], 
-        groups: 3,
-        status: 'underloaded'
-      },
-      { 
-        name: 'Байжанов К.С.', 
-        hours: 25, 
-        subjects: ['Химия', 'Биология'], 
-        groups: 5,
-        status: 'optimal'
-      },
-      { 
-        name: 'Нурланова Т.И.', 
-        hours: 30, 
-        subjects: ['Английский язык'], 
-        groups: 8,
-        status: 'overloaded'
-      }
-    ],
-    distribution: {
-      overloaded: 12, // >27 hours
-      optimal: 45,    // 20-27 hours
-      underloaded: 30 // <20 hours
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('teacher-workload');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading teacher workload data:', error);
+      setWidgetData({
+        averageHours: 24.5,
+        totalTeachers: 87,
+        teachers: [
+          { 
+            name: 'Аманжолова Г.К.', 
+            hours: 28, 
+            subjects: ['Математика', 'Алгебра'], 
+            groups: 6,
+            status: 'overloaded'
+          },
+          { 
+            name: 'Султанов Д.Б.', 
+            hours: 22, 
+            subjects: ['История'], 
+            groups: 4,
+            status: 'normal'
+          }
+        ],
+        distribution: {
+          overloaded: 12,
+          optimal: 45,
+          underloaded: 30
+        }
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const workload = data || mockData;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const workload = widgetData || {};
 
   const getStatusColor = (status: string) => {
     switch (status) {

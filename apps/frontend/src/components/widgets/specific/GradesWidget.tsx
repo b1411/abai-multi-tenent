@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Star, TrendingUp, TrendingDown, BookOpen } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface GradesWidgetProps {
   data: any;
@@ -8,29 +9,43 @@ interface GradesWidgetProps {
 }
 
 const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for grades
-  const mockData = {
-    averageGrade: 4.2,
-    totalSubjects: 8,
-    lastGrades: [
-      { subject: 'Математика', grade: 5, date: '2025-01-25', teacher: 'Аманжолова Г.К.' },
-      { subject: 'Физика', grade: 4, date: '2025-01-24', teacher: 'Султанов Д.Б.' },
-      { subject: 'Химия', grade: 4, date: '2025-01-23', teacher: 'Жумабекова С.А.' },
-      { subject: 'История', grade: 5, date: '2025-01-22', teacher: 'Кенесарова А.М.' },
-      { subject: 'Литература', grade: 3, date: '2025-01-21', teacher: 'Байжанов К.С.' },
-    ],
-    gradeDistribution: {
-      5: 12,
-      4: 8,
-      3: 3,
-      2: 1
-    },
-    trend: 'up' // up, down, stable
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('grades');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading grades data:', error);
+      setWidgetData({ 
+        averageGrade: 0, 
+        recentGrades: [],
+        trend: 'stable'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const grades = data?.lastGrades || mockData.lastGrades;
-  const averageGrade = data?.averageGrade || mockData.averageGrade;
-  const trend = data?.trend || mockData.trend;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const grades = widgetData?.recentGrades || [];
+  const averageGrade = widgetData?.averageGrade || 0;
+  const trend = widgetData?.trend || 'stable';
 
   if (grades.length === 0) {
     return (
@@ -126,12 +141,6 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

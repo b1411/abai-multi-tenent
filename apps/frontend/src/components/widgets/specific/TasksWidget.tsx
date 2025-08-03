@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { CheckSquare, Square, Plus, Clock, Flag } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface TasksWidgetProps {
   data: any;
@@ -8,57 +9,43 @@ interface TasksWidgetProps {
 }
 
 const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for tasks
-  const mockData = {
-    tasks: [
-      {
-        id: 1,
-        title: 'Подготовить презентацию по математике',
-        completed: false,
-        priority: 'high',
-        dueDate: '2025-01-28',
-        category: 'homework'
-      },
-      {
-        id: 2,
-        title: 'Сдать отчет по физике',
-        completed: true,
-        priority: 'medium',
-        dueDate: '2025-01-27',
-        category: 'assignment'
-      },
-      {
-        id: 3,
-        title: 'Записаться на дополнительные курсы',
-        completed: false,
-        priority: 'low',
-        dueDate: '2025-01-30',
-        category: 'personal'
-      },
-      {
-        id: 4,
-        title: 'Подготовиться к контрольной по химии',
-        completed: false,
-        priority: 'high',
-        dueDate: '2025-01-29',
-        category: 'study'
-      },
-      {
-        id: 5,
-        title: 'Встреча с классным руководителем',
-        completed: false,
-        priority: 'medium',
-        dueDate: '2025-01-31',
-        category: 'meeting'
-      }
-    ],
-    completedCount: 1,
-    totalCount: 5
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('tasks');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading tasks data:', error);
+      setWidgetData({ 
+        tasks: [],
+        completedCount: 0,
+        totalCount: 0
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const tasks = data?.tasks || mockData.tasks;
-  const completedCount = data?.completedCount || mockData.completedCount;
-  const totalCount = data?.totalCount || mockData.totalCount;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const tasks = widgetData?.tasks || [];
+  const completedCount = widgetData?.completedCount || tasks.filter((t: any) => t.completed).length;
+  const totalCount = widgetData?.totalCount || tasks.length;
 
   if (tasks.length === 0) {
     return (
@@ -152,7 +139,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
               key={task.id}
               className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200"
             >
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-3 min-w-0">
                 <div className="flex-shrink-0 mt-0.5">
                   {task.completed ? (
                     <CheckSquare className="h-5 w-5 text-green-600" />
@@ -166,19 +153,19 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
                     {task.title}
                   </div>
                   
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center space-x-2">
-                      <span className={`text-xs px-2 py-1 rounded-full border ${getPriorityBg(task.priority)}`}>
-                        <Flag className={`h-3 w-3 inline mr-1 ${getPriorityColor(task.priority)}`} />
-                        {getCategoryName(task.category)}
+                  <div className="flex items-center justify-between mt-2 min-w-0 gap-2">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getPriorityBg(task.priority)}`}>
+                        <Flag className={`h-3 w-3 inline mr-1 flex-shrink-0 ${getPriorityColor(task.priority)}`} />
+                        <span className="truncate">{getCategoryName(task.category)}</span>
                       </span>
                     </div>
                     
                     {task.dueDate && (
-                      <div className={`flex items-center text-xs ${
+                      <div className={`flex items-center text-xs whitespace-nowrap ${
                         isOverdue(task.dueDate) && !task.completed ? 'text-red-600' : 'text-gray-500'
                       }`}>
-                        <Clock className="h-3 w-3 mr-1" />
+                        <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
                         {new Date(task.dueDate).toLocaleDateString('ru-RU')}
                       </div>
                     )}

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Activity, Users, Clock, Eye, MapPin, Smartphone } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface ActivityMonitoringWidgetProps {
   data: any;
@@ -8,30 +9,54 @@ interface ActivityMonitoringWidgetProps {
 }
 
 const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for activity monitoring
-  const mockData = {
-    activeUsers: 847,
-    onlineStudents: 623,
-    onlineTeachers: 45,
-    averageSessionTime: '2h 34m',
-    topActivities: [
-      { name: 'Чтение материалов', users: 234, percentage: 82 },
-      { name: 'Выполнение заданий', users: 189, percentage: 67 },
-      { name: 'Просмотр расписания', users: 156, percentage: 55 },
-      { name: 'Участие в чатах', users: 134, percentage: 47 }
-    ],
-    locationData: [
-      { location: 'Мобильное приложение', users: 456, percentage: 54 },
-      { location: 'Веб-платформа', users: 391, percentage: 46 }
-    ],
-    recentActivity: [
-      { user: 'Нурланова А.С.', action: 'Вошла в систему', time: '2 мин назад', type: 'login' },
-      { user: 'Байжанов К.С.', action: 'Создал задание', time: '5 мин назад', type: 'content' },
-      { user: 'Жумабекова М.Т.', action: 'Сдала домашнее задание', time: '8 мин назад', type: 'submission' }
-    ]
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('activity-monitoring');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading activity monitoring data:', error);
+      // Fallback to mock data on error
+      setWidgetData({
+        activeUsers: 847,
+        onlineStudents: 623,
+        onlineTeachers: 45,
+        averageSessionTime: '2h 34m',
+        topActivities: [
+          { name: 'Чтение материалов', users: 234, percentage: 82 },
+          { name: 'Выполнение заданий', users: 189, percentage: 67 },
+          { name: 'Просмотр расписания', users: 156, percentage: 55 },
+          { name: 'Участие в чатах', users: 134, percentage: 47 }
+        ],
+        recentActivity: [
+          { user: 'Нурланова А.С.', action: 'Вошла в систему', time: '2 мин назад', type: 'login' },
+          { user: 'Байжанов К.С.', action: 'Создал задание', time: '5 мин назад', type: 'content' },
+          { user: 'Жумабекова М.Т.', action: 'Сдала домашнее задание', time: '8 мин назад', type: 'submission' }
+        ]
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const data_to_use = data || mockData;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const data_to_use = widgetData || {};
 
   return (
     <div className="h-full relative overflow-hidden">
@@ -114,7 +139,7 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
                 Последняя активность
               </div>
               {data_to_use.recentActivity?.slice(0, widget.size === 'small' ? 2 : 3).map((activity: any, index: number) => (
-                <div key={index} className="flex items-center space-x-2 p-2 rounded-lg bg-white border border-gray-200">
+                <div key={index} className="flex items-center space-x-2 p-2 rounded-lg bg-white border border-gray-200 min-w-0">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     activity.type === 'login' ? 'bg-green-400' :
                     activity.type === 'content' ? 'bg-blue-400' : 'bg-purple-400'
@@ -127,7 +152,7 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
                       {activity.action}
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 flex-shrink-0">
+                  <div className="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">
                     {activity.time}
                   </div>
                 </div>

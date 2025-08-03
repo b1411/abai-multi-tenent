@@ -9,7 +9,6 @@ import FinanceOverviewWidget from './specific/FinanceOverviewWidget';
 import ActivityMonitoringWidget from './specific/ActivityMonitoringWidget';
 import ScheduleWidget from './specific/ScheduleWidget';
 import GradesWidget from './specific/GradesWidget';
-import WeatherWidget from './specific/WeatherWidget';
 import NewsWidget from './specific/NewsWidget';
 import TasksWidget from './specific/TasksWidget';
 import AssignmentsWidget from './specific/AssignmentsWidget';
@@ -19,6 +18,7 @@ import TeacherWorkloadWidget from './specific/TeacherWorkloadWidget';
 import ClassroomUsageWidget from './specific/ClassroomUsageWidget';
 import GradeAnalyticsWidget from './specific/GradeAnalyticsWidget';
 import SystemMonitoringWidget from './specific/SystemMonitoringWidget';
+import BirthdaysWidget from './specific/BirthdaysWidget';
 
 interface WidgetRendererProps {
   widget: Widget;
@@ -72,25 +72,22 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
       case 'teacher-schedule':
       case 'child-schedule':
         return <ScheduleWidget data={data} widget={widget} />;
-        
+
       case 'grades':
       case 'child-grades':
         return <GradesWidget data={data} widget={widget} />;
-        
-      case 'weather':
-        return <WeatherWidget data={data} widget={widget} />;
-        
+
       case 'news':
       case 'school-events':
         return <NewsWidget data={data} widget={widget} />;
-        
+
       case 'tasks':
         return <TasksWidget data={data} widget={widget} />;
-        
+
       case 'assignments':
       case 'child-homework':
         return <AssignmentsWidget data={data} widget={widget} />;
-        
+
       case 'attendance':
       case 'child-attendance':
         return <AttendanceWidget data={data} widget={widget} />;
@@ -98,30 +95,33 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
       // Admin widgets
       case 'system-stats':
         return <SystemStatsWidget data={data} widget={widget} />;
-        
+
       case 'system-alerts':
         return <SystemAlertsWidget data={data} widget={widget} />;
-        
+
       case 'finance-overview':
         return <FinanceOverviewWidget data={data} widget={widget} />;
-        
+
       case 'activity-monitoring':
         return <ActivityMonitoringWidget data={data} widget={widget} />;
 
       case 'school-attendance':
         return <SchoolAttendanceWidget data={data} widget={widget} />;
-        
+
       case 'teacher-workload':
         return <TeacherWorkloadWidget data={data} widget={widget} />;
-        
+
       case 'classroom-usage':
         return <ClassroomUsageWidget data={data} widget={widget} />;
 
       case 'grade-analytics':
         return <GradeAnalyticsWidget data={data} widget={widget} />;
-        
+
       case 'system-monitoring':
         return <SystemMonitoringWidget data={data} widget={widget} />;
+
+      case 'birthdays':
+        return <BirthdaysWidget data={data} widget={widget} />;
 
       // For widgets we haven't implemented yet, show a placeholder
       default:
@@ -138,17 +138,17 @@ const DefaultWidget: React.FC<{ data: any; widget: Widget }> = ({ data, widget }
     <div className="h-full relative">
       {/* Beautiful gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 via-transparent to-slate-50/30 rounded-lg"></div>
-      
+
       <div className="relative z-10 h-full flex flex-col items-center justify-center text-gray-500">
         <div className="text-center">
           {/* Modern icon */}
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
             <div className="text-2xl">🚀</div>
           </div>
-          
+
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Скоро будет готово!</h3>
           <p className="text-sm text-gray-600 mb-4">Виджет "{widget.title}" находится в разработке</p>
-          
+
           {/* Preview data if available */}
           {data && Object.keys(data).length > 0 && (
             <div className="mt-4 p-4 bg-white/60 backdrop-blur-sm rounded-lg border border-white/80 max-w-sm">

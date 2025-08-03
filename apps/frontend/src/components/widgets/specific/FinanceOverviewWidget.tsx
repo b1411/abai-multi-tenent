@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, PieChart } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface FinanceOverviewWidgetProps {
   data: any;
@@ -8,21 +9,56 @@ interface FinanceOverviewWidgetProps {
 }
 
 const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, widget }) => {
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('finance-overview');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading finance data:', error);
+      setWidgetData({
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netProfit: 0,
+        unpaidFees: 0,
+        monthlyGrowth: 0
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   const {
     totalRevenue,
     totalExpenses,
     netProfit,
     unpaidFees,
     monthlyGrowth
-  } = data || {};
+  } = widgetData || {};
 
-  if (!totalRevenue) {
+  if (!totalRevenue && totalRevenue !== 0) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500">
         <div className="text-center">
           <DollarSign className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-          <p className="text-sm">Загрузка финансовых данных...</p>
-          <p className="text-xs text-gray-400 mt-1">TODO: Подключить к API</p>
+          <p className="text-sm">Нет финансовых данных</p>
         </div>
       </div>
     );
@@ -155,20 +191,6 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
-      </div>
-
-      {/* Demo indicator */}
-      <div className="absolute bottom-3 right-3 opacity-60 hover:opacity-100 transition-opacity">
-        <div className="flex items-center space-x-1 px-2 py-1 bg-amber-100/80 text-amber-700 rounded-full text-xs font-medium">
-          <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></div>
-          <span>Demo</span>
-        </div>
       </div>
     </div>
   );

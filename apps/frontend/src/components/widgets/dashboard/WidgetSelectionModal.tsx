@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Plus } from 'lucide-react';
+import { X, Search, Plus, RefreshCw } from 'lucide-react';
 import { WidgetTemplate, WidgetCategory, WidgetType } from '../../../types/widget';
+import widgetService from '../../../services/widgetService';
 import * as Icons from 'lucide-react';
 
 interface WidgetSelectionModalProps {

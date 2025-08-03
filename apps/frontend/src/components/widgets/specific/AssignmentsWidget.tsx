@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { BookOpen, Clock, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface AssignmentsWidgetProps {
   data: any;
@@ -8,71 +9,47 @@ interface AssignmentsWidgetProps {
 }
 
 const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for assignments
-  const mockData = {
-    assignments: [
-      {
-        id: 1,
-        subject: 'Математика',
-        title: 'Решить задачи по алгебре',
-        description: 'Глава 5, упражнения 1-20',
-        dueDate: '2025-01-29',
-        status: 'pending',
-        teacher: 'Аманжолова Г.К.',
-        priority: 'high'
-      },
-      {
-        id: 2,
-        subject: 'Физика',
-        title: 'Лабораторная работа №3',
-        description: 'Измерение ускорения свободного падения',
-        dueDate: '2025-01-30',
-        status: 'in_progress',
-        teacher: 'Султанов Д.Б.',
-        priority: 'medium'
-      },
-      {
-        id: 3,
-        subject: 'Химия',
-        title: 'Составить уравнения реакций',
-        description: 'Реакции окисления-восстановления',
-        dueDate: '2025-01-28',
-        status: 'submitted',
-        teacher: 'Жумабекова С.А.',
-        priority: 'medium'
-      },
-      {
-        id: 4,
-        subject: 'История',
-        title: 'Эссе о Великой Отечественной войне',
-        description: 'Объем 2-3 страницы, использовать источники',
-        dueDate: '2025-02-01',
-        status: 'pending',
-        teacher: 'Кенесарова А.М.',
-        priority: 'low'
-      },
-      {
-        id: 5,
-        subject: 'Литература',
-        title: 'Анализ произведения А.С. Пушкина',
-        description: 'Евгений Онегин, главы 1-3',
-        dueDate: '2025-01-31',
-        status: 'overdue',
-        teacher: 'Байжанов К.С.',
-        priority: 'high'
-      }
-    ],
-    stats: {
-      total: 5,
-      pending: 2,
-      inProgress: 1,
-      submitted: 1,
-      overdue: 1
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('assignments');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading assignments data:', error);
+      setWidgetData({ assignments: [] });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const assignments = data?.assignments || mockData.assignments;
-  const stats = data?.stats || mockData.stats;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const assignments = widgetData?.assignments || [];
+  
+  // Calculate stats from assignments if not provided
+  const stats = widgetData?.stats || {
+    total: assignments.length,
+    pending: assignments.filter((a: any) => a.status === 'pending').length,
+    inProgress: assignments.filter((a: any) => a.status === 'in_progress').length,
+    submitted: assignments.filter((a: any) => a.status === 'submitted').length,
+    overdue: assignments.filter((a: any) => a.status === 'overdue' || 
+      (new Date(a.dueDate) < new Date() && a.status !== 'submitted')).length
+  };
 
   if (assignments.length === 0) {
     return (
@@ -172,20 +149,22 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
               key={assignment.id}
               className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200"
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  {getStatusIcon(assignment.status)}
+              <div className="flex items-start justify-between mb-2 min-w-0">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                  <div className="flex-shrink-0">
+                    {getStatusIcon(assignment.status)}
+                  </div>
                   <span className="text-sm font-semibold text-gray-900 truncate">
                     {assignment.subject}
                   </span>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(assignment.status)}`}>
+                <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ml-2 ${getStatusColor(assignment.status)}`}>
                   {getStatusName(assignment.status)}
                 </span>
               </div>
               
               <div className="mb-2">
-                <h4 className="font-medium text-sm text-gray-900 line-clamp-1 mb-1">
+                <h4 className="font-medium text-sm text-gray-900 truncate mb-1">
                   {assignment.title}
                 </h4>
                 {widget.size !== 'small' && (
@@ -195,23 +174,25 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
                 )}
               </div>
               
-              <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-500 truncate">
+              <div className="flex items-center justify-between min-w-0 gap-2">
+                <div className="text-xs text-gray-500 truncate flex-1">
                   {assignment.teacher}
                 </div>
-                <div className={`flex items-center text-xs ${
+                <div className={`flex items-center text-xs whitespace-nowrap ${
                   isOverdue(assignment.dueDate) && assignment.status !== 'submitted' ? 'text-red-600' : 'text-gray-500'
                 }`}>
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {new Date(assignment.dueDate).toLocaleDateString('ru-RU')}
-                  {assignment.status !== 'submitted' && (
-                    <span className="ml-1">
-                      ({getDaysUntilDue(assignment.dueDate) >= 0 ? 
-                        `${getDaysUntilDue(assignment.dueDate)} дн.` : 
-                        'просрочено'
-                      })
-                    </span>
-                  )}
+                  <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">
+                    {new Date(assignment.dueDate).toLocaleDateString('ru-RU')}
+                    {assignment.status !== 'submitted' && (
+                      <span className="ml-1">
+                        ({getDaysUntilDue(assignment.dueDate) >= 0 ? 
+                          `${getDaysUntilDue(assignment.dueDate)} дн.` : 
+                          'просрочено'
+                        })
+                      </span>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -226,12 +207,6 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

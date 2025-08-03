@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { CheckCircle, XCircle, Clock, Calendar, TrendingUp, User } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface AttendanceWidgetProps {
   data: any;
@@ -8,35 +9,60 @@ interface AttendanceWidgetProps {
 }
 
 const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => {
-  // Mock data structure for attendance
-  const mockData = {
-    currentMonth: {
-      totalDays: 20,
-      presentDays: 18,
-      absentDays: 2,
-      lateDays: 1,
-      percentage: 90
-    },
-    recentAttendance: [
-      { date: '2025-01-27', status: 'present', lessons: 6, note: null },
-      { date: '2025-01-26', status: 'present', lessons: 5, note: null },
-      { date: '2025-01-25', status: 'late', lessons: 6, note: 'Опоздание на 15 мин' },
-      { date: '2025-01-24', status: 'absent', lessons: 6, note: 'Болезнь' },
-      { date: '2025-01-23', status: 'present', lessons: 6, note: null },
-      { date: '2025-01-22', status: 'present', lessons: 5, note: null },
-      { date: '2025-01-21', status: 'present', lessons: 6, note: null }
-    ],
-    weeklyStats: {
-      thisWeek: 95,
-      lastWeek: 85,
-      trend: 'up'
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('attendance');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading attendance data:', error);
+      setWidgetData({ 
+        percentage: 0, 
+        totalClasses: 0, 
+        attended: 0 
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const attendance = data || mockData;
-  const { currentMonth, recentAttendance, weeklyStats } = attendance;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  if (!currentMonth) {
+  // Adapt API data to widget format
+  const attendance = widgetData ? {
+    currentMonth: {
+      totalDays: widgetData.totalClasses || 0,
+      presentDays: widgetData.attended || 0,
+      absentDays: (widgetData.totalClasses || 0) - (widgetData.attended || 0),
+      lateDays: 0, // API doesn't provide this yet
+      percentage: widgetData.percentage || 0
+    },
+    recentAttendance: [], // API doesn't provide detailed history yet
+    weeklyStats: {
+      thisWeek: widgetData.percentage || 0,
+      lastWeek: widgetData.percentage || 0,
+      trend: 'stable'
+    }
+  } : null;
+
+  const { currentMonth, recentAttendance, weeklyStats } = attendance || {};
+
+  if (!currentMonth || currentMonth.totalDays === 0) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500">
         <div className="text-center">
@@ -160,23 +186,25 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
             {recentAttendance?.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((record: any, index: number) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200"
+                className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 min-w-0 gap-2"
               >
-                <div className="flex items-center space-x-3">
-                  {getStatusIcon(record.status)}
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
+                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                  <div className="flex-shrink-0">
+                    {getStatusIcon(record.status)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-900 truncate">
                       {new Date(record.date).toLocaleDateString('ru-RU')}
                     </div>
                     {record.note && widget.size !== 'small' && (
-                      <div className="text-xs text-gray-500 truncate max-w-32">
+                      <div className="text-xs text-gray-500 truncate">
                         {record.note}
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(record.status)}`}>
+                <div className="text-right flex-shrink-0">
+                  <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getStatusColor(record.status)}`}>
                     {getStatusName(record.status)}
                   </span>
                   {widget.size === 'large' && (
@@ -198,12 +226,6 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

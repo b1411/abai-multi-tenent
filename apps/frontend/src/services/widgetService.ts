@@ -67,7 +67,7 @@ class WidgetService {
         ...widget,
         updatedAt: new Date().toISOString()
       };
-      
+
       const response = await apiClient.put<Widget>(`/dashboard/widgets/${widget.id}`, updatedWidget);
       return response;
     } catch (error) {
@@ -92,7 +92,7 @@ class WidgetService {
       return response;
     } catch (error) {
       console.error('Error fetching dashboard layout:', error);
-      
+
       // Try to get from localStorage as fallback
       const saved = localStorage.getItem('widgetLayout');
       if (saved) {
@@ -104,7 +104,7 @@ class WidgetService {
           updatedAt: new Date().toISOString()
         };
       }
-      
+
       return null;
     }
   }
@@ -123,10 +123,14 @@ class WidgetService {
   // Get widget data
   async getWidgetData(widgetType: WidgetType, config?: any): Promise<any> {
     try {
-      // For now, return mock data since we don't have the backend endpoint yet
-      return this.getMockWidgetData(widgetType);
+      const url = config ?
+        `/dashboard/widget-data/${widgetType}?${new URLSearchParams(config)}` :
+        `/dashboard/widget-data/${widgetType}`;
+      const response = await apiClient.get(url);
+      return response;
     } catch (error) {
       console.error(`Error fetching data for widget ${widgetType}:`, error);
+      // Return mock data as fallback
       return this.getMockWidgetData(widgetType);
     }
   }
@@ -140,10 +144,9 @@ class WidgetService {
       'grades': 'Мои оценки',
       'attendance': 'Посещаемость',
       'calendar': 'Календарь',
-      'weather': 'Погода',
       'news': 'Новости',
       'tasks': 'Задачи',
-      
+
       // Teacher widgets
       'teacher-schedule': 'Мои уроки',
       'my-groups': 'Мои группы',
@@ -153,7 +156,7 @@ class WidgetService {
       'teacher-calendar': 'Календарь учителя',
       'group-stats': 'Статистика групп',
       'materials': 'Материалы',
-      
+
       // Admin widgets
       'system-stats': 'Системная статистика',
       'finance-overview': 'Финансы',
@@ -164,7 +167,7 @@ class WidgetService {
       'grade-analytics': 'Аналитика оценок',
       'admin-calendar': 'Календарь администратора',
       'system-monitoring': 'Мониторинг системы',
-      
+
       // Parent widgets
       'child-grades': 'Оценки ребенка',
       'child-schedule': 'Расписание ребенка',
@@ -174,7 +177,7 @@ class WidgetService {
       'payments': 'Платежи',
       'teacher-messages': 'Сообщения от учителей',
       'parent-calendar': 'Родительский календарь',
-      
+
       // Financist widgets
       'finance-summary': 'Финансовая сводка',
       'debts': 'Задолженности',
@@ -184,7 +187,7 @@ class WidgetService {
       'payment-analytics': 'Аналитика платежей',
       'bills': 'Счета к оплате',
       'finance-calendar': 'Финансовый календарь',
-      
+
       // HR widgets
       'staff-overview': 'Обзор персонала',
       'vacations': 'Отпуска',
@@ -201,9 +204,9 @@ class WidgetService {
 
   private getDefaultSize(widgetType: WidgetType): 'small' | 'medium' | 'large' {
     // Define default sizes for different widget types
-    const smallWidgets: WidgetType[] = ['grades', 'attendance', 'weather'];
+    const smallWidgets: WidgetType[] = ['grades', 'attendance'];
     const largeWidgets: WidgetType[] = ['journal', 'system-monitoring', 'grade-analytics'];
-    
+
     if (smallWidgets.includes(widgetType)) return 'small';
     if (largeWidgets.includes(widgetType)) return 'large';
     return 'medium';
@@ -296,45 +299,45 @@ class WidgetService {
         overloadedTeachers: 12,
         underloadedTeachers: 8,
         teachers: [
-          { 
-            name: 'Аманжолова Г.К.', 
-            hours: 28, 
-            subjects: ['Математика', 'Алгебра'], 
+          {
+            name: 'Аманжолова Г.К.',
+            hours: 28,
+            subjects: ['Математика', 'Алгебра'],
             groups: 6,
             status: 'overloaded'
           },
-          { 
-            name: 'Султанов Д.Б.', 
-            hours: 22, 
-            subjects: ['История', 'Обществознание'], 
+          {
+            name: 'Султанов Д.Б.',
+            hours: 22,
+            subjects: ['История', 'Обществознание'],
             groups: 4,
             status: 'normal'
           },
-          { 
-            name: 'Жумабекова С.А.', 
-            hours: 26, 
-            subjects: ['Казахский язык', 'Литература'], 
+          {
+            name: 'Жумабекова С.А.',
+            hours: 26,
+            subjects: ['Казахский язык', 'Литература'],
             groups: 5,
             status: 'optimal'
           },
-          { 
-            name: 'Кенесарова А.М.', 
-            hours: 18, 
-            subjects: ['Физика'], 
+          {
+            name: 'Кенесарова А.М.',
+            hours: 18,
+            subjects: ['Физика'],
             groups: 3,
             status: 'underloaded'
           },
-          { 
-            name: 'Байжанов К.С.', 
-            hours: 25, 
-            subjects: ['Химия', 'Биология'], 
+          {
+            name: 'Байжанов К.С.',
+            hours: 25,
+            subjects: ['Химия', 'Биология'],
             groups: 5,
             status: 'optimal'
           },
-          { 
-            name: 'Нурланова Т.И.', 
-            hours: 30, 
-            subjects: ['Английский язык'], 
+          {
+            name: 'Нурланова Т.И.',
+            hours: 30,
+            subjects: ['Английский язык'],
             groups: 8,
             status: 'overloaded'
           }
@@ -351,51 +354,51 @@ class WidgetService {
         freeRooms: 13,
         utilizationRate: 71.1,
         rooms: [
-          { 
-            number: 'А-101', 
-            status: 'occupied', 
-            subject: 'Математика', 
+          {
+            number: 'А-101',
+            status: 'occupied',
+            subject: 'Математика',
             teacher: 'Аманжолова Г.К.',
             group: '10А',
             timeLeft: '25 мин',
             nextClass: '14:00 - Физика'
           },
-          { 
-            number: 'Б-205', 
-            status: 'occupied', 
-            subject: 'История', 
+          {
+            number: 'Б-205',
+            status: 'occupied',
+            subject: 'История',
             teacher: 'Султанов Д.Б.',
             group: '9Б',
             timeLeft: '15 мин',
             nextClass: '14:00 - Химия'
           },
-          { 
-            number: 'В-301', 
-            status: 'free', 
+          {
+            number: 'В-301',
+            status: 'free',
             nextClass: '14:00 - Английский',
             teacher: 'Нурланова Т.И.',
             group: '8А'
           },
-          { 
-            number: 'Г-102', 
-            status: 'occupied', 
-            subject: 'Физика', 
+          {
+            number: 'Г-102',
+            status: 'occupied',
+            subject: 'Физика',
             teacher: 'Кенесарова А.М.',
             group: '11А',
             timeLeft: '35 мин',
             nextClass: '15:00 - Математика'
           },
-          { 
-            number: 'А-203', 
-            status: 'free', 
+          {
+            number: 'А-203',
+            status: 'free',
             nextClass: '15:00 - Литература',
             teacher: 'Жумабекова С.А.',
             group: '10Б'
           },
-          { 
-            number: 'Б-104', 
-            status: 'occupied', 
-            subject: 'Химия', 
+          {
+            number: 'Б-104',
+            status: 'occupied',
+            subject: 'Химия',
             teacher: 'Байжанов К.С.',
             group: '9А',
             timeLeft: '45 мин',
@@ -487,16 +490,6 @@ class WidgetService {
       },
 
       // Универсальные виджеты
-      'weather': {
-        temperature: -5,
-        condition: 'Снег',
-        humidity: 78,
-        windSpeed: 12,
-        forecast: [
-          { day: 'Завтра', temp: -3, condition: 'Облачно' },
-          { day: 'Послезавтра', temp: -1, condition: 'Солнечно' }
-        ]
-      },
       'news': {
         articles: [
           { id: 1, title: 'Новые достижения наших учеников в олимпиаде', content: 'Команда школы заняла призовые места...', date: '2025-01-27', author: 'Администрация' },

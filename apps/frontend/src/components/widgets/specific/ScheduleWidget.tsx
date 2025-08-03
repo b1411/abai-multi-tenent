@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Clock, MapPin } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface ScheduleWidgetProps {
   data: any;
@@ -8,7 +9,37 @@ interface ScheduleWidgetProps {
 }
 
 const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
-  const lessons = data?.lessons || [];
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('schedule');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading schedule data:', error);
+      setWidgetData({ lessons: [] });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const lessons = widgetData?.lessons || [];
 
   if (lessons.length === 0) {
     return (
@@ -27,7 +58,7 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
         <div className="flex-1 overflow-auto space-y-2">
           {lessons.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((lesson: any, index: number) => (
             <div key={lesson.id || index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-3 min-w-0">
                 <div className="flex-shrink-0 w-12 text-center">
                   <div className="text-sm font-bold text-blue-600">
                     {lesson.time?.split('-')[0] || ''}
@@ -41,8 +72,8 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
                     {lesson.subject}
                   </div>
                   {lesson.classroom && (
-                    <div className="flex items-center text-xs text-gray-600 mt-1">
-                      <MapPin className="h-3 w-3 mr-1" />
+                    <div className="flex items-center text-xs text-gray-600 mt-1 min-w-0">
+                      <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                       <span className="truncate">{lesson.classroom}</span>
                     </div>
                   )}
@@ -65,12 +96,6 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

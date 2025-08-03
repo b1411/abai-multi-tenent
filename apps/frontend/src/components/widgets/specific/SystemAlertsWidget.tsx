@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { AlertTriangle, AlertCircle, Info, Clock } from 'lucide-react';
+import widgetService from '../../../services/widgetService';
 
 interface SystemAlertsWidgetProps {
   data: any;
@@ -8,7 +9,37 @@ interface SystemAlertsWidgetProps {
 }
 
 const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget }) => {
-  const { critical, warnings, info, alerts } = data || {};
+  const [widgetData, setWidgetData] = useState(data);
+  const [loading, setLoading] = useState(!data);
+
+  useEffect(() => {
+    if (!data) {
+      loadWidgetData();
+    }
+  }, [data]);
+
+  const loadWidgetData = async () => {
+    try {
+      setLoading(true);
+      const result = await widgetService.getWidgetData('system-alerts');
+      setWidgetData(result);
+    } catch (error) {
+      console.error('Error loading system alerts data:', error);
+      setWidgetData({ alerts: [] });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const { critical, warnings, info, alerts } = widgetData || {};
 
   if (!alerts || alerts.length === 0) {
     return (
@@ -16,7 +47,6 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
         <div className="text-center">
           <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
           <p className="text-sm">Нет уведомлений</p>
-          <p className="text-xs text-gray-400 mt-1">TODO: Подключить к API</p>
         </div>
       </div>
     );

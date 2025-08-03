@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   Search,
   Filter,
   Download,
@@ -26,6 +26,7 @@ import {
   Plus,
   Minus
 } from 'lucide-react';
+import { educationalReportsApi, type Student as ApiStudent, type SubjectGrades as ApiSubjectGrades, type QualityStatistics } from '../services/educationalReportsApi';
 import {
   LineChart,
   Line,
@@ -47,7 +48,7 @@ import autoTable from 'jspdf-autotable';
 
 // Types
 interface Student {
-  id: string;
+  id: number;
   fullName: string;
   grades: { [subject: string]: number[] };
   currentSubjectGrades?: number[];
@@ -59,22 +60,26 @@ interface Student {
   subjects: string[];
   homeworkCompletion: number;
   disciplinaryNotes: number;
-}
-
-interface SubjectGrades {
-  subject: string;
-  grades: number[];
-  average: number;
-  quality: number;
+  userId: number;
+  groupId: number;
+  user: {
+    id: number;
+    name: string;
+    surname: string;
+    middlename: string;
+    email: string;
+  };
+  group: {
+    id: number;
+    name: string;
+  };
 }
 
 interface ReportFilters {
-  period: 'day' | 'week' | 'quarter' | 'year';
   class: string;
   subject: string;
   teacher: string;
   level: string;
-  reportType: 'performance' | 'activity' | 'attendance' | 'fake-positions' | 'discipline' | 'homework' | 'class-summary' | 'subject-analysis';
   search: string;
 }
 
@@ -83,6 +88,9 @@ interface KPIMetrics {
   qualityPercentage: number;
   averageGrade: number;
   unexcusedAbsences: number;
+  attendancePercentage: number;
+  studentsAbove4: number;
+  studentsBelow3: number;
 }
 
 interface ExportLog {
@@ -110,18 +118,6 @@ interface GradeDetail {
   type: 'Контрольная работа' | 'Самостоятельная работа' | 'Устный ответ' | 'Домашнее задание' | 'Тест' | 'Итоговая оценка за день' | 'Итоговая оценка за неделю' | 'Итоговая оценка за четверть' | 'Итоговая оценка за год' | 'Итоговая оценка';
 }
 
-// Constants
-const reportTypes = {
-  performance: 'Успеваемость',
-  activity: 'Активность учителей',
-  attendance: 'Посещаемость',
-  'fake-positions': 'Фейк-ставки',
-  discipline: 'Дисциплина',
-  homework: 'Домашние задания',
-  'class-summary': 'Сводка по классу',
-  'subject-analysis': 'Анализ по предметам'
-};
-
 const periods = {
   day: 'День',
   week: 'Неделя',
@@ -129,119 +125,23 @@ const periods = {
   year: 'Год'
 };
 
-const subjects = [
-  'Математика',
-  'Физика',
-  'Химия',
-  'Биология',
-  'История',
-  'География',
-  'Литература',
-  'Русский язык',
-  'Английский язык',
-  'Информатика'
-];
-
-const classes = [
-  '8А', '8Б', '8В',
-  '9А', '9Б', '9В',
-  '10А', '10Б', '10В',
-  '11А', '11Б', '11В'
-];
-
-const teachers = [
-  'Назарбаева А.Е.',
-  'Қасымов Б.Н.',
-  'Төлегенова Г.М.',
-  'Сәтбаев Д.А.',
-  'Жұмабекова Ж.С.',
-  'Мұратов А.К.'
-];
-
-// Generate random grade
-const randomGrade = () => Math.floor(Math.random() * 3) + 3; // 3-5
-const randomGrades = (count: number) => Array.from({ length: count }, () => randomGrade());
-
-// Generate period-specific grades
-const generatePeriodGrade = (subject: string, period: string): number | null => {
-  // Sometimes students don't have grades for certain periods/subjects
-  if (Math.random() < 0.1) return null; // 10% chance of no grade
-  
-  // Generate grade based on period
-  switch (period) {
-    case 'day':
-      // Daily grades are more variable
-      return Math.floor(Math.random() * 3) + 3; // 3-5
-    case 'week':
-      // Weekly average
-      return Math.floor(Math.random() * 3) + 3; // 3-5
-    case 'quarter':
-      // Quarterly final grades
-      return Math.floor(Math.random() * 3) + 3; // 3-5
-    case 'year':
-      // Yearly final grades (tend to be more stable)
-      return Math.floor(Math.random() * 2) + 4; // 4-5 (year-end grades are usually better)
-    default:
-      return Math.floor(Math.random() * 3) + 3;
-  }
-};
-
-// Generate comprehensive mock data
-const generateMockStudents = (className: string, count: number, period: string): Student[] => {
-  const firstNames = ['Айдар', 'Асем', 'Данияр', 'Айгүл', 'Нұрлан', 'Алия', 'Ерлан', 'Жанар', 'Баuyржан', 'Динара'];
-  const lastNames = ['Назарбаев', 'Қасымов', 'Төлеген', 'Сәтбаев', 'Жұмабек', 'Мұратов', 'Әбдіқадыр', 'Қабылбек', 'Серікбай', 'Дәулетов'];
-  const middleNames = ['Ержанұлы', 'Болатұлы', 'Серікұлы', 'Мұратұлы', 'Асанұлы', 'Қайратұлы', 'Ержанқызы', 'Болатқызы', 'Серікқызы', 'Мұратқызы'];
-
-  return Array.from({ length: count }, (_, index) => {
-    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-    const middleName = middleNames[Math.floor(Math.random() * middleNames.length)];
-    
-    // Generate single grade per subject based on period
-    const grades: { [subject: string]: number[] } = {};
-    subjects.forEach(subject => {
-      const periodGrade = generatePeriodGrade(subject, period);
-      grades[subject] = periodGrade ? [periodGrade] : [];
-    });
-
-    // Calculate average from period grades
-    const allGrades = Object.values(grades).flat();
-    const averageGrade = allGrades.length > 0 
-      ? Math.round((allGrades.reduce((sum, grade) => sum + grade, 0) / allGrades.length) * 10) / 10
-      : 0;
-    const qualityPercentage = allGrades.length > 0
-      ? Math.round((allGrades.filter(grade => grade >= 4).length / allGrades.length) * 100)
-      : 0;
-
-    return {
-      id: `${className}-${index + 1}`,
-      fullName: `${lastName} ${firstName} ${middleName}`,
-      grades,
-      averageGrade,
-      qualityPercentage,
-      absencesExcused: Math.floor(Math.random() * 5),
-      absencesUnexcused: Math.floor(Math.random() * 3),
-      className,
-      subjects,
-      homeworkCompletion: Math.floor(Math.random() * 30) + 70,
-      disciplinaryNotes: Math.floor(Math.random() * 3)
-    };
-  });
-};
-
 const EducationalReports: React.FC = () => {
   const [filters, setFilters] = useState<ReportFilters>({
-    period: 'quarter',
     class: '10А',
     subject: '',
     teacher: '',
     level: '',
-    reportType: 'performance',
     search: ''
   });
 
   const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [apiStudents, setApiStudents] = useState<ApiStudent[]>([]);
+  const [studentGradesMap, setStudentGradesMap] = useState<Map<number, ApiSubjectGrades[]>>(new Map());
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
+  const [teachers, setTeachers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -255,14 +155,113 @@ const EducationalReports: React.FC = () => {
     grades: GradeDetail[];
   } | null>(null);
 
-  // Generate mock data for all classes
+  // Load initial data
   useEffect(() => {
-    const students: Student[] = [];
-    classes.forEach(className => {
-      students.push(...generateMockStudents(className, Math.floor(Math.random() * 10) + 20, filters.period));
-    });
-    setAllStudents(students);
-  }, [filters.period]);
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        const [subjectsData, classesData, teachersData] = await Promise.all([
+          educationalReportsApi.getSubjects(),
+          educationalReportsApi.getClasses(),
+          educationalReportsApi.getTeachers()
+        ]);
+
+        setSubjects(subjectsData.map(s => s.name));
+        setClasses(classesData);
+        setTeachers(teachersData);
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+        setError('Ошибка загрузки данных');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // Load students data
+  useEffect(() => {
+    const loadStudents = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const filtersForApi = {
+          className: filters.class || undefined,
+          search: filters.search || undefined
+        };
+
+        const apiStudentsData = await educationalReportsApi.getStudents(filtersForApi);
+        setApiStudents(apiStudentsData);
+
+        // Load grades for all students
+        const gradesMap = new Map<number, ApiSubjectGrades[]>();
+
+        for (const student of apiStudentsData) {
+          try {
+            const grades = await educationalReportsApi.getStudentGrades(student.id, {
+              period: 'quarter' // Используем четверть по умолчанию
+            });
+            gradesMap.set(student.id, grades);
+          } catch (err) {
+            console.error(`Error loading grades for student ${student.id}:`, err);
+          }
+        }
+
+        setStudentGradesMap(gradesMap);
+
+        // Transform API data to component format
+        const transformedStudents: Student[] = apiStudentsData.map(apiStudent => {
+          const studentGrades = gradesMap.get(apiStudent.id) || [];
+
+          // Convert grades to component format
+          const grades: { [subject: string]: number[] } = {};
+          studentGrades.forEach(subjectGrade => {
+            grades[subjectGrade.subjectName] = subjectGrade.grades.map(gradeDetail => gradeDetail.grade);
+          });
+
+          // Calculate averages
+          const allGrades = Object.values(grades).flat();
+          const averageGrade = allGrades.length > 0
+            ? educationalReportsApi.calculateAverageGrade(allGrades)
+            : 0;
+          const qualityPercentage = allGrades.length > 0
+            ? educationalReportsApi.calculateQualityPercentage(allGrades)
+            : 0;
+
+          return {
+            id: apiStudent.id,
+            userId: apiStudent.userId,
+            groupId: apiStudent.groupId,
+            user: apiStudent.user,
+            group: apiStudent.group,
+            fullName: educationalReportsApi.formatStudentName(apiStudent.user),
+            grades,
+            averageGrade,
+            qualityPercentage,
+            absencesExcused: 0, // TODO: Load from attendance API
+            absencesUnexcused: 0, // TODO: Load from attendance API
+            className: apiStudent.group.name,
+            subjects: subjects,
+            homeworkCompletion: 85, // TODO: Load from homework API
+            disciplinaryNotes: 0 // TODO: Load from discipline API
+          };
+        });
+
+        setAllStudents(transformedStudents);
+      } catch (err) {
+        console.error('Error loading students:', err);
+        setError('Ошибка загрузки данных студентов');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (subjects.length > 0) {
+      loadStudents();
+    }
+  }, [filters.class, filters.search, subjects]);
 
   // Initialize export logs once
   useEffect(() => {
@@ -305,9 +304,9 @@ const EducationalReports: React.FC = () => {
     if (filters.class) {
       students = students.filter(s => s.className === filters.class);
     }
-    
+
     if (filters.search) {
-      students = students.filter(s => 
+      students = students.filter(s =>
         s.fullName.toLowerCase().includes(filters.search.toLowerCase())
       );
     }
@@ -315,7 +314,7 @@ const EducationalReports: React.FC = () => {
     // Set current subject grades for display
     return students.map(student => ({
       ...student,
-      currentSubjectGrades: filters.subject 
+      currentSubjectGrades: filters.subject
         ? student.grades[filters.subject] || []
         : Object.values(student.grades).flat().slice(0, 8)
     }));
@@ -329,7 +328,10 @@ const EducationalReports: React.FC = () => {
         totalStudents: 0,
         qualityPercentage: 0,
         averageGrade: 0,
-        unexcusedAbsences: 0
+        unexcusedAbsences: 0,
+        attendancePercentage: 0,
+        studentsAbove4: 0,
+        studentsBelow3: 0
       };
     }
 
@@ -341,12 +343,17 @@ const EducationalReports: React.FC = () => {
       (students.reduce((sum, s) => sum + s.averageGrade, 0) / totalStudents) * 10
     ) / 10;
     const unexcusedAbsences = students.reduce((sum, s) => sum + s.absencesUnexcused, 0);
+    const studentsAbove4 = students.filter(s => s.averageGrade >= 4).length;
+    const studentsBelow3 = students.filter(s => s.averageGrade < 3).length;
 
     return {
       totalStudents,
       qualityPercentage,
       averageGrade,
-      unexcusedAbsences
+      unexcusedAbsences,
+      attendancePercentage: 85, // TODO: Calculate from attendance data
+      studentsAbove4,
+      studentsBelow3
     };
   }, [filteredStudents]);
 
@@ -358,7 +365,7 @@ const EducationalReports: React.FC = () => {
       const baseAbsences = Math.floor(Math.random() * 20) + 5;
       const baseQuality = Math.floor(Math.random() * 40) + 60;
       const baseHomework = Math.floor(Math.random() * 30) + 70;
-      
+
       return {
         name: month,
         averageGrade: Math.round(baseGrade * 10) / 10,
@@ -367,7 +374,7 @@ const EducationalReports: React.FC = () => {
         homework: baseHomework
       };
     });
-  }, [filters.reportType, filters.class, filters.subject]);
+  }, [filters.class, filters.subject]);
 
   const handleFilterChange = (key: keyof ReportFilters, value: string) => {
     setFilters(prev => ({
@@ -376,49 +383,109 @@ const EducationalReports: React.FC = () => {
     }));
   };
 
-  const handleRefreshData = () => {
+  const handleRefreshData = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const students: Student[] = [];
-      classes.forEach(className => {
-        students.push(...generateMockStudents(className, Math.floor(Math.random() * 10) + 20, filters.period));
+    try {
+      const filtersForApi = {
+        className: filters.class || undefined,
+        search: filters.search || undefined
+      };
+
+      const apiStudentsData = await educationalReportsApi.getStudents(filtersForApi);
+      setApiStudents(apiStudentsData);
+
+      // Reload grades for all students
+      const gradesMap = new Map<number, ApiSubjectGrades[]>();
+
+      for (const student of apiStudentsData) {
+        try {
+          const grades = await educationalReportsApi.getStudentGrades(student.id, {
+            period: 'quarter' // Используем четверть по умолчанию
+          });
+          gradesMap.set(student.id, grades);
+        } catch (err) {
+          console.error(`Error loading grades for student ${student.id}:`, err);
+        }
+      }
+
+      setStudentGradesMap(gradesMap);
+
+      // Transform data
+      const transformedStudents: Student[] = apiStudentsData.map(apiStudent => {
+        const studentGrades = gradesMap.get(apiStudent.id) || [];
+
+        const grades: { [subject: string]: number[] } = {};
+        studentGrades.forEach(subjectGrade => {
+          grades[subjectGrade.subjectName] = subjectGrade.grades.map(gradeDetail => gradeDetail.grade);
+        });
+
+        const allGrades = Object.values(grades).flat();
+        const averageGrade = allGrades.length > 0
+          ? educationalReportsApi.calculateAverageGrade(allGrades)
+          : 0;
+        const qualityPercentage = allGrades.length > 0
+          ? educationalReportsApi.calculateQualityPercentage(allGrades)
+          : 0;
+
+        return {
+          id: apiStudent.id,
+          userId: apiStudent.userId,
+          groupId: apiStudent.groupId,
+          user: apiStudent.user,
+          group: apiStudent.group,
+          fullName: educationalReportsApi.formatStudentName(apiStudent.user),
+          grades,
+          averageGrade,
+          qualityPercentage,
+          absencesExcused: 0,
+          absencesUnexcused: 0,
+          className: apiStudent.group.name,
+          subjects: subjects,
+          homeworkCompletion: 85,
+          disciplinaryNotes: 0
+        };
       });
-      setAllStudents(students);
+
+      setAllStudents(transformedStudents);
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+      setError('Ошибка обновления данных');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const handleExport = (format: 'xlsx' | 'csv' | 'pdf') => {
     const newLog: ExportLog = {
       id: Date.now().toString(),
       user: 'Текущий пользователь',
-      reportType: reportTypes[filters.reportType],
+      reportType: 'Успеваемость',
       format: format.toUpperCase(),
       exportedAt: new Date().toISOString()
     };
-    
+
     setExportLogs(prev => [newLog, ...prev]);
     setShowExportModal(false);
-    
+
     // Simulate download
-    console.log(`Экспортируется ${reportTypes[filters.reportType]} в формате ${format.toUpperCase()}`);
-    alert(`Отчет "${reportTypes[filters.reportType]}" экспортирован в формате ${format.toUpperCase()}`);
+    console.log(`Экспортируется отчет в формате ${format.toUpperCase()}`);
+    alert(`Отчет экспортирован в формате ${format.toUpperCase()}`);
   };
 
   const handleFilteredExport = (format: 'xlsx' | 'pdf') => {
     const newLog: ExportLog = {
       id: Date.now().toString(),
       user: 'Текущий пользователь',
-      reportType: `${reportTypes[filters.reportType]} - Отфильтровано`,
+      reportType: 'Успеваемость - Отфильтровано',
       format: format.toUpperCase(),
       exportedAt: new Date().toISOString()
     };
-    
+
     setExportLogs(prev => [newLog, ...prev]);
-    
+
     // Generate filtered report info
     const filterInfo = {
-      period: periods[filters.period],
+      period: 'Текущий период',
       class: filters.class || 'Все классы',
       subject: filters.subject || 'Все предметы',
       studentsCount: filteredStudents.length,
@@ -467,7 +534,7 @@ const EducationalReports: React.FC = () => {
 
       subjects.forEach(subject => {
         const allSubjectGrades = filteredStudents.flatMap(s => s.grades[subject] || []);
-        const subjectClassAverage = allSubjectGrades.length > 0 
+        const subjectClassAverage = allSubjectGrades.length > 0
           ? Math.round((allSubjectGrades.reduce((sum, grade) => sum + grade, 0) / allSubjectGrades.length) * 10) / 10
           : 0;
         summaryRow[subject] = subjectClassAverage || '—';
@@ -483,7 +550,7 @@ const EducationalReports: React.FC = () => {
       // Create workbook
       const ws = XLSX.utils.json_to_sheet(excelData);
       const wb = XLSX.utils.book_new();
-      
+
       // Set column widths
       const colWidths = [
         { wch: 5 },  // №
@@ -520,7 +587,7 @@ const EducationalReports: React.FC = () => {
 
       // Download file
       XLSX.writeFile(wb, `${fileName}.xlsx`);
-      
+
       console.log('Excel файл успешно создан и скачан');
     } catch (error) {
       console.error('Ошибка при создании Excel файла:', error);
@@ -531,14 +598,14 @@ const EducationalReports: React.FC = () => {
   const exportToPDF = (fileName: string, filterInfo: any) => {
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
-      
+
       // Set font for Cyrillic support
       doc.setFont('helvetica');
-      
+
       // Title
       doc.setFontSize(16);
       doc.text('Отчет по успеваемости', 20, 20);
-      
+
       // Report info
       doc.setFontSize(10);
       doc.text(`Период: ${filterInfo.period}`, 20, 30);
@@ -568,7 +635,7 @@ const EducationalReports: React.FC = () => {
         '',
         ...subjects.map(subject => {
           const allSubjectGrades = filteredStudents.flatMap(s => s.grades[subject] || []);
-          const subjectClassAverage = allSubjectGrades.length > 0 
+          const subjectClassAverage = allSubjectGrades.length > 0
             ? Math.round((allSubjectGrades.reduce((sum, grade) => sum + grade, 0) / allSubjectGrades.length) * 10) / 10
             : 0;
           return subjectClassAverage || '—';
@@ -610,7 +677,7 @@ const EducationalReports: React.FC = () => {
           [subjects.length + 4]: { cellWidth: 15 }, // Качество
           [subjects.length + 5]: { cellWidth: 20 }  // Пропуски
         },
-        didDrawPage: function(data: any) {
+        didDrawPage: function (data: any) {
           // Footer
           doc.setFontSize(8);
           doc.text('Система учета успеваемости', 20, doc.internal.pageSize.height - 10);
@@ -619,7 +686,7 @@ const EducationalReports: React.FC = () => {
 
       // Save PDF
       doc.save(`${fileName}.pdf`);
-      
+
       console.log('PDF файл успешно создан и скачан');
     } catch (error) {
       console.error('Ошибка при создании PDF файла:', error);
@@ -642,43 +709,28 @@ const EducationalReports: React.FC = () => {
   };
 
   const handleGradeClick = (student: Student, subject: string) => {
-    // Generate grade details for period-based assessment
-    const gradeDetails: GradeDetail[] = (student.grades[subject] || []).map((grade, index) => {
-      // Determine period-specific topic
-      let periodTopic = '';
-      let periodType = '';
-      
-      switch (filters.period) {
-        case 'day':
-          periodTopic = `Урок от ${new Date().toLocaleDateString('ru-RU')}`;
-          periodType = 'Итоговая оценка за день';
-          break;
-        case 'week':
-          periodTopic = `Неделя ${Math.ceil(Math.random() * 4)} месяца`;
-          periodType = 'Итоговая оценка за неделю';
-          break;
-        case 'quarter':
-          periodTopic = `${Math.ceil(Math.random() * 4)} четверть`;
-          periodType = 'Итоговая оценка за четверть';
-          break;
-        case 'year':
-          periodTopic = `${new Date().getFullYear()}-${new Date().getFullYear() + 1} учебный год`;
-          periodType = 'Итоговая оценка за год';
-          break;
-        default:
-          periodTopic = 'Оценочный период';
-          periodType = 'Итоговая оценка';
-      }
+    // Get grade details from API data
+    const studentGrades = studentGradesMap.get(student.id) || [];
+    const subjectGrades = studentGrades.find(sg => sg.subjectName === subject);
 
-      return {
-        grade,
+    if (!subjectGrades) {
+      setSelectedGradeDetails({
+        student,
         subject,
-        date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ru-RU'),
-        teacher: teachers[Math.floor(Math.random() * teachers.length)],
-        topic: periodTopic,
-        type: periodType as GradeDetail['type']
-      };
-    });
+        grades: []
+      });
+      setShowGradeModal(true);
+      return;
+    }
+
+    const gradeDetails: GradeDetail[] = subjectGrades.grades.map(gradeDetail => ({
+      grade: gradeDetail.grade,
+      subject,
+      date: new Date(gradeDetail.date).toLocaleDateString('ru-RU'),
+      teacher: gradeDetail.teacherName,
+      topic: gradeDetail.topic,
+      type: gradeDetail.gradeType as GradeDetail['type']
+    }));
 
     setSelectedGradeDetails({
       student,
@@ -715,6 +767,16 @@ const EducationalReports: React.FC = () => {
 
   return (
     <div className="p-3 sm:p-4 lg:p-6 max-w-none mx-auto">
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
+            <p className="text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-4 lg:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Отчёты по учебному процессу</h1>
@@ -723,19 +785,7 @@ const EducationalReports: React.FC = () => {
 
       {/* Filters Section */}
       <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Период</label>
-            <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={filters.period}
-              onChange={(e) => handleFilterChange('period', e.target.value)}
-            >
-              {Object.entries(periods).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
@@ -761,19 +811,6 @@ const EducationalReports: React.FC = () => {
               <option value="">Все предметы</option>
               {subjects.map(subject => (
                 <option key={subject} value={subject}>{subject}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Тип отчёта</label>
-            <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={filters.reportType}
-              onChange={(e) => handleFilterChange('reportType', e.target.value)}
-            >
-              {Object.entries(reportTypes).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
               ))}
             </select>
           </div>
@@ -805,7 +842,7 @@ const EducationalReports: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between mt-4 pt-4 border-t">
-          <button 
+          <button
             onClick={handleRefreshData}
             disabled={loading}
             className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
@@ -821,7 +858,7 @@ const EducationalReports: React.FC = () => {
               <Download className="w-4 h-4 mr-2" />
               Экспорт
             </button>
-            <button 
+            <button
               onClick={() => setShowSettingsModal(true)}
               className="flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
             >
@@ -954,7 +991,7 @@ const EducationalReports: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto select-none" style={{ cursor: 'grab' }}>
           <table className="w-full border-collapse min-w-max">
             <thead className="bg-gray-50 sticky top-0">
@@ -994,23 +1031,22 @@ const EducationalReports: React.FC = () => {
                   </td>
                   {subjects.map((subject) => {
                     const subjectGrades = student.grades[subject] || [];
-                    const subjectAverage = subjectGrades.length > 0 
+                    const subjectAverage = subjectGrades.length > 0
                       ? Math.round((subjectGrades.reduce((sum, grade) => sum + grade, 0) / subjectGrades.length) * 10) / 10
                       : 0;
-                    
+
                     return (
                       <td key={subject} className="border-r border-gray-200 px-2 py-4 text-center">
                         <div className="h-16 flex flex-col justify-center items-center">
                           {subjectGrades.length > 0 ? (
-                            <div 
+                            <div
                               className="cursor-pointer hover:opacity-75"
                               onClick={() => handleGradeClick(student, subject)}
                               title="Нажмите для просмотра деталей оценки"
                             >
                               <span
-                                className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold border-2 ${getGradeColor(subjectGrades[0])} ${
-                                  subjectGrades[0] >= 4 ? 'border-green-300' : subjectGrades[0] >= 3 ? 'border-blue-300' : 'border-red-300'
-                                } hover:scale-110 transition-transform`}
+                                className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold border-2 ${getGradeColor(subjectGrades[0])} ${subjectGrades[0] >= 4 ? 'border-green-300' : subjectGrades[0] >= 3 ? 'border-blue-300' : 'border-red-300'
+                                  } hover:scale-110 transition-transform`}
                               >
                                 {subjectGrades[0]}
                               </span>
@@ -1040,14 +1076,14 @@ const EducationalReports: React.FC = () => {
                   </td>
                   <td className="px-3 py-4 text-center">
                     <div className="flex justify-center space-x-1">
-                      <button 
+                      <button
                         onClick={() => handleStudentView(student)}
                         className="text-blue-600 hover:text-blue-900 p-1.5 rounded hover:bg-blue-50"
                         title="Просмотр"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleStudentEdit(student)}
                         className="text-gray-600 hover:text-gray-900 p-1.5 rounded hover:bg-gray-50"
                         title="Редактировать"
@@ -1073,10 +1109,10 @@ const EducationalReports: React.FC = () => {
                   </td>
                   {subjects.map((subject) => {
                     const allSubjectGrades = filteredStudents.flatMap(s => s.grades[subject] || []);
-                    const subjectClassAverage = allSubjectGrades.length > 0 
+                    const subjectClassAverage = allSubjectGrades.length > 0
                       ? Math.round((allSubjectGrades.reduce((sum, grade) => sum + grade, 0) / allSubjectGrades.length) * 10) / 10
                       : 0;
-                    
+
                     return (
                       <td key={subject} className="border-r border-gray-300 px-2 py-3 text-center w-[100px]">
                         <div className={`text-lg font-bold ${getGradeColor(subjectClassAverage).split(' ')[0]}`}>
@@ -1126,7 +1162,7 @@ const EducationalReports: React.FC = () => {
           PDF
         </button>
         <div className="text-xs text-gray-500">
-          {filteredStudents.length} учащихся • {filters.class || 'Все классы'} • {periods[filters.period]}
+          {filteredStudents.length} учащихся • {filters.class || 'Все классы'} • Текущий период
         </div>
       </div>
 
@@ -1245,8 +1281,8 @@ const EducationalReports: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email для отправки</label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                     placeholder="admin@school.com"
                   />
@@ -1254,9 +1290,10 @@ const EducationalReports: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Тип отчета</label>
                   <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                    {Object.entries(reportTypes).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
+                    <option value="performance">Успеваемость</option>
+                    <option value="attendance">Посещаемость</option>
+                    <option value="class-summary">Сводка по классу</option>
+                    <option value="subject-analysis">Анализ по предметам</option>
                   </select>
                 </div>
               </div>
@@ -1304,10 +1341,10 @@ const EducationalReports: React.FC = () => {
               </div>
             ))}
           </div>
-          
+
           <div className="mt-4 pt-3 border-t border-gray-200">
             <h5 className="text-xs font-semibold text-gray-700 mb-2">Планировщик рассылок</h5>
-            <button 
+            <button
               onClick={handleAutoSchedule}
               className="w-full text-xs px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
             >
@@ -1350,17 +1387,16 @@ const EducationalReports: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="px-6 py-4 overflow-y-auto max-h-96">
               <div className="space-y-4">
                 {selectedGradeDetails.grades.map((gradeDetail, index) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-3">
-                        <span 
-                          className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold border-2 ${getGradeColor(gradeDetail.grade)} ${
-                            gradeDetail.grade >= 4 ? 'border-green-300' : gradeDetail.grade >= 3 ? 'border-blue-300' : 'border-red-300'
-                          }`}
+                        <span
+                          className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold border-2 ${getGradeColor(gradeDetail.grade)} ${gradeDetail.grade >= 4 ? 'border-green-300' : gradeDetail.grade >= 3 ? 'border-blue-300' : 'border-red-300'
+                            }`}
                         >
                           {gradeDetail.grade}
                         </span>
@@ -1374,7 +1410,7 @@ const EducationalReports: React.FC = () => {
                         <p className="text-xs text-gray-500">{gradeDetail.teacher}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>Учитель: {gradeDetail.teacher}</span>
                       <span>Дата: {gradeDetail.date}</span>
@@ -1382,7 +1418,7 @@ const EducationalReports: React.FC = () => {
                   </div>
                 ))}
               </div>
-              
+
               {selectedGradeDetails.grades.length === 0 && (
                 <div className="text-center py-8">
                   <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -1390,7 +1426,7 @@ const EducationalReports: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
               <div className="flex justify-between items-center">
                 <div className="text-sm text-gray-600">

@@ -163,6 +163,12 @@ export interface EmotionalData {
     priority: string;
     message: string;
   }>;
+  teacherRatings?: Array<{
+    teacherId: number;
+    rating: number;
+    date: string;
+    questionId: string;
+  }>;
   source?: 'feedback' | 'legacy' | 'no_data';
 }
 
@@ -339,10 +345,10 @@ export const studentService = {
     const params = new URLSearchParams();
     if (dateFrom) params.append('dateFrom', dateFrom);
     if (dateTo) params.append('dateTo', dateTo);
-    
+
     const queryString = params.toString();
     const url = `/students/${studentId}/attendance${queryString ? `?${queryString}` : ''}`;
-    
+
     return await apiClient.get<AttendanceData>(url);
   },
 
@@ -353,7 +359,332 @@ export const studentService = {
 
   // Получить эмоциональное состояние студента
   async getStudentEmotionalState(studentId: number): Promise<EmotionalData> {
-    return await apiClient.get<EmotionalData>(`/students/${studentId}/emotional-state`);
+    try {
+      // Сначала пытаемся получить данные из feedback системы
+      const feedbackData = await this.getEmotionalStateFromFeedback(studentId);
+      if (feedbackData) {
+        return { ...feedbackData, source: 'feedback' };
+      }
+
+      // Если данных из feedback нет, используем старую систему
+      const legacyData = await apiClient.get<EmotionalData>(`/students/${studentId}/emotional-state`);
+      return { ...legacyData, source: 'legacy' };
+    } catch (error) {
+      console.error('Ошибка при загрузке эмоционального состояния:', error);
+      // Возвращаем пустое состояние с указанием на отсутствие данных
+      return {
+        student: null,
+        currentState: null,
+        feedbackHistory: [],
+        trends: {},
+        recommendations: [],
+        source: 'no_data'
+      };
+    }
+  },
+
+  // Получить эмоциональное состояние из feedback системы
+  async getEmotionalStateFromFeedback(studentId: number): Promise<EmotionalData | null> {
+    try {
+      const response = await apiClient.get(`/feedback/students/${studentId}/emotional-state`);
+
+      if (!response || !(response as any).responses) {
+        return null;
+      }
+
+      // Обрабатываем данные из feedback
+      return this.processFeedbackEmotionalData(response);
+    } catch (error) {
+      console.warn('Данные feedback недоступны:', error);
+      return null;
+    }
+  },
+
+  // Обработка данных feedback для эмоционального состояния
+  processFeedbackEmotionalData(feedbackData: any): EmotionalData {
+    if (!feedbackData || !feedbackData.responses || feedbackData.responses.length === 0) {
+      return {
+        student: null,
+        currentState: null,
+        feedbackHistory: [],
+        trends: {},
+        recommendations: [],
+        source: 'no_data'
+      };
+    }
+
+    // Если данные уже обработаны на бекенде, используем их напрямую
+    if (feedbackData.currentState) {
+      return {
+        student: feedbackData.studentId,
+        currentState: {
+          mood: {
+            value: feedbackData.currentState.mood.value,
+            description: feedbackData.currentState.mood.description,
+            trend: feedbackData.currentState.mood.trend
+          },
+          concentration: {
+            value: feedbackData.currentState.concentration.value,
+            description: feedbackData.currentState.concentration.description,
+            trend: feedbackData.currentState.concentration.trend
+          },
+          socialization: {
+            value: feedbackData.currentState.socialization.value,
+            description: feedbackData.currentState.socialization.description,
+            trend: feedbackData.currentState.socialization.trend
+          },
+          motivation: {
+            value: feedbackData.currentState.motivation.value,
+            description: feedbackData.currentState.motivation.description,
+            trend: feedbackData.currentState.motivation.trend
+          },
+          lastUpdated: feedbackData.lastUpdated
+        },
+        feedbackHistory: this.formatTrendsForHistory(feedbackData.trends || []),
+        trends: feedbackData.currentState,
+        recommendations: feedbackData.recommendations || [],
+        teacherRatings: feedbackData.teacherRatings || [],
+        source: 'feedback'
+      };
+    }
+
+    // Обработка сырых данных (старая логика)
+    const responses = feedbackData.responses;
+    const latestResponse = responses[0];
+
+    // Извлекаем эмоциональные метрики из последнего ответа
+    const emotionalMetrics = this.extractEmotionalMetrics(latestResponse.answers);
+
+    // Анализируем тренды
+    const trends = this.analyzeTrends(responses);
+
+    // Генерируем рекомендации
+    const recommendations = this.generateRecommendations(emotionalMetrics, trends);
+
+    return {
+      student: feedbackData.studentId,
+      currentState: {
+        mood: {
+          value: emotionalMetrics.mood || 50,
+          description: this.getMoodDescription(emotionalMetrics.mood || 50),
+          trend: trends.mood || 'stable'
+        },
+        concentration: {
+          value: emotionalMetrics.concentration || 50,
+          description: this.getConcentrationDescription(emotionalMetrics.concentration || 50),
+          trend: trends.concentration || 'stable'
+        },
+        socialization: {
+          value: emotionalMetrics.socialization || 50,
+          description: this.getSocializationDescription(emotionalMetrics.socialization || 50),
+          trend: trends.socialization || 'stable'
+        },
+        motivation: {
+          value: emotionalMetrics.motivation || 50,
+          description: this.getMotivationDescription(emotionalMetrics.motivation || 50),
+          trend: trends.motivation || 'stable'
+        },
+        lastUpdated: latestResponse.submittedAt
+      },
+      feedbackHistory: this.formatFeedbackHistory(responses),
+      trends: trends,
+      recommendations: recommendations,
+      teacherRatings: feedbackData.teacherRatings || [],
+      source: 'feedback'
+    };
+  },
+
+  // Извлечение эмоциональных метрик из ответов
+  extractEmotionalMetrics(answers: any): any {
+    const metrics: any = {};
+
+    Object.entries(answers || {}).forEach(([questionId, answer]) => {
+      // Точное соответствие ID вопросов
+      switch (questionId) {
+        case 'mood_today':
+          metrics.mood = this.normalizeValue(answer);
+          break;
+        case 'concentration_level':
+          metrics.concentration = this.normalizeValue(answer);
+          break;
+        case 'socialization_level':
+          metrics.socialization = this.normalizeValue(answer);
+          break;
+        case 'motivation_level':
+          metrics.motivation = this.normalizeValue(answer);
+          break;
+        case 'overall_satisfaction':
+          // Общая удовлетворенность тоже влияет на настроение
+          if (!metrics.mood) {
+            metrics.mood = this.normalizeValue(answer);
+          }
+          break;
+        default:
+          // Дополнительная проверка по содержанию для совместимости
+          if (questionId.includes('mood') || questionId.includes('настроение')) {
+            metrics.mood = this.normalizeValue(answer);
+          }
+          if (questionId.includes('concentration') || questionId.includes('концентрация')) {
+            metrics.concentration = this.normalizeValue(answer);
+          }
+          if (questionId.includes('socialization') || questionId.includes('общение')) {
+            metrics.socialization = this.normalizeValue(answer);
+          }
+          if (questionId.includes('motivation') || questionId.includes('мотивация')) {
+            metrics.motivation = this.normalizeValue(answer);
+          }
+          break;
+      }
+    });
+
+    return metrics;
+  },
+
+  // Нормализация значений к шкале 0-100
+  normalizeValue(value: any): number {
+    if (typeof value === 'number') {
+      // Если значение уже в диапазоне 0-100, оставляем как есть
+      if (value >= 0 && value <= 100) {
+        return Math.round(value);
+      }
+      // Если это шкала 1-5
+      else if (value >= 1 && value <= 5) {
+        return Math.round(((value - 1) / 4) * 100);
+      }
+      // Если это шкала 1-10
+      else if (value >= 1 && value <= 10) {
+        return Math.round(((value - 1) / 9) * 100);
+      }
+      // Для других значений ограничиваем диапазон
+      else {
+        return Math.min(Math.max(Math.round(value), 0), 100);
+      }
+    }
+    if (typeof value === 'boolean') {
+      return value ? 80 : 20;
+    }
+    return 50; // дефолтное значение
+  },
+
+  // Анализ трендов
+  analyzeTrends(responses: any[]): any {
+    if (responses.length < 2) return {};
+
+    const trends: any = {};
+    const metrics = ['mood', 'concentration', 'socialization', 'motivation'];
+
+    metrics.forEach(metric => {
+      const values = responses.map(r => this.extractEmotionalMetrics(r.answers)[metric]).filter(v => v !== undefined);
+      if (values.length >= 2) {
+        const latest = values[0];
+        const previous = values[1];
+        const diff = latest - previous;
+        trends[metric] = diff > 5 ? 'up' : diff < -5 ? 'down' : 'stable';
+      }
+    });
+
+    return trends;
+  },
+
+  // Генерация рекомендаций
+  generateRecommendations(metrics: any, trends: any): any[] {
+    const recommendations: any[] = [];
+
+    if (metrics.mood && metrics.mood < 30) {
+      recommendations.push({
+        type: 'mood',
+        priority: 'high',
+        message: 'Низкое настроение студента требует внимания. Рекомендуется беседа с психологом.'
+      });
+    }
+
+    if (metrics.concentration && metrics.concentration < 40) {
+      recommendations.push({
+        type: 'concentration',
+        priority: 'medium',
+        message: 'Проблемы с концентрацией. Рекомендуется пересмотр учебной нагрузки.'
+      });
+    }
+
+    if (metrics.socialization && metrics.socialization < 35) {
+      recommendations.push({
+        type: 'socialization',
+        priority: 'medium',
+        message: 'Низкий уровень социализации. Рекомендуется включение в групповые активности.'
+      });
+    }
+
+    if (metrics.motivation && metrics.motivation < 30) {
+      recommendations.push({
+        type: 'motivation',
+        priority: 'high',
+        message: 'Критически низкая мотивация. Требуется индивидуальная работа с куратором.'
+      });
+    }
+
+    return recommendations;
+  },
+
+  // Форматирование истории для отображения
+  formatFeedbackHistory(responses: any[]): any[] {
+    return responses.map(response => ({
+      date: response.submittedAt,
+      period: response.period,
+      template: response.template?.title || 'Опрос',
+      metrics: this.extractEmotionalMetrics(response.answers)
+    }));
+  },
+
+  // Форматирование трендов для истории
+  formatTrendsForHistory(trends: any[]): any[] {
+    if (!trends || !Array.isArray(trends)) return [];
+
+    return trends.map(trend => ({
+      date: trend.date,
+      настроение: trend.data?.mood || null,
+      концентрация: trend.data?.concentration || null,
+      социализация: trend.data?.socialization || null,
+      мотивация: trend.data?.motivation || null
+    })).filter(item =>
+      // Фильтруем записи, где есть хотя бы одно значение
+      item.настроение !== null ||
+      item.концентрация !== null ||
+      item.социализация !== null ||
+      item.мотивация !== null
+    );
+  },
+
+  // Вспомогательные методы для описаний
+  getMoodDescription(value: number): string {
+    if (value >= 80) return 'Отличное настроение';
+    if (value >= 60) return 'Хорошее настроение';
+    if (value >= 40) return 'Нормальное настроение';
+    if (value >= 20) return 'Плохое настроение';
+    return 'Очень плохое настроение';
+  },
+
+  getConcentrationDescription(value: number): string {
+    if (value >= 80) return 'Отличная концентрация';
+    if (value >= 60) return 'Хорошая концентрация';
+    if (value >= 40) return 'Нормальная концентрация';
+    if (value >= 20) return 'Слабая концентрация';
+    return 'Очень слабая концентрация';
+  },
+
+  getSocializationDescription(value: number): string {
+    if (value >= 80) return 'Отличное общение';
+    if (value >= 60) return 'Хорошее общение';
+    if (value >= 40) return 'Нормальное общение';
+    if (value >= 20) return 'Слабое общение';
+    return 'Проблемы с общением';
+  },
+
+  getMotivationDescription(value: number): string {
+    if (value >= 80) return 'Очень высокая мотивация';
+    if (value >= 60) return 'Высокая мотивация';
+    if (value >= 40) return 'Нормальная мотивация';
+    if (value >= 20) return 'Низкая мотивация';
+    return 'Очень низкая мотивация';
   },
 
   // Получить полный отчет по студенту

@@ -95,4 +95,46 @@ export const workloadService = {
     
     return await apiClient.getBlob(`/workload/teacher/${teacherId}/export?${params.toString()}`);
   },
+
+  // Пересчет всех отработанных часов
+  async recalculateAllWorkedHours(year: number, month: number): Promise<any> {
+    return await apiClient.post<any>(`/workload/recalculate-all/${year}/${month}`);
+  },
+
+  // Синхронизация часов конкретного преподавателя
+  async syncTeacherHours(teacherId: number, year: number, month: number): Promise<any> {
+    return await apiClient.post<any>(`/workload/sync-teacher-hours/${teacherId}/${year}/${month}`);
+  },
+
+  // Получение статистики в реальном времени
+  async getRealTimeStats(params?: WorkloadFilterParams): Promise<any> {
+    const queryString = params ? '?' + new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = String(value);
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString() : '';
+    
+    return await apiClient.get<any>(`/workload/real-time-stats${queryString}`);
+  },
+
+  // Получение всех отработанных часов
+  async getAllWorkedHours(month: number, year: number): Promise<any[]> {
+    return await apiClient.get<any[]>(`/teachers/worked-hours?month=${month}&year=${year}`);
+  },
+
+  // Получение детальной информации об отработанных часах преподавателя
+  async getTeacherWorkedHoursDetails(teacherId: number, month: number, year: number): Promise<any> {
+    return await apiClient.get<any>(`/teachers/${teacherId}/worked-hours/details?month=${month}&year=${year}`);
+  },
+
+  // Пересчет отработанных часов всех преподавателей (новый метод для WorkloadV2)
+  async recalculateAllWorkedHours2(year: number, month: number): Promise<any> {
+    return await apiClient.post<any>('/workload/recalculate-all', { year, month });
+  },
+
+  // Синхронизация часов конкретного преподавателя (новый метод для WorkloadV2)
+  async syncTeacherWorkedHours(teacherId: number, year: number, month: number): Promise<any> {
+    return await apiClient.post<any>('/workload/sync-teacher-hours', { teacherId, year, month });
+  },
 };

@@ -188,4 +188,69 @@ export class WorkloadController {
 
     res.send(buffer);
   }
+
+  @Post('recalculate-all/:year/:month')
+  @ApiOperation({ summary: 'Recalculate worked hours for all teachers' })
+  @ApiResponse({ status: 200, description: 'All teachers worked hours recalculated successfully' })
+  async recalculateAllWorkedHours(
+    @Param('year', ParseIntPipe) year: number,
+    @Param('month', ParseIntPipe) month: number,
+  ) {
+    return this.workloadService.recalculateAllWorkedHours(year, month);
+  }
+
+  @Post('sync-teacher-hours/:teacherId/:year/:month')
+  @ApiOperation({ summary: 'Sync teacher worked hours with workload data' })
+  @ApiResponse({ status: 200, description: 'Teacher hours synced successfully' })
+  async syncTeacherHours(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Param('month', ParseIntPipe) month: number,
+  ) {
+    return this.workloadService.syncTeacherWorkedHours(teacherId, year, month);
+  }
+
+  @Get('real-time-stats')
+  @ApiOperation({ summary: 'Get real-time workload statistics' })
+  @ApiResponse({ status: 200, description: 'Real-time statistics retrieved successfully' })
+  getRealTimeStats(@Query() filter: WorkloadFilterDto) {
+    return this.workloadService.getRealTimeStats(filter);
+  }
+
+  // Эндпоинты для WorkloadV2
+  @Post('recalculate-all')
+  @ApiOperation({ summary: 'Recalculate all teachers worked hours' })
+  @ApiResponse({ status: 200, description: 'All teachers worked hours recalculated successfully' })
+  async recalculateAll(@Body() data: { year: number; month: number }) {
+    return this.workloadService.recalculateAllWorkedHours(data.year, data.month);
+  }
+
+  @Post('sync-teacher-hours')
+  @ApiOperation({ summary: 'Sync specific teacher worked hours' })
+  @ApiResponse({ status: 200, description: 'Teacher hours synced successfully' })
+  async syncSpecificTeacherHours(@Body() data: { teacherId: number; year: number; month: number }) {
+    return this.workloadService.syncTeacherWorkedHours(data.teacherId, data.year, data.month);
+  }
+
+  // Новые эндпоинты для отработанных часов (используемые фронтендом)
+  @Get('worked-hours/:month/:year')
+  @ApiOperation({ summary: 'Get all teachers worked hours for specific month/year' })
+  @ApiResponse({ status: 200, description: 'Worked hours retrieved successfully' })
+  getAllWorkedHours(
+    @Param('month', ParseIntPipe) month: number,
+    @Param('year', ParseIntPipe) year: number,
+  ) {
+    return this.workloadService.getAllTeachersWorkedHours(month, year);
+  }
+
+  @Get('teacher-details/:teacherId/:month/:year')
+  @ApiOperation({ summary: 'Get teacher worked hours details' })
+  @ApiResponse({ status: 200, description: 'Teacher details retrieved successfully' })
+  getTeacherWorkedHoursDetails(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Param('month', ParseIntPipe) month: number,
+    @Param('year', ParseIntPipe) year: number,
+  ) {
+    return this.workloadService.getTeacherWorkedHoursDetails(teacherId, month, year);
+  }
 }

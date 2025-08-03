@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TeacherWorkedHoursService } from '../teachers/teacher-worked-hours.service';
 import { CreateWorkloadDto } from './dto/create-workload.dto';
 import { UpdateWorkloadDto } from './dto/update-workload.dto';
 import { WorkloadFilterDto } from './dto/workload-filter.dto';
@@ -9,7 +10,10 @@ import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class WorkloadService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workedHoursService: TeacherWorkedHoursService,
+  ) { }
 
   async create(createWorkloadDto: CreateWorkloadDto) {
     const {
@@ -65,7 +69,19 @@ export class WorkloadService {
   }
 
   async findAll(filter: WorkloadFilterDto): Promise<PaginateResponseDto<any>> {
-    const { page = 1, limit = 10, search, academicYear, teacherId, period, periodValue } = filter;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      academicYear,
+      teacherId,
+      period,
+      periodValue,
+      semester,
+      startDate,
+      endDate,
+      year
+    } = filter;
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -82,7 +98,10 @@ export class WorkloadService {
       };
     }
 
-    if (academicYear) {
+    // Приоритет: year > academicYear
+    if (year) {
+      where.academicYear = `${year}-${year + 1}`;
+    } else if (academicYear) {
       where.academicYear = academicYear;
     }
 
@@ -101,13 +120,51 @@ export class WorkloadService {
       this.prisma.teacherWorkload.count({ where }),
     ]);
 
+    // Обогащаем данные реальными отработанными часами
+    const enrichedData = await Promise.all(
+      data.map(async (workload) => {
+        const currentYear = new Date().getFullYear();
+        const workedHoursData = await this.workedHoursService.getWorkedHoursByYear(workload.teacherId, currentYear);
+
+        // Рассчитываем реальные данные из TeacherWorkedHours
+        const totalScheduledHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.scheduledHours), 0);
+        const totalWorkedHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.workedHours), 0);
+        const totalSubstitutedHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.substitutedHours), 0);
+
+        // Обновляем месячные данные из реальных расчетов
+        const realMonthlyHours = workedHoursData.map(wh => ({
+          id: wh.id,
+          month: wh.month,
+          year: wh.year,
+          standardHours: Number(wh.scheduledHours),
+          actualHours: Number(wh.workedHours),
+          createdAt: wh.createdAt.toISOString(),
+          updatedAt: wh.updatedAt.toISOString(),
+        }));
+
+        // Генерируем квартальные данные
+        const realQuarterlyHours = this.generateQuarterlyFromMonthly(realMonthlyHours);
+
+        return {
+          ...workload,
+          // Обновляем основные поля реальными данными
+          standardHours: totalScheduledHours,
+          actualHours: totalWorkedHours,
+          overtimeHours: totalSubstitutedHours,
+          // Заменяем месячные и квартальные данные реальными
+          monthlyHours: realMonthlyHours,
+          quarterlyHours: realQuarterlyHours,
+        };
+      })
+    );
+
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      data,
+      data: enrichedData,
       meta: {
         totalItems,
-        itemCount: data.length,
+        itemCount: enrichedData.length,
         itemsPerPage: limit,
         totalPages,
         currentPage: page,
@@ -125,7 +182,34 @@ export class WorkloadService {
       throw new NotFoundException(`Workload with ID ${id} not found`);
     }
 
-    return workload;
+    // Обогащаем данные реальными отработанными часами
+    const currentYear = new Date().getFullYear();
+    const workedHoursData = await this.workedHoursService.getWorkedHoursByYear(workload.teacherId, currentYear);
+
+    const totalScheduledHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.scheduledHours), 0);
+    const totalWorkedHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.workedHours), 0);
+    const totalSubstitutedHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.substitutedHours), 0);
+
+    const realMonthlyHours = workedHoursData.map(wh => ({
+      id: wh.id,
+      month: wh.month,
+      year: wh.year,
+      standardHours: Number(wh.scheduledHours),
+      actualHours: Number(wh.workedHours),
+      createdAt: wh.createdAt.toISOString(),
+      updatedAt: wh.updatedAt.toISOString(),
+    }));
+
+    const realQuarterlyHours = this.generateQuarterlyFromMonthly(realMonthlyHours);
+
+    return {
+      ...workload,
+      standardHours: totalScheduledHours,
+      actualHours: totalWorkedHours,
+      overtimeHours: totalSubstitutedHours,
+      monthlyHours: realMonthlyHours,
+      quarterlyHours: realQuarterlyHours,
+    };
   }
 
   async findByTeacher(teacherId: number, academicYear?: string) {
@@ -134,11 +218,46 @@ export class WorkloadService {
       where.academicYear = academicYear;
     }
 
-    return await this.prisma.teacherWorkload.findMany({
+    const workloads = await this.prisma.teacherWorkload.findMany({
       where,
       include: this.getIncludeOptions(),
       orderBy: { academicYear: 'desc' },
     });
+
+    // Обогащаем каждую нагрузку реальными данными
+    const enrichedWorkloads = await Promise.all(
+      workloads.map(async (workload) => {
+        const currentYear = new Date().getFullYear();
+        const workedHoursData = await this.workedHoursService.getWorkedHoursByYear(workload.teacherId, currentYear);
+
+        const totalScheduledHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.scheduledHours), 0);
+        const totalWorkedHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.workedHours), 0);
+        const totalSubstitutedHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.substitutedHours), 0);
+
+        const realMonthlyHours = workedHoursData.map(wh => ({
+          id: wh.id,
+          month: wh.month,
+          year: wh.year,
+          standardHours: Number(wh.scheduledHours),
+          actualHours: Number(wh.workedHours),
+          createdAt: wh.createdAt.toISOString(),
+          updatedAt: wh.updatedAt.toISOString(),
+        }));
+
+        const realQuarterlyHours = this.generateQuarterlyFromMonthly(realMonthlyHours);
+
+        return {
+          ...workload,
+          standardHours: totalScheduledHours,
+          actualHours: totalWorkedHours,
+          overtimeHours: totalSubstitutedHours,
+          monthlyHours: realMonthlyHours,
+          quarterlyHours: realQuarterlyHours,
+        };
+      })
+    );
+
+    return enrichedWorkloads;
   }
 
   async update(id: number, updateWorkloadDto: UpdateWorkloadDto) {
@@ -376,47 +495,61 @@ export class WorkloadService {
     });
   }
 
-  // Автоматический расчет нагрузки из расписания
+  // Автоматический расчет нагрузки из расписания используя TeacherWorkedHoursService
   async calculateWorkloadFromSchedule(teacherId: number, academicYear: string) {
-    // Получаем все уроки преподавателя из расписания
-    // Поскольку в модели Lesson нет teacherId, получаем уроки по studyPlan
-    const lessons = await this.prisma.lesson.findMany({
+    const currentYear = parseInt(academicYear);
+
+    // Получаем реальные данные по отработанным часам за год
+    const workedHoursData = await this.workedHoursService.getWorkedHoursByYear(teacherId, currentYear);
+
+    // Получаем расписание преподавателя для расчета предметов
+    const schedules = await this.prisma.schedule.findMany({
       where: {
-        // Фильтр по академическому году можно добавить через дату
-        date: {
-          gte: new Date(`${academicYear}-01-01`),
-          lt: new Date(`${parseInt(academicYear) + 1}-01-01`),
-        },
+        OR: [
+          { teacherId: teacherId },
+          { substituteId: teacherId },
+        ],
+        deletedAt: null,
       },
       include: {
         studyPlan: true,
+        lesson: true,
       },
     });
 
     // Группируем по предметам
-    const subjectWorkloads = lessons.reduce((acc, lesson) => {
-      const subjectName = lesson.studyPlan?.name || lesson.name;
+    const subjectWorkloads = schedules.reduce((acc, schedule) => {
+      const subjectName = schedule.studyPlan?.name || schedule.lesson?.name || 'Неизвестный предмет';
       const existing = acc.find(sw => sw.subjectName === subjectName);
 
       if (existing) {
-        existing.hours += 1; // по умолчанию 1 час на урок
+        existing.hours += 1; // 1 академический час на занятие
       } else {
         acc.push({
           subjectName,
           hours: 1,
-          studyPlanId: lesson.studyPlanId,
+          studyPlanId: schedule.studyPlanId,
         });
       }
 
       return acc;
     }, [] as any[]);
 
-    // Рассчитываем общую нагрузку
-    const totalHoursFromSchedule = subjectWorkloads.reduce((sum, sw) => sum + sw.hours, 0);
+    // Рассчитываем общую нагрузку из реальных данных
+    const totalScheduledHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.scheduledHours), 0);
+    const totalWorkedHours = workedHoursData.reduce((sum, wh) => sum + Number(wh.workedHours), 0);
 
     return {
-      calculatedStandardHours: totalHoursFromSchedule,
+      calculatedStandardHours: totalScheduledHours,
+      calculatedActualHours: totalWorkedHours,
       subjectWorkloads,
+      monthlyBreakdown: workedHoursData.map(wh => ({
+        month: wh.month,
+        year: wh.year,
+        scheduledHours: Number(wh.scheduledHours),
+        workedHours: Number(wh.workedHours),
+        substitutedHours: Number(wh.substitutedHours),
+      })),
     };
   }
 
@@ -448,98 +581,141 @@ export class WorkloadService {
 
   async getAnalytics(filter: WorkloadFilterDto) {
     const { academicYear, period = 'year', periodValue } = filter;
+    const currentYear = academicYear ? parseInt(academicYear.split('-')[0]) : new Date().getFullYear();
 
-    const where: any = {};
-    if (academicYear) {
-      where.academicYear = academicYear;
-    }
-
-    const workloads = await this.prisma.teacherWorkload.findMany({
-      where,
+    // Получаем всех преподавателей
+    const teachers = await this.prisma.teacher.findMany({
+      where: { deletedAt: null },
       include: {
-        teacher: {
-          include: {
-            user: true,
-          },
-        },
-        subjectWorkloads: {
-          include: {
-            studyPlan: true,
-          },
-        },
-        monthlyHours: true,
-        quarterlyHours: true,
+        user: true,
       },
     });
 
-    // Calculate summary statistics
+    // Получаем реальные данные по всем преподавателям
+    const realStatsPromises = teachers.map(async (teacher) => {
+      const workedHoursData = await this.workedHoursService.getWorkedHoursByYear(teacher.id, currentYear);
+      return {
+        teacherId: teacher.id,
+        teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+        totalScheduledHours: workedHoursData.reduce((sum, wh) => sum + Number(wh.scheduledHours), 0),
+        totalWorkedHours: workedHoursData.reduce((sum, wh) => sum + Number(wh.workedHours), 0),
+        totalSubstitutedHours: workedHoursData.reduce((sum, wh) => sum + Number(wh.substitutedHours), 0),
+        monthlyData: workedHoursData,
+      };
+    });
+
+    const realStats = await Promise.all(realStatsPromises);
+
+    // Calculate summary statistics from real data
     const summary = {
-      totalTeachers: workloads.length,
-      totalStandardHours: workloads.reduce((sum, w) => sum + w.standardHours, 0),
-      totalActualHours: workloads.reduce((sum, w) => sum + w.actualHours, 0),
+      totalTeachers: realStats.length,
+      totalStandardHours: realStats.reduce((sum, stats) => sum + stats.totalScheduledHours, 0),
+      totalActualHours: realStats.reduce((sum, stats) => sum + stats.totalWorkedHours, 0),
       averageLoad: 0,
       overloaded: 0,
       underloaded: 0,
     };
 
     summary.averageLoad = summary.totalStandardHours / summary.totalTeachers || 0;
-    summary.overloaded = workloads.filter(w => w.actualHours > w.standardHours).length;
-    summary.underloaded = workloads.filter(w => w.actualHours < w.standardHours).length;
+    summary.overloaded = realStats.filter(stats => stats.totalWorkedHours > stats.totalScheduledHours).length;
+    summary.underloaded = realStats.filter(stats => stats.totalWorkedHours < stats.totalScheduledHours).length;
 
-    // Calculate subject distribution
-    const subjectDistribution = workloads
-      .flatMap(w => w.subjectWorkloads)
-      .reduce((acc, sw) => {
-        const existing = acc.find(item => item.name === sw.subjectName);
-        if (existing) {
-          existing.hours += sw.hours;
-          existing.teachers += 1;
-        } else {
-          acc.push({
-            name: sw.subjectName,
-            hours: sw.hours,
-            teachers: 1,
-          });
-        }
-        return acc;
-      }, [] as any[]);
+    // Получаем распределение по предметам напрямую из расписания
+    const schedules = await this.prisma.schedule.findMany({
+      where: {
+        deletedAt: null,
+        date: {
+          gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+          lt: new Date(`${currentYear + 1}-01-01T00:00:00.000Z`),
+        },
+      },
+      include: {
+        teacher: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
 
-    // Calculate trends based on period
+    // Получаем учебные планы отдельно
+    const studyPlans = await this.prisma.studyPlan.findMany({
+      where: { deletedAt: null },
+    });
+
+    const studyPlanMap = new Map(studyPlans.map(sp => [sp.id, sp]));
+
+    // Группируем расписание по предметам
+    const subjectMap = new Map<string, { hours: number; teacherIds: Set<number> }>();
+
+    schedules.forEach(schedule => {
+      const studyPlan = studyPlanMap.get(schedule.studyPlanId);
+      const subjectName = studyPlan?.name || 'Неизвестный предмет';
+      const teacherId = schedule.teacherId;
+
+      if (subjectMap.has(subjectName)) {
+        const existing = subjectMap.get(subjectName);
+        existing.hours += 1; // 1 академический час за занятие
+        existing.teacherIds.add(teacherId);
+      } else {
+        subjectMap.set(subjectName, {
+          hours: 1,
+          teacherIds: new Set([teacherId])
+        });
+      }
+    });
+
+    const subjectDistribution = Array.from(subjectMap.entries())
+      .map(([name, data]) => ({
+        name,
+        hours: data.hours,
+        teachers: data.teacherIds.size,
+      }))
+      .sort((a, b) => b.hours - a.hours); // Сортируем по убыванию часов
+
+    console.log('[WorkloadService] Subject distribution:', subjectDistribution);
+
+    // Calculate trends based on period from real data
     let trends: any[] = [];
     if (period === 'month') {
-      trends = workloads
-        .flatMap(w => w.monthlyHours)
+      trends = realStats
+        .flatMap(stats => stats.monthlyData)
         .reduce((acc, mh) => {
           const existing = acc.find(item => item.period === mh.month);
           if (existing) {
-            existing.standardHours += mh.standardHours;
-            existing.actualHours += mh.actualHours;
+            existing.standardHours += Number(mh.scheduledHours);
+            existing.actualHours += Number(mh.workedHours);
           } else {
             acc.push({
               period: mh.month,
-              standardHours: mh.standardHours,
-              actualHours: mh.actualHours,
+              standardHours: Number(mh.scheduledHours),
+              actualHours: Number(mh.workedHours),
             });
           }
           return acc;
-        }, [] as any[]);
+        }, [] as any[])
+        .sort((a, b) => a.period - b.period);
     } else if (period === 'quarter') {
-      trends = workloads
-        .flatMap(w => w.quarterlyHours)
-        .reduce((acc, qh) => {
-          const existing = acc.find(item => item.period === qh.quarter);
+      // Группируем месячные данные по кварталам
+      const monthlyTrends = realStats
+        .flatMap(stats => stats.monthlyData)
+        .reduce((acc, mh) => {
+          const quarter = Math.ceil(mh.month / 3);
+          const existing = acc.find(item => item.period === quarter);
           if (existing) {
-            existing.standardHours += qh.standardHours;
-            existing.actualHours += qh.actualHours;
+            existing.standardHours += Number(mh.scheduledHours);
+            existing.actualHours += Number(mh.workedHours);
           } else {
             acc.push({
-              period: qh.quarter,
-              standardHours: qh.standardHours,
-              actualHours: qh.actualHours,
+              period: quarter,
+              standardHours: Number(mh.scheduledHours),
+              actualHours: Number(mh.workedHours),
             });
           }
           return acc;
         }, [] as any[]);
+
+      trends = monthlyTrends.sort((a, b) => a.period - b.period);
     }
 
     return {
@@ -552,7 +728,7 @@ export class WorkloadService {
   async exportWorkloads(filter: WorkloadFilterDto, format: 'xlsx' | 'csv' | 'pdf' = 'xlsx'): Promise<Buffer> {
     // Получаем данные без пагинации
     const { page, limit, ...filters } = filter;
-    
+
     const where: any = {};
 
     if (filters.search) {
@@ -647,7 +823,7 @@ export class WorkloadService {
     }
 
     const teacher = workloads[0].teacher;
-    
+
     // Подготавливаем детальные данные
     const exportData = workloads.flatMap(workload => [
       // Основная информация
@@ -693,10 +869,10 @@ export class WorkloadService {
     }
 
     const headers = Object.keys(data[0]);
-    
+
     // Добавляем заголовки
     worksheet.addRow(headers);
-    
+
     // Стилизуем заголовки
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true };
@@ -716,14 +892,14 @@ export class WorkloadService {
     headers.forEach((header, index) => {
       const column = worksheet.getColumn(index + 1);
       let maxLength = header.length;
-      
+
       data.forEach(row => {
         const value = String(row[header] || '');
         if (value.length > maxLength) {
           maxLength = value.length;
         }
       });
-      
+
       column.width = Math.min(maxLength + 2, 50);
     });
 
@@ -740,14 +916,14 @@ export class WorkloadService {
     const headers = Object.keys(data[0]);
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
+      ...data.map(row =>
         headers.map(header => {
           const value = row[header] || '';
           return `"${String(value).replace(/"/g, '""')}"`;
         }).join(',')
       )
     ].join('\n');
-    
+
     return Buffer.from('' + csvContent, 'utf-8');
   }
 
@@ -784,10 +960,10 @@ export class WorkloadService {
       headers.forEach((header, index) => {
         const x = startX + (index * colWidth);
         doc.rect(x, currentY, colWidth, rowHeight).stroke();
-        doc.text(header, x + 2, currentY + 5, { 
-          width: colWidth - 4, 
+        doc.text(header, x + 2, currentY + 5, {
+          width: colWidth - 4,
           height: rowHeight - 10,
-          ellipsis: true 
+          ellipsis: true
         });
       });
 
@@ -803,12 +979,12 @@ export class WorkloadService {
         headers.forEach((header, index) => {
           const x = startX + (index * colWidth);
           const value = String(row[header] || '');
-          
+
           doc.rect(x, currentY, colWidth, rowHeight).stroke();
-          doc.text(value, x + 2, currentY + 5, { 
-            width: colWidth - 4, 
+          doc.text(value, x + 2, currentY + 5, {
+            width: colWidth - 4,
             height: rowHeight - 10,
-            ellipsis: true 
+            ellipsis: true
           });
         });
 
@@ -817,6 +993,242 @@ export class WorkloadService {
 
       doc.end();
     });
+  }
+
+  // Генерация квартальных данных из месячных
+  private generateQuarterlyFromMonthly(monthlyHours: any[]): any[] {
+    const quarterlyData = new Map<number, { standardHours: number; actualHours: number; year: number }>();
+
+    monthlyHours.forEach(mh => {
+      const quarter = Math.ceil(mh.month / 3);
+      const existing = quarterlyData.get(quarter);
+
+      if (existing) {
+        existing.standardHours += mh.standardHours;
+        existing.actualHours += mh.actualHours;
+      } else {
+        quarterlyData.set(quarter, {
+          standardHours: mh.standardHours,
+          actualHours: mh.actualHours,
+          year: mh.year,
+        });
+      }
+    });
+
+    return Array.from(quarterlyData.entries()).map(([quarter, data]) => ({
+      id: quarter,
+      quarter,
+      year: data.year,
+      standardHours: data.standardHours,
+      actualHours: data.actualHours,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+
+  // Новые методы для интеграции с TeacherWorkedHoursService
+
+  async recalculateAllWorkedHours(year: number, month: number) {
+    console.log(`[WorkloadService] Пересчет отработанных часов для всех преподавателей за ${month}/${year}`);
+
+    // Используем TeacherWorkedHoursService для пересчета всех преподавателей
+    const result = await this.workedHoursService.recalculateAllForMonth(month, year);
+
+    // Обновляем соответствующие workload записи
+    const workloads = await this.prisma.teacherWorkload.findMany({
+      where: {
+        academicYear: year.toString(),
+      },
+    });
+
+    let updatedCount = 0;
+    for (const workload of workloads) {
+      try {
+        const workedHoursData = await this.workedHoursService.getWorkedHours(workload.teacherId, month, year);
+        if (workedHoursData) {
+          // Обновляем данные в workload на основе реальных расчетов
+          await this.prisma.teacherWorkload.update({
+            where: { id: workload.id },
+            data: {
+              actualHours: Number(workedHoursData.workedHours),
+              overtimeHours: Number(workedHoursData.substitutedHours),
+            },
+          });
+          updatedCount++;
+        }
+      } catch (error) {
+        console.error(`Ошибка обновления workload для преподавателя ${workload.teacherId}:`, error);
+      }
+    }
+
+    return {
+      message: 'Пересчет завершен',
+      teachersProcessed: result.processed,
+      workloadsUpdated: updatedCount,
+      totalWorkloads: workloads.length,
+    };
+  }
+
+  async syncTeacherWorkedHours(teacherId: number, year: number, month: number) {
+    console.log(`[WorkloadService] Синхронизация часов преподавателя ${teacherId} за ${month}/${year}`);
+
+    // Пересчитываем часы через TeacherWorkedHoursService
+    const workedHoursResult = await this.workedHoursService.calculateAndSaveWorkedHours({
+      teacherId,
+      month,
+      year,
+    });
+
+    // Находим соответствующую workload запись
+    const workload = await this.prisma.teacherWorkload.findFirst({
+      where: {
+        teacherId,
+        academicYear: year.toString(),
+      },
+    });
+
+    if (workload) {
+      // Получаем все месячные данные для этого года
+      const yearlyData = await this.workedHoursService.getWorkedHoursByYear(teacherId, year);
+
+      const totalScheduledHours = yearlyData.reduce((sum, wh) => sum + Number(wh.scheduledHours), 0);
+      const totalWorkedHours = yearlyData.reduce((sum, wh) => sum + Number(wh.workedHours), 0);
+      const totalSubstitutedHours = yearlyData.reduce((sum, wh) => sum + Number(wh.substitutedHours), 0);
+
+      // Обновляем workload
+      const updatedWorkload = await this.prisma.teacherWorkload.update({
+        where: { id: workload.id },
+        data: {
+          standardHours: totalScheduledHours,
+          actualHours: totalWorkedHours,
+          overtimeHours: totalSubstitutedHours,
+        },
+        include: this.getIncludeOptions(),
+      });
+
+      return {
+        message: 'Синхронизация завершена',
+        workedHoursResult,
+        updatedWorkload,
+      };
+    } else {
+      return {
+        message: 'Workload запись не найдена, создайте её сначала',
+        workedHoursResult,
+      };
+    }
+  }
+
+  async getRealTimeStats(filter: WorkloadFilterDto) {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    // Получаем всех активных преподавателей
+    const teachers = await this.prisma.teacher.findMany({
+      where: { deletedAt: null },
+      include: {
+        user: { select: { id: true, name: true, surname: true } },
+      },
+    });
+
+    // Получаем реальные данные по отработанным часам за текущий месяц
+    const realTimeData = await Promise.all(
+      teachers.map(async (teacher) => {
+        try {
+          const workedHours = await this.workedHoursService.getWorkedHours(teacher.id, currentMonth, currentYear);
+          const workedHoursDetails = await this.workedHoursService.getTeacherWorkedHoursDetails(teacher.id, currentMonth, currentYear);
+
+          return {
+            teacherId: teacher.id,
+            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            currentMonth: {
+              scheduledHours: workedHours ? Number(workedHours.scheduledHours) : 0,
+              workedHours: workedHours ? Number(workedHours.workedHours) : 0,
+              substitutedHours: workedHours ? Number(workedHours.substitutedHours) : 0,
+              substitutedByOthers: workedHours ? Number(workedHours.substitutedByOthers) : 0,
+            },
+            statistics: workedHoursDetails?.statistics || {
+              totalSchedules: 0,
+              completedSchedules: 0,
+              cancelledSchedules: 0,
+              rescheduledSchedules: 0,
+              substitutionSchedules: 0,
+            },
+            lastUpdated: workedHours?.updatedAt || null,
+          };
+        } catch (error) {
+          console.error(`Ошибка получения данных для преподавателя ${teacher.id}:`, error);
+          return {
+            teacherId: teacher.id,
+            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            currentMonth: {
+              scheduledHours: 0,
+              workedHours: 0,
+              substitutedHours: 0,
+              substitutedByOthers: 0,
+            },
+            statistics: {
+              totalSchedules: 0,
+              completedSchedules: 0,
+              cancelledSchedules: 0,
+              rescheduledSchedules: 0,
+              substitutionSchedules: 0,
+            },
+            lastUpdated: null,
+            error: error.message,
+          };
+        }
+      })
+    );
+
+    // Вычисляем общую статистику
+    const totalStats = realTimeData.reduce(
+      (acc, teacher) => {
+        acc.totalScheduledHours += teacher.currentMonth.scheduledHours;
+        acc.totalWorkedHours += teacher.currentMonth.workedHours;
+        acc.totalSubstitutedHours += teacher.currentMonth.substitutedHours;
+        acc.totalSchedules += teacher.statistics.totalSchedules;
+        acc.totalCompletedSchedules += teacher.statistics.completedSchedules;
+        return acc;
+      },
+      {
+        totalScheduledHours: 0,
+        totalWorkedHours: 0,
+        totalSubstitutedHours: 0,
+        totalSchedules: 0,
+        totalCompletedSchedules: 0,
+      }
+    );
+
+    return {
+      period: {
+        month: currentMonth,
+        year: currentYear,
+        monthName: new Date(currentYear, currentMonth - 1).toLocaleString('ru-RU', { month: 'long' }),
+      },
+      summary: {
+        totalTeachers: teachers.length,
+        activeTeachers: realTimeData.filter(t => t.currentMonth.scheduledHours > 0).length,
+        ...totalStats,
+        completionRate: totalStats.totalSchedules > 0
+          ? ((totalStats.totalCompletedSchedules / totalStats.totalSchedules) * 100).toFixed(1)
+          : '0',
+        workloadEfficiency: totalStats.totalScheduledHours > 0
+          ? ((totalStats.totalWorkedHours / totalStats.totalScheduledHours) * 100).toFixed(1)
+          : '0',
+      },
+      teachers: realTimeData,
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  // Методы для интеграции с фронтендом (делегируем в TeacherWorkedHoursService)
+  async getAllTeachersWorkedHours(month: number, year: number) {
+    return this.workedHoursService.getAllTeachersWorkedHours(month, year);
+  }
+
+  async getTeacherWorkedHoursDetails(teacherId: number, month: number, year: number) {
+    return this.workedHoursService.getTeacherWorkedHoursDetails(teacherId, month, year);
   }
 
   private getIncludeOptions() {

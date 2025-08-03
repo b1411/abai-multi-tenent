@@ -12,12 +12,70 @@ import {
 } from '../types/finance';
 
 class FinanceService {
+  // Получить список всех отчетов
   async getReports(): Promise<any[]> {
-    // Получить отчеты по типу PERFORMANCE (или другой тип, если нужен весь список)
-    const response = await apiClient.get('/reports/PERFORMANCE');
-    // Если ответ не массив, возвращаем пустой массив
-    if (!Array.isArray(response)) return [];
-    return response;
+    try {
+      const response = await apiClient.get('/reports/list');
+      return Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('Ошибка получения списка отчетов:', error);
+      return [];
+    }
+  }
+
+  // Получить отчет по типу
+  async getReportByType(type: string, filters?: any): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            params.append(key, value.toString());
+          }
+        });
+      }
+      return await apiClient.get(`/reports/${type}?${params.toString()}`);
+    } catch (error) {
+      console.error(`Ошибка получения отчета ${type}:`, error);
+      throw error;
+    }
+  }
+
+  // Получить аналитику нагрузок
+  async getWorkloadAnalytics(startDate?: string, endDate?: string): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      return await apiClient.get(`/reports/workload/analytics?${params.toString()}`);
+    } catch (error) {
+      console.error('Ошибка получения аналитики нагрузок:', error);
+      throw error;
+    }
+  }
+
+  // Получить аналитику расписания
+  async getScheduleAnalytics(startDate?: string, endDate?: string): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      return await apiClient.get(`/reports/schedule/analytics?${params.toString()}`);
+    } catch (error) {
+      console.error('Ошибка получения аналитики расписания:', error);
+      throw error;
+    }
+  }
+
+  // Получить количество активных студентов
+  async getActiveStudentsCount(): Promise<number> {
+    try {
+      const response = await apiClient.get('/students/count/active') as { count: number };
+      return response.count || 0;
+    } catch (error) {
+      console.error('Ошибка получения количества активных студентов:', error);
+      return 0;
+    }
   }
   // Платежи
   async getPayments(filters?: PaymentFilters): Promise<PaymentResponse> {
@@ -205,12 +263,34 @@ class FinanceService {
     return await apiClient.get(`/reports/trends?start=${startPeriod}&end=${endPeriod}`);
   }
 
-  async generateReport(type: string, filters: any, format: 'pdf' | 'xlsx' = 'pdf'): Promise<Blob> {
-    return await apiClient.postBlob('/reports/generate', {
+  async generateReport(type: string, data: any, format: 'PDF' | 'XLSX' | 'CSV' | 'JSON' = 'PDF'): Promise<any> {
+    return await apiClient.post('/reports/generate', {
       type,
-      filters,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      title: data.title,
       format
     });
+  }
+
+  // Скачивание отчета
+  async downloadReport(reportId: string, format: 'pdf' | 'xlsx' = 'pdf'): Promise<Blob> {
+    return await apiClient.getBlob(`/reports/download/${reportId}?format=${format}`);
+  }
+
+  // Экспорт отчета по типу
+  async exportReportByType(
+    type: string, 
+    format: 'pdf' | 'xlsx' = 'pdf',
+    startDate?: string,
+    endDate?: string
+  ): Promise<Blob> {
+    const params = new URLSearchParams();
+    params.append('format', format);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    return await apiClient.getBlob(`/reports/export/${type}?${params.toString()}`);
   }
 }
 

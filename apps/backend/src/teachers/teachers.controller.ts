@@ -27,6 +27,12 @@ export class TeachersController {
     return this.teachersService.findAll();
   }
 
+  // Новые эндпоинты для WorkloadV2 - должны быть ПЕРЕД параметризованными роутами
+  @Get('worked-hours')
+  getAllWorkedHours(@Query('month') month: string, @Query('year') year: string) {
+    return this.workedHoursService.getAllTeachersWorkedHours(+month, +year);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.teachersService.findOne(+id);
@@ -63,6 +69,23 @@ export class TeachersController {
     return this.salaryRateService.update(+rateId, updateDto);
   }
 
+  // Детальная информация о часах - должна быть ПЕРЕД параметризованными маршрутами
+  @Get(':id/worked-hours/details')
+  getTeacherWorkedHoursDetails(
+    @Param('id') teacherId: string,
+    @Query('month') month: string,
+    @Query('year') year: string,
+  ) {
+    console.log(`[Controller] Getting worked hours details for teacher ${teacherId}, month ${month}, year ${year}`);
+    console.log(`[Controller] Parsed values: teacherId=${+teacherId}, month=${+month}, year=${+year}`);
+    
+    if (!month || !year) {
+      throw new Error('Month and year are required parameters');
+    }
+    
+    return this.workedHoursService.getTeacherWorkedHoursDetails(+teacherId, +month, +year);
+  }
+
   // Отработанные часы
   @Get(':id/worked-hours/:year/:month')
   getWorkedHours(
@@ -81,15 +104,6 @@ export class TeachersController {
   @Get(':id/worked-hours-stats/:year')
   getWorkedHoursStats(@Param('id') teacherId: string, @Param('year') year: string) {
     return this.workedHoursService.getTeacherWorkedHoursStats(+teacherId, +year);
-  }
-
-  @Get(':id/worked-hours-details/:year/:month')
-  getWorkedHoursDetails(
-    @Param('id') teacherId: string,
-    @Param('year') year: string,
-    @Param('month') month: string,
-  ) {
-    return this.workedHoursService.getTeacherWorkedHoursDetails(+teacherId, +month, +year);
   }
 
   @Post(':id/calculate-worked-hours/:year/:month')
@@ -128,4 +142,5 @@ export class TeachersController {
   ) {
     return this.payrollService.calculateSalaryForTeacher(+teacherId, +month, +year);
   }
+
 }

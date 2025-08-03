@@ -108,6 +108,17 @@ export class FeedbackService {
               throw new Error(`Неверный текстовый ответ для вопроса "${question.question}"`);
             }
             break;
+          case 'TEACHER_RATING':
+            if (typeof answer !== 'object' || answer === null) {
+              throw new Error(`Неверный формат оценки преподавателей для вопроса "${question.question}"`);
+            }
+            // Проверяем, что все оценки в диапазоне 1-5
+            for (const [teacherId, rating] of Object.entries(answer)) {
+              if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+                throw new Error(`Неверная оценка преподавателя ${teacherId} для вопроса "${question.question}"`);
+              }
+            }
+            break;
         }
       }
     }
@@ -618,13 +629,18 @@ export class FeedbackService {
 
     // Анализируем ответы для получения эмоционального состояния
     const emotionalMetrics = this.analyzeEmotionalResponses(recentResponses);
+    
+    // Извлекаем оценки преподавателей
+    const teacherRatings = this.extractTeacherRatings(recentResponses);
 
     return {
       studentId,
+      responses: recentResponses,
       currentState: emotionalMetrics,
       lastUpdated: recentResponses[0]?.submittedAt || null,
       trends: this.calculateEmotionalTrends(recentResponses),
       recommendations: emotionalMetrics ? this.generateEmotionalRecommendations(emotionalMetrics) : [],
+      teacherRatings,
     };
   }
 
@@ -823,5 +839,30 @@ export class FeedbackService {
     }
 
     return recommendations;
+  }
+
+  // Извлечение оценок преподавателей из ответов
+  private extractTeacherRatings(responses: any[]) {
+    const teacherRatings: any[] = [];
+
+    responses.forEach(response => {
+      Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
+        // Если это вопрос с оценкой преподавателей
+        if (typeof answer === 'object' && answer !== null && !Array.isArray(answer)) {
+          Object.entries(answer).forEach(([teacherId, rating]) => {
+            if (typeof rating === 'number') {
+              teacherRatings.push({
+                teacherId: parseInt(teacherId),
+                rating: rating,
+                date: response.submittedAt,
+                questionId: questionId
+              });
+            }
+          });
+        }
+      });
+    });
+
+    return teacherRatings;
   }
 }

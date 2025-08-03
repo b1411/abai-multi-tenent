@@ -116,27 +116,13 @@ const StudentDetail: React.FC = () => {
 
     setLoadingData(prev => ({ ...prev, emotional: true }));
     try {
-      // Сначала пытаемся получить данные из системы фидбеков
-      let feedbackEmotionalData = null;
-      try {
-        feedbackEmotionalData = await feedbackService.getStudentEmotionalStateFromFeedbacks(Number(id));
-      } catch (feedbackError) {
-        console.warn('Не удалось загрузить данные из фидбеков:', feedbackError);
-      }
-
-      // Также получаем данные из старой системы для сравнения
-      let legacyEmotionalData = null;
-      try {
-        legacyEmotionalData = await studentService.getStudentEmotionalState(Number(id));
-      } catch (legacyError) {
-        console.warn('Не удалось загрузить данные из старой системы:', legacyError);
-      }
-
-      // Объединяем данные, приоритет у данных из фидбеков
-      const combinedData = combineEmotionalData(feedbackEmotionalData, legacyEmotionalData);
-      setEmotionalData(combinedData);
+      // Используем обновленный метод из studentService, который автоматически
+      // пытается получить данные из feedback системы, а затем из legacy
+      const emotionalData = await studentService.getStudentEmotionalState(Number(id));
+      setEmotionalData(emotionalData);
     } catch (error) {
       console.error('Ошибка загрузки эмоциональных данных:', error);
+      setEmotionalData(null);
     }
     setLoadingData(prev => ({ ...prev, emotional: false }));
   }, [id]);
@@ -1093,6 +1079,68 @@ const StudentDetail: React.FC = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Оценки преподавателей */}
+              {emotionalData.teacherRatings && emotionalData.teacherRatings.length > 0 && (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-lg font-semibold mb-4">Оценки преподавателей из фидбеков</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {emotionalData.teacherRatings
+                      .reduce((acc: any[], rating: any) => {
+                        const existing = acc.find(r => r.teacherId === rating.teacherId);
+                        if (existing) {
+                          existing.ratings.push(rating);
+                          existing.averageRating = existing.ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / existing.ratings.length;
+                        } else {
+                          acc.push({
+                            teacherId: rating.teacherId,
+                            ratings: [rating],
+                            averageRating: rating.rating,
+                            lastDate: rating.date
+                          });
+                        }
+                        return acc;
+                      }, [])
+                      .map((teacher: any) => (
+                        <div key={teacher.teacherId} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h4 className="font-medium text-gray-900">Преподаватель ID: {teacher.teacherId}</h4>
+                              <p className="text-sm text-gray-600">
+                                Последняя оценка: {new Date(teacher.lastDate).toLocaleDateString('ru-RU')}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className={`text-2xl font-bold ${teacher.averageRating >= 4 ? 'text-green-600' :
+                                teacher.averageRating >= 3 ? 'text-yellow-600' : 'text-red-600'
+                                }`}>
+                                {teacher.averageRating.toFixed(1)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {teacher.ratings.length} оценок
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Звездочки для визуализации */}
+                          <div className="flex justify-center">
+                            {[1, 2, 3, 4, 5].map(star => (
+                              <span
+                                key={star}
+                                className={`text-lg ${star <= Math.round(teacher.averageRating)
+                                  ? 'text-yellow-400'
+                                  : 'text-gray-300'
+                                  }`}
+                              >
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}

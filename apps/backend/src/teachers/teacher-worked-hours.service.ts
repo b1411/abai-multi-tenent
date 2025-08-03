@@ -206,6 +206,49 @@ export class TeacherWorkedHoursService {
 
     console.log(`[TeacherWorkedHours] Итоговые часы - Запланировано: ${scheduledHours}, Отработано: ${workedHours}, Замещений: ${substitutedHours}, Замещено другими: ${substitutedByOthers}`);
 
+    // Проверяем, есть ли хоть какие-то занятия в этом месяце
+    const hasAnyActivity = scheduledHours > 0 || workedHours > 0 || substitutedHours > 0 || substitutedByOthers > 0;
+
+    if (!hasAnyActivity) {
+      console.log(`[TeacherWorkedHours] В месяце ${month}/${year} у преподавателя ${teacherId} нет занятий. Удаляем запись если она существует.`);
+      
+      // Удаляем запись, если она существует (чтобы не засорять базу пустыми записями)
+      await this.prisma.teacherWorkedHours.deleteMany({
+        where: {
+          teacherId,
+          month,
+          year,
+        },
+      });
+
+      // Возвращаем null или объект с нулевыми значениями
+      return {
+        id: null,
+        teacherId,
+        month,
+        year,
+        scheduledHours: 0,
+        workedHours: 0,
+        substitutedHours: 0,
+        substitutedByOthers: 0,
+        teacher: await this.prisma.teacher.findUnique({
+          where: { id: teacherId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+              },
+            },
+          },
+        }),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+
     // Проверяем типы данных перед сохранением
     console.log(`[TeacherWorkedHours] Типы данных:`);
     console.log(`  scheduledHours: ${typeof scheduledHours} = ${scheduledHours}`);
@@ -223,7 +266,7 @@ export class TeacherWorkedHoursService {
 
     console.log(`[TeacherWorkedHours] Данные для сохранения:`, dataToSave);
 
-    // Сохраняем или обновляем запись
+    // Сохраняем или обновляем запись только если есть активность
     const result = await this.prisma.teacherWorkedHours.upsert({
       where: {
         teacherId_month_year: {
@@ -603,9 +646,9 @@ export class TeacherWorkedHoursService {
     return await this.prisma.teacherWorkedHours.findUnique({
       where: {
         teacherId_month_year: {
-          teacherId,
-          month,
-          year,
+          teacherId: teacherId,
+          month: month,
+          year: year,
         },
       },
       include: {
@@ -628,8 +671,8 @@ export class TeacherWorkedHoursService {
   async getWorkedHoursByYear(teacherId: number, year: number) {
     return await this.prisma.teacherWorkedHours.findMany({
       where: {
-        teacherId,
-        year,
+        teacherId: teacherId,
+        year: year,
       },
       include: {
         teacher: {
@@ -654,8 +697,8 @@ export class TeacherWorkedHoursService {
   async getAllTeachersWorkedHours(month: number, year: number) {
     return await this.prisma.teacherWorkedHours.findMany({
       where: {
-        month,
-        year,
+        month: month,
+        year: year,
       },
       include: {
         teacher: {
@@ -689,8 +732,8 @@ export class TeacherWorkedHoursService {
       try {
         const result = await this.calculateAndSaveWorkedHours({
           teacherId: teacher.id,
-          month,
-          year,
+          month: month,
+          year: year,
         });
         results.push(result);
       } catch (error) {

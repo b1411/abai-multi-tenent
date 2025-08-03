@@ -107,6 +107,14 @@ export class StudentsController {
     return this.studentsService.getStudentStatistics();
   }
 
+  @Get('count/active')
+  @ApiOperation({ summary: 'Получить количество активных студентов' })
+  @ApiResponse({ status: 200, description: 'Количество активных студентов' })
+  @Roles('ADMIN', 'HR', 'TEACHER', 'FINANCIST')
+  getActiveStudentsCount() {
+    return this.studentsService.getActiveStudentsCount();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Получить студента по ID' })
   @ApiResponse({ status: 200, description: 'Полная информация о студенте' })

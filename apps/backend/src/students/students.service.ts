@@ -287,7 +287,7 @@ export class StudentsService {
     const hashedPassword = await bcrypt.hash(createFullStudentDto.password, 12);
 
     // Извлекаем данные для создания пользователя и студента
-    const { password, groupId, classId, ...userData } = createFullStudentDto;
+    const { groupId, classId, ...userData } = createFullStudentDto;
 
     // Используем транзакцию для создания пользователя и студента
     const result = await this.prisma.$transaction(async (prisma) => {
@@ -571,6 +571,14 @@ export class StudentsService {
       studentsByGroup: groupDetails,
       recentStudents,
     };
+  }
+
+  async getActiveStudentsCount() {
+    const count = await this.prisma.student.count({
+      where: { deletedAt: null },
+    });
+
+    return { count };
   }
 
   async changeStudentGroup(studentId: number, newGroupId: number) {
@@ -1162,7 +1170,7 @@ export class StudentsService {
     if (['PARENT', 'TEACHER', 'ADMIN', 'FINANCIST'].includes(currentUserRole)) {
       try {
         finances = await this.getStudentFinances(studentId, currentUserRole, currentUserId);
-      } catch (error) {
+      } catch {
         // Если нет доступа, игнорируем
       }
     }
@@ -1170,7 +1178,7 @@ export class StudentsService {
     if (['PARENT', 'TEACHER', 'ADMIN'].includes(currentUserRole)) {
       try {
         emotionalState = await this.getStudentEmotionalState(studentId, currentUserRole, currentUserId);
-      } catch (error) {
+      } catch {
         // Если нет доступа, игнорируем
       }
     }

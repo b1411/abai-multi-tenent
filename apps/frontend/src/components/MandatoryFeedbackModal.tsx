@@ -27,7 +27,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
   // Автосохранение черновиков
   const saveDeaft = useCallback(async (templateId: number, currentAnswers: Record<string, any>) => {
     if (Object.keys(currentAnswers).length === 0) return;
-    
+
     setAutoSaving(true);
     try {
       await feedbackService.submitResponse({
@@ -45,7 +45,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
 
   // Загрузка сохраненного черновика
   useEffect(() => {
-    if (isOpen && templates.length > 0) {
+    if (isOpen && templates.length > 0 && currentTemplateIndex === 0) {
       const loadDraft = async () => {
         try {
           // Попытка загрузить черновик для текущего шаблона
@@ -61,13 +61,13 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
           console.error('Error loading draft:', err);
         }
       };
-      
+
       setCurrentTemplateIndex(0);
       setAnswers({});
       setError(null);
       loadDraft();
     }
-  }, [isOpen, templates, currentTemplateIndex]);
+  }, [isOpen, templates]);
 
   // Автосохранение при изменении ответов
   useEffect(() => {
@@ -89,7 +89,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
 
   const isFormValid = () => {
     if (!currentTemplate) return false;
-    
+
     return currentTemplate.questions.every(question => {
       if (question.required !== false) {
         const answer = answers[question.id];
@@ -120,8 +120,10 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
       if (isLastTemplate) {
         onComplete();
       } else {
-        setCurrentTemplateIndex(prev => prev + 1);
+        const nextIndex = currentTemplateIndex + 1;
+        setCurrentTemplateIndex(nextIndex);
         setAnswers({}); // Очищаем ответы для следующей формы
+        setError(null); // Очищаем ошибки
       }
     } catch (err: any) {
       setError(err.message || 'Произошла ошибка');
@@ -143,11 +145,10 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
                   key={rating}
                   type="button"
                   onClick={() => handleAnswerChange(question.id, rating)}
-                  className={`w-12 h-12 rounded-full border-2 font-semibold transition-all ${
-                    value === rating
+                  className={`w-12 h-12 rounded-full border-2 font-semibold transition-all ${value === rating
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                  }`}
+                    }`}
                 >
                   {rating}
                 </button>
@@ -165,7 +166,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
           <div className="space-y-4">
             <input
               type="range"
-              
+              min="0"
               max="100"
               value={value || 50}
               onChange={(e) => handleAnswerChange(question.id, parseInt(e.target.value))}
@@ -187,11 +188,10 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
                 key={option}
                 type="button"
                 onClick={() => handleAnswerChange(question.id, option === 'Да')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                  value === (option === 'Да')
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${value === (option === 'Да')
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 {option}
               </button>
@@ -209,6 +209,9 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
             placeholder="Ваш ответ..."
           />
         );
+
+      case 'TEACHER_RATING':
+        return <TeacherRatingComponent question={question} value={value} onChange={(v) => handleAnswerChange(question.id, v)} />;
 
       default:
         return null;
@@ -246,14 +249,14 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
             </div>
             <div className="text-right">
               <div className="w-16 h-2 bg-gray-200 rounded-full">
-                <div 
+                <div
                   className="h-full bg-blue-600 rounded-full transition-all"
                   style={{ width: `${((currentTemplateIndex + 1) / templates.length) * 100}%` }}
                 />
               </div>
             </div>
           </div>
-          
+
           {currentTemplate?.description && (
             <p className="text-gray-600 mt-2">{currentTemplate.description}</p>
           )}
@@ -262,7 +265,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
         {/* Вопросы */}
         <div className="p-6 space-y-8">
           {error && <Alert variant="error" message={error} />}
-          
+
           {currentTemplate?.questions.map((question, index) => (
             <div key={question.id} className="space-y-3">
               <div className="flex items-start justify-between">
@@ -286,7 +289,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
           <div className="text-sm text-gray-500">
             Обязательная форма обратной связи
           </div>
-          
+
           <button
             onClick={handleNext}
             disabled={!isFormValid() || loading}
@@ -303,6 +306,113 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// Компонент для оценки преподавателей
+interface TeacherRatingComponentProps {
+  question: Question;
+  value: any;
+  onChange: (value: any) => void;
+}
+
+const TeacherRatingComponent: React.FC<TeacherRatingComponentProps> = ({ question, value, onChange }) => {
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Загружаем список преподавателей студента
+    const loadTeachers = async () => {
+      try {
+        setLoading(true);
+        // Если у вопроса есть конкретные ID преподавателей, используем их
+        if (question.teacherIds && question.teacherIds.length > 0) {
+          // TODO: загрузить конкретных преподавателей по ID
+          setTeachers([]); // временно пустой список
+        } else {
+          // Иначе загружаем всех преподавателей текущего студента
+          // TODO: API call to get student's teachers
+          setTeachers([
+            { id: 1, name: 'Иванов И.И.', subject: 'Математика' },
+            { id: 2, name: 'Петров П.П.', subject: 'Физика' },
+            { id: 3, name: 'Сидорова С.С.', subject: 'История' },
+          ]); // моковые данные для демонстрации
+        }
+      } catch (error) {
+        console.error('Error loading teachers:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTeachers();
+  }, [question.teacherIds]);
+
+  const handleTeacherRating = (teacherId: number, rating: number) => {
+    const currentRatings = value || {};
+    onChange({
+      ...currentRatings,
+      [teacherId]: rating
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Spinner size="sm" />
+        <span className="ml-2 text-gray-600">Загрузка преподавателей...</span>
+      </div>
+    );
+  }
+
+  if (teachers.length === 0) {
+    return (
+      <div className="text-gray-500 py-4">
+        Преподаватели не найдены
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {teachers.map((teacher) => (
+        <div key={teacher.id} className="border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="font-medium text-gray-900">{teacher.name}</h4>
+              <p className="text-sm text-gray-600">{teacher.subject}</p>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="text-sm text-gray-700">Оцените преподавателя:</p>
+            <div className="flex justify-between items-center">
+              {[1, 2, 3, 4, 5].map(rating => (
+                <button
+                  key={rating}
+                  type="button"
+                  onClick={() => handleTeacherRating(teacher.id, rating)}
+                  className={`w-10 h-10 rounded-full border-2 font-semibold transition-all ${
+                    value?.[teacher.id] === rating
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  {rating}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>1 - Неудовлетворительно</span>
+              <span>2 - Удовлетворительно</span>
+              <span>3 - Хорошо</span>
+              <span>4 - Очень хорошо</span>
+              <span>5 - Отлично</span>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

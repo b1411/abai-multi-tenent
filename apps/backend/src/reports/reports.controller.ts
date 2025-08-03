@@ -9,7 +9,10 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { ReportFilterDto, GenerateReportDto, ReportType } from './dto/report-filter.dto';
@@ -107,6 +110,107 @@ export class ReportsController {
     return await this.reportsService.getBudgetTrends(start, end);
   }
 
+  @Get('list')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Получить список всех отчетов' })
+  @ApiResponse({ status: 200, description: 'Список отчетов' })
+  async getReportsList(@Query() filters: ReportFilterDto) {
+    return await this.reportsService.getReportsList(filters);
+  }
+
+  @Get('download/:id')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Скачать отчет' })
+  @ApiResponse({ status: 200, description: 'Файл отчета' })
+  async downloadReport(
+    @Param('id') reportId: string,
+    @Query('format') format: string = 'pdf',
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const reportBuffer = await this.reportsService.downloadReport(reportId, format);
+    
+    // Получаем информацию об отчете для имени файла
+    const reportInfo = await this.reportsService.getReportInfo(reportId);
+    const fileName = `${reportInfo.title}_${reportInfo.period}.${format}`;
+    
+    res.set({
+      'Content-Type': format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+    });
+
+    return new StreamableFile(reportBuffer);
+  }
+
+  @Get('export/:type')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Экспортировать отчет по типу' })
+  @ApiResponse({ status: 200, description: 'Файл отчета' })
+  async exportReportByType(
+    @Param('type') type: ReportType,
+    @Query('format') format: string = 'pdf',
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Res({ passthrough: true }) res: Response,
+    @Request() req: any,
+  ): Promise<StreamableFile> {
+    const userId = req.user?.id?.toString() || '1';
+    
+    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1);
+    const end = endDate ? new Date(endDate) : new Date();
+    
+    const reportBuffer = await this.reportsService.exportReport(type, start, end, format, userId);
+    const fileName = `${this.getReportTitle(type)}_${start.toLocaleDateString('ru-RU')}-${end.toLocaleDateString('ru-RU')}.${format}`;
+    
+    res.set({
+      'Content-Type': format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+    });
+
+    return new StreamableFile(reportBuffer);
+  }
+
+  @Get('workload/analytics')
+  @Roles('ADMIN', 'FINANCIST', 'TEACHER')
+  @ApiOperation({ summary: 'Получить аналитику нагрузок' })
+  @ApiResponse({ status: 200, description: 'Аналитика нагрузок' })
+  async getWorkloadAnalytics(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Request() req: any,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1);
+    const end = endDate ? new Date(endDate) : new Date();
+    const userId = req.user?.id?.toString() || '1'; // Используем ID=1 как fallback
+    
+    return await this.reportsService.generateReport({
+      type: ReportType.WORKLOAD_ANALYSIS,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      title: 'Аналитика нагрузок преподавателей'
+    }, userId);
+  }
+
+  @Get('schedule/analytics')
+  @Roles('ADMIN', 'FINANCIST', 'TEACHER')
+  @ApiOperation({ summary: 'Получить аналитику расписания' })
+  @ApiResponse({ status: 200, description: 'Аналитика расписания' })
+  async getScheduleAnalytics(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Request() req: any,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1);
+    const end = endDate ? new Date(endDate) : new Date();
+    const userId = req.user?.id?.toString() || '1'; // Используем ID=1 как fallback
+    
+    return await this.reportsService.generateReport({
+      type: ReportType.SCHEDULE_ANALYSIS,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      title: 'Аналитика расписания ставок'
+    }, userId);
+  }
+
   @Get(':type')
   @Roles('ADMIN', 'FINANCIST')
   @ApiOperation({ summary: 'Получить отчет по типу' })
@@ -128,5 +232,56 @@ export class ReportsController {
     };
 
     return await this.reportsService.generateReport(generateReportDto, userId);
+  }
+
+  private getReportTitle(type: ReportType): string {
+    const titles = {
+      [ReportType.BUDGET_ANALYSIS]: 'Анализ бюджета',
+      [ReportType.CASHFLOW]: 'Движение денежных средств',
+      [ReportType.PERFORMANCE]: 'Показатели эффективности',
+      [ReportType.FORECAST]: 'Финансовый прогноз',
+      [ReportType.VARIANCE]: 'Анализ отклонений',
+      [ReportType.INCOME_STATEMENT]: 'Отчет о доходах и расходах',
+      [ReportType.BALANCE_SHEET]: 'Баланс школы',
+      [ReportType.WORKLOAD_ANALYSIS]: 'Анализ нагрузки преподавателей',
+      [ReportType.SCHEDULE_ANALYSIS]: 'Анализ расписания ставок',
+    };
+    return titles[type] || 'Отчет';
+  }
+
+  private getReportDescription(type: ReportType): string {
+    const descriptions = {
+      [ReportType.BUDGET_ANALYSIS]: 'Детальный анализ исполнения бюджета по категориям',
+      [ReportType.CASHFLOW]: 'Анализ входящих и исходящих денежных потоков',
+      [ReportType.PERFORMANCE]: 'Ключевые показатели эффективности учреждения',
+      [ReportType.FORECAST]: 'Прогноз финансовых показателей на ближайшие периоды',
+      [ReportType.VARIANCE]: 'Анализ отклонений фактических показателей от плановых',
+      [ReportType.INCOME_STATEMENT]: 'Отчет о доходах и расходах за период',
+      [ReportType.BALANCE_SHEET]: 'Баланс активов и пассивов учреждения',
+      [ReportType.WORKLOAD_ANALYSIS]: 'Анализ распределения учебной нагрузки между преподавателями',
+      [ReportType.SCHEDULE_ANALYSIS]: 'Анализ эффективности использования расписания и аудиторий',
+    };
+    return descriptions[type] || 'Отчет';
+  }
+
+  private getReportTags(type: ReportType): string[] {
+    const currentDate = new Date();
+    const year = currentDate.getFullYear().toString();
+    const months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+      'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+    const month = months[currentDate.getMonth()];
+
+    const baseTags = [type.toLowerCase().replace('_', '-'), year, month];
+    
+    // Добавляем специфичные теги для разных типов отчетов
+    if (type.includes('WORKLOAD')) {
+      baseTags.push('нагрузка-преподавателей');
+    } else if (type.includes('SCHEDULE')) {
+      baseTags.push('расписание-ставок');
+    } else {
+      baseTags.push('финансы');
+    }
+
+    return baseTags;
   }
 }

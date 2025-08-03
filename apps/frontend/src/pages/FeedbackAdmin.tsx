@@ -483,14 +483,14 @@ const CreateTemplateModal: React.FC<{
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Приоритет (0 = опциональный, "{'>'}"0 = обязательный)
+              Приоритет (0 = опциональный, &gt;0 = обязательный)
             </label>
             <input
               type="number"
               value={formData.priority}
               onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-
+              min="0"
               max="10"
             />
           </div>
@@ -762,6 +762,7 @@ const EditTemplateModal: React.FC<{
                         <option value="YES_NO">Да/Нет</option>
                         <option value="TEXT">Текст</option>
                         <option value="EMOTIONAL_SCALE">Эмоциональная шкала</option>
+                        <option value="TEACHER_RATING">Оценка преподавателей</option>
                       </select>
                     </div>
                   </div>

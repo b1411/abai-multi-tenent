@@ -109,6 +109,67 @@ export interface BalanceSheetData {
   };
 }
 
+export interface WorkloadAnalysisData {
+  period: string;
+  totalTeachers: number;
+  averageWorkload: number;
+  workloadDistribution: {
+    teacherId: string;
+    teacherName: string;
+    totalHours: number;
+    weeklyHours: number;
+    subjects: string[];
+    efficiency: number;
+  }[];
+  departmentBreakdown: {
+    department: string;
+    teacherCount: number;
+    totalHours: number;
+    averageHours: number;
+  }[];
+  workloadTrends: {
+    month: string;
+    totalHours: number;
+    teacherCount: number;
+    averagePerTeacher: number;
+  }[];
+  recommendations: string[];
+}
+
+export interface ScheduleAnalysisData {
+  period: string;
+  totalClasses: number;
+  utilizationRate: number;
+  dayDistribution: {
+    day: string;
+    classCount: number;
+    totalHours: number;
+    utilizationRate: number;
+  }[];
+  timeSlotAnalysis: {
+    timeSlot: string;
+    classCount: number;
+    popularity: number;
+  }[];
+  roomUtilization: {
+    roomId: string;
+    roomName: string;
+    utilizationRate: number;
+    totalHours: number;
+  }[];
+  conflictAnalysis: {
+    teacherConflicts: number;
+    roomConflicts: number;
+    studentConflicts: number;
+  };
+  efficiency: {
+    averageClassSize: number;
+    peakHours: string[];
+    underutilizedPeriods: string[];
+  };
+  recommendations: string[];
+}
+
 export class FinancialReport {
   id: string;
   title: string;

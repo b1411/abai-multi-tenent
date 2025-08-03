@@ -5,15 +5,15 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class TeachersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createTeacherDto: CreateTeacherDto) {
     // Проверяем существование пользователя
     const user = await this.prisma.user.findFirst({
-      where: { 
-        id: createTeacherDto.userId, 
+      where: {
+        id: createTeacherDto.userId,
         role: 'TEACHER',
-        deletedAt: null 
+        deletedAt: null
       },
     });
 
@@ -23,9 +23,9 @@ export class TeachersService {
 
     // Проверяем, не является ли пользователь уже преподавателем
     const existingTeacher = await this.prisma.teacher.findFirst({
-      where: { 
+      where: {
         userId: createTeacherDto.userId,
-        deletedAt: null 
+        deletedAt: null
       },
     });
 
@@ -111,7 +111,10 @@ export class TeachersService {
 
   async findOne(id: number) {
     const teacher = await this.prisma.teacher.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id: id,
+        deletedAt: null
+      },
       include: {
         user: {
           select: {
@@ -252,9 +255,9 @@ export class TeachersService {
 
   async findByUser(userId: number) {
     return this.prisma.teacher.findFirst({
-      where: { 
+      where: {
         userId,
-        deletedAt: null 
+        deletedAt: null
       },
       include: {
         user: {
@@ -463,7 +466,7 @@ export class TeachersService {
         name: `${teacher.user.surname} ${teacher.user.name}`,
         subjectCount: teacher.studyPlans.length,
         groupCount: teacher.studyPlans.reduce((sum, plan) => sum + plan.group.length, 0),
-        studentCount: teacher.studyPlans.reduce((sum, plan) => 
+        studentCount: teacher.studyPlans.reduce((sum, plan) =>
           sum + plan.group.reduce((groupSum, group) => groupSum + group._count.students, 0), 0
         ),
         experience: null, // Поле будет добавлено позже

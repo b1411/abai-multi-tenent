@@ -23,13 +23,14 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { financeService } from '../services/financeService';
+import scheduleService from '../services/scheduleService';
 
 interface FinancialReport {
   id: string;
   title: string;
   period: string;
   generatedAt: string;
-  type: 'BUDGET_ANALYSIS' | 'CASHFLOW' | 'PERFORMANCE' | 'FORECAST' | 'VARIANCE' | 'INCOME_STATEMENT' | 'BALANCE_SHEET';
+  type: 'BUDGET_ANALYSIS' | 'CASHFLOW' | 'PERFORMANCE' | 'FORECAST' | 'VARIANCE' | 'INCOME_STATEMENT' | 'BALANCE_SHEET' | 'WORKLOAD_ANALYSIS' | 'SCHEDULE_ANALYSIS';
   status: 'GENERATING' | 'COMPLETED' | 'FAILED';
   generatedBy: string;
   description?: string;
@@ -44,7 +45,9 @@ const reportTypeLabels = {
   FORECAST: 'Финансовый прогноз',
   VARIANCE: 'Анализ отклонений',
   INCOME_STATEMENT: 'Отчет о доходах и расходах',
-  BALANCE_SHEET: 'Баланс школы'
+  BALANCE_SHEET: 'Баланс школы',
+  WORKLOAD_ANALYSIS: 'Анализ нагрузки преподавателей',
+  SCHEDULE_ANALYSIS: 'Анализ расписания ставок'
 };
 
 const statusLabels = {
@@ -75,6 +78,12 @@ const Reports: React.FC = () => {
   const [cashflowData, setCashflowData] = useState<any[]>([]);
   const [performanceMetrics, setPerformanceMetrics] = useState<any>(null);
   const [monthlyRevenueData, setMonthlyRevenueData] = useState<any[]>([]);
+  const [workloadData, setWorkloadData] = useState<any[]>([]);
+  const [workloadAnalytics, setWorkloadAnalytics] = useState<any>(null);
+  const [scheduleData, setScheduleData] = useState<any[]>([]);
+  const [workloadChartData, setWorkloadChartData] = useState<any[]>([]);
+  const [scheduleChartData, setScheduleChartData] = useState<any[]>([]);
+  const [activeStudentsCount, setActiveStudentsCount] = useState<number>(0);
 
   // Загрузка данных
   useEffect(() => {
@@ -100,43 +109,100 @@ const Reports: React.FC = () => {
       // Получаем реальные данные performance
       const performance = await financeService.getPerformanceMetrics(`startDate=${startDate}&endDate=${endDate}`);
 
+      // Получаем данные нагрузок
+      await loadWorkloadData();
+
+      // Получаем данные расписания
+      await loadScheduleData();
+
+      // Получаем количество активных студентов
+      const studentsCount = await financeService.getActiveStudentsCount();
+
       setCashflowData(Array.isArray(cashflow) ? cashflow : []);
       setPerformanceMetrics(performance);
+      setActiveStudentsCount(studentsCount);
 
-      // Моковые отчеты (поскольку нет эндпоинта для списка отчетов)
-      const mockReports: FinancialReport[] = [
-        {
-          id: '1',
-          title: 'Отчет о движении денежных средств - Январь 2025',
-          period: '2025-01',
-          generatedAt: new Date().toISOString(),
-          type: 'CASHFLOW',
-          status: 'COMPLETED',
-          generatedBy: 'Система',
-          description: 'Анализ входящих и исходящих денежных потоков за январь 2025',
-          tags: ['движение-денежных-средств', '2025', 'январь']
-        },
-        {
-          id: '2',
-          title: 'Показатели эффективности - Январь 2025',
-          period: '2025-01',
-          generatedAt: new Date().toISOString(),
-          type: 'PERFORMANCE',
-          status: 'COMPLETED',
-          generatedBy: 'Система',
-          description: 'Анализ ключевых показателей эффективности за январь 2025',
-          tags: ['показатели-эффективности', '2025', 'январь']
-        }
-      ];
-      
-      setReports(mockReports);
+      // Получаем реальный список отчетов из API
+      const reportsFromAPI = await financeService.getReports();
+      setReports(Array.isArray(reportsFromAPI) ? reportsFromAPI : []);
     } catch (error) {
       console.error('Ошибка загрузки данных отчетов:', error);
       setCashflowData([]);
       setPerformanceMetrics(null);
+      setWorkloadData([]);
+      setScheduleData([]);
       setReports([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkloadData = async () => {
+    try {
+      // Получаем аналитику нагрузок через financeService
+      const analytics = await financeService.getWorkloadAnalytics();
+
+      setWorkloadAnalytics(analytics);
+
+      // Подготавливаем данные для графика нагрузок
+      if (analytics && analytics.teacherWorkloads && Array.isArray(analytics.teacherWorkloads)) {
+        const chartData = analytics.teacherWorkloads.map((teacher: any) => ({
+          name: teacher.teacherName || 'Неизвестный преподаватель',
+          totalHours: teacher.totalHours || 0,
+          weeklyHours: teacher.weeklyHours || 0
+        }));
+        
+        setWorkloadChartData(chartData.slice(0, 10)); // Показываем топ 10 преподавателей
+        setWorkloadData(analytics.teacherWorkloads || []);
+      } else {
+        setWorkloadChartData([]);
+        setWorkloadData([]);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки данных нагрузок:', error);
+      setWorkloadData([]);
+      setWorkloadAnalytics(null);
+      setWorkloadChartData([]);
+    }
+  };
+
+  const loadScheduleData = async () => {
+    try {
+      // Получаем данные расписания
+      const schedules = await scheduleService.findAll();
+      
+      setScheduleData(schedules || []);
+
+      // Подготавливаем данные для графика расписания - анализ по дням недели
+      if (schedules && Array.isArray(schedules)) {
+        const dayNames = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+        const dayStats = Array.from({ length: 7 }, (_, index) => ({
+          name: dayNames[index],
+          count: 0,
+          hours: 0
+        }));
+
+        schedules.forEach((schedule: any) => {
+          const dayIndex = schedule.dayOfWeek === 7 ? 0 : schedule.dayOfWeek; // Воскресенье = 0
+          if (dayIndex >= 0 && dayIndex < 7) {
+            dayStats[dayIndex].count += 1;
+            
+            // Вычисляем продолжительность занятия
+            if (schedule.startTime && schedule.endTime) {
+              const start = new Date(`2000-01-01T${schedule.startTime}`);
+              const end = new Date(`2000-01-01T${schedule.endTime}`);
+              const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60); // в часах
+              dayStats[dayIndex].hours += duration;
+            }
+          }
+        });
+
+        setScheduleChartData(dayStats);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки данных расписания:', error);
+      setScheduleData([]);
+      setScheduleChartData([]);
     }
   };
 
@@ -177,14 +243,35 @@ const Reports: React.FC = () => {
     const totalIncome = cashflowData.reduce((sum, item) => sum + (item.income || 0), 0);
     const totalExpense = cashflowData.reduce((sum, item) => sum + (item.expense || 0), 0);
     const avgPayment = cashflowData.length > 0 ? totalIncome / cashflowData.length : 0;
+
+    // Статистика по нагрузкам
+    const totalTeachers = workloadData.length;
+    const avgWorkload = workloadData.length > 0 
+      ? workloadData.reduce((sum, item) => sum + (item.totalHours || 0), 0) / workloadData.length 
+      : 0;
+
+    // Статистика по расписанию
+    const totalClasses = scheduleData.length;
+    const todayClasses = scheduleData.filter((schedule: any) => {
+      if (schedule.date) {
+        const scheduleDate = new Date(schedule.date).toDateString();
+        const today = new Date().toDateString();
+        return scheduleDate === today;
+      }
+      return false;
+    }).length;
     
     return {
       totalIncome: totalIncome.toLocaleString('ru-RU'),
       avgPayment: avgPayment.toLocaleString('ru-RU'),
-      activeStudents: 245, // можно получить из API students если нужно
-      growthRate: Math.round(performanceMetrics?.revenueGrowth || 0)
+      activeStudents: activeStudentsCount,
+      growthRate: Math.round(performanceMetrics?.revenueGrowth || 0),
+      totalTeachers,
+      avgWorkload: Math.round(avgWorkload),
+      totalClasses,
+      todayClasses
     };
-  }, [cashflowData, performanceMetrics]);
+  }, [cashflowData, performanceMetrics, workloadData, scheduleData, activeStudentsCount]);
 
   // Обработчики событий
   const handleFilterChange = (key: string, value: string) => {
@@ -217,10 +304,45 @@ const Reports: React.FC = () => {
         title: `${reportTypeLabels[type as keyof typeof reportTypeLabels]} - ${new Date().toLocaleDateString('ru-RU')}`
       };
 
-      await financeService.generateReport(generateReportDto.type, generateReportDto, 'pdf');
+      await financeService.generateReport(generateReportDto.type, generateReportDto, 'PDF');
       await loadReportsData(); // Перезагружаем список отчетов
     } catch (error) {
       console.error('Ошибка генерации отчета:', error);
+    }
+  };
+
+  const handleDownloadReport = async (reportId: string, format: 'pdf' | 'xlsx' = 'pdf') => {
+    try {
+      const blob = await financeService.downloadReport(reportId, format);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `report-${reportId}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка скачивания отчета:', error);
+    }
+  };
+
+  const handleExportReport = async (type: string, format: 'pdf' | 'xlsx' = 'pdf') => {
+    try {
+      const startDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+      const endDate = new Date().toISOString().split('T')[0];
+      
+      const blob = await financeService.exportReportByType(type, format, startDate, endDate);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${type}-report.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка экспорта отчета:', error);
     }
   };
 
@@ -468,6 +590,38 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
+      {/* Дополнительная статистика по нагрузкам и расписанию */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 lg:mb-6">
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-xs sm:text-sm text-gray-600">Преподавателей</div>
+            <Users className="text-green-600 h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2">{stats.totalTeachers}</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-xs sm:text-sm text-gray-600">Средняя нагрузка</div>
+            <BarChart3 className="text-green-600 h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2">{stats.avgWorkload}ч</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-xs sm:text-sm text-gray-600">Всего занятий</div>
+            <Calendar className="text-orange-600 h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2">{stats.totalClasses}</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-xs sm:text-sm text-gray-600">Занятий сегодня</div>
+            <Calendar className="text-orange-600 h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+          <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2">{stats.todayClasses}</div>
+        </div>
+      </div>
+
       {/* График доходов */}
       <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm mb-4 lg:mb-6">
         <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Динамика доходов и расходов</h2>
@@ -491,6 +645,75 @@ const Reports: React.FC = () => {
                 dataKey="value" 
                 name="Доходы" 
                 fill="#3B82F6" 
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* График нагрузки преподавателей */}
+      <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm mb-4 lg:mb-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Нагрузка преподавателей (часы)</h2>
+        <div className="h-64 sm:h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={workloadChartData} layout="horizontal">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis dataKey="name" type="category" width={120} />
+              <Tooltip 
+                formatter={(value: number) => `${value} часов`}
+                labelStyle={{ color: '#1F2937' }}
+                contentStyle={{ 
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '0.5rem'
+                }}
+              />
+              <Legend />
+              <Bar 
+                dataKey="totalHours" 
+                name="Общая нагрузка" 
+                fill="#10B981" 
+                radius={[0, 4, 4, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* График распределения расписания по дням */}
+      <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm mb-4 lg:mb-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Распределение занятий по дням недели</h2>
+        <div className="h-64 sm:h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={scheduleChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip 
+                formatter={(value: number, name: string) => [
+                  name === 'count' ? `${value} занятий` : `${value.toFixed(1)} часов`,
+                  name === 'count' ? 'Количество занятий' : 'Общие часы'
+                ]}
+                labelStyle={{ color: '#1F2937' }}
+                contentStyle={{ 
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '0.5rem'
+                }}
+              />
+              <Legend />
+              <Bar 
+                dataKey="count" 
+                name="Количество занятий" 
+                fill="#F59E0B" 
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar 
+                dataKey="hours" 
+                name="Общие часы" 
+                fill="#EF4444" 
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -561,8 +784,9 @@ const Reports: React.FC = () => {
                       className="text-blue-600 hover:text-blue-900 mr-3"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Логика скачивания
+                        handleDownloadReport(report.id, 'pdf');
                       }}
+                      title="Скачать PDF"
                     >
                       <Download className="h-4 w-4" />
                     </button>
@@ -570,8 +794,9 @@ const Reports: React.FC = () => {
                       className="text-gray-600 hover:text-gray-900"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Логика экспорта
+                        handleDownloadReport(report.id, 'xlsx');
                       }}
+                      title="Скачать Excel"
                     >
                       <ExternalLink className="h-4 w-4" />
                     </button>
@@ -629,8 +854,9 @@ const Reports: React.FC = () => {
                         className="text-blue-600 hover:text-blue-900 p-1.5 rounded transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Логика скачивания
+                          handleDownloadReport(report.id, 'pdf');
                         }}
+                        title="Скачать PDF"
                       >
                         <Download className="h-4 w-4" />
                       </button>
@@ -638,8 +864,9 @@ const Reports: React.FC = () => {
                         className="text-gray-600 hover:text-gray-900 p-1.5 rounded transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Логика экспорта
+                          handleDownloadReport(report.id, 'xlsx');
                         }}
+                        title="Скачать Excel"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </button>

@@ -180,9 +180,14 @@ const Budget: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Все годы</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
+              {Array.from({ length: 10 }, (_, i) => {
+                const year = new Date().getFullYear() + 2 - i;
+                return (
+                  <option key={year} value={year.toString()}>
+                    {year}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -610,9 +615,14 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
                   onChange={(e) => setFormYear(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="2024">2024</option>
-                  <option value="2023">2023</option>
-                  <option value="2022">2022</option>
+                  {Array.from({ length: 10 }, (_, i) => {
+                    const year = new Date().getFullYear() + 2 - i;
+                    return (
+                      <option key={year} value={year.toString()}>
+                        {year}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

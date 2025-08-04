@@ -344,4 +344,18 @@ export const kpiService = {
   updatePeriodicGoals: async (goalId: number, goals: any) => {
     return await apiClient.put(`/kpi/periodic/goals/${goalId}`, goals);
   },
+
+  // Get top periodic achievements
+  getTopPeriodicAchievements: async (filter?: {
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filter?.startDate) params.append('startDate', filter.startDate);
+    if (filter?.endDate) params.append('endDate', filter.endDate);
+    if (filter?.limit) params.append('limit', filter.limit.toString());
+    
+    return await apiClient.get(`/kpi/periodic/top-achievements?${params}`);
+  },
 };

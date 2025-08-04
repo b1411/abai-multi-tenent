@@ -129,19 +129,21 @@ const PeriodicKpiDashboard: React.FC = () => {
 
       const [teachersData, achievementsData] = await Promise.all([
         kpiService.getPeriodicKpi({ startDate, endDate }),
-        kpiService.getPeriodicTrends({})
+        kpiService.getTopPeriodicAchievements({ startDate, endDate, limit: 10 })
       ]);
       
       setAllTeachersData(teachersData as AllTeachersPeriodicKpi);
-      // Создаем заглушку для topAchievements пока нет соответствующего API
+      setTopAchievements(achievementsData as TopAchievements);
+    } catch (error) {
+      console.error('Ошибка при загрузке данных:', error);
+      // В случае ошибки устанавливаем пустые данные
+      const { startDate, endDate } = getPeriodDates(selectedPeriod);
       setTopAchievements({
         period: { start: new Date(startDate), end: new Date(endDate) },
         topAchievements: [],
         topOlympiads: [],
         topAdmissions: []
       });
-    } catch (error) {
-      console.error('Ошибка при загрузке данных:', error);
     } finally {
       setLoading(false);
     }
@@ -286,32 +288,40 @@ const PeriodicKpiDashboard: React.FC = () => {
               <CardTitle>Топ достижения</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {(topAchievements.topAchievements || []).map((achievement) => (
-                  <div key={achievement.id} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-blue-100">
-                        {getAchievementTypeIcon(achievement.type)}
+              {(topAchievements.topAchievements || []).length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>Нет достижений за выбранный период</p>
+                  <p className="text-sm text-gray-400">Данные будут обновляться автоматически</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(topAchievements.topAchievements || []).map((achievement) => (
+                    <div key={achievement.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-blue-100">
+                          {getAchievementTypeIcon(achievement.type)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{achievement.title}</p>
+                          <p className="text-sm text-gray-600">{achievement.teacherName}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(achievement.date).toLocaleDateString('ru')}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{achievement.title}</p>
-                        <p className="text-sm text-gray-600">{achievement.teacherName}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(achievement.date).toLocaleDateString('ru')}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">
+                          {getAchievementTypeLabel(achievement.type)}
+                        </Badge>
+                        <Badge variant="default">
+                          {achievement.points} очков
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        {getAchievementTypeLabel(achievement.type)}
-                      </Badge>
-                      <Badge variant="default">
-                        {achievement.points} очков
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         );
@@ -324,31 +334,39 @@ const PeriodicKpiDashboard: React.FC = () => {
                 <CardTitle>Топ результаты олимпиад</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {(topAchievements.topOlympiads || []).map((olympiad) => (
-                    <div key={olympiad.id} className="p-3 rounded-lg border">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-medium">{olympiad.olympiadName}</p>
-                          <p className="text-sm text-gray-600">{olympiad.subject}</p>
+                {(topAchievements.topOlympiads || []).length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Нет результатов олимпиад за выбранный период</p>
+                    <p className="text-sm text-gray-400">Данные будут обновляться автоматически</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(topAchievements.topOlympiads || []).map((olympiad) => (
+                      <div key={olympiad.id} className="p-3 rounded-lg border">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-medium">{olympiad.olympiadName}</p>
+                            <p className="text-sm text-gray-600">{olympiad.subject}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={getLevelBadge(olympiad.level)}>
+                              {olympiad.level}
+                            </Badge>
+                            <Badge variant="default">
+                              {olympiad.place} место
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={getLevelBadge(olympiad.level)}>
-                            {olympiad.level}
-                          </Badge>
-                          <Badge variant="default">
-                            {olympiad.place} место
-                          </Badge>
+                        <div className="text-sm text-gray-600">
+                          <p><strong>Ученик:</strong> {olympiad.studentName}</p>
+                          <p><strong>Преподаватель:</strong> {olympiad.teacherName}</p>
+                          <p><strong>Дата:</strong> {new Date(olympiad.date).toLocaleDateString('ru')}</p>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600">
-                        <p><strong>Ученик:</strong> {olympiad.studentName}</p>
-                        <p><strong>Преподаватель:</strong> {olympiad.teacherName}</p>
-                        <p><strong>Дата:</strong> {new Date(olympiad.date).toLocaleDateString('ru')}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

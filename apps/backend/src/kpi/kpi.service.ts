@@ -133,14 +133,14 @@ export class KpiService {
         const studentRetention = await this.calculateStudentRetention(teacher.id);
 
         // Рассчитываем общий балл на основе весов (только активные метрики)
-        const weights = { 
-          controlWorks: 20, 
-          journal: 15, 
-          workPlan: 15, 
-          materials: 15, 
-          retention: 10 
+        const weights = {
+          controlWorks: 20,
+          journal: 15,
+          workPlan: 15,
+          materials: 15,
+          retention: 10
         };
-        
+
         let totalScore = 0;
         let totalWeight = 0;
 
@@ -967,7 +967,7 @@ export class KpiService {
           type: 'periodic',
         },
         {
-          name: 'Повышение квалификации', 
+          name: 'Повышение квалификации',
           weight: 0, // Бонус
           target: 70,
           successThreshold: 80,
@@ -1608,7 +1608,7 @@ export class KpiService {
       }
 
       // Получаем ID всех родителей студентов этого преподавателя
-      const parentUserIds = studentsOfTeacher.flatMap(student => 
+      const parentUserIds = studentsOfTeacher.flatMap(student =>
         student.Parents.map(parent => parent.user.id)
       );
 
@@ -1666,19 +1666,19 @@ export class KpiService {
 
       for (const chat of relevantChats) {
         const messages = chat.messages;
-        
+
         for (let i = 0; i < messages.length - 1; i++) {
           const currentMsg = messages[i];
           const nextMsg = messages[i + 1];
 
           // Если текущее сообщение от родителя, а следующее от преподавателя
-          if (parentUserIds.includes(currentMsg.sender.id) && 
-              currentMsg.sender.id !== teacherUser.user.id &&
-              nextMsg.sender.id === teacherUser.user.id) {
-            
+          if (parentUserIds.includes(currentMsg.sender.id) &&
+            currentMsg.sender.id !== teacherUser.user.id &&
+            nextMsg.sender.id === teacherUser.user.id) {
+
             const responseTime = nextMsg.createdAt.getTime() - currentMsg.createdAt.getTime();
             const responseHours = responseTime / (1000 * 60 * 60);
-            
+
             if (responseHours <= 48 && responseHours > 0) { // Учитываем ответы в течение 48 часов
               totalResponseTime += responseHours;
               responseCount++;
@@ -1692,7 +1692,7 @@ export class KpiService {
       }
 
       const avgResponseTime = totalResponseTime / responseCount;
-      
+
       // Оценка: чем быстрее ответ, тем выше балл
       // <= 2 часа = 100 баллов, <= 6 часов = 90 баллов, <= 12 часов = 80 баллов, <= 24 часа = 70 баллов
       let score = 50;
@@ -1746,7 +1746,7 @@ export class KpiService {
       }
 
       // Получаем ID всех родителей студентов этого преподавателя
-      const parentUserIds = studentsOfTeacher.flatMap(student => 
+      const parentUserIds = studentsOfTeacher.flatMap(student =>
         student.Parents.map(parent => parent.user.id)
       );
 
@@ -1790,9 +1790,9 @@ export class KpiService {
           Object.entries(answers).forEach(([questionKey, answer]: [string, any]) => {
             // Проверяем, относится ли вопрос к оценке качества обучения
             const isTeacherRating = questionKey.toLowerCase().includes('преподават') ||
-                                   questionKey.toLowerCase().includes('качеств') ||
-                                   questionKey.toLowerCase().includes('удовлетворен') ||
-                                   questionKey.toLowerCase().includes('оценка');
+              questionKey.toLowerCase().includes('качеств') ||
+              questionKey.toLowerCase().includes('удовлетворен') ||
+              questionKey.toLowerCase().includes('оценка');
 
             if (isTeacherRating && typeof answer === 'number' && answer >= 1 && answer <= 5) {
               totalRating += answer;
@@ -1838,7 +1838,7 @@ export class KpiService {
     try {
       // Получаем данные только из агрегации фидбеков
       const feedbackResult = await this.feedbackAggregationService.aggregateStudentRetentionKpi(teacherId);
-      
+
       // Если есть фидбеки с достаточной уверенностью (>= 0.3), используем их
       if (feedbackResult.confidence >= 0.3 && feedbackResult.responseCount > 0) {
         return feedbackResult.score;
@@ -2512,7 +2512,7 @@ export class KpiService {
 
       for (const metric of periodicMetrics) {
         let metricScore = 0;
-        
+
         switch (metric.name) {
           case 'Призовые места на олимпиадах':
             metricScore = scores.olympiadWins;
@@ -2631,7 +2631,7 @@ export class KpiService {
    */
   private calculateQualificationKpiScore(achievements: any[]): number {
     const qualificationAchievements = achievements.filter(ach => ach.type === 'QUALIFICATION');
-    
+
     if (qualificationAchievements.length === 0) return 0;
 
     // Каждое повышение квалификации = 20 баллов (максимум 100)
@@ -2643,7 +2643,7 @@ export class KpiService {
    */
   private calculateTeamEventKpiScore(achievements: any[]): number {
     const teamEventAchievements = achievements.filter(ach => ach.type === 'TEAM_EVENT');
-    
+
     if (teamEventAchievements.length === 0) return 0;
 
     // Каждое мероприятие = 15 баллов (максимум 90)
@@ -2655,7 +2655,7 @@ export class KpiService {
    */
   private calculateProjectHelpKpiScore(achievements: any[]): number {
     const projectHelpAchievements = achievements.filter(ach => ach.type === 'PROJECT_HELP');
-    
+
     if (projectHelpAchievements.length === 0) return 0;
 
     // Каждый проект = 10 баллов (максимум 80)
@@ -2758,9 +2758,10 @@ export class KpiService {
         take: limit,
       });
 
-      // Получаем топ олимпиады
-      const topOlympiads = await this.prisma.olympiadResult.findMany({
+      // Получаем топ олимпиады из достижений типа OLYMPIAD_WIN
+      const olympiadAchievements = await this.prisma.teacherAchievement.findMany({
         where: {
+          type: 'OLYMPIAD_WIN',
           date: {
             gte: calculationPeriod.start,
             lte: calculationPeriod.end,
@@ -2773,17 +2774,43 @@ export class KpiService {
               user: true,
             },
           },
-          student: {
-            include: {
-              user: true,
-            },
-          },
         },
-        orderBy: [
-          { level: 'desc' },
-          { place: 'asc' },
-        ],
+        orderBy: {
+          points: 'desc',
+        },
         take: limit,
+      });
+
+      // Преобразуем достижения в формат олимпиад
+      const topOlympiads = olympiadAchievements.map(achievement => {
+        // Парсим данные из title и description
+        const titleParts = achievement.title.split(':');
+        const olympiadName = titleParts[1]?.trim() || achievement.title;
+        
+        // Пытаемся извлечь место из description
+        const placeMatch = achievement.description.match(/(\d+)\s*место/i);
+        const place = placeMatch ? parseInt(placeMatch[1]) : 1;
+        
+        // Пытаемся извлечь предмет из description
+        const subjectMatch = achievement.description.match(/предмету\s+(.+)/i);
+        const subject = subjectMatch ? subjectMatch[1] : 'Неизвестно';
+        
+        // Определяем уровень по баллам (примерно)
+        let level = 'Школьный';
+        if (achievement.points >= 40) level = 'Международный';
+        else if (achievement.points >= 25) level = 'Республиканский';
+        else if (achievement.points >= 15) level = 'Городской';
+
+        return {
+          id: achievement.id,
+          teacherName: `${achievement.teacher.user.name} ${achievement.teacher.user.surname}`,
+          studentName: 'Ученик', // Нет данных об ученике в достижениях
+          olympiadName,
+          subject,
+          level,
+          place,
+          date: achievement.date,
+        };
       });
 
       // Получаем топ поступления
@@ -2824,16 +2851,7 @@ export class KpiService {
           points: ach.points,
           date: ach.date,
         })),
-        topOlympiads: topOlympiads.map(olympiad => ({
-          id: olympiad.id,
-          teacherName: `${olympiad.teacher.user.name} ${olympiad.teacher.user.surname}`,
-          studentName: `${olympiad.student.user.name} ${olympiad.student.user.surname}`,
-          olympiadName: olympiad.olympiadName,
-          subject: olympiad.subject,
-          level: olympiad.level,
-          place: olympiad.place,
-          date: olympiad.date,
-        })),
+        topOlympiads: topOlympiads,
         topAdmissions: topAdmissions.map(admission => ({
           id: admission.id,
           teacherName: `${admission.teacher.user.name} ${admission.teacher.user.surname}`,
@@ -2860,7 +2878,7 @@ export class KpiService {
     endDate?: string;
   }) {
     const period = this.buildPeriodFromFilter(filter);
-    
+
     if (filter.teacherId) {
       return this.calculatePeriodicKpiScore(filter.teacherId, period);
     } else {
@@ -2874,7 +2892,7 @@ export class KpiService {
     period?: 'monthly' | 'quarterly' | 'yearly';
   }) {
     const year = filter.year || new Date().getFullYear();
-    
+
     // Базовая статистика - пока возвращаем заглушку
     return {
       year,
@@ -2899,7 +2917,7 @@ export class KpiService {
     const currentYear = new Date().getFullYear();
     const startYear = filter.startYear || (currentYear - 2);
     const endYear = filter.endYear || currentYear;
-    
+
     const trends = [];
     for (let year = startYear; year <= endYear; year++) {
       trends.push({
@@ -2908,7 +2926,7 @@ export class KpiService {
         score: Math.floor(Math.random() * 100)
       });
     }
-    
+
     return { trends };
   }
 
@@ -2936,14 +2954,14 @@ export class KpiService {
   }): Promise<Buffer> {
     const format = filter.format || 'xlsx';
     const data = await this.getPeriodicKpi(filter);
-    
+
     // Преобразуем в формат для экспорта
     const exportData = [{
       'Преподаватель': 'Данные',
       'Период': filter.period || 'год',
       'Баллы': JSON.stringify(data)
     }];
-    
+
     return this.generateExportFile(exportData, format);
   }
 
@@ -2951,7 +2969,7 @@ export class KpiService {
   async verifyAchievement(achievementId: number, verified: boolean, comment?: string) {
     return this.prisma.teacherAchievement.update({
       where: { id: achievementId },
-      data: { 
+      data: {
         isVerified: verified,
         verifiedAt: verified ? new Date() : null
       }

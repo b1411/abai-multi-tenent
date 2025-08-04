@@ -1,33 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import {
   FaChartLine,
-  FaFilter,
   FaSearch,
   FaFileExport,
   FaArrowUp,
   FaArrowDown,
   FaMinus,
-  FaRegClock,
-  FaCog,
 } from 'react-icons/fa';
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
   ResponsiveContainer,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   PieChart,
   Pie,
   Cell,
@@ -36,59 +28,52 @@ import { kpiService } from '../services/kpiService';
 import type {
   KpiOverviewResponse,
   TeacherKpiResponse,
-  DepartmentKpiResponse,
-  KpiTrendsResponse,
-  KpiGoalsResponse,
   KpiFilter,
   TeacherKpi,
-  KpiRecalculationResponse,
 } from '../types/kpi';
 import { Spinner } from '../components/ui/Spinner';
-import KpiSettingsModal from '../components/KpiSettingsModal';
+import KpiAchievementModal from '../components/KpiAchievementModal';
+import KpiAchievementsList from '../components/KpiAchievementsList';
 
 const KPI: React.FC = () => {
   const [overview, setOverview] = useState<KpiOverviewResponse | null>(null);
   const [teachers, setTeachers] = useState<TeacherKpiResponse | null>(null);
-  const [departments, setDepartments] = useState<DepartmentKpiResponse | null>(null);
-  const [trends, setTrends] = useState<KpiTrendsResponse | null>(null);
-  const [goals, setGoals] = useState<KpiGoalsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherKpi | null>(null);
+  const [selectedTeacherDetails, setSelectedTeacherDetails] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
-  const [periodFilter, setPeriodFilter] = useState('month');
+
+  // Состояния для формы добавления достижений
+  const [isAchievementModalOpen, setIsAchievementModalOpen] = useState(false);
+  const [achievementType, setAchievementType] = useState<string>('');
+  const [formData, setFormData] = useState<any>({});
+  const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // Новые состояния для списка достижений
+  const [isAchievementsListOpen, setIsAchievementsListOpen] = useState(false);
 
   useEffect(() => {
     loadData();
-  }, [selectedDepartment, periodFilter]);
+  }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const filter: KpiFilter = {
-        department: selectedDepartment || undefined,
-        period: periodFilter,
-      };
+      const filter: KpiFilter = {};
 
-      const [overviewData, teachersData, departmentsData, trendsData, goalsData] = await Promise.all([
+      const [overviewData, teachersData] = await Promise.all([
         kpiService.getOverview(filter),
         kpiService.getTeacherKpi(filter),
-        kpiService.getDepartmentKpi(filter),
-        kpiService.getTrends(filter),
-        kpiService.getGoals(filter),
       ]);
 
       setOverview(overviewData);
       setTeachers(teachersData);
-      setDepartments(departmentsData);
-      setTrends(trendsData);
-      setGoals(goalsData);
     } catch (err) {
       setError('Ошибка при загрузке данных KPI');
       console.error('Error loading KPI data:', err);
@@ -103,23 +88,10 @@ const KPI: React.FC = () => {
     return <FaMinus className="text-gray-500" />;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success':
-        return 'text-green-600 bg-green-100';
-      case 'warning':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'danger':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
   const getScoreColor = (score: number) => {
-    if (score >= 85) return 'bg-green-100 text-green-800';
-    if (score >= 70) return 'bg-blue-100 text-blue-800';
-    if (score >= 50) return 'bg-yellow-100 text-yellow-800';
+    if (score >= 90) return 'bg-green-100 text-green-800';
+    if (score >= 75) return 'bg-blue-100 text-blue-800';
+    if (score >= 60) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
 
@@ -127,34 +99,86 @@ const KPI: React.FC = () => {
     teacher.name.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  const availableDepartments = departments?.departments.map(d => d.name) || [];
-
   const formatMetricValue = (value: number): string => {
-    return value === -1 ? 'В разработке' : value.toString();
+    if (value === -1) return 'В разработке';
+    return `${value}%`;
   };
 
   const prepareCategoryRadarData = (teacher: TeacherKpi) => {
     return [
-      { category: 'Качество преподавания', score: teacher.teachingQuality === -1 ? 0 : teacher.teachingQuality },
-      { category: 'Удовлетворенность студентов', score: teacher.studentSatisfaction === -1 ? 0 : teacher.studentSatisfaction },
-      { category: 'Посещаемость', score: teacher.classAttendance === -1 ? 0 : teacher.classAttendance },
-      { category: 'Выполнение нагрузки', score: teacher.workloadCompliance },
-      { category: 'Проф. развитие', score: teacher.professionalDevelopment === -1 ? 0 : teacher.professionalDevelopment },
+      { category: 'Контрольные работы', score: teacher.teachingQuality === -1 ? 0 : teacher.teachingQuality },
+      { category: 'Заполнение журнала', score: teacher.classAttendance === -1 ? 0 : teacher.classAttendance },
+      { category: 'Выполнение КТП', score: teacher.workloadCompliance === -1 ? 0 : teacher.workloadCompliance },
+      { category: 'Материалы к урокам', score: teacher.professionalDevelopment === -1 ? 0 : teacher.professionalDevelopment },
+      { category: 'Активность учеников', score: teacher.studentSatisfaction === -1 ? 0 : teacher.studentSatisfaction },
     ];
+  };
+
+  const handleTeacherClick = async (teacher: TeacherKpi) => {
+    setSelectedTeacher(teacher);
+    setIsModalOpen(true);
+    setModalLoading(true);
+    setSelectedTeacherDetails(null);
+
+    try {
+      // Запрашиваем детальную информацию о преподавателе
+      const details = await kpiService.getTeacherKpiDetails(teacher.id);
+      setSelectedTeacherDetails(details);
+    } catch (error) {
+      console.error('Ошибка при загрузке детальной информации:', error);
+      // Если нет метода getTeacherKpiDetails, используем базовые данные
+      setSelectedTeacherDetails({
+        teacher: {
+          id: teacher.id,
+          name: teacher.name,
+          email: 'Не указан',
+        },
+        metrics: {
+          teachingQuality: {
+            value: teacher.teachingQuality,
+            weight: 25,
+            isActive: true,
+          },
+          classAttendance: {
+            value: teacher.classAttendance,
+            weight: 25,
+            isActive: true,
+          },
+          workloadCompliance: {
+            value: teacher.workloadCompliance,
+            weight: 25,
+            isActive: true,
+          },
+          professionalDevelopment: {
+            value: teacher.professionalDevelopment,
+            weight: 15,
+            isActive: true,
+          },
+          studentSatisfaction: {
+            value: teacher.studentSatisfaction,
+            weight: 10,
+            isActive: true,
+          },
+        },
+        overallScore: teacher.overallScore,
+        lastCalculated: new Date(),
+        rawData: {
+          subjectsCount: 0,
+          schedulesCount: 0,
+          totalWorkloadHours: 0,
+          actualWorkloadHours: 0,
+        },
+      });
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleExport = async () => {
     try {
-      // Подготавливаем фильтры для экспорта
-      const filter: KpiFilter = {
-        department: selectedDepartment || undefined,
-        period: periodFilter,
-      };
-      
-      // Получаем blob файла
+      const filter: KpiFilter = {};
       const blob = await kpiService.exportKpi(filter, 'xlsx');
       
-      // Создаем ссылку для скачивания
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -169,55 +193,17 @@ const KPI: React.FC = () => {
     }
   };
 
-  const handleExportTeacherReport = async (teacher: TeacherKpi) => {
-    try {
-      // Получаем отчет по конкретному преподавателю
-      const blob = await kpiService.exportTeacherReport(teacher.id, 'pdf');
-      
-      // Создаем ссылку для скачивания
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `kpi-teacher-report-${teacher.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Ошибка при экспорте отчета преподавателя:', error);
-      alert('Произошла ошибка при экспорте отчета');
-    }
+  const handleAddAchievement = () => {
+    setIsAchievementModalOpen(true);
   };
 
-  const handleRecalculateKpi = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Запускаем ручной пересчет KPI
-      const result = await kpiService.recalculateKpi();
-      
-      if (result.success) {
-        // Показываем результат пересчета
-        alert(`KPI успешно пересчитан!\n\nОбработано: ${result.statistics.totalTeachers} преподавателей\nУспешно: ${result.statistics.successfulUpdates}\nОшибок: ${result.statistics.failedUpdates}\nВремя: ${result.statistics.processingTime}`);
-        
-        // Перезагружаем данные
-        await loadData();
-      } else {
-        throw new Error('Не удалось пересчитать KPI');
-      }
-    } catch (error) {
-      console.error('Ошибка при пересчете KPI:', error);
-      setError('Ошибка при пересчете KPI');
-      alert('Произошла ошибка при пересчете KPI');
-    } finally {
-      setLoading(false);
-    }
+  const handleAchievementSuccess = () => {
+    loadData(); // Перезагружаем данные после успешного добавления
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center h-screen">
         <Spinner size="lg" />
       </div>
     );
@@ -234,30 +220,21 @@ const KPI: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
-      {/* Заголовок страницы */}
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Заголовок */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">KPI и эффективность</h1>
-          <p className="text-gray-600 mt-1">
-            Оценка эффективности и ключевые показатели деятельности персонала
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">KPI Преподавателей</h1>
+          <p className="text-gray-600 mt-1">Система оценки эффективности</p>
         </div>
         <div className="flex gap-3">
           <button 
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            onClick={() => setIsSettingsModalOpen(true)}
-          >
-            <FaCog className="mr-2" />
-            Настроить KPI
-          </button>
-          <button 
             className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            onClick={handleRecalculateKpi}
+            onClick={loadData}
             disabled={loading}
           >
             <FaChartLine className="mr-2" />
-            {loading ? 'Пересчет...' : 'Пересчитать KPI'}
+            Обновить
           </button>
           <button 
             className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
@@ -269,365 +246,191 @@ const KPI: React.FC = () => {
         </div>
       </div>
 
-      {/* Фильтры */}
-      <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-lg shadow-sm">
-        <div className="flex gap-4 items-center">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Поиск сотрудника..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <FaSearch className="absolute left-3 top-3 text-gray-400" />
+      {/* Информация о системе */}
+      <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-sm border border-blue-200">
+        <div className="flex items-start space-x-4">
+          <div className="flex-shrink-0">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+              <FaChartLine className="text-white text-xl" />
+            </div>
           </div>
-          <div className="relative">
-            <select
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-            >
-              <option value="">Все кафедры</option>
-              {availableDepartments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-            <FaFilter className="absolute left-3 top-3 text-gray-400" />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <select
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={periodFilter}
-              onChange={(e) => setPeriodFilter(e.target.value)}
-            >
-              <option value="week">Неделя</option>
-              <option value="month">Месяц</option>
-              <option value="quarter">Квартал</option>
-              <option value="year">Год</option>
-            </select>
-            <FaRegClock className="absolute left-3 top-3 text-gray-400" />
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-blue-900 mb-2">
+              🚀 Новая система расчета KPI удержания учеников
+            </h3>
+            <div className="text-sm text-blue-800 space-y-2">
+              <p>
+                <strong>Новый подход:</strong> Система анализирует только фидбеки студентов с KPI-метками 
+                для максимальной объективности и точности расчета удержания.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div className="bg-white p-3 rounded border border-blue-200">
+                  <div className="font-medium text-blue-900 mb-1">📊 Источник данных:</div>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• Фидбеки студентов с KPI-вопросами</li>
+                    <li>• Анализ уверенности данных (≥30%)</li>
+                    <li>• Конвертация ответов в баллы 0-100</li>
+                  </ul>
+                </div>
+                <div className="bg-white p-3 rounded border border-blue-200">
+                  <div className="font-medium text-blue-900 mb-1">⚡ Алгоритм работы:</div>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• Поиск релевантных фидбеков</li>
+                    <li>• Применение весов вопросов</li>
+                    <li>• Расчет итогового балла KPI</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Общие метрики */}
-      {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-sm text-gray-600 mb-2">Общий KPI</h3>
-            <div className="flex items-center justify-between">
-              <div className="text-3xl font-bold text-gray-900">{overview.overallKpi}</div>
-              <div className="text-sm text-gray-500">из 100</div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-sm text-gray-600 mb-2">Достижение целей</h3>
-            <div className="flex items-center justify-between">
-              <div className="text-3xl font-bold text-gray-900">{overview.goalAchievement}%</div>
-              <div className="text-sm text-gray-500">целей</div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-sm text-gray-600 mb-2">Активные цели</h3>
-            <div className="flex items-center justify-between">
-              <div className="text-3xl font-bold text-gray-900">{overview.activeGoals}</div>
-              <div className="text-sm text-gray-500">цели</div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-sm text-gray-600 mb-2">Преподавателей</h3>
-            <div className="flex items-center justify-between">
-              <div className="text-3xl font-bold text-gray-900">{overview.totalTeachers}</div>
-              <div className="text-sm text-gray-500">человек</div>
-            </div>
-          </div>
+      {/* Поиск */}
+      <div className="mb-8 bg-white p-4 rounded-lg shadow-sm">
+        <div className="relative max-w-md">
+          <input
+            type="text"
+            placeholder="Поиск преподавателя..."
+            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <FaSearch className="absolute left-3 top-3 text-gray-400" />
         </div>
-      )}
+      </div>
 
-      {/* Детальные метрики */}
-      {overview && (
-        <div className="mb-8 space-y-6">
-          {/* Общие показатели */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {overview.metrics.map((metric, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-sm p-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">{metric.name}</h4>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl font-bold text-gray-900">{metric.value}{metric.unit}</span>
-                  <div className="flex items-center">
-                    {getTrendIcon(metric.change)}
-                    <span className="text-sm ml-1">{Math.abs(metric.change)}</span>
-                  </div>
-                </div>
-                <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(metric.status)}`}>
-                  Цель: {metric.target}{metric.unit}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Новые KPI метрики - заглушка для демонстрации */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-4">Новые метрики KPI</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Постоянные метрики */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-green-700 border-b border-green-200 pb-1">Постоянные</h4>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Прогресс по контрольным</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Заполнение журнала</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">План работ</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Доп. материалы</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-green-700 border-b border-green-200 pb-1">&nbsp;</h4>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Обратная связь</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Отзывы родителей</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Удержание учеников</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Стабильность</div>
-                  <div className="text-lg font-bold text-green-700">В разработке</div>
-                </div>
-              </div>
-
-              {/* Периодические метрики */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-blue-700 border-b border-blue-200 pb-1">Периодические</h4>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Олимпиады</div>
-                  <div className="text-lg font-bold text-blue-700">В разработке</div>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">РФМШ/НИШ/БИЛ</div>
-                  <div className="text-lg font-bold text-blue-700">В разработке</div>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Лицеи/частные</div>
-                  <div className="text-lg font-bold text-blue-700">В разработке</div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-blue-700 border-b border-blue-200 pb-1">&nbsp;</h4>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Повышение квалификации</div>
-                  <div className="text-lg font-bold text-blue-700">В разработке</div>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Командные мероприятия</div>
-                  <div className="text-lg font-bold text-blue-700">В разработке</div>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">Помощь в проектах</div>
-                  <div className="text-lg font-bold text-blue-700">В разработке</div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>Примечание:</strong> Новые метрики KPI находятся в стадии разработки. 
-                Для настройки метрик используйте кнопку "Настроить KPI" выше.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Графики */}
+      {/* Два графика */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Распределение метрик по типам */}
+        {/* График 1: Распределение по уровням KPI */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Распределение метрик KPI</h3>
-          <div className="h-[300px] flex items-center justify-center">
+          <h3 className="text-lg font-semibold mb-4">Распределение по уровням KPI</h3>
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'Постоянные метрики', value: 90, fill: '#10B981' },
-                    { name: 'Периодические метрики', value: 10, fill: '#3B82F6' }
+                    { name: 'Отлично (90+)', value: teachers?.statistics.topPerformers || 0, fill: '#10B981' },
+                    { name: 'Хорошо (75-89)', value: teachers?.statistics.onTrack || 0, fill: '#3B82F6' },
+                    { name: 'Удовлетворительно (60-74)', value: Math.max(0, (teachers?.teachers.length || 0) - (teachers?.statistics.topPerformers || 0) - (teachers?.statistics.onTrack || 0) - (teachers?.statistics.needsImprovement || 0)), fill: '#F59E0B' },
+                    { name: 'Требует улучшения (<60)', value: teachers?.statistics.needsImprovement || 0, fill: '#EF4444' }
                   ]}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, value }) => value > 0 ? `${name}: ${value}` : ''}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                 >
                   <Cell fill="#10B981" />
                   <Cell fill="#3B82F6" />
+                  <Cell fill="#F59E0B" />
+                  <Cell fill="#EF4444" />
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-              <span className="text-sm text-gray-600">Постоянные: 90% веса</span>
+              <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
+              <span>Отлично: {teachers?.statistics.topPerformers || 0}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-              <span className="text-sm text-gray-600">Периодические: 10% веса</span>
+              <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
+              <span>Хорошо: {teachers?.statistics.onTrack || 0}</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-yellow-500 rounded mr-2"></div>
+              <span>Удовлетворительно: {Math.max(0, (teachers?.teachers.length || 0) - (teachers?.statistics.topPerformers || 0) - (teachers?.statistics.onTrack || 0) - (teachers?.statistics.needsImprovement || 0))}</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
+              <span>Требует улучшения: {teachers?.statistics.needsImprovement || 0}</span>
             </div>
           </div>
         </div>
 
-        {/* Прогресс выполнения постоянных метрик */}
+        {/* График 2: Средние показатели по метрикам */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Постоянные метрики (статус)</h3>
-          <div className="space-y-4">
-            {[
-              { name: 'Прогресс по контрольным', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
-              { name: 'Заполнение журнала', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
-              { name: 'План работ', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
-              { name: 'Обратная связь', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
-              { name: 'Отзывы родителей', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
-              { name: 'Удержание учеников', progress: 0, status: 'В разработке', color: 'bg-gray-400' },
-              { name: 'Стабильность', progress: 0, status: 'В разработке', color: 'bg-gray-400' }
-            ].map((metric, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-gray-700">{metric.name}</span>
-                    <span className="text-xs text-gray-500">{metric.status}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${metric.color}`}
-                      style={{ width: `${metric.progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Дополнительные графики */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Периодические достижения */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Периодические достижения</h3>
-          <div className="h-[250px]">
+          <h3 className="text-lg font-semibold mb-4">Средние показатели по метрикам</h3>
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={[
-                  { category: 'Олимпиады', value: 0, target: 70 },
-                  { category: 'РФМШ/НИШ', value: 0, target: 60 },
-                  { category: 'Лицеи', value: 0, target: 65 },
-                  { category: 'Квалификация', value: 0, target: 70 },
-                  { category: 'Мероприятия', value: 0, target: 75 }
+                  { 
+                    metric: 'Контрольные работы', 
+                    value: teachers?.teachers && teachers.teachers.length > 0 
+                      ? Math.round(teachers.teachers.reduce((sum, t) => sum + (t.teachingQuality >= 0 ? t.teachingQuality : 0), 0) / teachers.teachers.length)
+                      : 0,
+                    weight: '25%'
+                  },
+                  { 
+                    metric: 'Заполнение журнала', 
+                    value: teachers?.teachers && teachers.teachers.length > 0 
+                      ? Math.round(teachers.teachers.reduce((sum, t) => sum + (t.classAttendance >= 0 ? t.classAttendance : 0), 0) / teachers.teachers.length)
+                      : 0,
+                    weight: '25%'
+                  },
+                  { 
+                    metric: 'Выполнение КТП', 
+                    value: teachers?.teachers && teachers.teachers.length > 0 
+                      ? Math.round(teachers.teachers.reduce((sum, t) => sum + (t.workloadCompliance >= 0 ? t.workloadCompliance : 0), 0) / teachers.teachers.length)
+                      : 0,
+                    weight: '25%'
+                  },
+                  { 
+                    metric: 'Материалы к урокам', 
+                    value: teachers?.teachers && teachers.teachers.length > 0 
+                      ? Math.round(teachers.teachers.reduce((sum, t) => sum + (t.professionalDevelopment >= 0 ? t.professionalDevelopment : 0), 0) / teachers.teachers.length)
+                      : 0,
+                    weight: '15%'
+                  },
+                  { 
+                    metric: 'Активность учеников', 
+                    value: teachers?.teachers && teachers.teachers.length > 0 
+                      ? Math.round(teachers.teachers.reduce((sum, t) => sum + (t.studentSatisfaction >= 0 ? t.studentSatisfaction : 0), 0) / teachers.teachers.length)
+                      : 0,
+                    weight: '10%'
+                  }
                 ]}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="category" angle={-45} textAnchor="end" height={80} fontSize={10} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#3B82F6" name="Текущий" />
-                <Bar dataKey="target" fill="#E5E7EB" name="Цель" />
+                <XAxis 
+                  dataKey="metric" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={80} 
+                  fontSize={12}
+                />
+                <YAxis domain={[0, 100]} />
+                <Tooltip 
+                  formatter={(value, name) => [`${value}%`, 'Среднее значение']}
+                  labelFormatter={(label) => `Метрика: ${label}`}
+                />
+                <Bar 
+                  dataKey="value" 
+                  fill="#3B82F6"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Тренд KPI за год */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Тренд общего KPI</h3>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={[
-                  { month: 'Янв', kpi: 75 },
-                  { month: 'Фев', kpi: 77 },
-                  { month: 'Мар', kpi: 79 },
-                  { month: 'Апр', kpi: 81 },
-                  { month: 'Май', kpi: 78 },
-                  { month: 'Июн', kpi: 82 },
-                  { month: 'Июл', kpi: 85 },
-                  { month: 'Авг', kpi: 83 }
-                ]}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis domain={[60, 100]} />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="kpi" 
-                  stroke="#10B981" 
-                  strokeWidth={3}
-                  dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Топ преподаватели по новым критериям */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Готовность к новым метрикам</h3>
-          <div className="space-y-3">
-            {teachers?.teachers.slice(0, 6).map((teacher, index) => (
-              <div key={teacher.id} className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-xs font-medium text-blue-600">#{index + 1}</span>
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 truncate">
-                    {teacher.name.split(' ').slice(0, 2).join(' ')}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                    <div 
-                      className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-2 rounded-full"
-                      style={{ width: '25%' }}
-                    ></div>
-                  </div>
-                  <span className="text-xs text-gray-500">25%</span>
-                </div>
-              </div>
-            )) || []}
-            <div className="mt-4 text-xs text-gray-500 text-center">
-              Показатель готовности к внедрению новых метрик
-            </div>
           </div>
         </div>
       </div>
 
       {/* Таблица преподавателей */}
       {teachers && (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold">Рейтинг преподавателей</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Рейтинг преподавателей</h3>
+              <div className="text-sm text-gray-500">
+                Всего: {filteredTeachers.length} преподавателей
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -643,13 +446,19 @@ const KPI: React.FC = () => {
                     Общий KPI
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Качество
+                    Контрольные (25%)
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Удовлетворенность
+                    Журнал (25%)
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Посещаемость
+                    КТП (25%)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Материалы (15%)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Активность (10%)
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Тренд
@@ -657,14 +466,11 @@ const KPI: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTeachers.slice(0, 10).map((teacher) => (
+                {filteredTeachers.map((teacher) => (
                   <tr
                     key={teacher.id}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => {
-                      setSelectedTeacher(teacher);
-                      setIsModalOpen(true);
-                    }}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => handleTeacherClick(teacher)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       #{teacher.rank}
@@ -681,10 +487,16 @@ const KPI: React.FC = () => {
                       {formatMetricValue(teacher.teachingQuality)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatMetricValue(teacher.studentSatisfaction)}
+                      {formatMetricValue(teacher.classAttendance)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatMetricValue(teacher.classAttendance)}
+                      {formatMetricValue(teacher.workloadCompliance)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatMetricValue(teacher.professionalDevelopment)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatMetricValue(teacher.studentSatisfaction)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -696,28 +508,6 @@ const KPI: React.FC = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Статистика */}
-      {teachers && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-2xl font-bold text-gray-900">{teachers.statistics.averageKpi}</div>
-            <div className="text-sm text-gray-600">Средний KPI</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-2xl font-bold text-green-600">{teachers.statistics.topPerformers}</div>
-            <div className="text-sm text-gray-600">Топ исполнители</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-2xl font-bold text-blue-600">{teachers.statistics.onTrack}</div>
-            <div className="text-sm text-gray-600">В норме</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-2xl font-bold text-red-600">{teachers.statistics.needsImprovement}</div>
-            <div className="text-sm text-gray-600">Требуют внимания</div>
           </div>
         </div>
       )}
@@ -737,7 +527,7 @@ const KPI: React.FC = () => {
                     <span className="font-bold text-2xl">{selectedTeacher.overallScore}</span>
                   </div>
                   <button
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
                     onClick={() => setIsModalOpen(false)}
                   >
                     ✕
@@ -748,7 +538,7 @@ const KPI: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Радар-график */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-4">Профиль компетенций</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-center">Профиль KPI</h3>
                   <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart data={prepareCategoryRadarData(selectedTeacher)}>
@@ -770,6 +560,7 @@ const KPI: React.FC = () => {
                           stroke="#3B82F6"
                           fill="#3B82F6"
                           fillOpacity={0.2}
+                          strokeWidth={2}
                         />
                         <Tooltip />
                       </RadarChart>
@@ -778,83 +569,249 @@ const KPI: React.FC = () => {
                 </div>
 
                 {/* Детальные показатели */}
-                <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Качество преподавания</span>
-                      <span className="text-lg font-bold">{formatMetricValue(selectedTeacher.teachingQuality)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: `${selectedTeacher.teachingQuality === -1 ? 0 : selectedTeacher.teachingQuality}%` }}
-                      ></div>
+                <div className="space-y-3">
+                  {/* Основные метрики с весами */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Основные метрики (с весами)</h4>
+                    
+                    <div className="space-y-4">
+                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        <h4 className="text-lg font-bold text-gray-800 mb-4">Основные показатели KPI</h4>
+                        <div className="text-sm text-gray-600 mb-4">
+                          Каждый показатель имеет два значения: <strong>вес в KPI</strong> (важность) и <strong>фактическое значение</strong> (результат)
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                            <div className="flex justify-between items-center mb-2">
+                              <div>
+                                <span className="text-sm font-medium text-green-800">Прогресс по контрольным работам</span>
+                                <div className="text-xs text-green-600">Вес в KPI: 20%</div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-green-700">{formatMetricValue(selectedTeacher.teachingQuality)}</span>
+                                <div className="text-xs text-green-600">фактический результат</div>
+                              </div>
+                            </div>
+                            <div className="w-full bg-green-200 rounded-full h-2 mb-2">
+                              <div
+                                className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${selectedTeacher.teachingQuality === -1 ? 0 : selectedTeacher.teachingQuality}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-green-600">Процент оценок ≥4 из контрольных работ</div>
+                          </div>
+
+                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                            <div className="flex justify-between items-center mb-2">
+                              <div>
+                                <span className="text-sm font-medium text-blue-800">Заполнение журнала</span>
+                                <div className="text-xs text-blue-600">Вес в KPI: 15%</div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-blue-700">{formatMetricValue(selectedTeacher.classAttendance)}</span>
+                                <div className="text-xs text-blue-600">фактический результат</div>
+                              </div>
+                            </div>
+                            <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                              <div
+                                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${selectedTeacher.classAttendance === -1 ? 0 : selectedTeacher.classAttendance}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-blue-600">Процент уроков с оценками и посещаемостью</div>
+                          </div>
+
+                          <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                            <div className="flex justify-between items-center mb-2">
+                              <div>
+                                <span className="text-sm font-medium text-purple-800">Заполнение плана работ (КТП)</span>
+                                <div className="text-xs text-purple-600">Вес в KPI: 15%</div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-purple-700">{formatMetricValue(selectedTeacher.workloadCompliance)}</span>
+                                <div className="text-xs text-purple-600">фактический результат</div>
+                              </div>
+                            </div>
+                            <div className="w-full bg-purple-200 rounded-full h-2 mb-2">
+                              <div
+                                className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${selectedTeacher.workloadCompliance === -1 ? 0 : selectedTeacher.workloadCompliance}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-purple-600">Процент выполнения календарно-тематического планирования</div>
+                          </div>
+
+                          <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                            <div className="flex justify-between items-center mb-2">
+                              <div>
+                                <span className="text-sm font-medium text-orange-800">Дополнительные материалы</span>
+                                <div className="text-xs text-orange-600">Вес в KPI: 15%</div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-orange-700">{formatMetricValue(selectedTeacher.professionalDevelopment)}</span>
+                                <div className="text-xs text-orange-600">фактический результат</div>
+                              </div>
+                            </div>
+                            <div className="w-full bg-orange-200 rounded-full h-2 mb-2">
+                              <div
+                                className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${selectedTeacher.professionalDevelopment === -1 ? 0 : selectedTeacher.professionalDevelopment}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-orange-600">Процент уроков с прикрепленными материалами</div>
+                          </div>
+
+                          <div className="bg-teal-50 rounded-lg p-3 border border-teal-200">
+                            <div className="flex justify-between items-center mb-2">
+                              <div>
+                                <span className="text-sm font-medium text-teal-800">Удержание учеников</span>
+                                <div className="text-xs text-teal-600">Вес в KPI: 10%</div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-teal-700">{formatMetricValue(selectedTeacher.studentSatisfaction)}</span>
+                                <div className="text-xs text-teal-600">фактический результат</div>
+                              </div>
+                            </div>
+                            <div className="w-full bg-teal-200 rounded-full h-2 mb-2">
+                              <div
+                                className="bg-teal-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${selectedTeacher.studentSatisfaction === -1 ? 0 : selectedTeacher.studentSatisfaction}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-teal-600">
+                              <div className="mb-1">
+                                📊 <strong>Основано на фидбеках:</strong>
+                              </div>
+                              <div className="space-y-1">
+                                <div>• Анализ фидбеков студентов с KPI-метками</div>
+                                <div>• Порог уверенности ≥30% для использования</div>
+                                <div>• Конвертация ответов в баллы 0-100</div>
+                              </div>
+                            </div>
+                            <div className="mt-2 p-2 bg-teal-100 rounded text-xs text-teal-700">
+                              <div className="font-medium mb-1">Как это работает:</div>
+                              <div className="space-y-1">
+                                <div>1. Система находит релевантные фидбеки студентов преподавателя</div>
+                                <div>2. Фильтрует вопросы с KPI-меткой "удержание учеников"</div>
+                                <div>3. При достаточном количестве ответов рассчитывает балл</div>
+                                <div>4. При недостатке данных показывает 0 (нет данных)</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <h5 className="text-sm font-medium text-gray-700 mb-2">Метрики в разработке:</h5>
+                            <div className="space-y-1 text-xs text-gray-600">
+                              <div>• Обратная связь родителю (15%) - время ответа на сообщения</div>
+                              <div>• Отзывы от родителей (10%) - средняя оценка от родителей</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Удовлетворенность студентов</span>
-                      <span className="text-lg font-bold">{formatMetricValue(selectedTeacher.studentSatisfaction)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${selectedTeacher.studentSatisfaction === -1 ? 0 : selectedTeacher.studentSatisfaction}%` }}
-                      ></div>
-                    </div>
-                  </div>
+                  {/* Бонусные метрики */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Бонусные метрики (ручное заполнение)</h4>
+                    <div className="space-y-3">
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-medium text-yellow-800">Призовые места на олимпиадах</div>
+                          <div className="flex space-x-1">
+                            <button 
+                              className="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 transition-colors"
+                              onClick={handleAddAchievement}
+                            >
+                              + Добавить
+                            </button>
+                            <button 
+                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-colors"
+                              onClick={() => setIsAchievementsListOpen(true)}
+                            >
+                              ✏️ Редактировать
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-yellow-600">Международные, республиканские, городские олимпиады</div>
+                      </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Посещаемость занятий</span>
-                      <span className="text-lg font-bold">{formatMetricValue(selectedTeacher.classAttendance)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-purple-500 h-2 rounded-full"
-                        style={{ width: `${selectedTeacher.classAttendance === -1 ? 0 : selectedTeacher.classAttendance}%` }}
-                      ></div>
-                    </div>
-                  </div>
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-medium text-yellow-800">Поступление в РФМШ/НИШ/БИЛ</div>
+                          <button 
+                            className="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 transition-colors"
+                            onClick={handleAddAchievement}
+                          >
+                            + Добавить
+                          </button>
+                        </div>
+                        <div className="text-xs text-yellow-600">Поступление учеников в престижные школы</div>
+                      </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Выполнение нагрузки</span>
-                      <span className="text-lg font-bold">{formatMetricValue(selectedTeacher.workloadCompliance)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-yellow-500 h-2 rounded-full"
-                        style={{ width: `${selectedTeacher.workloadCompliance === -1 ? 0 : selectedTeacher.workloadCompliance}%` }}
-                      ></div>
-                    </div>
-                  </div>
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-medium text-yellow-800">Поступление в лицеи/частные школы</div>
+                          <button 
+                            className="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 transition-colors"
+                            onClick={handleAddAchievement}
+                          >
+                            + Добавить
+                          </button>
+                        </div>
+                        <div className="text-xs text-yellow-600">Поступление в лицеи и частные школы</div>
+                      </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Профессиональное развитие</span>
-                      <span className="text-lg font-bold">{formatMetricValue(selectedTeacher.professionalDevelopment)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-red-500 h-2 rounded-full"
-                        style={{ width: `${selectedTeacher.professionalDevelopment === -1 ? 0 : selectedTeacher.professionalDevelopment}%` }}
-                      ></div>
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-medium text-yellow-800">Повышение квалификации</div>
+                          <button 
+                            className="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 transition-colors"
+                            onClick={handleAddAchievement}
+                          >
+                            + Добавить
+                          </button>
+                        </div>
+                        <div className="text-xs text-yellow-600">Курсы, сертификаты, обучение</div>
+                      </div>
+
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-medium text-yellow-800">Участие в командных мероприятиях</div>
+                          <button 
+                            className="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 transition-colors"
+                            onClick={handleAddAchievement}
+                          >
+                            + Добавить
+                          </button>
+                        </div>
+                        <div className="text-xs text-yellow-600">Семинары, конференции, корпоративные мероприятия</div>
+                      </div>
+
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-medium text-yellow-800">Помощь в проектах</div>
+                          <button 
+                            className="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 transition-colors"
+                            onClick={handleAddAchievement}
+                          >
+                            + Добавить
+                          </button>
+                        </div>
+                        <div className="text-xs text-yellow-600">Участие в школьных и образовательных проектах</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-6 border-t mt-6">
+              <div className="flex justify-end pt-6 border-t mt-6 space-x-3">
                 <button 
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg mr-2 hover:bg-gray-300 transition-colors"
-                  onClick={() => handleExportTeacherReport(selectedTeacher)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  onClick={() => setIsModalOpen(false)}
                 >
-                  Выгрузить отчет
-                </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Редактировать KPI
+                  Закрыть
                 </button>
               </div>
             </div>
@@ -862,15 +819,26 @@ const KPI: React.FC = () => {
         </div>
       )}
 
-      {/* Модальное окно настроек KPI */}
-      <KpiSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        onSave={() => {
-          // Перезагружаем данные после сохранения настроек
-          loadData();
-        }}
-      />
+      {/* Модальное окно для добавления достижений */}
+      {selectedTeacher && (
+        <KpiAchievementModal
+          isOpen={isAchievementModalOpen}
+          onClose={() => setIsAchievementModalOpen(false)}
+          teacherId={selectedTeacher.id}
+          teacherName={selectedTeacher.name}
+          onSuccess={handleAchievementSuccess}
+        />
+      )}
+
+      {/* Модальное окно для редактирования достижений */}
+      {selectedTeacher && (
+        <KpiAchievementsList
+          isOpen={isAchievementsListOpen}
+          onClose={() => setIsAchievementsListOpen(false)}
+          teacherId={selectedTeacher.id}
+          teacherName={selectedTeacher.name}
+        />
+      )}
     </div>
   );
 };

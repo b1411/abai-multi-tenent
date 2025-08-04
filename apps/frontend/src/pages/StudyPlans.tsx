@@ -8,7 +8,7 @@ import { StudyPlan } from '../types/studyPlan';
 import { studyPlanService } from '../services/studyPlanService';
 import StudyPlanForm, { StudyPlanFormData } from '../components/StudyPlanForm';
 import KtpTreeView from '../components/KtpTreeView';
-import { getKtpByStudyPlanId } from '../data/mockKtpData';
+import { ktpService } from '../services/ktpService';
 
 const StudyPlansPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +19,8 @@ const StudyPlansPage: React.FC = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [, setLoading] = useState(false);
   const [showKtpModal, setShowKtpModal] = useState(false);
+  const [ktpData, setKtpData] = useState<any>(null);
+  const [ktpLoading, setKtpLoading] = useState(false);
 
   const {
     studyPlans,
@@ -313,10 +315,25 @@ const StudyPlansPage: React.FC = () => {
                             </button>
                             <button
                               className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
                                 setSelectedPlan(plan);
-                                setShowKtpModal(true);
+                                setKtpLoading(true);
+                                try {
+                                  const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
+                                  if (ktpList.data.length > 0) {
+                                    const ktp = await ktpService.getKtpById(ktpList.data[0].id);
+                                    setKtpData(ktp);
+                                  } else {
+                                    setKtpData(null);
+                                  }
+                                } catch (err) {
+                                  console.error('Error loading KTP:', err);
+                                  setKtpData(null);
+                                } finally {
+                                  setKtpLoading(false);
+                                  setShowKtpModal(true);
+                                }
                               }}
                             >
                               <FaPlus className="mr-1" />
@@ -428,10 +445,25 @@ const StudyPlansPage: React.FC = () => {
                     </button>
                     <button
                       className="flex-1 min-w-[80px] px-3 py-2 text-purple-600 hover:bg-purple-50 border border-purple-200 rounded-md flex items-center justify-center button-hover text-xs"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
                         setSelectedPlan(plan);
-                        setShowKtpModal(true);
+                        setKtpLoading(true);
+                        try {
+                          const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
+                          if (ktpList.data.length > 0) {
+                            const ktp = await ktpService.getKtpById(ktpList.data[0].id);
+                            setKtpData(ktp);
+                          } else {
+                            setKtpData(null);
+                          }
+                        } catch (err) {
+                          console.error('Error loading KTP:', err);
+                          setKtpData(null);
+                        } finally {
+                          setKtpLoading(false);
+                          setShowKtpModal(true);
+                        }
                       }}
                     >
                       <FaPlus className="mr-1" />
@@ -508,6 +540,7 @@ const StudyPlansPage: React.FC = () => {
                 onClick={() => {
                   setShowKtpModal(false);
                   setSelectedPlan(null);
+                  setKtpData(null);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors button-hover"
               >
@@ -515,7 +548,36 @@ const StudyPlansPage: React.FC = () => {
               </button>
             </div>
             <div className="flex-1 p-6 overflow-auto">
-              <KtpTreeView ktpData={getKtpByStudyPlanId(selectedPlan.id)} />
+              {ktpLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-gray-500">Загрузка КТП...</div>
+                </div>
+              ) : ktpData ? (
+                <KtpTreeView ktpData={ktpData} canEdit={hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user.id === user?.id)} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-64 text-center">
+                  <div className="text-gray-500 mb-4">КТП для данного учебного плана не найден</div>
+                  {(hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user.id === user?.id)) && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          setKtpLoading(true);
+                          const generated = await ktpService.generateFromStudyPlan(selectedPlan!.id);
+                          setKtpData(generated.ktp);
+                        } catch (err) {
+                          console.error('Error generating KTP:', err);
+                          alert('Ошибка при создании КТП');
+                        } finally {
+                          setKtpLoading(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Создать КТП
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

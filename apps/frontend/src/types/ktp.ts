@@ -29,4 +29,14 @@ export interface KtpData {
   totalHours: number;
   totalLessons: number;
   sections: KtpSection[];
+  studyPlan?: {
+    id: number;
+    name: string;
+    teacher?: {
+      id: number;
+      name: string;
+    };
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }

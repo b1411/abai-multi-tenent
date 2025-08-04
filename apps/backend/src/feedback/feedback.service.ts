@@ -130,10 +130,11 @@ export class FeedbackService {
     
     const response = await this.prisma.feedbackResponse.upsert({
       where: {
-        userId_templateId_period: {
+        userId_templateId_period_aboutTeacherId: {
           userId,
           templateId: responseDto.templateId,
           period: responseDto.period || currentPeriod,
+          aboutTeacherId: responseDto.aboutTeacherId || null,
         },
       },
       create: {
@@ -342,10 +343,20 @@ export class FeedbackService {
 
   // Метод для создания записи в истории эмоциональных состояний
   private createEmotionalStateHistory(studentId: number, answers: any) {
-    // Создаем запись в истории через таблицу FeedbackResponse
-    // Эта информация уже сохраняется в ответах на фидбеки
-    // и может быть использована для построения истории изменений
-    console.log(`Emotional state history for student ${studentId} recorded in feedback responses`);
+    // История эмоциональных состояний автоматически сохраняется в FeedbackResponse
+    // Здесь можно добавить дополнительную логику обработки, например:
+    // - Уведомления при критических изменениях
+    // - Агрегация данных для аналитики
+    // - Интеграция с внешними системами мониторинга
+    
+    // Пример: проверка на критические изменения настроения
+    if (answers.mood_today && answers.mood_today < 2) {
+      console.warn(`Critical mood level detected for student ${studentId}: ${answers.mood_today}`);
+      // Здесь можно добавить уведомление администрации или психолога
+    }
+    
+    // Логирование для мониторинга
+    console.log(`Emotional state history updated for student ${studentId}`);
   }
 
   // Метод для расчета изменения тренда
@@ -356,7 +367,7 @@ export class FeedbackService {
     return 'neutral';
   }
 
-  private async updateKPIMetrics(response: any) {
+  private async updateKPIMetrics(_response: any) { // eslint-disable-line @typescript-eslint/no-unused-vars
     // Здесь можно добавить логику обновления KPI на основе ответов
     // Например, агрегировать удовлетворенность студентов для расчета KPI
   }
@@ -474,12 +485,12 @@ export class FeedbackService {
     }, {});
   }
 
-  private calculateAverageRatings(responses: any[]) {
+  private calculateAverageRatings(_responses: any[]) { // eslint-disable-line @typescript-eslint/no-unused-vars
     // Логика расчета средних оценок по различным аспектам
     return {};
   }
 
-  private calculateTrends(responses: any[]) {
+  private calculateTrends(_responses: any[]) { // eslint-disable-line @typescript-eslint/no-unused-vars
     // Логика расчета трендов
     return {};
   }

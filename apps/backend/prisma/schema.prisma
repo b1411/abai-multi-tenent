@@ -153,6 +153,8 @@ model Student {
   documents          Document[]
   remarks            StudentRemark[]
   comments           StudentComment[]
+  olympiadResults    OlympiadResult[]
+  admissions         StudentAdmission[]
 }
 
 model LessonResult {
@@ -199,6 +201,14 @@ model Teacher {
   // Система ставок и отработанных часов
   salaryRates TeacherSalaryRate[]
   workedHours TeacherWorkedHours[]
+
+  // KPI связи
+  achievements    TeacherAchievement[]
+  olympiadResults OlympiadResult[]
+  studentAdmissions StudentAdmission[]
+  
+  // Фидбеки о преподавателе
+  feedbacksAbout FeedbackResponse[]
 }
 
 model Parent {
@@ -241,6 +251,7 @@ model StudyPlan {
   scheduleTemplates ScheduleTemplate[]
   normativeWorkload Int? // нормативная нагрузка (часы в год)
   subjectWorkloads  SubjectWorkload[]
+  curriculumPlan    CurriculumPlan?
 }
 
 model Lesson {
@@ -1018,16 +1029,30 @@ enum QuestionType {
   YES_NO
 }
 
+enum KpiMetricType {
+  STUDENT_RETENTION // Удержание студентов
+  TEACHER_SATISFACTION // Удовлетворенность преподавателем
+  TEACHING_QUALITY // Качество преподавания
+  LESSON_EFFECTIVENESS // Эффективность уроков
+  RECOMMENDATION // Готовность рекомендовать
+  OVERALL_EXPERIENCE // Общий опыт обучения
+}
+
 model FeedbackTemplate {
   id          Int               @id @default(autoincrement())
   name        String            @unique // "student_satisfaction", "teacher_workload"
   role        UserRole // STUDENT, TEACHER, HR, etc.
   title       String // "Оценка качества обучения"
   description String?
-  questions   Json // Массив вопросов с типами
+  questions   Json // Массив вопросов с типами и KPI-метками
   isActive    Boolean           @default(true)
   frequency   FeedbackFrequency @default(MONTHLY)
   priority    Int               @default(0) // Порядок показа
+  
+  // KPI интеграция
+  hasKpiQuestions Boolean @default(false) // Есть ли вопросы для KPI
+  kpiMetrics      String[] // Массив типов KPI метрик в шаблоне
+  
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   deletedAt   DateTime?
@@ -1045,10 +1070,15 @@ model FeedbackResponse {
   isCompleted Boolean          @default(false)
   submittedAt DateTime?
   period      String? // "2025-01", "2025-Q1" для отслеживания периода
+  
+  // Связь с конкретным преподавателем (для фидбеков о преподавателях)
+  aboutTeacherId Int?
+  aboutTeacher   Teacher? @relation(fields: [aboutTeacherId], references: [id])
+  
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  @@unique([userId, templateId, period])
+  @@unique([userId, templateId, period, aboutTeacherId])
 }
 
 model UserFeedbackStatus {
@@ -1824,4 +1854,100 @@ model DashboardWidget {
 
   @@index([userId])
   @@index([userId, isActive])
+}
+
+// --- New KPI System ---
+
+enum AchievementType {
+  OLYMPIAD_WIN // Призовое место на олимпиаде
+  SCHOOL_ADMISSION // Поступление в школы
+  QUALIFICATION // Повышение квалификации
+  TEAM_EVENT // Участие в командных мероприятиях
+  PROJECT_HELP // Помощь в проектах
+}
+
+enum SchoolType {
+  RFMSH // РФМШ
+  NISH // НИШ
+  BIL // БИЛ
+  LYCEUM // Лицеи
+  PRIVATE_SCHOOL // Частные школы
+}
+
+// Периодические достижения преподавателей
+model TeacherAchievement {
+  id          Int             @id @default(autoincrement())
+  teacherId   Int
+  teacher     Teacher         @relation(fields: [teacherId], references: [id])
+  type        AchievementType
+  title       String
+  description String?         @db.Text
+  date        DateTime
+  points      Int             @default(0) // Баллы за достижение
+  evidenceUrl String? // Ссылка на подтверждающий документ
+  isVerified  Boolean         @default(false)
+  verifiedBy  Int?
+  verifiedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  @@index([teacherId, type])
+  @@index([date])
+}
+
+// Результаты олимпиад учеников
+model OlympiadResult {
+  id            Int      @id @default(autoincrement())
+  studentId     Int
+  student       Student  @relation(fields: [studentId], references: [id])
+  teacherId     Int
+  teacher       Teacher  @relation(fields: [teacherId], references: [id])
+  olympiadName  String
+  subject       String
+  level         String // "Школьный", "Городской", "Республиканский", "Международный"
+  place         Int // 1, 2, 3 место
+  date          DateTime
+  certificateUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  @@index([teacherId, date])
+  @@index([studentId])
+}
+
+// Поступления учеников в учебные заведения
+model StudentAdmission {
+  id          Int        @id @default(autoincrement())
+  studentId   Int
+  student     Student    @relation(fields: [studentId], references: [id])
+  teacherId   Int
+  teacher     Teacher    @relation(fields: [teacherId], references: [id])
+  schoolType  SchoolType
+  schoolName  String
+  admissionYear Int
+  documentUrl String? // Ссылка на справку о поступлении
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  @@index([teacherId, admissionYear])
+  @@index([studentId])
+}
+
+// КТП (Календарно-тематическое планирование)
+model CurriculumPlan {
+  id          Int       @id @default(autoincrement())
+  studyPlanId Int       @unique
+  studyPlan   StudyPlan @relation(fields: [studyPlanId], references: [id])
+  totalLessons Int
+  plannedLessons Json // [{week: 1, topic: "Тема", hours: 2}]
+  actualLessons Json? // [{week: 1, completed: true, date: "2025-01-01"}]
+  completionRate Float @default(0) // Процент выполнения КТП
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([studyPlanId])
 }

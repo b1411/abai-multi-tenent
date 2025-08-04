@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FeedbackAggregationService } from './feedback-aggregation.service';
 import { KpiFilterDto } from './dto/kpi-filter.dto';
 import * as ExcelJS from 'exceljs';
 import * as PDFDocument from 'pdfkit';
@@ -26,7 +27,10 @@ import {
 
 @Injectable()
 export class KpiService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private feedbackAggregationService: FeedbackAggregationService
+  ) { }
 
   async getOverview(filter?: KpiFilterDto): Promise<KpiOverviewResponseDto> {
     // Получаем реальные данные преподавателей с нагрузкой
@@ -55,16 +59,16 @@ export class KpiService {
     const workloadCompliance = totalTeachers > 0 ? (teachersWithWorkload.length / totalTeachers) * 100 : 0;
 
     // Рассчитываем изменения на основе сравнения с целевыми показателями
-    const workloadChange = Math.round(workloadCompliance - 85); // отклонение от среднего целевого значения
-    const teacherChange = teachersWithWorkload.length - Math.round(totalTeachers * 0.9); // отклонение от 90% активности
-    const workloadHoursChange = Math.round(avgWorkloadHours - 18); // отклонение от целевых 18 часов
+    const workloadChange = workloadCompliance > 0 ? Math.round(workloadCompliance - 85) : 0;
+    const teacherChange = teachersWithWorkload.length > 0 ? teachersWithWorkload.length - Math.round(totalTeachers * 0.9) : 0;
+    const workloadHoursChange = avgWorkloadHours > 0 ? Math.round(avgWorkloadHours - 18) : 0;
 
     const metrics: KpiMetricDto[] = [
       {
         name: 'Выполнение нагрузки',
         value: Math.round(workloadCompliance),
         target: 90,
-        change: Math.max(-10, Math.min(10, workloadChange)),
+        change: workloadChange,
         unit: '%',
         status: workloadCompliance >= 90 ? 'success' : workloadCompliance >= 75 ? 'warning' : 'danger',
       },
@@ -72,7 +76,7 @@ export class KpiService {
         name: 'Активных преподавателей',
         value: teachersWithWorkload.length,
         target: totalTeachers,
-        change: Math.max(-5, Math.min(5, teacherChange)),
+        change: teacherChange,
         unit: '',
         status: teachersWithWorkload.length === totalTeachers ? 'success' : 'warning',
       },
@@ -80,22 +84,22 @@ export class KpiService {
         name: 'Средняя нагрузка',
         value: Math.round(avgWorkloadHours),
         target: 20,
-        change: Math.max(-5, Math.min(5, workloadHoursChange)),
+        change: workloadHoursChange,
         unit: 'ч/нед',
         status: avgWorkloadHours >= 18 ? 'success' : avgWorkloadHours >= 15 ? 'warning' : 'danger',
       },
     ];
 
-    const overallKpi = Math.round(metrics.reduce((sum, m) => {
+    const overallKpi = totalTeachers > 0 ? Math.round(metrics.reduce((sum, m) => {
       const percentage = m.target > 0 ? (m.value / m.target * 100) : 0;
       return sum + Math.min(percentage, 100);
-    }, 0) / metrics.length || 0);
+    }, 0) / metrics.length) : 0;
 
     return {
       metrics,
       overallKpi,
-      goalAchievement: Math.round(overallKpi * 0.85),
-      activeGoals: 3,
+      goalAchievement: overallKpi > 0 ? Math.round(overallKpi * 0.85) : 0,
+      activeGoals: 0,
       totalTeachers,
     };
   }
@@ -121,11 +125,47 @@ export class KpiService {
     // Рассчитываем реальные KPI на основе данных и настроек
     const teacherKpis: TeacherKpiDto[] = await Promise.all(
       teachers.map(async (teacher, index) => {
-        // Получаем все метрики KPI из настроек
-        const metrics = await this.calculateTeacherMetrics(teacher, settings.settings);
+        // Рассчитываем каждую метрику по отдельности
+        const controlWorksProgress = await this.calculateStudentControlWorksProgress(teacher.id);
+        const journalFilling = await this.calculateJournalFilling(teacher.id);
+        const workPlanFilling = await this.calculateWorkPlanFilling(teacher.id);
+        const lessonMaterials = await this.calculateLessonMaterials(teacher.id);
+        const studentRetention = await this.calculateStudentRetention(teacher.id);
 
-        // Рассчитываем общий балл на основе весов из настроек
-        const overallScore = this.calculateOverallScore(metrics, settings.settings);
+        // Рассчитываем общий балл на основе весов (только активные метрики)
+        const weights = { 
+          controlWorks: 20, 
+          journal: 15, 
+          workPlan: 15, 
+          materials: 15, 
+          retention: 10 
+        };
+        
+        let totalScore = 0;
+        let totalWeight = 0;
+
+        if (controlWorksProgress >= 0) {
+          totalScore += controlWorksProgress * (weights.controlWorks / 100);
+          totalWeight += weights.controlWorks;
+        }
+        if (journalFilling >= 0) {
+          totalScore += journalFilling * (weights.journal / 100);
+          totalWeight += weights.journal;
+        }
+        if (workPlanFilling >= 0) {
+          totalScore += workPlanFilling * (weights.workPlan / 100);
+          totalWeight += weights.workPlan;
+        }
+        if (lessonMaterials >= 0) {
+          totalScore += lessonMaterials * (weights.materials / 100);
+          totalWeight += weights.materials;
+        }
+        if (studentRetention >= 0) {
+          totalScore += studentRetention * (weights.retention / 100);
+          totalWeight += weights.retention;
+        }
+
+        const overallScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
 
         // Тренд - базируется на соотношении плановой и фактической нагрузки
         const totalWorkloadHours = teacher.workloads.reduce((sum, w) => sum + w.standardHours, 0);
@@ -136,11 +176,11 @@ export class KpiService {
           id: teacher.id,
           name: `${teacher.user.name} ${teacher.user.surname}`,
           overallScore: Math.round(overallScore),
-          teachingQuality: Math.round(metrics.teachingQuality),
-          studentSatisfaction: Math.round(metrics.studentSatisfaction),
-          classAttendance: Math.round(metrics.classAttendance),
-          workloadCompliance: Math.round(metrics.workloadCompliance),
-          professionalDevelopment: Math.round(metrics.professionalDevelopment),
+          teachingQuality: controlWorksProgress, // Прогресс по контрольным работам
+          studentSatisfaction: studentRetention, // Удержание учеников
+          classAttendance: journalFilling, // Заполнение журнала
+          workloadCompliance: workPlanFilling, // Выполнение КТП
+          professionalDevelopment: lessonMaterials, // Материалы к урокам
           trend: Math.max(-10, Math.min(10, trend)),
           rank: index + 1,
         };
@@ -288,12 +328,7 @@ export class KpiService {
       });
     }
 
-    // Если нет данных, создаем базовые значения
-    if (trends.every(t => t.value === 0)) {
-      trends.forEach((trend, index) => {
-        trend.value = Math.round(75 + index * 2);
-      });
-    }
+    // Если нет данных, оставляем 0
 
     const firstValue = trends[0]?.value || 0;
     const lastValue = trends[trends.length - 1]?.value || 0;
@@ -441,30 +476,30 @@ export class KpiService {
           : 0;
         return sum + compliance;
       }, 0) / previousMonthData.length
-      : currentWorkloadCompliance * 0.95; // Если нет данных, считаем на 5% ниже
+      : 0; // Если нет данных, показываем 0
 
-    // Создаем сравнение
+    // Создаем сравнение только на основе реальных данных
     const comparison: KpiComparisonDto[] = [
       {
         category: 'Качество преподавания',
         current: Math.round(currentTeachingQuality),
-        previous: Math.round(currentTeachingQuality * 0.97), // примерно на 3% ниже
-        change: Math.round(currentTeachingQuality * 0.03),
-        changePercent: Number((3.0).toFixed(1)),
+        previous: 0, // Нет исторических данных
+        change: 0,
+        changePercent: 0,
       },
       {
         category: 'Активность в расписании',
         current: Math.round(currentScheduleActivity),
-        previous: Math.round(currentScheduleActivity * 0.95),
-        change: Math.round(currentScheduleActivity * 0.05),
-        changePercent: Number((5.0).toFixed(1)),
+        previous: 0, // Нет исторических данных
+        change: 0,
+        changePercent: 0,
       },
       {
         category: 'Выполнение нагрузки',
         current: Math.round(currentWorkloadCompliance),
         previous: Math.round(previousWorkloadCompliance),
-        change: Math.round(currentWorkloadCompliance - previousWorkloadCompliance),
-        changePercent: Number((((currentWorkloadCompliance - previousWorkloadCompliance) / previousWorkloadCompliance) * 100).toFixed(1)),
+        change: previousWorkloadCompliance > 0 ? Math.round(currentWorkloadCompliance - previousWorkloadCompliance) : 0,
+        changePercent: previousWorkloadCompliance > 0 ? Number((((currentWorkloadCompliance - previousWorkloadCompliance) / previousWorkloadCompliance) * 100).toFixed(1)) : 0,
       },
     ];
 
@@ -837,14 +872,12 @@ export class KpiService {
 
   // Settings management methods
   getSettings(): Promise<KpiSettingsResponseDto> {
-    // В реальном приложении настройки должны храниться в базе данных
-    // Пока возвращаем дефолтные настройки с новыми метриками
     const defaultSettings: KpiSettingsDto = {
       metrics: [
-        // Постоянные метрики
+        // Постоянные метрики (автоматический расчет)
         {
           name: 'Прогресс ученика по контрольным работам',
-          weight: 15,
+          weight: 20,
           target: 85,
           successThreshold: 90,
           warningThreshold: 75,
@@ -853,7 +886,7 @@ export class KpiService {
         },
         {
           name: 'Заполнение журнала',
-          weight: 10,
+          weight: 15,
           target: 95,
           successThreshold: 98,
           warningThreshold: 90,
@@ -862,7 +895,7 @@ export class KpiService {
         },
         {
           name: 'Заполнение плана работ',
-          weight: 10,
+          weight: 15,
           target: 90,
           successThreshold: 95,
           warningThreshold: 85,
@@ -871,7 +904,7 @@ export class KpiService {
         },
         {
           name: 'Заполнение уроков дополнительным материалом',
-          weight: 10,
+          weight: 15,
           target: 80,
           successThreshold: 90,
           warningThreshold: 70,
@@ -880,7 +913,7 @@ export class KpiService {
         },
         {
           name: 'Обратная связь родителю',
-          weight: 10,
+          weight: 15,
           target: 85,
           successThreshold: 90,
           warningThreshold: 75,
@@ -898,26 +931,17 @@ export class KpiService {
         },
         {
           name: 'Процент удержания учеников',
-          weight: 15,
+          weight: 10,
           target: 90,
           successThreshold: 95,
           warningThreshold: 85,
           isActive: true,
           type: 'constant',
         },
-        {
-          name: 'Стабильность/постоянность',
-          weight: 10,
-          target: 85,
-          successThreshold: 90,
-          warningThreshold: 80,
-          isActive: true,
-          type: 'constant',
-        },
-        // Периодические метрики
+        // Периодические метрики (ручное заполнение)
         {
           name: 'Призовые места на олимпиадах',
-          weight: 5,
+          weight: 0, // Бонус
           target: 70,
           successThreshold: 80,
           warningThreshold: 60,
@@ -926,7 +950,7 @@ export class KpiService {
         },
         {
           name: 'Поступление в РФМШ/НИШ/БИЛ',
-          weight: 2,
+          weight: 0, // Бонус
           target: 60,
           successThreshold: 75,
           warningThreshold: 50,
@@ -935,7 +959,7 @@ export class KpiService {
         },
         {
           name: 'Поступление в лицеи/частные школы',
-          weight: 1,
+          weight: 0, // Бонус
           target: 65,
           successThreshold: 75,
           warningThreshold: 55,
@@ -943,8 +967,8 @@ export class KpiService {
           type: 'periodic',
         },
         {
-          name: 'Повышение квалификации',
-          weight: 1,
+          name: 'Повышение квалификации', 
+          weight: 0, // Бонус
           target: 70,
           successThreshold: 80,
           warningThreshold: 60,
@@ -953,7 +977,7 @@ export class KpiService {
         },
         {
           name: 'Участие в командных мероприятиях',
-          weight: 1,
+          weight: 0, // Бонус
           target: 75,
           successThreshold: 85,
           warningThreshold: 65,
@@ -962,7 +986,7 @@ export class KpiService {
         },
         {
           name: 'Помощь в проектах',
-          weight: 0, // Дополнительно к 100%
+          weight: 0, // Бонус
           target: 70,
           successThreshold: 80,
           warningThreshold: 60,
@@ -1051,46 +1075,27 @@ export class KpiService {
    * Рассчитывает все метрики KPI для преподавателя
    */
   private async calculateTeacherMetrics(teacher: any, settings: KpiSettingsDto) {
-    const metrics: Record<string, number> = {};
-
-    // Получаем все активные метрики из настроек
-    for (const metricSetting of settings.metrics) {
-      if (!metricSetting.isActive) {
-        metrics[this.getMetricKey(metricSetting.name)] = -1; // В разработке
-        continue;
-      }
-
-      let value: number;
-
-      switch (metricSetting.name) {
-        case 'Качество преподавания':
-          value = await this.calculateTeachingQuality(teacher);
-          break;
-        case 'Удовлетворенность студентов':
-          value = await this.calculateStudentSatisfaction(teacher);
-          break;
-        case 'Посещаемость занятий':
-          value = await this.calculateAttendanceForTeacher(teacher.id);
-          break;
-        case 'Выполнение нагрузки':
-          value = await this.calculateWorkloadCompliance(teacher);
-          break;
-        case 'Профессиональное развитие':
-          value = await this.calculateProfessionalDevelopment(teacher);
-          break;
-        default:
-          value = -1; // Неизвестная метрика
-      }
-
-      metrics[this.getMetricKey(metricSetting.name)] = value;
-    }
+    // Рассчитываем каждую метрику напрямую
+    const controlWorksProgress = await this.calculateStudentControlWorksProgress(teacher.id);
+    const journalFilling = await this.calculateJournalFilling(teacher.id);
+    const workPlanFilling = await this.calculateWorkPlanFilling(teacher.id);
+    const lessonMaterials = await this.calculateLessonMaterials(teacher.id);
+    const studentRetention = await this.calculateStudentRetention(teacher.id);
 
     return {
-      teachingQuality: metrics.teachingQuality || -1,
-      studentSatisfaction: metrics.studentSatisfaction || -1,
-      classAttendance: metrics.classAttendance || -1,
-      workloadCompliance: metrics.workloadCompliance || -1,
-      professionalDevelopment: metrics.professionalDevelopment || -1,
+      controlWorksProgress,
+      journalFilling,
+      workPlanFilling,
+      lessonMaterials,
+      parentResponse: -1, // Пока в разработке
+      parentFeedback: -1, // Пока в разработке
+      studentRetention,
+      // Для совместимости со старым API
+      teachingQuality: controlWorksProgress,
+      studentSatisfaction: studentRetention,
+      classAttendance: journalFilling,
+      workloadCompliance: workPlanFilling,
+      professionalDevelopment: lessonMaterials,
     };
   }
 
@@ -1413,6 +1418,988 @@ export class KpiService {
     } catch (error) {
       console.error('Ошибка при получении детальной информации KPI:', error);
       throw error;
+    }
+  }
+
+  /**
+   * НОВЫЕ МЕТОДЫ РАСЧЕТА KPI МЕТРИК
+   */
+
+  /**
+   * Прогресс ученика по контрольным работам
+   */
+  private async calculateStudentControlWorksProgress(teacherId: number): Promise<number> {
+    try {
+      const controlWorksResults = await this.prisma.lessonResult.findMany({
+        include: {
+          Lesson: {
+            include: {
+              studyPlan: true,
+            },
+          },
+        },
+        where: {
+          Lesson: {
+            type: 'CONTROL_WORK',
+            studyPlan: {
+              teacherId: teacherId,
+            },
+            deletedAt: null,
+          },
+          lessonScore: {
+            not: null,
+          },
+          deletedAt: null,
+        },
+      });
+
+      if (controlWorksResults.length === 0) {
+        return 0; // Нет данных о контрольных работах, показываем 0
+      }
+
+      // Считаем процент положительных оценок (>= 4 из 5)
+      const positiveScores = controlWorksResults.filter(result => result.lessonScore && result.lessonScore >= 4).length;
+      const progressPercentage = (positiveScores / controlWorksResults.length) * 100;
+
+      return Math.round(progressPercentage);
+    } catch (error) {
+      console.error('Error calculating control works progress:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Заполнение журнала
+   */
+  private async calculateJournalFilling(teacherId: number): Promise<number> {
+    try {
+      const totalLessons = await this.prisma.lesson.count({
+        where: {
+          studyPlan: {
+            teacherId: teacherId,
+          },
+          deletedAt: null,
+        },
+      });
+
+      if (totalLessons === 0) {
+        return 0; // Нет уроков, показываем 0
+      }
+
+      const lessonsWithResults = await this.prisma.lesson.count({
+        where: {
+          studyPlan: {
+            teacherId: teacherId,
+          },
+          deletedAt: null,
+          LessonResult: {
+            some: {
+              OR: [
+                { lessonScore: { not: null } },
+                { attendance: { not: null } },
+              ],
+              deletedAt: null,
+            },
+          },
+        },
+      });
+
+      const fillingPercentage = (lessonsWithResults / totalLessons) * 100;
+      return Math.round(fillingPercentage);
+    } catch (error) {
+      console.error('Error calculating journal filling:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Заполнение плана работ (КТП)
+   */
+  private async calculateWorkPlanFilling(teacherId: number): Promise<number> {
+    try {
+      const curriculumPlans = await this.prisma.curriculumPlan.findMany({
+        where: {
+          studyPlan: {
+            teacherId: teacherId,
+          },
+          deletedAt: null,
+        },
+      });
+
+      if (curriculumPlans.length === 0) {
+        return 0; // Нет КТП, показываем 0
+      }
+
+      // Считаем средний процент выполнения КТП
+      const avgCompletion = curriculumPlans.reduce((sum, plan) => sum + plan.completionRate, 0) / curriculumPlans.length;
+      return Math.round(avgCompletion);
+    } catch (error) {
+      console.error('Error calculating work plan filling:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Заполнение уроков дополнительным материалом
+   */
+  private async calculateLessonMaterials(teacherId: number): Promise<number> {
+    try {
+      const totalLessons = await this.prisma.lesson.count({
+        where: {
+          studyPlan: {
+            teacherId: teacherId,
+          },
+          deletedAt: null,
+        },
+      });
+
+      if (totalLessons === 0) {
+        return 0; // Нет уроков, показываем 0
+      }
+
+      const lessonsWithMaterials = await this.prisma.lesson.count({
+        where: {
+          studyPlan: {
+            teacherId: teacherId,
+          },
+          deletedAt: null,
+          materialsId: {
+            not: null,
+          },
+        },
+      });
+
+      const materialsPercentage = (lessonsWithMaterials / totalLessons) * 100;
+      return Math.round(materialsPercentage);
+    } catch (error) {
+      console.error('Error calculating lesson materials:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Обратная связь родителю
+   */
+  private async calculateParentResponse(teacherId: number): Promise<number> {
+    try {
+      // Находим студентов данного преподавателя
+      const studentsOfTeacher = await this.prisma.student.findMany({
+        where: {
+          group: {
+            studyPlans: {
+              some: {
+                teacherId: teacherId,
+              },
+            },
+          },
+          deletedAt: null,
+        },
+        include: {
+          Parents: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (studentsOfTeacher.length === 0) {
+        return -1; // Нет студентов у преподавателя
+      }
+
+      // Получаем ID всех родителей студентов этого преподавателя
+      const parentUserIds = studentsOfTeacher.flatMap(student => 
+        student.Parents.map(parent => parent.user.id)
+      );
+
+      if (parentUserIds.length === 0) {
+        return -1; // Нет родителей
+      }
+
+      // Находим чаты где участвуют и преподаватель, и родители
+      const teacherUser = await this.prisma.teacher.findUnique({
+        where: { id: teacherId },
+        include: { user: true },
+      });
+
+      if (!teacherUser) {
+        return -1;
+      }
+
+      const relevantChats = await this.prisma.chatRoom.findMany({
+        where: {
+          participants: {
+            some: {
+              userId: teacherUser.user.id,
+            },
+          },
+          AND: {
+            participants: {
+              some: {
+                userId: {
+                  in: parentUserIds,
+                },
+              },
+            },
+          },
+        },
+        include: {
+          messages: {
+            include: {
+              sender: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 50, // Последние 50 сообщений в каждом чате
+          },
+        },
+      });
+
+      if (relevantChats.length === 0) {
+        return 0; // Нет чатов с родителями, но это не ошибка
+      }
+
+      // Анализируем время ответа преподавателя
+      let totalResponseTime = 0;
+      let responseCount = 0;
+
+      for (const chat of relevantChats) {
+        const messages = chat.messages;
+        
+        for (let i = 0; i < messages.length - 1; i++) {
+          const currentMsg = messages[i];
+          const nextMsg = messages[i + 1];
+
+          // Если текущее сообщение от родителя, а следующее от преподавателя
+          if (parentUserIds.includes(currentMsg.sender.id) && 
+              currentMsg.sender.id !== teacherUser.user.id &&
+              nextMsg.sender.id === teacherUser.user.id) {
+            
+            const responseTime = nextMsg.createdAt.getTime() - currentMsg.createdAt.getTime();
+            const responseHours = responseTime / (1000 * 60 * 60);
+            
+            if (responseHours <= 48 && responseHours > 0) { // Учитываем ответы в течение 48 часов
+              totalResponseTime += responseHours;
+              responseCount++;
+            }
+          }
+        }
+      }
+
+      if (responseCount === 0) {
+        return 50; // Базовый балл если есть чаты, но нет измеримых ответов
+      }
+
+      const avgResponseTime = totalResponseTime / responseCount;
+      
+      // Оценка: чем быстрее ответ, тем выше балл
+      // <= 2 часа = 100 баллов, <= 6 часов = 90 баллов, <= 12 часов = 80 баллов, <= 24 часа = 70 баллов
+      let score = 50;
+      if (avgResponseTime <= 2) {
+        score = 100;
+      } else if (avgResponseTime <= 6) {
+        score = 90;
+      } else if (avgResponseTime <= 12) {
+        score = 80;
+      } else if (avgResponseTime <= 24) {
+        score = 70;
+      } else if (avgResponseTime <= 48) {
+        score = 60;
+      }
+
+      return Math.round(score);
+    } catch (error) {
+      console.error('Error calculating parent response:', error);
+      return -1;
+    }
+  }
+
+  /**
+   * Отзывы от родителей
+   */
+  private async calculateParentFeedback(teacherId: number): Promise<number> {
+    try {
+      // Получаем студентов данного преподавателя
+      const studentsOfTeacher = await this.prisma.student.findMany({
+        where: {
+          group: {
+            studyPlans: {
+              some: {
+                teacherId: teacherId,
+              },
+            },
+          },
+          deletedAt: null,
+        },
+        include: {
+          Parents: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (studentsOfTeacher.length === 0) {
+        return -1; // Нет студентов у преподавателя
+      }
+
+      // Получаем ID всех родителей студентов этого преподавателя
+      const parentUserIds = studentsOfTeacher.flatMap(student => 
+        student.Parents.map(parent => parent.user.id)
+      );
+
+      if (parentUserIds.length === 0) {
+        return -1; // Нет родителей
+      }
+
+      // Получаем отзывы только от родителей студентов этого преподавателя
+      const feedbacks = await this.prisma.feedbackResponse.findMany({
+        include: {
+          user: true,
+          template: true,
+        },
+        where: {
+          userId: {
+            in: parentUserIds,
+          },
+          user: {
+            role: 'PARENT',
+          },
+          isCompleted: true,
+          // Получаем отзывы за последние 6 месяцев
+          createdAt: {
+            gte: new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000),
+          },
+        },
+      });
+
+      if (feedbacks.length === 0) {
+        return 0; // Нет отзывов от родителей данного преподавателя
+      }
+
+      // Анализируем ответы родителей
+      let totalRating = 0;
+      let ratingCount = 0;
+
+      feedbacks.forEach(feedback => {
+        const answers = feedback.answers as any;
+        if (answers && typeof answers === 'object') {
+          // Ищем вопросы об оценке преподавателя/качества обучения
+          Object.entries(answers).forEach(([questionKey, answer]: [string, any]) => {
+            // Проверяем, относится ли вопрос к оценке качества обучения
+            const isTeacherRating = questionKey.toLowerCase().includes('преподават') ||
+                                   questionKey.toLowerCase().includes('качеств') ||
+                                   questionKey.toLowerCase().includes('удовлетворен') ||
+                                   questionKey.toLowerCase().includes('оценка');
+
+            if (isTeacherRating && typeof answer === 'number' && answer >= 1 && answer <= 5) {
+              totalRating += answer;
+              ratingCount++;
+            }
+          });
+        }
+      });
+
+      if (ratingCount === 0) {
+        // Если нет специфических оценок, анализируем все числовые ответы
+        feedbacks.forEach(feedback => {
+          const answers = feedback.answers as any;
+          if (answers && typeof answers === 'object') {
+            Object.values(answers).forEach((answer: any) => {
+              if (typeof answer === 'number' && answer >= 1 && answer <= 5) {
+                totalRating += answer;
+                ratingCount++;
+              }
+            });
+          }
+        });
+      }
+
+      if (ratingCount === 0) {
+        return 50; // Базовый балл если есть фидбеки, но нет числовых оценок
+      }
+
+      const avgRating = totalRating / ratingCount;
+      const feedbackScore = (avgRating / 5) * 100; // Приводим к шкале 0-100
+
+      return Math.round(feedbackScore);
+    } catch (error) {
+      console.error('Error calculating parent feedback:', error);
+      return -1;
+    }
+  }
+
+  /**
+   * Процент удержания учеников (только фидбеки)
+   */
+  private async calculateStudentRetention(teacherId: number): Promise<number> {
+    try {
+      // Получаем данные только из агрегации фидбеков
+      const feedbackResult = await this.feedbackAggregationService.aggregateStudentRetentionKpi(teacherId);
+      
+      // Если есть фидбеки с достаточной уверенностью (>= 0.3), используем их
+      if (feedbackResult.confidence >= 0.3 && feedbackResult.responseCount > 0) {
+        return feedbackResult.score;
+      }
+
+      // Если фидбеков недостаточно - возвращаем 0 (нет данных)
+      return 0;
+    } catch (error) {
+      console.error('Error calculating student retention:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * МЕТОДЫ ДЛЯ РАБОТЫ С ДОСТИЖЕНИЯМИ
+   */
+
+  /**
+   * Создание достижения преподавателя
+   */
+  async createAchievement(achievementData: any) {
+    try {
+      const achievement = await this.prisma.teacherAchievement.create({
+        data: {
+          teacherId: achievementData.teacherId,
+          type: achievementData.type,
+          title: achievementData.title,
+          description: achievementData.description,
+          date: new Date(achievementData.date),
+          points: achievementData.points || 0,
+          evidenceUrl: achievementData.evidenceUrl,
+        },
+        include: {
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return {
+        message: 'Достижение успешно добавлено',
+        achievement: {
+          id: achievement.id,
+          teacherId: achievement.teacherId,
+          teacherName: `${achievement.teacher.user.name} ${achievement.teacher.user.surname}`,
+          type: achievement.type,
+          title: achievement.title,
+          description: achievement.description,
+          date: achievement.date,
+          points: achievement.points,
+          isVerified: achievement.isVerified,
+          createdAt: achievement.createdAt,
+        },
+      };
+    } catch (error) {
+      console.error('Error creating achievement:', error);
+      throw new Error('Не удалось создать достижение');
+    }
+  }
+
+  /**
+   * Создание результата олимпиады
+   */
+  async createOlympiadResult(resultData: any) {
+    try {
+      const result = await this.prisma.olympiadResult.create({
+        data: {
+          studentId: resultData.studentId,
+          teacherId: resultData.teacherId,
+          olympiadName: resultData.olympiadName,
+          subject: resultData.subject,
+          level: resultData.level,
+          place: resultData.place,
+          date: new Date(resultData.date),
+          certificateUrl: resultData.certificateUrl,
+        },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      // Автоматически создаем достижение для преподавателя
+      await this.createAchievement({
+        teacherId: resultData.teacherId,
+        type: 'OLYMPIAD_WIN',
+        title: `Призовое место на олимпиаде: ${resultData.olympiadName}`,
+        description: `Ученик занял ${resultData.place} место по предмету ${resultData.subject}`,
+        date: resultData.date,
+        points: this.calculateOlympiadPoints(resultData.level, resultData.place),
+      });
+
+      return {
+        message: 'Результат олимпиады успешно добавлен',
+        result: {
+          id: result.id,
+          studentName: `${result.student.user.name} ${result.student.user.surname}`,
+          teacherName: `${result.teacher.user.name} ${result.teacher.user.surname}`,
+          olympiadName: result.olympiadName,
+          subject: result.subject,
+          level: result.level,
+          place: result.place,
+          date: result.date,
+          createdAt: result.createdAt,
+        },
+      };
+    } catch (error) {
+      console.error('Error creating olympiad result:', error);
+      throw new Error('Не удалось создать результат олимпиады');
+    }
+  }
+
+  /**
+   * Создание записи о поступлении ученика
+   */
+  async createStudentAdmission(admissionData: any) {
+    try {
+      const admission = await this.prisma.studentAdmission.create({
+        data: {
+          studentId: admissionData.studentId,
+          teacherId: admissionData.teacherId,
+          schoolType: admissionData.schoolType,
+          schoolName: admissionData.schoolName,
+          admissionYear: admissionData.admissionYear,
+          documentUrl: admissionData.documentUrl,
+        },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      // Автоматически создаем достижение для преподавателя
+      await this.createAchievement({
+        teacherId: admissionData.teacherId,
+        type: 'SCHOOL_ADMISSION',
+        title: `Поступление ученика в ${admissionData.schoolName}`,
+        description: `Ученик поступил в ${this.getSchoolTypeLabel(admissionData.schoolType)}`,
+        date: `${admissionData.admissionYear}-09-01`,
+        points: this.calculateAdmissionPoints(admissionData.schoolType),
+      });
+
+      return {
+        message: 'Поступление ученика успешно добавлено',
+        admission: {
+          id: admission.id,
+          studentName: `${admission.student.user.name} ${admission.student.user.surname}`,
+          teacherName: `${admission.teacher.user.name} ${admission.teacher.user.surname}`,
+          schoolType: admission.schoolType,
+          schoolName: admission.schoolName,
+          admissionYear: admission.admissionYear,
+          createdAt: admission.createdAt,
+        },
+      };
+    } catch (error) {
+      console.error('Error creating student admission:', error);
+      throw new Error('Не удалось создать запись о поступлении');
+    }
+  }
+
+  /**
+   * Получение списка достижений с фильтрацией
+   */
+  async getAchievements(teacherId?: number, type?: string, limit: number = 20, offset: number = 0) {
+    try {
+      const where: any = {};
+      if (teacherId) where.teacherId = teacherId;
+      if (type) where.type = type;
+
+      const [achievements, total] = await Promise.all([
+        this.prisma.teacherAchievement.findMany({
+          where,
+          include: {
+            teacher: {
+              include: {
+                user: true,
+              },
+            },
+          },
+          orderBy: {
+            date: 'desc',
+          },
+          take: limit,
+          skip: offset,
+        }),
+        this.prisma.teacherAchievement.count({ where }),
+      ]);
+
+      return {
+        achievements: achievements.map(achievement => ({
+          id: achievement.id,
+          teacherId: achievement.teacherId,
+          teacherName: `${achievement.teacher.user.name} ${achievement.teacher.user.surname}`,
+          type: achievement.type,
+          title: achievement.title,
+          description: achievement.description,
+          date: achievement.date,
+          points: achievement.points,
+          isVerified: achievement.isVerified,
+          createdAt: achievement.createdAt,
+        })),
+        total,
+        limit,
+        offset,
+      };
+    } catch (error) {
+      console.error('Error getting achievements:', error);
+      throw new Error('Не удалось получить список достижений');
+    }
+  }
+
+  /**
+   * Получение результатов олимпиад
+   */
+  async getOlympiadResults(teacherId?: number, limit: number = 20, offset: number = 0) {
+    try {
+      const where: any = {};
+      if (teacherId) where.teacherId = teacherId;
+
+      const [results, total] = await Promise.all([
+        this.prisma.olympiadResult.findMany({
+          where,
+          include: {
+            student: {
+              include: {
+                user: true,
+              },
+            },
+            teacher: {
+              include: {
+                user: true,
+              },
+            },
+          },
+          orderBy: {
+            date: 'desc',
+          },
+          take: limit,
+          skip: offset,
+        }),
+        this.prisma.olympiadResult.count({ where }),
+      ]);
+
+      return {
+        results: results.map(result => ({
+          id: result.id,
+          studentName: `${result.student.user.name} ${result.student.user.surname}`,
+          teacherName: `${result.teacher.user.name} ${result.teacher.user.surname}`,
+          olympiadName: result.olympiadName,
+          subject: result.subject,
+          level: result.level,
+          place: result.place,
+          date: result.date,
+          createdAt: result.createdAt,
+        })),
+        total,
+        limit,
+        offset,
+      };
+    } catch (error) {
+      console.error('Error getting olympiad results:', error);
+      throw new Error('Не удалось получить результаты олимпиад');
+    }
+  }
+
+  /**
+   * Получение поступлений учеников
+   */
+  async getStudentAdmissions(teacherId?: number, limit: number = 20, offset: number = 0) {
+    try {
+      const where: any = {};
+      if (teacherId) where.teacherId = teacherId;
+
+      const [admissions, total] = await Promise.all([
+        this.prisma.studentAdmission.findMany({
+          where,
+          include: {
+            student: {
+              include: {
+                user: true,
+              },
+            },
+            teacher: {
+              include: {
+                user: true,
+              },
+            },
+          },
+          orderBy: {
+            admissionYear: 'desc',
+          },
+          take: limit,
+          skip: offset,
+        }),
+        this.prisma.studentAdmission.count({ where }),
+      ]);
+
+      return {
+        admissions: admissions.map(admission => ({
+          id: admission.id,
+          studentName: `${admission.student.user.name} ${admission.student.user.surname}`,
+          teacherName: `${admission.teacher.user.name} ${admission.teacher.user.surname}`,
+          schoolType: admission.schoolType,
+          schoolName: admission.schoolName,
+          admissionYear: admission.admissionYear,
+          createdAt: admission.createdAt,
+        })),
+        total,
+        limit,
+        offset,
+      };
+    } catch (error) {
+      console.error('Error getting student admissions:', error);
+      throw new Error('Не удалось получить список поступлений');
+    }
+  }
+
+  /**
+   * Расчет баллов за олимпиаду
+   */
+  private calculateOlympiadPoints(level: string, place: number): number {
+    const levelMultiplier = {
+      'Международный': 50,
+      'Республиканский': 30,
+      'Городской': 20,
+      'Школьный': 10,
+    };
+
+    const placeMultiplier = {
+      1: 1.0,
+      2: 0.8,
+      3: 0.6,
+    };
+
+    const basePoints = levelMultiplier[level] || 10;
+    const modifier = placeMultiplier[place] || 0.5;
+
+    return Math.round(basePoints * modifier);
+  }
+
+  /**
+   * Расчет баллов за поступление
+   */
+  private calculateAdmissionPoints(schoolType: string): number {
+    const points = {
+      'RFMSH': 40,
+      'NISH': 35,
+      'BIL': 30,
+      'LYCEUM': 20,
+      'PRIVATE_SCHOOL': 15,
+    };
+
+    return points[schoolType] || 10;
+  }
+
+  /**
+   * Получение названия типа школы
+   */
+  private getSchoolTypeLabel(schoolType: string): string {
+    const labels = {
+      'RFMSH': 'РФМШ',
+      'NISH': 'НИШ',
+      'BIL': 'БИЛ',
+      'LYCEUM': 'лицей',
+      'PRIVATE_SCHOOL': 'частную школу',
+    };
+
+    return labels[schoolType] || 'учебное заведение';
+  }
+
+  /**
+   * Обновление достижения преподавателя
+   */
+  async updateAchievement(achievementId: number, achievementData: any) {
+    try {
+      const achievement = await this.prisma.teacherAchievement.update({
+        where: { id: achievementId },
+        data: {
+          type: achievementData.type,
+          title: achievementData.title,
+          description: achievementData.description,
+          date: achievementData.date ? new Date(achievementData.date) : undefined,
+          points: achievementData.points,
+          evidenceUrl: achievementData.evidenceUrl,
+        },
+        include: {
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return {
+        message: 'Достижение успешно обновлено',
+        achievement: {
+          id: achievement.id,
+          teacherId: achievement.teacherId,
+          teacherName: `${achievement.teacher.user.name} ${achievement.teacher.user.surname}`,
+          type: achievement.type,
+          title: achievement.title,
+          description: achievement.description,
+          date: achievement.date,
+          points: achievement.points,
+          isVerified: achievement.isVerified,
+          updatedAt: achievement.updatedAt,
+        },
+      };
+    } catch (error) {
+      console.error('Error updating achievement:', error);
+      throw new Error('Не удалось обновить достижение');
+    }
+  }
+
+  /**
+   * Обновление результата олимпиады
+   */
+  async updateOlympiadResult(resultId: number, resultData: any) {
+    try {
+      const result = await this.prisma.olympiadResult.update({
+        where: { id: resultId },
+        data: {
+          olympiadName: resultData.olympiadName,
+          subject: resultData.subject,
+          level: resultData.level,
+          place: resultData.place,
+          date: resultData.date ? new Date(resultData.date) : undefined,
+          certificateUrl: resultData.certificateUrl,
+        },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return {
+        message: 'Результат олимпиады успешно обновлен',
+        result: {
+          id: result.id,
+          studentName: `${result.student.user.name} ${result.student.user.surname}`,
+          teacherName: `${result.teacher.user.name} ${result.teacher.user.surname}`,
+          olympiadName: result.olympiadName,
+          subject: result.subject,
+          level: result.level,
+          place: result.place,
+          date: result.date,
+          updatedAt: result.updatedAt,
+        },
+      };
+    } catch (error) {
+      console.error('Error updating olympiad result:', error);
+      throw new Error('Не удалось обновить результат олимпиады');
+    }
+  }
+
+  /**
+   * Обновление записи о поступлении ученика
+   */
+  async updateStudentAdmission(admissionId: number, admissionData: any) {
+    try {
+      const admission = await this.prisma.studentAdmission.update({
+        where: { id: admissionId },
+        data: {
+          schoolType: admissionData.schoolType,
+          schoolName: admissionData.schoolName,
+          admissionYear: admissionData.admissionYear,
+          documentUrl: admissionData.documentUrl,
+        },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return {
+        message: 'Поступление ученика успешно обновлено',
+        admission: {
+          id: admission.id,
+          studentName: `${admission.student.user.name} ${admission.student.user.surname}`,
+          teacherName: `${admission.teacher.user.name} ${admission.teacher.user.surname}`,
+          schoolType: admission.schoolType,
+          schoolName: admission.schoolName,
+          admissionYear: admission.admissionYear,
+          updatedAt: admission.updatedAt,
+        },
+      };
+    } catch (error) {
+      console.error('Error updating student admission:', error);
+      throw new Error('Не удалось обновить запись о поступлении');
+    }
+  }
+
+  /**
+   * Получение студентов преподавателя для форм
+   */
+  async getStudents(teacherId: number) {
+    try {
+      const students = await this.prisma.student.findMany({
+        where: {
+          group: {
+            studyPlans: {
+              some: {
+                teacherId: teacherId,
+              },
+            },
+          },
+          deletedAt: null,
+        },
+        include: {
+          user: true,
+        },
+        orderBy: {
+          user: {
+            name: 'asc',
+          },
+        },
+      });
+
+      return students.map(student => ({
+        id: student.id,
+        name: `${student.user.name} ${student.user.surname}`.trim(),
+        email: student.user.email,
+      }));
+    } catch (error) {
+      console.error('Error getting students for teacher:', error);
+      throw new Error('Не удалось получить список студентов');
     }
   }
 }

@@ -120,4 +120,57 @@ export const kpiService = {
   getCalculationStatus: async (): Promise<KpiCalculationStatusResponse> => {
     return await apiClient.get<KpiCalculationStatusResponse>(`/kpi/calculation-status`);
   },
+
+  // Get detailed teacher KPI information
+  getTeacherKpiDetails: async (teacherId: number) => {
+    return await apiClient.get(`/kpi/teachers/${teacherId}/details`);
+  },
+
+  // Achievements management
+  createAchievement: async (achievementData: any) => {
+    return await apiClient.post(`/kpi/achievements`, achievementData);
+  },
+
+  createOlympiadResult: async (olympiadData: any) => {
+    return await apiClient.post(`/kpi/olympiad-results`, olympiadData);
+  },
+
+  createStudentAdmission: async (admissionData: any) => {
+    return await apiClient.post(`/kpi/student-admissions`, admissionData);
+  },
+
+  getAchievements: async (teacherId?: number): Promise<{ achievements: any[] }> => {
+    const params = new URLSearchParams();
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    return await apiClient.get(`/kpi/achievements?${params}`);
+  },
+
+  getStudents: async (teacherId: number) => {
+    return await apiClient.get(`/students?teacherId=${teacherId}`);
+  },
+
+  // Update methods for editing KPI achievements
+  updateAchievement: async (achievementId: number, achievementData: any) => {
+    return await apiClient.put(`/kpi/achievements/${achievementId}`, achievementData);
+  },
+
+  updateOlympiadResult: async (resultId: number, resultData: any) => {
+    return await apiClient.put(`/kpi/olympiad-results/${resultId}`, resultData);
+  },
+
+  updateStudentAdmission: async (admissionId: number, admissionData: any) => {
+    return await apiClient.put(`/kpi/student-admissions/${admissionId}`, admissionData);
+  },
+
+  getOlympiadResults: async (teacherId?: number): Promise<{ results: any[] }> => {
+    const params = new URLSearchParams();
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    return await apiClient.get(`/kpi/olympiad-results?${params}`);
+  },
+
+  getStudentAdmissions: async (teacherId?: number): Promise<{ admissions: any[] }> => {
+    const params = new URLSearchParams();
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    return await apiClient.get(`/kpi/student-admissions?${params}`);
+  },
 };

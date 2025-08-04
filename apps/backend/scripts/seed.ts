@@ -1215,6 +1215,600 @@ async function main() {
         }),
     ]);
 
+    console.log('📝 Создаем шаблоны фидбеков для KPI...');
+
+    // Создаем шаблоны фидбеков с KPI вопросами
+    const feedbackTemplates = await Promise.all([
+        // Шаблон для оценки преподавателей студентами (основной для KPI удержания)
+        prisma.feedbackTemplate.create({
+            data: {
+                name: 'teacher_evaluation_students',
+                role: 'STUDENT',
+                title: 'Оценка преподавателя студентами',
+                description: 'Ежемесячная оценка качества преподавания и удовлетворенности студентов',
+                questions: [
+                    {
+                        id: 'teaching_quality',
+                        question: 'Как вы оцениваете качество преподавания?',
+                        type: 'RATING_1_5',
+                        category: 'teaching',
+                        required: true,
+                        kpiMetric: 'TEACHING_QUALITY',
+                        isKpiRelevant: true,
+                        kpiWeight: 2
+                    },
+                    {
+                        id: 'lesson_effectiveness',
+                        question: 'Насколько эффективны уроки данного преподавателя?',
+                        type: 'RATING_1_5',
+                        category: 'effectiveness',
+                        required: true,
+                        kpiMetric: 'LESSON_EFFECTIVENESS',
+                        isKpiRelevant: true,
+                        kpiWeight: 2
+                    },
+                    {
+                        id: 'student_retention',
+                        question: 'Планируете ли вы продолжить обучение у данного преподавателя?',
+                        type: 'YES_NO',
+                        category: 'retention',
+                        required: true,
+                        kpiMetric: 'STUDENT_RETENTION',
+                        isKpiRelevant: true,
+                        kpiWeight: 3
+                    },
+                    {
+                        id: 'recommendation',
+                        question: 'Порекомендовали бы вы этого преподавателя другим студентам?',
+                        type: 'YES_NO',
+                        category: 'recommendation',
+                        required: true,
+                        kpiMetric: 'RECOMMENDATION',
+                        isKpiRelevant: true,
+                        kpiWeight: 2
+                    },
+                    {
+                        id: 'overall_satisfaction',
+                        question: 'Общая удовлетворенность обучением у данного преподавателя',
+                        type: 'RATING_1_10',
+                        category: 'satisfaction',
+                        required: true,
+                        kpiMetric: 'OVERALL_EXPERIENCE',
+                        isKpiRelevant: true,
+                        kpiWeight: 1
+                    },
+                    {
+                        id: 'improvement_suggestions',
+                        question: 'Что можно улучшить в преподавании?',
+                        type: 'TEXT',
+                        category: 'feedback',
+                        required: false,
+                        isKpiRelevant: false
+                    }
+                ],
+                isActive: true,
+                frequency: 'MONTHLY',
+                priority: 1,
+                hasKpiQuestions: true,
+                kpiMetrics: ['STUDENT_RETENTION', 'TEACHING_QUALITY', 'LESSON_EFFECTIVENESS', 'RECOMMENDATION', 'OVERALL_EXPERIENCE']
+            },
+        }),
+        // Дополнительный шаблон для общей оценки студентами
+        prisma.feedbackTemplate.create({
+            data: {
+                name: 'student_general_satisfaction',
+                role: 'STUDENT',
+                title: 'Общая удовлетворенность обучением',
+                description: 'Квартальная оценка общей удовлетворенности студентов',
+                questions: [
+                    {
+                        id: 'school_satisfaction',
+                        question: 'Насколько вы удовлетворены обучением в нашем учебном заведении?',
+                        type: 'RATING_1_10',
+                        category: 'general',
+                        required: true,
+                        kpiMetric: 'OVERALL_EXPERIENCE',
+                        isKpiRelevant: true,
+                        kpiWeight: 1
+                    },
+                    {
+                        id: 'motivation_level',
+                        question: 'Как изменился ваш уровень мотивации к учебе?',
+                        type: 'RATING_1_5',
+                        category: 'motivation',
+                        required: true
+                    }
+                ],
+                isActive: true,
+                frequency: 'QUARTERLY',
+                priority: 2,
+                hasKpiQuestions: true,
+                kpiMetrics: ['OVERALL_EXPERIENCE']
+            },
+        })
+    ]);
+
+    console.log('💬 Создаем фидбек ответы студентов о преподавателях...');
+
+    // Функция для создания реалистичных оценок
+    const createFeedbackAnswer = (teacherRating: number) => {
+        // teacherRating: 1-худший, 5-лучший преподаватель
+        const baseScore = teacherRating;
+        const variation = 0.5; // небольшая вариация в ответах
+        
+        return {
+            teaching_quality: Math.min(5, Math.max(1, Math.round(baseScore + (Math.random() - 0.5) * variation))),
+            lesson_effectiveness: Math.min(5, Math.max(1, Math.round(baseScore + (Math.random() - 0.5) * variation))),
+            student_retention: baseScore >= 3, // если оценка 3 и выше, то планирует продолжить
+            recommendation: baseScore >= 4, // если оценка 4 и выше, то порекомендует
+            overall_satisfaction: Math.min(10, Math.max(1, Math.round((baseScore * 2) + (Math.random() - 0.5) * variation))),
+            improvement_suggestions: baseScore < 3 ? 'Нужно больше практических заданий' : 'Все отлично!'
+        };
+    };
+
+    // Создаем фидбек ответы от каждого студента о каждом преподавателе
+    const feedbackResponses = [];
+    
+    // Рейтинги преподавателей (1-5, где 5 - лучший)
+    const teacherRatings = [
+        { teacher: teachers[0], rating: 5 }, // Иванова - отличный преподаватель
+        { teacher: teachers[1], rating: 4 }, // Алиев - хороший преподаватель  
+        { teacher: teachers[2], rating: 3 }, // Тулегенов - средний преподаватель
+        { teacher: teachers[3], rating: 2 }, // Назарбаева - слабый преподаватель
+    ];
+
+    // Создаем фидбеки от каждого студента о каждом преподавателе за последние 3 месяца
+    for (const { teacher, rating } of teacherRatings) {
+        for (const studentUser of studentUsers) {
+            // Создаем фидбеки за разные периоды
+            const periods = ['2025-07', '2025-08', '2025-09'];
+            
+            for (const period of periods) {
+                const answers = createFeedbackAnswer(rating);
+                
+                feedbackResponses.push(
+                    prisma.feedbackResponse.create({
+                        data: {
+                            userId: studentUser.id,
+                            templateId: feedbackTemplates[0].id,
+                            answers: answers,
+                            isCompleted: true,
+                            period: period,
+                            aboutTeacherId: teacher.teacher.id, // Ключевое поле - о каком преподавателе фидбек
+                            submittedAt: new Date(`${period}-15T10:00:00Z`),
+                        },
+                    })
+                );
+            }
+        }
+    }
+
+    await Promise.all(feedbackResponses);
+
+    console.log('📊 Создаем статус фидбеков для пользователей...');
+
+    // Создаем статус фидбеков для студентов
+    const feedbackStatuses = studentUsers.map(student => 
+        prisma.userFeedbackStatus.create({
+            data: {
+                userId: student.id,
+                hasCompletedMandatory: true,
+                lastCompletedAt: new Date('2025-09-15'),
+                currentPeriod: '2025-09',
+                nextDueDate: new Date('2025-10-15'),
+            },
+        })
+    );
+
+    await Promise.all(feedbackStatuses);
+
+    console.log('🏆 Создаем достижения преподавателей для KPI...');
+
+    // Создаем достижения для преподавателей
+    await Promise.all([
+        // Достижения для Ивановой (лучший преподаватель)
+        prisma.teacherAchievement.create({
+            data: {
+                teacherId: teachers[0].teacher.id,
+                type: 'QUALIFICATION',
+                title: 'Повышение квалификации по современным методам обучения',
+                description: 'Прошла курсы повышения квалификации',
+                date: getDateInQ3_2025(2025, 7, 15),
+                points: 50,
+                isVerified: true,
+                verifiedAt: getDateInQ3_2025(2025, 7, 20),
+            },
+        }),
+        prisma.teacherAchievement.create({
+            data: {
+                teacherId: teachers[0].teacher.id,
+                type: 'TEAM_EVENT',
+                title: 'Организация математической олимпиады',
+                description: 'Организовала и провела школьную олимпиаду по математике',
+                date: getDateInQ3_2025(2025, 8, 10),
+                points: 30,
+                isVerified: true,
+                verifiedAt: getDateInQ3_2025(2025, 8, 15),
+            },
+        }),
+        // Достижения для Алиева
+        prisma.teacherAchievement.create({
+            data: {
+                teacherId: teachers[1].teacher.id,
+                type: 'PROJECT_HELP',
+                title: 'Помощь в научном проекте',
+                description: 'Помогал студентам в подготовке научного проекта по биологии',
+                date: getDateInQ3_2025(2025, 8, 20),
+                points: 25,
+                isVerified: true,
+                verifiedAt: getDateInQ3_2025(2025, 8, 25),
+            },
+        }),
+    ]);
+
+    console.log('🥇 Создаем результаты олимпиад для KPI...');
+
+    // Создаем результаты олимпиад (влияют на KPI преподавателей)
+    await Promise.all([
+        prisma.olympiadResult.create({
+            data: {
+                studentId: studentUsers[0].student.id, // Айда
+                teacherId: teachers[0].teacher.id, // Иванова
+                olympiadName: 'Городская олимпиада по математике',
+                subject: 'Математика',
+                level: 'Городской',
+                place: 1,
+                date: getDateInQ3_2025(2025, 9, 1),
+            },
+        }),
+        prisma.olympiadResult.create({
+            data: {
+                studentId: studentUsers[1].student.id, // Арман
+                teacherId: teachers[0].teacher.id, // Иванова
+                olympiadName: 'Школьная олимпиада по алгебре',
+                subject: 'Алгебра',
+                level: 'Школьный',
+                place: 2,
+                date: getDateInQ3_2025(2025, 8, 15),
+            },
+        }),
+        prisma.olympiadResult.create({
+            data: {
+                studentId: studentUsers[2].student.id, // Дана
+                teacherId: teachers[1].teacher.id, // Алиев
+                olympiadName: 'Региональная олимпиада по биологии',
+                subject: 'Биология',
+                level: 'Региональный',
+                place: 3,
+                date: getDateInQ3_2025(2025, 9, 10),
+            },
+        }),
+    ]);
+
+    console.log('🎓 Создаем поступления студентов для KPI...');
+
+    // Создаем записи о поступлениях (влияют на KPI преподавателей)
+    await Promise.all([
+        prisma.studentAdmission.create({
+            data: {
+                studentId: studentUsers[3].student.id, // Бекзат (11 класс)
+                teacherId: teachers[2].teacher.id, // Тулегенов (физика)
+                schoolType: 'RFMSH',
+                schoolName: 'Республиканская физико-математическая школа',
+                admissionYear: 2025,
+            },
+        }),
+    ]);
+
+    console.log('📋 Создаем КТП (календарно-тематические планы)...');
+
+    // Создаем КТП для каждого учебного плана
+    await Promise.all([
+        // КТП для алгебры 10 класс (Иванова)
+        prisma.curriculumPlan.create({
+            data: {
+                studyPlanId: studyPlans[0].id, // Алгебра 10 класс
+                totalLessons: 25,
+                plannedLessons: [
+                    {
+                        id: 'section_1',
+                        title: 'Квадратные уравнения и неравенства',
+                        description: 'Изучение методов решения квадратных уравнений',
+                        order: 1,
+                        topics: [
+                            {
+                                id: 'topic_1_1',
+                                title: 'Квадратные уравнения',
+                                description: 'Решение квадратных уравнений различными методами',
+                                hours: 4,
+                                order: 1,
+                                completed: true,
+                                completedAt: '2025-07-05T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_1_2',
+                                title: 'Формулы сокращенного умножения',
+                                description: 'Применение формул сокращенного умножения в решении задач',
+                                hours: 3,
+                                order: 2,
+                                completed: true,
+                                completedAt: '2025-07-12T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_1_3',
+                                title: 'Теорема Виета',
+                                description: 'Изучение и применение теоремы Виета',
+                                hours: 2,
+                                order: 3,
+                                completed: true,
+                                completedAt: '2025-07-19T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_1_4',
+                                title: 'Контрольная работа №1',
+                                description: 'Проверка знаний по квадратным уравнениям',
+                                hours: 1,
+                                order: 4,
+                                completed: true,
+                                completedAt: '2025-07-26T00:00:00Z'
+                            }
+                        ]
+                    },
+                    {
+                        id: 'section_2',
+                        title: 'Системы уравнений',
+                        description: 'Методы решения систем уравнений',
+                        order: 2,
+                        topics: [
+                            {
+                                id: 'topic_2_1',
+                                title: 'Системы линейных уравнений',
+                                description: 'Решение систем линейных уравнений',
+                                hours: 3,
+                                order: 1,
+                                completed: true,
+                                completedAt: '2025-08-02T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_2_2',
+                                title: 'Системы с квадратными уравнениями',
+                                description: 'Решение смешанных систем уравнений',
+                                hours: 4,
+                                order: 2,
+                                completed: true,
+                                completedAt: '2025-08-09T00:00:00Z'
+                            }
+                        ]
+                    },
+                    {
+                        id: 'section_3',
+                        title: 'Функции и графики',
+                        description: 'Изучение различных функций и их графиков',
+                        order: 3,
+                        topics: [
+                            {
+                                id: 'topic_3_1',
+                                title: 'Линейная функция',
+                                description: 'Свойства линейной функции и построение графиков',
+                                hours: 2,
+                                order: 1,
+                                completed: true,
+                                completedAt: '2025-09-06T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_3_2',
+                                title: 'Квадратичная функция',
+                                description: 'Изучение квадратичной функции и параболы',
+                                hours: 3,
+                                order: 2,
+                                completed: true,
+                                completedAt: '2025-09-13T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_3_3',
+                                title: 'Практикум по функциям',
+                                description: 'Решение задач на функции',
+                                hours: 2,
+                                order: 3,
+                                completed: false // Еще не выполнено
+                            }
+                        ]
+                    }
+                ]
+            },
+        }),
+        
+        // КТП для биологии 10 класс (Алиев)
+        prisma.curriculumPlan.create({
+            data: {
+                studyPlanId: studyPlans[1].id, // Биология 10 класс
+                totalLessons: 14,
+                plannedLessons: [
+                    {
+                        id: 'section_bio_1',
+                        title: 'Основы цитологии',
+                        description: 'Изучение строения и функций клетки',
+                        order: 1,
+                        topics: [
+                            {
+                                id: 'topic_bio_1_1',
+                                title: 'Строение клетки',
+                                description: 'Органеллы клетки и их функции',
+                                hours: 3,
+                                order: 1,
+                                completed: true,
+                                completedAt: '2025-07-08T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_bio_1_2',
+                                title: 'Фотосинтез',
+                                description: 'Процесс фотосинтеза у растений',
+                                hours: 2,
+                                order: 2,
+                                completed: true,
+                                completedAt: '2025-07-15T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_bio_1_3',
+                                title: 'Дыхание растений',
+                                description: 'Процессы клеточного дыхания',
+                                hours: 2,
+                                order: 3,
+                                completed: true,
+                                completedAt: '2025-08-05T00:00:00Z'
+                            }
+                        ]
+                    },
+                    {
+                        id: 'section_bio_2',
+                        title: 'Генетика',
+                        description: 'Основы наследственности и изменчивости',
+                        order: 2,
+                        topics: [
+                            {
+                                id: 'topic_bio_2_1',
+                                title: 'Законы Менделя',
+                                description: 'Основные законы наследственности',
+                                hours: 4,
+                                order: 1,
+                                completed: true,
+                                completedAt: '2025-08-12T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_bio_2_2',
+                                title: 'Решение генетических задач',
+                                description: 'Практическое применение законов генетики',
+                                hours: 3,
+                                order: 2,
+                                completed: true,
+                                completedAt: '2025-09-02T00:00:00Z'
+                            }
+                        ]
+                    }
+                ]
+            },
+        }),
+        
+        // КТП для физики 11 класс (Тулегенов) - частично выполнен
+        prisma.curriculumPlan.create({
+            data: {
+                studyPlanId: studyPlans[2].id, // Физика 11 класс
+                totalLessons: 10,
+                plannedLessons: [
+                    {
+                        id: 'section_phys_1',
+                        title: 'Молекулярно-кинетическая теория',
+                        description: 'Основы МКТ и газовые законы',
+                        order: 1,
+                        topics: [
+                            {
+                                id: 'topic_phys_1_1',
+                                title: 'Основные положения МКТ',
+                                description: 'Молекулярно-кинетическая теория газов',
+                                hours: 3,
+                                order: 1,
+                                completed: true,
+                                completedAt: '2025-07-10T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_phys_1_2',
+                                title: 'Газовые законы',
+                                description: 'Изучение законов идеального газа',
+                                hours: 4,
+                                order: 2,
+                                completed: true,
+                                completedAt: '2025-07-17T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_phys_1_3',
+                                title: 'Термодинамика',
+                                description: 'Первый и второй законы термодинамики',
+                                hours: 3,
+                                order: 3,
+                                completed: false // Не выполнено
+                            }
+                        ]
+                    },
+                    {
+                        id: 'section_phys_2',
+                        title: 'Электростатика',
+                        description: 'Электрическое поле и его свойства',
+                        order: 2,
+                        topics: [
+                            {
+                                id: 'topic_phys_2_1',
+                                title: 'Электрическое поле',
+                                description: 'Характеристики электрического поля',
+                                hours: 4,
+                                order: 1,
+                                completed: false // Не выполнено
+                            }
+                        ]
+                    }
+                ]
+            },
+        }),
+        
+        // КТП для химии 9 класс (Назарбаева) - плохо выполняется
+        prisma.curriculumPlan.create({
+            data: {
+                studyPlanId: studyPlans[3].id, // Химия 9 класс
+                totalLessons: 9,
+                plannedLessons: [
+                    {
+                        id: 'section_chem_1',
+                        title: 'Периодическая система элементов',
+                        description: 'Изучение периодического закона',
+                        order: 1,
+                        topics: [
+                            {
+                                id: 'topic_chem_1_1',
+                                title: 'Периодический закон',
+                                description: 'Периодический закон Менделеева',
+                                hours: 2,
+                                order: 1,
+                                completed: true,
+                                completedAt: '2025-07-11T00:00:00Z'
+                            },
+                            {
+                                id: 'topic_chem_1_2',
+                                title: 'Химические связи',
+                                description: 'Виды химических связей',
+                                hours: 3,
+                                order: 2,
+                                completed: false // Не выполнено
+                            }
+                        ]
+                    },
+                    {
+                        id: 'section_chem_2',
+                        title: 'Химические реакции',
+                        description: 'Типы химических реакций',
+                        order: 2,
+                        topics: [
+                            {
+                                id: 'topic_chem_2_1',
+                                title: 'Кислоты и основания',
+                                description: 'Свойства кислот и оснований',
+                                hours: 4,
+                                order: 1,
+                                completed: false // Не выполнено
+                            },
+                            {
+                                id: 'topic_chem_2_2',
+                                title: 'ОВР',
+                                description: 'Окислительно-восстановительные реакции',
+                                hours: 3,
+                                order: 2,
+                                completed: false // Не выполнено
+                            }
+                        ]
+                    }
+                ]
+            },
+        })
+    ]);
+
     console.log('✅ База данных успешно заполнена!');
     console.log('\n📊 Создано:');
     console.log(`👤 Пользователей: ${2 + teachers.length + studentUsers.length + parents.length}`); // admin + financist + teachers + students + parents

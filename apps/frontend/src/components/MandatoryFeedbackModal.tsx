@@ -109,12 +109,40 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
     setError(null);
 
     try {
-      // Отправляем ответы на сервер через feedbackService
-      await feedbackService.submitResponse({
-        templateId: currentTemplate.id,
-        answers: answers,
-        isCompleted: true,
-      });
+      // Проверяем, есть ли в шаблоне вопросы с оценкой преподавателей
+      const hasTeacherRating = currentTemplate.questions.some(q => q.type === 'TEACHER_RATING');
+      
+      if (hasTeacherRating) {
+        // Если есть оценки преподавателей, отправляем отдельный фидбек для каждого преподавателя
+        const teacherRatingQuestions = currentTemplate.questions.filter(q => q.type === 'TEACHER_RATING');
+        
+        for (const question of teacherRatingQuestions) {
+          const teacherRatings = answers[question.id];
+          if (teacherRatings && typeof teacherRatings === 'object') {
+            // Для каждого оцененного преподавателя создаем отдельный фидбек
+            for (const [teacherId, rating] of Object.entries(teacherRatings)) {
+              if (rating !== undefined && rating !== null) {
+                await feedbackService.submitResponse({
+                  templateId: currentTemplate.id,
+                  answers: {
+                    ...answers,
+                    [question.id]: rating // Сохраняем только оценку конкретного преподавателя
+                  },
+                  isCompleted: true,
+                  aboutTeacherId: parseInt(teacherId) // Указываем конкретного преподавателя
+                });
+              }
+            }
+          }
+        }
+      } else {
+        // Обычный фидбек без привязки к преподавателю
+        await feedbackService.submitResponse({
+          templateId: currentTemplate.id,
+          answers: answers,
+          isCompleted: true,
+        });
+      }
 
       // Переходим к следующей форме или завершаем
       if (isLastTemplate) {

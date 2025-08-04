@@ -41,6 +41,7 @@ export interface CreateFeedbackResponseDto {
   answers: any;
   isCompleted?: boolean;
   period?: string;
+  aboutTeacherId?: number; // Новое поле для связи с преподавателем
 }
 
 class FeedbackService {

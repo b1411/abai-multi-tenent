@@ -4,12 +4,10 @@ import {
   IsOptional, 
   IsBoolean, 
   IsString, 
-  ValidateNested,
   IsNotEmpty,
-  Min,
-  IsJSON
+  Min
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 
 export class CreateFeedbackResponseDto {
   @IsInt({ message: 'ID шаблона должен быть числом' })
@@ -47,4 +45,9 @@ export class CreateFeedbackResponseDto {
   @IsString({ message: 'Период должен быть строкой' })
   @Transform(({ value }) => value?.trim())
   period?: string;
+
+  @IsOptional()
+  @IsInt({ message: 'ID преподавателя должен быть числом' })
+  @Min(1, { message: 'ID преподавателя должен быть больше 0' })
+  aboutTeacherId?: number;
 }

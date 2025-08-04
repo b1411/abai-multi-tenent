@@ -11,6 +11,18 @@
         "hash": "13046175384202504187"
       },
       {
+        "file": "MOBILE-AUDIT-REPORT.md",
+        "hash": "4971421164797455983"
+      },
+      {
+        "file": "MOCK-DATA-USAGE-LIST.md",
+        "hash": "3997261457659605799"
+      },
+      {
+        "file": "README-ALUMNI-MODULE.md",
+        "hash": "5553664183543560612"
+      },
+      {
         "file": "README-BRANDING-IMPLEMENTATION.md",
         "hash": "17433745429228371599"
       },
@@ -27,16 +39,48 @@
         "hash": "1742456025552403309"
       },
       {
+        "file": "README-EDUCATIONAL-REPORTS-API-INTEGRATION.md",
+        "hash": "10456199280445133469"
+      },
+      {
+        "file": "README-EDUCATIONAL-REPORTS-FINAL.md",
+        "hash": "6445519550344586687"
+      },
+      {
+        "file": "README-EDUCATIONAL-REPORTS-INTEGRATION.md",
+        "hash": "11318648000486969570"
+      },
+      {
+        "file": "README-EDUCATIONAL-REPORTS.md",
+        "hash": "6469011896347677726"
+      },
+      {
+        "file": "README-FAKE-POSITIONS.md",
+        "hash": "15501325317042593430"
+      },
+      {
         "file": "README-FINANCE.md",
         "hash": "11022687548214795962"
+      },
+      {
+        "file": "README-GRID-WIDGET-SYSTEM.md",
+        "hash": "4145074736891724960"
       },
       {
         "file": "README-GROUPS.md",
         "hash": "13009715056127116217"
       },
       {
+        "file": "README-JAS-LIFE.md",
+        "hash": "4625203580813811227"
+      },
+      {
         "file": "README-JOURNAL.md",
         "hash": "884364314547125754"
+      },
+      {
+        "file": "README-KPI-FINAL.md",
+        "hash": "18134956117416383210"
       },
       {
         "file": "README-KPI.md",
@@ -51,6 +95,10 @@
         "hash": "1978020114618080013"
       },
       {
+        "file": "README-NEWS-FEED.md",
+        "hash": "12444684570852602309"
+      },
+      {
         "file": "README-PERFORMANCE.md",
         "hash": "3073155491515594049"
       },
@@ -63,8 +111,20 @@
         "hash": "3268394599020389555"
       },
       {
+        "file": "README-RESPONSIVE-IMPROVEMENTS.md",
+        "hash": "1763826876050151053"
+      },
+      {
         "file": "README-SALARIES.md",
         "hash": "2323688338905412083"
+      },
+      {
+        "file": "README-SECURITY-SYSTEM.md",
+        "hash": "667451130958688272"
+      },
+      {
+        "file": "README-STUDENT-PROFILE.md",
+        "hash": "6497665566439877594"
       },
       {
         "file": "README-STUDENTS.md",
@@ -91,12 +151,20 @@
         "hash": "3851714118117119103"
       },
       {
+        "file": "README-WIDGET-SYSTEM.md",
+        "hash": "13285092689740170462"
+      },
+      {
         "file": "README-WORKLOAD.md",
         "hash": "10785510226810719589"
       },
       {
         "file": "README.md",
         "hash": "3805333385135325002"
+      },
+      {
+        "file": "WIDGET-SYSTEM-STATUS.md",
+        "hash": "11060724526287292006"
       },
       {
         "file": "eslint.config.js",
@@ -108,7 +176,7 @@
       },
       {
         "file": "package.json",
-        "hash": "4216401748988667024"
+        "hash": "3057484897526168906"
       },
       {
         "file": "postcss.config.js",
@@ -128,15 +196,59 @@
       },
       {
         "file": "src/App.tsx",
-        "hash": "12923763659624474347"
+        "hash": "3612960090615366763"
+      },
+      {
+        "file": "src/alumni/components/AlumniCard.tsx",
+        "hash": "10305724441519653403"
+      },
+      {
+        "file": "src/alumni/components/AlumniFilters.tsx",
+        "hash": "17549977483786109447"
+      },
+      {
+        "file": "src/alumni/components/AlumniStats.tsx",
+        "hash": "5181810881168448499"
+      },
+      {
+        "file": "src/alumni/hooks/useAlumni.ts",
+        "hash": "11610813819949040728"
+      },
+      {
+        "file": "src/alumni/pages/AlumniDetail.tsx",
+        "hash": "6543131104428034920"
+      },
+      {
+        "file": "src/alumni/pages/AlumniList.tsx",
+        "hash": "18379568337704935578"
+      },
+      {
+        "file": "src/alumni/services/alumniService.ts",
+        "hash": "12867025783774621931"
+      },
+      {
+        "file": "src/alumni/types/alumni.ts",
+        "hash": "17038328912325763638"
       },
       {
         "file": "src/assets/react.svg",
         "hash": "16069471864800376455"
       },
       {
+        "file": "src/components/AILessonGeneratorModal.tsx",
+        "hash": "17914915968678914780"
+      },
+      {
         "file": "src/components/AIScheduleGeneratorModal.tsx",
         "hash": "7616554111324390672"
+      },
+      {
+        "file": "src/components/ActivityTestButton.tsx",
+        "hash": "10528246579271013552"
+      },
+      {
+        "file": "src/components/ActivityTestPanel.tsx",
+        "hash": "3401866036020671866"
       },
       {
         "file": "src/components/AnimatedBackground.tsx",
@@ -148,7 +260,11 @@
       },
       {
         "file": "src/components/ClassroomForm.tsx",
-        "hash": "7851381655489860764"
+        "hash": "3307925291353449352"
+      },
+      {
+        "file": "src/components/CommentModal.tsx",
+        "hash": "15486221538537875019"
       },
       {
         "file": "src/components/CreateStudentForm.tsx",
@@ -156,7 +272,19 @@
       },
       {
         "file": "src/components/DashboardLayout.tsx",
-        "hash": "832113519221294146"
+        "hash": "17810319451249216208"
+      },
+      {
+        "file": "src/components/DeleteCommentModal.tsx",
+        "hash": "2878836487991497147"
+      },
+      {
+        "file": "src/components/DeleteRemarkModal.tsx",
+        "hash": "9161938522221528410"
+      },
+      {
+        "file": "src/components/DocumentStatusCard.tsx",
+        "hash": "5384288454130387705"
       },
       {
         "file": "src/components/EventDetailsModal.tsx",
@@ -164,11 +292,19 @@
       },
       {
         "file": "src/components/EventForm.tsx",
-        "hash": "1504859584075290386"
+        "hash": "5908337505688620569"
+      },
+      {
+        "file": "src/components/FileUpload.tsx",
+        "hash": "17415344920455903237"
       },
       {
         "file": "src/components/GroupForm.tsx",
-        "hash": "1673458425482721876"
+        "hash": "18141996931593088064"
+      },
+      {
+        "file": "src/components/GroupPaymentForm.tsx",
+        "hash": "2450893024827086104"
       },
       {
         "file": "src/components/HomeworkDetailModal.tsx",
@@ -179,8 +315,36 @@
         "hash": "9213602727789950516"
       },
       {
+        "file": "src/components/InvoiceGenerator.tsx",
+        "hash": "6480762189994887300"
+      },
+      {
+        "file": "src/components/KpiAchievementModal.tsx",
+        "hash": "15131438574107546339"
+      },
+      {
+        "file": "src/components/KpiAchievementsList.tsx",
+        "hash": "10508620554235815978"
+      },
+      {
+        "file": "src/components/KpiEditModal.tsx",
+        "hash": "18173658101554458401"
+      },
+      {
+        "file": "src/components/KpiSettingsModal.tsx",
+        "hash": "13788784784412288761"
+      },
+      {
+        "file": "src/components/KtpCompletionKpi.tsx",
+        "hash": "4416499670586975992"
+      },
+      {
+        "file": "src/components/KtpTreeView.tsx",
+        "hash": "10107785086407818848"
+      },
+      {
         "file": "src/components/MandatoryFeedbackModal.tsx",
-        "hash": "1654596071759924292"
+        "hash": "3053291576990775489"
       },
       {
         "file": "src/components/MandatoryFeedbackWrapper.tsx",
@@ -188,11 +352,11 @@
       },
       {
         "file": "src/components/MathRenderer.tsx",
-        "hash": "7738328948436574581"
+        "hash": "9306144072989228970"
       },
       {
         "file": "src/components/NewChatModal.tsx",
-        "hash": "13432074027740949605"
+        "hash": "17226924601293045956"
       },
       {
         "file": "src/components/NotificationPanel.tsx",
@@ -200,23 +364,59 @@
       },
       {
         "file": "src/components/PaymentForm.tsx",
-        "hash": "4286876981953732044"
+        "hash": "12973583204815484287"
       },
       {
         "file": "src/components/ProtectedRoute.tsx",
         "hash": "4980998657906967920"
       },
       {
+        "file": "src/components/QuickApprovalModal.tsx",
+        "hash": "14759752536501350920"
+      },
+      {
+        "file": "src/components/QuizEditor.tsx",
+        "hash": "8259283727465805898"
+      },
+      {
+        "file": "src/components/QuizMaterialEditor.tsx",
+        "hash": "17609287766213354846"
+      },
+      {
+        "file": "src/components/RemarkModal.tsx",
+        "hash": "12988989645184225287"
+      },
+      {
         "file": "src/components/ReviewForm.tsx",
-        "hash": "5141853214753722707"
+        "hash": "9794795330421565853"
+      },
+      {
+        "file": "src/components/RichTextEditor.tsx",
+        "hash": "7635983089672761085"
+      },
+      {
+        "file": "src/components/SalaryAdjustmentsModal.tsx",
+        "hash": "807591926275363888"
+      },
+      {
+        "file": "src/components/SalaryCalculationBreakdown.tsx",
+        "hash": "15612951466536881213"
       },
       {
         "file": "src/components/SalaryForm.tsx",
-        "hash": "7126296801131847367"
+        "hash": "10461003176776943803"
+      },
+      {
+        "file": "src/components/SendForApprovalModal.tsx",
+        "hash": "13092164153619228156"
       },
       {
         "file": "src/components/Sidebar.tsx",
-        "hash": "10593957311206337527"
+        "hash": "3352560834205090142"
+      },
+      {
+        "file": "src/components/StudentProfileWidget.tsx",
+        "hash": "8794287672296330501"
       },
       {
         "file": "src/components/StudyPlanForm.tsx",
@@ -227,8 +427,12 @@
         "hash": "7556463530243980908"
       },
       {
+        "file": "src/components/TeacherSalaryRateForm.tsx",
+        "hash": "9527564205061999173"
+      },
+      {
         "file": "src/components/TopPanel.tsx",
-        "hash": "1133791276535118866"
+        "hash": "6573465084125864626"
       },
       {
         "file": "src/components/VideoPlayer.tsx",
@@ -239,40 +443,176 @@
         "hash": "16265513442011145505"
       },
       {
+        "file": "src/components/activity-monitoring/ActivityFilters.tsx",
+        "hash": "15574528745405669417"
+      },
+      {
+        "file": "src/components/activity-monitoring/ActivityIndicator.tsx",
+        "hash": "15287885459231713556"
+      },
+      {
+        "file": "src/components/activity-monitoring/ActivityStatistics.tsx",
+        "hash": "9296326725968311452"
+      },
+      {
         "file": "src/components/dashboards/AdminDashboard.tsx",
-        "hash": "5984934181974696760"
+        "hash": "7172926600697137176"
       },
       {
         "file": "src/components/dashboards/FinancistDashboard.tsx",
-        "hash": "10749940846633988615"
+        "hash": "14487889449934635926"
       },
       {
         "file": "src/components/dashboards/HRDashboard.tsx",
-        "hash": "10518142032345915142"
+        "hash": "10425626467409778261"
       },
       {
         "file": "src/components/dashboards/ParentDashboard.tsx",
-        "hash": "4191024803646239641"
+        "hash": "7149163458252912369"
       },
       {
         "file": "src/components/dashboards/StudentDashboard.tsx",
-        "hash": "17692967786381356411"
+        "hash": "2736280682334930735"
       },
       {
         "file": "src/components/dashboards/TeacherDashboard.tsx",
-        "hash": "5028651166515067675"
+        "hash": "2434032159644112155"
       },
       {
         "file": "src/components/dashboards/index.ts",
         "hash": "2568034247227803169"
       },
       {
+        "file": "src/components/extensions/MathExtension.ts",
+        "hash": "7224662139369563206"
+      },
+      {
+        "file": "src/components/extensions/MathNodeView.tsx",
+        "hash": "12571458884868096041"
+      },
+      {
+        "file": "src/components/fakePositions/AnalyticsPanel.tsx",
+        "hash": "5742625309042653373"
+      },
+      {
+        "file": "src/components/fakePositions/AttendanceTable.tsx",
+        "hash": "2558570415577461123"
+      },
+      {
+        "file": "src/components/fakePositions/DisputeModal.tsx",
+        "hash": "17589805065778802295"
+      },
+      {
+        "file": "src/components/fakePositions/QRScannerModal.tsx",
+        "hash": "8413665965861511897"
+      },
+      {
+        "file": "src/components/fakePositions/StatusBadge.tsx",
+        "hash": "4169950113976663749"
+      },
+      {
+        "file": "src/components/fakePositions/TopBarFilters.tsx",
+        "hash": "10594994882940959023"
+      },
+      {
+        "file": "src/components/fakePositions/YourLessonsSection.tsx",
+        "hash": "18167248840428995462"
+      },
+      {
         "file": "src/components/inventory/InventoryModals.tsx",
-        "hash": "16596881648194707490"
+        "hash": "16388803799076914117"
+      },
+      {
+        "file": "src/components/jasLife/ClubDirectory/JoinClubModal.tsx",
+        "hash": "13614867240396956237"
+      },
+      {
+        "file": "src/components/jasLife/EventsFeed/CreateEventModal.tsx",
+        "hash": "1176741205202327712"
+      },
+      {
+        "file": "src/components/jasLife/EventsFeed/EventCard.tsx",
+        "hash": "14733085629667326124"
+      },
+      {
+        "file": "src/components/jasLife/QRSystem/QRGenerator.tsx",
+        "hash": "6443124576875117985"
+      },
+      {
+        "file": "src/components/jasLife/VolunteerTracker/SubmitHoursModal.tsx",
+        "hash": "16948243388397132382"
+      },
+      {
+        "file": "src/components/newsFeed/CommentThread.tsx",
+        "hash": "7954513270182056382"
+      },
+      {
+        "file": "src/components/newsFeed/CreatePost.tsx",
+        "hash": "6080542440612819627"
+      },
+      {
+        "file": "src/components/newsFeed/FilePreview.tsx",
+        "hash": "11944448931221272687"
+      },
+      {
+        "file": "src/components/newsFeed/LikeButton.tsx",
+        "hash": "299039798814252368"
+      },
+      {
+        "file": "src/components/newsFeed/PostCard.tsx",
+        "hash": "8567182985338931638"
+      },
+      {
+        "file": "src/components/newsFeed/PullToRefresh.tsx",
+        "hash": "16829133296089794394"
+      },
+      {
+        "file": "src/components/newsFeed/ReactionPicker.tsx",
+        "hash": "15948149320556513264"
+      },
+      {
+        "file": "src/components/newsFeed/SwipeGestures.tsx",
+        "hash": "97759164969967778"
+      },
+      {
+        "file": "src/components/newsFeed/TimeAgo.tsx",
+        "hash": "14575602684509067078"
+      },
+      {
+        "file": "src/components/newsFeed/UserAvatar.tsx",
+        "hash": "4381812055510963202"
+      },
+      {
+        "file": "src/components/newsFeed/index.ts",
+        "hash": "5204787725375340181"
+      },
+      {
+        "file": "src/components/security/AlertsFeed.tsx",
+        "hash": "3903145486001623017"
+      },
+      {
+        "file": "src/components/security/CameraStream.tsx",
+        "hash": "3434900130437457298"
+      },
+      {
+        "file": "src/components/security/EmergencyButtons.tsx",
+        "hash": "1180734876222811441"
+      },
+      {
+        "file": "src/components/security/FaceIDLog.tsx",
+        "hash": "6782886132585495471"
+      },
+      {
+        "file": "src/components/security/SecurityMetrics.tsx",
+        "hash": "12091809585647981217"
+      },
+      {
+        "file": "src/components/security/SecurityShift.tsx",
+        "hash": "14077564779688313637"
       },
       {
         "file": "src/components/supply/SupplyModals.tsx",
-        "hash": "905946317040323110"
+        "hash": "11905668028658718823"
       },
       {
         "file": "src/components/ui/Alert.tsx",
@@ -283,8 +623,20 @@
         "hash": "16905249402194870421"
       },
       {
+        "file": "src/components/ui/Badge.tsx",
+        "hash": "5437139385040897361"
+      },
+      {
         "file": "src/components/ui/Button.tsx",
         "hash": "9827488191444230913"
+      },
+      {
+        "file": "src/components/ui/Card.tsx",
+        "hash": "15654864535861100911"
+      },
+      {
+        "file": "src/components/ui/Dialog.tsx",
+        "hash": "8705176116441084202"
       },
       {
         "file": "src/components/ui/Input.tsx",
@@ -299,20 +651,140 @@
         "hash": "6195611276502284782"
       },
       {
+        "file": "src/components/ui/ResponsiveCard.tsx",
+        "hash": "17387855764088003408"
+      },
+      {
+        "file": "src/components/ui/ResponsiveGrid.tsx",
+        "hash": "13755344460446546216"
+      },
+      {
+        "file": "src/components/ui/ResponsiveModal.tsx",
+        "hash": "1429669970048881173"
+      },
+      {
+        "file": "src/components/ui/ScrollArea.tsx",
+        "hash": "16817332074935434872"
+      },
+      {
         "file": "src/components/ui/Select.tsx",
         "hash": "6383220715936821617"
       },
       {
         "file": "src/components/ui/Spinner.tsx",
-        "hash": "12445678514876235469"
+        "hash": "12937676998097508630"
       },
       {
         "file": "src/components/ui/Table.tsx",
         "hash": "13883123518575333306"
       },
       {
+        "file": "src/components/ui/TimePicker.tsx",
+        "hash": "76532028488500344"
+      },
+      {
+        "file": "src/components/ui/Toast.tsx",
+        "hash": "6543665753965970407"
+      },
+      {
+        "file": "src/components/ui/ToastContainer.tsx",
+        "hash": "9584422130611416098"
+      },
+      {
         "file": "src/components/ui/index.ts",
-        "hash": "9133771637237629043"
+        "hash": "9569139742583164595"
+      },
+      {
+        "file": "src/components/widgets/WidgetRenderer.tsx",
+        "hash": "5040432548333197319"
+      },
+      {
+        "file": "src/components/widgets/base/Widget.tsx",
+        "hash": "15285211363644216776"
+      },
+      {
+        "file": "src/components/widgets/dashboard/AddWidgetButton.tsx",
+        "hash": "15168448339538643823"
+      },
+      {
+        "file": "src/components/widgets/dashboard/DashboardCanvas.tsx",
+        "hash": "1375179421456545307"
+      },
+      {
+        "file": "src/components/widgets/dashboard/GridDashboardCanvas.tsx",
+        "hash": "7897516841045519755"
+      },
+      {
+        "file": "src/components/widgets/dashboard/WidgetSelectionModal.tsx",
+        "hash": "12078300829287354135"
+      },
+      {
+        "file": "src/components/widgets/specific/ActivityMonitoringWidget.tsx",
+        "hash": "16618238309497723063"
+      },
+      {
+        "file": "src/components/widgets/specific/AssignmentsWidget.tsx",
+        "hash": "17781769921625359215"
+      },
+      {
+        "file": "src/components/widgets/specific/AttendanceWidget.tsx",
+        "hash": "958837309580153003"
+      },
+      {
+        "file": "src/components/widgets/specific/BirthdaysWidget.tsx",
+        "hash": "8041048921121058587"
+      },
+      {
+        "file": "src/components/widgets/specific/ClassroomUsageWidget.tsx",
+        "hash": "14315951237464187848"
+      },
+      {
+        "file": "src/components/widgets/specific/FinanceOverviewWidget.tsx",
+        "hash": "249580059365128900"
+      },
+      {
+        "file": "src/components/widgets/specific/GradeAnalyticsWidget.tsx",
+        "hash": "2128687120336287345"
+      },
+      {
+        "file": "src/components/widgets/specific/GradesWidget.tsx",
+        "hash": "8616221539342273367"
+      },
+      {
+        "file": "src/components/widgets/specific/NewsWidget.tsx",
+        "hash": "1096481642704900308"
+      },
+      {
+        "file": "src/components/widgets/specific/ScheduleWidget.tsx",
+        "hash": "9523380474451076363"
+      },
+      {
+        "file": "src/components/widgets/specific/SchoolAttendanceWidget.tsx",
+        "hash": "9657063373316290604"
+      },
+      {
+        "file": "src/components/widgets/specific/SystemAlertsWidget.tsx",
+        "hash": "15509722194556131814"
+      },
+      {
+        "file": "src/components/widgets/specific/SystemMonitoringWidget.tsx",
+        "hash": "11687389484700445968"
+      },
+      {
+        "file": "src/components/widgets/specific/SystemStatsWidget.tsx",
+        "hash": "1707451333658893247"
+      },
+      {
+        "file": "src/components/widgets/specific/TasksWidget.tsx",
+        "hash": "10242083419256694419"
+      },
+      {
+        "file": "src/components/widgets/specific/TeacherWorkloadWidget.tsx",
+        "hash": "9862175845834753961"
+      },
+      {
+        "file": "src/contexts/ActivityContext.ts",
+        "hash": "6403304872481585287"
       },
       {
         "file": "src/contexts/AuthContext.ts",
@@ -320,11 +792,35 @@
       },
       {
         "file": "src/contexts/BrandingContext.tsx",
-        "hash": "15321519217867484447"
+        "hash": "10606431087213751318"
       },
       {
         "file": "src/contexts/NotificationContext.ts",
         "hash": "2393502222221794723"
+      },
+      {
+        "file": "src/contexts/ToastContext.ts",
+        "hash": "7768048223296122880"
+      },
+      {
+        "file": "src/data/mockAttendanceData.json",
+        "hash": "1343169546519016286"
+      },
+      {
+        "file": "src/data/mockJasLifeData.ts",
+        "hash": "12482982020135949643"
+      },
+      {
+        "file": "src/data/mockNewsFeedData.ts",
+        "hash": "8923813024078425488"
+      },
+      {
+        "file": "src/data/mockSecurityData.ts",
+        "hash": "7031961088134546433"
+      },
+      {
+        "file": "src/hooks/useActivityMonitoring.ts",
+        "hash": "14474470433724229321"
       },
       {
         "file": "src/hooks/useAuth.ts",
@@ -336,15 +832,31 @@
       },
       {
         "file": "src/hooks/useChat.ts",
-        "hash": "8663516806244286912"
+        "hash": "4483087492516899455"
       },
       {
         "file": "src/hooks/useClassrooms.ts",
         "hash": "1041235566711226060"
       },
       {
+        "file": "src/hooks/useCurrentStudent.ts",
+        "hash": "11340232644917246972"
+      },
+      {
+        "file": "src/hooks/useFakePositions.ts",
+        "hash": "3241813165531061478"
+      },
+      {
+        "file": "src/hooks/useFakePositionsActions.ts",
+        "hash": "14761022031798213199"
+      },
+      {
         "file": "src/hooks/useGroups.ts",
         "hash": "15637895043389188060"
+      },
+      {
+        "file": "src/hooks/useJasLife.ts",
+        "hash": "15094281175939654122"
       },
       {
         "file": "src/hooks/useLessons.ts",
@@ -359,12 +871,20 @@
         "hash": "13242452422681243334"
       },
       {
+        "file": "src/hooks/useNewsFeed.ts",
+        "hash": "3848585125232702263"
+      },
+      {
+        "file": "src/hooks/useParent.ts",
+        "hash": "8332885847231434911"
+      },
+      {
         "file": "src/hooks/useRealtimeChat.ts",
         "hash": "1490329571616703638"
       },
       {
         "file": "src/hooks/useSalaries.ts",
-        "hash": "8290585925757102478"
+        "hash": "17068833779336197951"
       },
       {
         "file": "src/hooks/useStudents.ts",
@@ -372,7 +892,7 @@
       },
       {
         "file": "src/hooks/useStudyPlans.ts",
-        "hash": "18159314017474307842"
+        "hash": "2347072063171889192"
       },
       {
         "file": "src/hooks/useSystem.ts",
@@ -383,12 +903,28 @@
         "hash": "308291691054390880"
       },
       {
+        "file": "src/hooks/useTeacherLessons.ts",
+        "hash": "15208647005991470192"
+      },
+      {
         "file": "src/hooks/useTeachers.ts",
         "hash": "17795194236029239572"
       },
       {
+        "file": "src/hooks/useToast.ts",
+        "hash": "1540332878543876837"
+      },
+      {
+        "file": "src/hooks/useToastContext.ts",
+        "hash": "3715374796458400959"
+      },
+      {
         "file": "src/hooks/useVacations.ts",
         "hash": "16364103519583585928"
+      },
+      {
+        "file": "src/hooks/useWidgets.ts",
+        "hash": "7676774893636663235"
       },
       {
         "file": "src/hooks/useWorkload.ts",
@@ -396,7 +932,7 @@
       },
       {
         "file": "src/index.css",
-        "hash": "13728775110065023551"
+        "hash": "8001819409393953701"
       },
       {
         "file": "src/main.tsx",
@@ -404,11 +940,19 @@
       },
       {
         "file": "src/pages/AcademicJournal.tsx",
-        "hash": "2397898152053133543"
+        "hash": "7758863987255464306"
+      },
+      {
+        "file": "src/pages/ActivityMonitoring.tsx",
+        "hash": "6823148836098045990"
+      },
+      {
+        "file": "src/pages/AdminChats.tsx",
+        "hash": "18164888326141412052"
       },
       {
         "file": "src/pages/AiChat.tsx",
-        "hash": "10085990681090280526"
+        "hash": "13178118053625357353"
       },
       {
         "file": "src/pages/Branding.tsx",
@@ -416,15 +960,15 @@
       },
       {
         "file": "src/pages/Budget.tsx",
-        "hash": "9571139916668772421"
+        "hash": "15523008131531909078"
       },
       {
         "file": "src/pages/Calendar.tsx",
-        "hash": "12928314655172610677"
+        "hash": "16634732673718677268"
       },
       {
         "file": "src/pages/Chat.tsx",
-        "hash": "10418144336949908"
+        "hash": "12494822688179894153"
       },
       {
         "file": "src/pages/Classrooms.tsx",
@@ -432,15 +976,39 @@
       },
       {
         "file": "src/pages/Dashboard.tsx",
-        "hash": "8284195322086836980"
+        "hash": "6361545769795429565"
+      },
+      {
+        "file": "src/pages/DocumentCreate.tsx",
+        "hash": "4594730139155676267"
+      },
+      {
+        "file": "src/pages/DocumentDetail.tsx",
+        "hash": "14536544142884895614"
+      },
+      {
+        "file": "src/pages/EDO.tsx",
+        "hash": "14430830221002949429"
+      },
+      {
+        "file": "src/pages/EducationalReports.tsx",
+        "hash": "4415234158114668178"
+      },
+      {
+        "file": "src/pages/FakePositions.tsx",
+        "hash": "16865434989617692425"
       },
       {
         "file": "src/pages/FeedbackAdmin.tsx",
-        "hash": "14651683888524681258"
+        "hash": "3166171958409187298"
+      },
+      {
+        "file": "src/pages/GroupDetail.tsx",
+        "hash": "6302229497645120065"
       },
       {
         "file": "src/pages/Groups.tsx",
-        "hash": "12976649764382261011"
+        "hash": "15043179756663210236"
       },
       {
         "file": "src/pages/Homework.tsx",
@@ -448,7 +1016,7 @@
       },
       {
         "file": "src/pages/HomeworkSubmissions.tsx",
-        "hash": "15874907060464282377"
+        "hash": "7374217457401025920"
       },
       {
         "file": "src/pages/Integrations.tsx",
@@ -463,6 +1031,10 @@
         "hash": "8219763073420971081"
       },
       {
+        "file": "src/pages/JasLife.tsx",
+        "hash": "7717198085525112516"
+      },
+      {
         "file": "src/pages/Journal.tsx",
         "hash": "3244421341483603138"
       },
@@ -472,7 +1044,7 @@
       },
       {
         "file": "src/pages/KPI.tsx",
-        "hash": "18010125873527914184"
+        "hash": "1459210615338923199"
       },
       {
         "file": "src/pages/Lesson.tsx",
@@ -480,11 +1052,11 @@
       },
       {
         "file": "src/pages/LessonDetail.tsx",
-        "hash": "14928471989681300286"
+        "hash": "15126879219827496032"
       },
       {
         "file": "src/pages/LessonEditor.tsx",
-        "hash": "6282000504687923692"
+        "hash": "13795957262132842676"
       },
       {
         "file": "src/pages/LessonJournal.tsx",
@@ -492,11 +1064,11 @@
       },
       {
         "file": "src/pages/LessonMaterials.tsx",
-        "hash": "18361332581466651545"
+        "hash": "1564993049033494378"
       },
       {
         "file": "src/pages/Lessons.tsx",
-        "hash": "7039518231123178747"
+        "hash": "537869158772340915"
       },
       {
         "file": "src/pages/Login.tsx",
@@ -507,44 +1079,72 @@
         "hash": "9454190050574597983"
       },
       {
+        "file": "src/pages/MyChildren.tsx",
+        "hash": "17617931244599454112"
+      },
+      {
         "file": "src/pages/NeuroAbai.tsx",
         "hash": "8933252419214866499"
       },
       {
+        "file": "src/pages/News.tsx",
+        "hash": "9264878832694970520"
+      },
+      {
         "file": "src/pages/Payments.tsx",
-        "hash": "2181902738862329748"
+        "hash": "17771866759979134621"
       },
       {
         "file": "src/pages/Performance.tsx",
-        "hash": "14358975420865230067"
+        "hash": "6832938098699025504"
       },
       {
         "file": "src/pages/Permissions.tsx",
         "hash": "17465556889449568779"
       },
       {
+        "file": "src/pages/QuizAttemptResultPage.tsx",
+        "hash": "16612003027883193392"
+      },
+      {
+        "file": "src/pages/QuizResultsPage.tsx",
+        "hash": "1778956206469123410"
+      },
+      {
+        "file": "src/pages/QuizTakingPage.tsx",
+        "hash": "3504356863483703460"
+      },
+      {
         "file": "src/pages/Reports.tsx",
-        "hash": "6198328921125519059"
+        "hash": "12503441628865324565"
       },
       {
         "file": "src/pages/Salaries.tsx",
-        "hash": "12169455564756942075"
+        "hash": "8990960136765557388"
       },
       {
         "file": "src/pages/Schedule.tsx",
-        "hash": "3592590250177783787"
+        "hash": "18422863978035483575"
+      },
+      {
+        "file": "src/pages/Security.tsx",
+        "hash": "14359657202736894069"
       },
       {
         "file": "src/pages/StudentDetail.tsx",
-        "hash": "10147123429985524839"
+        "hash": "3362625784127827952"
+      },
+      {
+        "file": "src/pages/StudentProfile.tsx",
+        "hash": "6520390851794272341"
       },
       {
         "file": "src/pages/Students.tsx",
-        "hash": "6803440160499525359"
+        "hash": "9987784501146609049"
       },
       {
         "file": "src/pages/StudyPlans.tsx",
-        "hash": "16409031704941075109"
+        "hash": "242985560766331416"
       },
       {
         "file": "src/pages/Substitutions.tsx",
@@ -556,15 +1156,19 @@
       },
       {
         "file": "src/pages/SystemSettings.tsx",
-        "hash": "12936907075766188415"
+        "hash": "17701491116249679521"
       },
       {
         "file": "src/pages/Tasks.tsx",
-        "hash": "16764546096706928306"
+        "hash": "11984277140919372750"
+      },
+      {
+        "file": "src/pages/TeacherProfile.tsx",
+        "hash": "11839735169015454846"
       },
       {
         "file": "src/pages/Teachers.tsx",
-        "hash": "9159466979508773309"
+        "hash": "2692183083193753829"
       },
       {
         "file": "src/pages/Users.tsx",
@@ -572,19 +1176,31 @@
       },
       {
         "file": "src/pages/Vacations.tsx",
-        "hash": "11771519330930838525"
+        "hash": "18160910071499721149"
       },
       {
         "file": "src/pages/Workload.tsx",
-        "hash": "18317394132801221229"
+        "hash": "9914221020971590"
+      },
+      {
+        "file": "src/providers/ActivityProvider.tsx",
+        "hash": "7305511884731102971"
       },
       {
         "file": "src/providers/AuthProvider.tsx",
         "hash": "11576921286228331254"
       },
       {
+        "file": "src/providers/BrandingProvider.tsx",
+        "hash": "9325575032687223836"
+      },
+      {
         "file": "src/providers/NotificationProvider.tsx",
         "hash": "10183417064214714246"
+      },
+      {
+        "file": "src/providers/ToastProvider.tsx",
+        "hash": "8246097867432654236"
       },
       {
         "file": "src/routes/JournalRoutes.tsx",
@@ -596,7 +1212,7 @@
       },
       {
         "file": "src/services/apiClient.ts",
-        "hash": "7729766963897476044"
+        "hash": "3026582745921435666"
       },
       {
         "file": "src/services/authService.ts",
@@ -623,16 +1239,28 @@
         "hash": "14688480015026639418"
       },
       {
+        "file": "src/services/edoService.ts",
+        "hash": "1602093980421683410"
+      },
+      {
+        "file": "src/services/educationalReportsApi.ts",
+        "hash": "13130617304956454057"
+      },
+      {
         "file": "src/services/feedbackService.ts",
-        "hash": "8496905974745963113"
+        "hash": "10874918345044607044"
       },
       {
         "file": "src/services/fileService.ts",
-        "hash": "17642708625872215338"
+        "hash": "12846035658835664682"
       },
       {
         "file": "src/services/financeService.ts",
-        "hash": "3798042818671073471"
+        "hash": "17236398091368791582"
+      },
+      {
+        "file": "src/services/groupPaymentService.ts",
+        "hash": "12498685051665209162"
       },
       {
         "file": "src/services/groupService.ts",
@@ -652,7 +1280,15 @@
       },
       {
         "file": "src/services/kpiService.ts",
-        "hash": "13156970922211693433"
+        "hash": "18444555499961752915"
+      },
+      {
+        "file": "src/services/ktpService.ts",
+        "hash": "5852247818829674662"
+      },
+      {
+        "file": "src/services/lessonScheduleService.ts",
+        "hash": "2570754824522556585"
       },
       {
         "file": "src/services/lessonService.ts",
@@ -664,7 +1300,7 @@
       },
       {
         "file": "src/services/materialService.ts",
-        "hash": "17357913929999417913"
+        "hash": "3798814051295570172"
       },
       {
         "file": "src/services/neuroAbaiService.ts",
@@ -675,28 +1311,40 @@
         "hash": "4258276623841055076"
       },
       {
+        "file": "src/services/parentService.ts",
+        "hash": "12311096233409672519"
+      },
+      {
+        "file": "src/services/paymentsService.ts",
+        "hash": "4095772241886700452"
+      },
+      {
         "file": "src/services/performanceService.ts",
-        "hash": "11307310860180319323"
+        "hash": "1809033997870829810"
       },
       {
         "file": "src/services/quizService.ts",
-        "hash": "17703570307148304161"
+        "hash": "4712738783619481771"
+      },
+      {
+        "file": "src/services/salaryPDFService.ts",
+        "hash": "2264728281875866668"
       },
       {
         "file": "src/services/salaryService.ts",
-        "hash": "9083423328795680005"
+        "hash": "3301606028099866307"
       },
       {
         "file": "src/services/scheduleService.ts",
-        "hash": "2603361485773634013"
+        "hash": "7213985334350804430"
       },
       {
         "file": "src/services/studentService.ts",
-        "hash": "7608746049432768112"
+        "hash": "12587719096128358545"
       },
       {
         "file": "src/services/studyPlanService.ts",
-        "hash": "679963387276355627"
+        "hash": "2439383270951387797"
       },
       {
         "file": "src/services/supplyService.ts",
@@ -704,7 +1352,7 @@
       },
       {
         "file": "src/services/systemService.ts",
-        "hash": "894073708656151820"
+        "hash": "8320149961268680116"
       },
       {
         "file": "src/services/taskService.ts",
@@ -716,11 +1364,15 @@
       },
       {
         "file": "src/services/vacationService.ts",
-        "hash": "1346226294594428633"
+        "hash": "12624870657452087884"
+      },
+      {
+        "file": "src/services/widgetService.ts",
+        "hash": "18048236287173853089"
       },
       {
         "file": "src/services/workloadService.ts",
-        "hash": "1231371048237158541"
+        "hash": "7512859784537847986"
       },
       {
         "file": "src/styles/animations.css",
@@ -735,8 +1387,12 @@
         "hash": "10836969062489919571"
       },
       {
+        "file": "src/types/fakePositions.ts",
+        "hash": "11497763368715561006"
+      },
+      {
         "file": "src/types/finance.ts",
-        "hash": "4198025877502712095"
+        "hash": "1080208183061259652"
       },
       {
         "file": "src/types/group.ts",
@@ -747,20 +1403,32 @@
         "hash": "5923260052734415445"
       },
       {
+        "file": "src/types/jasLife.ts",
+        "hash": "5476829049458550931"
+      },
+      {
         "file": "src/types/journal.ts",
         "hash": "9056241303613950619"
       },
       {
         "file": "src/types/kpi.ts",
-        "hash": "411732086071303595"
+        "hash": "8106373835305584022"
+      },
+      {
+        "file": "src/types/ktp.ts",
+        "hash": "16593388521171750632"
       },
       {
         "file": "src/types/lesson.ts",
-        "hash": "1395549786914205500"
+        "hash": "10010743595854040657"
       },
       {
         "file": "src/types/loyalty.ts",
         "hash": "13026535892086989220"
+      },
+      {
+        "file": "src/types/newsFeed.ts",
+        "hash": "13607456711274095195"
       },
       {
         "file": "src/types/notification.ts",
@@ -772,11 +1440,15 @@
       },
       {
         "file": "src/types/salary.ts",
-        "hash": "7438618752041362919"
+        "hash": "11941663796360872091"
       },
       {
         "file": "src/types/schedule.ts",
-        "hash": "1955637967590607764"
+        "hash": "5460162111703140842"
+      },
+      {
+        "file": "src/types/security.ts",
+        "hash": "613479497343496813"
       },
       {
         "file": "src/types/studyPlan.ts",
@@ -796,7 +1468,11 @@
       },
       {
         "file": "src/types/vacation.ts",
-        "hash": "8540628656473979520"
+        "hash": "7553020406490884291"
+      },
+      {
+        "file": "src/types/widget.ts",
+        "hash": "15816285041449287166"
       },
       {
         "file": "src/types/workload.ts",
@@ -812,11 +1488,15 @@
       },
       {
         "file": "src/utils/formatters.ts",
-        "hash": "13104669426369452865"
+        "hash": "4605347951272453006"
       },
       {
         "file": "src/utils/index.ts",
         "hash": "15520105518377604418"
+      },
+      {
+        "file": "src/utils/lessonTypeUtils.ts",
+        "hash": "14500835166287140144"
       },
       {
         "file": "src/utils/validators.ts",
@@ -828,7 +1508,7 @@
       },
       {
         "file": "tailwind.config.js",
-        "hash": "7082402037600683070"
+        "hash": "982361941146417966"
       },
       {
         "file": "tsconfig.app.json",
@@ -844,7 +1524,7 @@
       },
       {
         "file": "vite.config.ts",
-        "hash": "12700629396391108940"
+        "hash": "3141815960839938159"
       }
     ]
   }

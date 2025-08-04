@@ -8,7 +8,7 @@ export default defineConfig({
     "allowedHosts": [
       "localhost",
       "*.abai.live"
-    ]
+    ],
   },
   preview: {
     allowedHosts: [

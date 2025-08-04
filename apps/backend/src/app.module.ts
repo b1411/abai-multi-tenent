@@ -28,6 +28,7 @@ import { WorkloadModule } from './workload/workload.module';
 import { SalariesModule } from './salaries/salaries.module';
 import { PerformanceModule } from './performance/performance.module';
 import { KpiModule } from './kpi/kpi.module';
+import { KtpModule } from './ktp/ktp.module';
 import { VacationsModule } from './vacations/vacations.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { FeedbackModule } from './feedback/feedback.module';
@@ -41,7 +42,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ActivityMonitoringModule } from './activity-monitoring/activity-monitoring.module';
 import { EducationalReportsModule } from './educational-reports/educational-reports.module';
 import { EdoModule } from './edo/edo.module';
-import { DevtoolsModule } from '@nestjs/devtools-integration';
 
 @Module({
   imports: [
@@ -69,6 +69,7 @@ import { DevtoolsModule } from '@nestjs/devtools-integration';
     SalariesModule,
     PerformanceModule,
     KpiModule,
+    KtpModule,
     VacationsModule,
     LoyaltyModule,
     FeedbackModule,

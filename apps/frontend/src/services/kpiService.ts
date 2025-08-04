@@ -173,4 +173,175 @@ export const kpiService = {
     if (teacherId) params.append('teacherId', teacherId.toString());
     return await apiClient.get(`/kpi/student-admissions?${params}`);
   },
+
+  // Periodic KPI methods
+  getPeriodicKpi: async (filter?: {
+    teacherId?: number;
+    period?: string;
+    year?: number;
+    month?: number;
+    quarter?: number;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filter?.teacherId) params.append('teacherId', filter.teacherId.toString());
+    if (filter?.period) params.append('period', filter.period);
+    if (filter?.year) params.append('year', filter.year.toString());
+    if (filter?.month) params.append('month', filter.month.toString());
+    if (filter?.quarter) params.append('quarter', filter.quarter.toString());
+    if (filter?.startDate) params.append('startDate', filter.startDate);
+    if (filter?.endDate) params.append('endDate', filter.endDate);
+    
+    return await apiClient.get(`/kpi/periodic?${params}`);
+  },
+
+  getPeriodicStats: async (filter?: {
+    teacherId?: number;
+    year?: number;
+    period?: 'monthly' | 'quarterly' | 'yearly';
+  }) => {
+    const params = new URLSearchParams();
+    if (filter?.teacherId) params.append('teacherId', filter.teacherId.toString());
+    if (filter?.year) params.append('year', filter.year.toString());
+    if (filter?.period) params.append('period', filter.period);
+    
+    return await apiClient.get(`/kpi/periodic/stats?${params}`);
+  },
+
+  getPeriodicTrends: async (filter?: {
+    teacherId?: number;
+    startYear?: number;
+    endYear?: number;
+    achievementType?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filter?.teacherId) params.append('teacherId', filter.teacherId.toString());
+    if (filter?.startYear) params.append('startYear', filter.startYear.toString());
+    if (filter?.endYear) params.append('endYear', filter.endYear.toString());
+    if (filter?.achievementType) params.append('achievementType', filter.achievementType);
+    
+    return await apiClient.get(`/kpi/periodic/trends?${params}`);
+  },
+
+  getPeriodicComparison: async (filter?: {
+    teacherIds?: number[];
+    period?: string;
+    year?: number;
+    comparisonType?: 'achievements' | 'olympiads' | 'admissions';
+  }) => {
+    const params = new URLSearchParams();
+    if (filter?.teacherIds?.length) {
+      filter.teacherIds.forEach(id => params.append('teacherIds', id.toString()));
+    }
+    if (filter?.period) params.append('period', filter.period);
+    if (filter?.year) params.append('year', filter.year.toString());
+    if (filter?.comparisonType) params.append('comparisonType', filter.comparisonType);
+    
+    return await apiClient.get(`/kpi/periodic/comparison?${params}`);
+  },
+
+  exportPeriodicKpi: async (filter?: {
+    teacherId?: number;
+    period?: string;
+    year?: number;
+    format?: 'xlsx' | 'csv' | 'pdf';
+  }): Promise<Blob> => {
+    const params = new URLSearchParams();
+    if (filter?.teacherId) params.append('teacherId', filter.teacherId.toString());
+    if (filter?.period) params.append('period', filter.period);
+    if (filter?.year) params.append('year', filter.year.toString());
+    if (filter?.format) params.append('format', filter.format);
+    
+    return await apiClient.getBlob(`/kpi/periodic/export?${params}`);
+  },
+
+  // Achievement verification methods
+  verifyAchievement: async (achievementId: number, verified: boolean, comment?: string) => {
+    return await apiClient.put(`/kpi/achievements/${achievementId}/verify`, {
+      isVerified: verified,
+      comment
+    });
+  },
+
+  verifyOlympiadResult: async (resultId: number, verified: boolean, comment?: string) => {
+    return await apiClient.put(`/kpi/olympiad-results/${resultId}/verify`, {
+      isVerified: verified,
+      comment
+    });
+  },
+
+  verifyStudentAdmission: async (admissionId: number, verified: boolean, comment?: string) => {
+    return await apiClient.put(`/kpi/student-admissions/${admissionId}/verify`, {
+      isVerified: verified,
+      comment
+    });
+  },
+
+  // Delete methods
+  deleteAchievement: async (achievementId: number) => {
+    return await apiClient.delete(`/kpi/achievements/${achievementId}`);
+  },
+
+  deleteOlympiadResult: async (resultId: number) => {
+    return await apiClient.delete(`/kpi/olympiad-results/${resultId}`);
+  },
+
+  deleteStudentAdmission: async (admissionId: number) => {
+    return await apiClient.delete(`/kpi/student-admissions/${admissionId}`);
+  },
+
+  // Bulk operations
+  bulkCreateAchievements: async (achievements: any[]) => {
+    return await apiClient.post(`/kpi/achievements/bulk`, { achievements });
+  },
+
+  bulkUpdateAchievements: async (updates: { id: number; data: any }[]) => {
+    return await apiClient.put(`/kpi/achievements/bulk`, { updates });
+  },
+
+  bulkDeleteAchievements: async (achievementIds: number[]) => {
+    return await apiClient.post(`/kpi/achievements/bulk-delete`, { ids: achievementIds });
+  },
+
+  // KPI summary for dashboard
+  getKpiSummary: async (teacherId?: number, period?: string) => {
+    const params = new URLSearchParams();
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    if (period) params.append('period', period);
+    
+    return await apiClient.get(`/kpi/summary?${params}`);
+  },
+
+  // Achievement types and metadata
+  getAchievementTypes: async () => {
+    return await apiClient.get(`/kpi/achievement-types`);
+  },
+
+  getSchoolTypes: async () => {
+    return await apiClient.get(`/kpi/school-types`);
+  },
+
+  // Periodic KPI goals
+  getPeriodicGoals: async (teacherId?: number, year?: number) => {
+    const params = new URLSearchParams();
+    if (teacherId) params.append('teacherId', teacherId.toString());
+    if (year) params.append('year', year.toString());
+    
+    return await apiClient.get(`/kpi/periodic/goals?${params}`);
+  },
+
+  setPeriodicGoals: async (goals: {
+    teacherId: number;
+    year: number;
+    achievements?: number;
+    olympiadWins?: number;
+    studentAdmissions?: number;
+  }) => {
+    return await apiClient.post(`/kpi/periodic/goals`, goals);
+  },
+
+  updatePeriodicGoals: async (goalId: number, goals: any) => {
+    return await apiClient.put(`/kpi/periodic/goals/${goalId}`, goals);
+  },
 };

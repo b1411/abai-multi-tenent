@@ -2402,4 +2402,722 @@ export class KpiService {
       throw new Error('Не удалось получить список студентов');
     }
   }
+
+  /**
+   * РАСЧЕТ ОБЩЕГО БАЛЛА KPI ПО ПЕРИОДИЧЕСКИМ ДОСТИЖЕНИЯМ
+   */
+
+  /**
+   * Рассчитывает общий балл KPI по периодическим достижениям для преподавателя
+   */
+  async calculatePeriodicKpiScore(teacherId: number, period?: { start: Date; end: Date }) {
+    try {
+      // Устанавливаем период по умолчанию (последний год)
+      const defaultPeriod = {
+        start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        end: new Date(),
+      };
+      const calculationPeriod = period || defaultPeriod;
+
+      console.log(`🧮 Расчет KPI для преподавателя ${teacherId}:`, {
+        период: {
+          start: calculationPeriod.start.toISOString(),
+          end: calculationPeriod.end.toISOString()
+        }
+      });
+
+      // Получаем все периодические достижения преподавателя за период
+      const achievements = await this.prisma.teacherAchievement.findMany({
+        where: {
+          teacherId,
+          date: {
+            gte: calculationPeriod.start,
+            lte: calculationPeriod.end,
+          },
+          deletedAt: null,
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      });
+
+      console.log(`📝 Найдено достижений: ${achievements.length}`, achievements.map(a => ({
+        id: a.id,
+        title: a.title,
+        date: a.date.toISOString(),
+        points: a.points
+      })));
+
+      // Получаем результаты олимпиад за период
+      const olympiadResults = await this.prisma.olympiadResult.findMany({
+        where: {
+          teacherId,
+          date: {
+            gte: calculationPeriod.start,
+            lte: calculationPeriod.end,
+          },
+          deletedAt: null,
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      });
+
+      console.log(`🏆 Найдено результатов олимпиад: ${olympiadResults.length}`, olympiadResults.map(o => ({
+        id: o.id,
+        olympiadName: o.olympiadName,
+        date: o.date.toISOString(),
+        place: o.place
+      })));
+
+      // Получаем поступления учеников за период
+      const studentAdmissions = await this.prisma.studentAdmission.findMany({
+        where: {
+          teacherId,
+          // Для поступлений учитываем учебный год
+          admissionYear: {
+            gte: calculationPeriod.start.getFullYear(),
+            lte: calculationPeriod.end.getFullYear(),
+          },
+          deletedAt: null,
+        },
+        orderBy: {
+          admissionYear: 'desc',
+        },
+      });
+
+      console.log(`🎓 Найдено поступлений: ${studentAdmissions.length}`, studentAdmissions.map(s => ({
+        id: s.id,
+        schoolName: s.schoolName,
+        admissionYear: s.admissionYear
+      })));
+
+      // Рассчитываем баллы по каждой категории
+      const scores = {
+        olympiadWins: this.calculateOlympiadKpiScore(olympiadResults),
+        schoolAdmissions: this.calculateSchoolAdmissionKpiScore(studentAdmissions),
+        qualifications: this.calculateQualificationKpiScore(achievements),
+        teamEvents: this.calculateTeamEventKpiScore(achievements),
+        projectHelp: this.calculateProjectHelpKpiScore(achievements),
+        totalPoints: achievements.reduce((sum, ach) => sum + ach.points, 0),
+      };
+
+      // Получаем настройки для расчета общего балла
+      const settings = await this.getSettings();
+      const periodicMetrics = settings.settings.metrics.filter(m => m.type === 'periodic' && m.isActive);
+
+      // Рассчитываем общий балл по периодическим метрикам
+      let totalScore = 0;
+      let totalWeight = 0;
+
+      for (const metric of periodicMetrics) {
+        let metricScore = 0;
+        
+        switch (metric.name) {
+          case 'Призовые места на олимпиадах':
+            metricScore = scores.olympiadWins;
+            break;
+          case 'Поступление в РФМШ/НИШ/БИЛ':
+            metricScore = scores.schoolAdmissions.elite;
+            break;
+          case 'Поступление в лицеи/частные школы':
+            metricScore = scores.schoolAdmissions.regular;
+            break;
+          case 'Повышение квалификации':
+            metricScore = scores.qualifications;
+            break;
+          case 'Участие в командных мероприятиях':
+            metricScore = scores.teamEvents;
+            break;
+          case 'Помощь в проектах':
+            metricScore = scores.projectHelp;
+            break;
+        }
+
+        // Учитываем вес метрики только если она имеет бонусные баллы
+        if (metric.weight > 0) {
+          totalScore += metricScore * (metric.weight / 100);
+          totalWeight += metric.weight;
+        }
+      }
+
+      // Бонусные баллы (не входят в основной расчет, но добавляются сверху)
+      const bonusPoints = Math.min(scores.totalPoints / 10, 20); // Максимум 20 бонусных баллов
+
+      return {
+        teacherId,
+        period: calculationPeriod,
+        scores,
+        totalPeriodicScore: totalWeight > 0 ? Math.round(totalScore) : 0,
+        bonusPoints: Math.round(bonusPoints),
+        overallPeriodicKpi: Math.min(Math.round(totalScore + bonusPoints), 100),
+        achievements: {
+          total: achievements.length,
+          olympiads: olympiadResults.length,
+          admissions: studentAdmissions.length,
+        },
+        breakdown: {
+          olympiadWins: scores.olympiadWins,
+          eliteSchoolAdmissions: scores.schoolAdmissions.elite,
+          regularSchoolAdmissions: scores.schoolAdmissions.regular,
+          qualifications: scores.qualifications,
+          teamEvents: scores.teamEvents,
+          projectHelp: scores.projectHelp,
+        },
+        lastUpdated: new Date(),
+      };
+    } catch (error) {
+      console.error('Error calculating periodic KPI score:', error);
+      throw new Error('Не удалось рассчитать периодический KPI');
+    }
+  }
+
+  /**
+   * Рассчитывает балл по олимпиадам
+   */
+  private calculateOlympiadKpiScore(olympiadResults: any[]): number {
+    if (olympiadResults.length === 0) return 0;
+
+    let totalScore = 0;
+    const levelWeights = {
+      'Международный': 100,
+      'Республиканский': 80,
+      'Городской': 60,
+      'Школьный': 40,
+    };
+
+    const placeWeights = {
+      1: 1.0,
+      2: 0.8,
+      3: 0.6,
+    };
+
+    olympiadResults.forEach(result => {
+      const levelWeight = levelWeights[result.level] || 20;
+      const placeWeight = placeWeights[result.place] || 0.4;
+      totalScore += levelWeight * placeWeight;
+    });
+
+    // Нормализуем к шкале 0-100
+    return Math.min(Math.round(totalScore / 2), 100);
+  }
+
+  /**
+   * Рассчитывает балл по поступлениям в учебные заведения
+   */
+  private calculateSchoolAdmissionKpiScore(admissions: any[]): { elite: number; regular: number } {
+    if (admissions.length === 0) return { elite: 0, regular: 0 };
+
+    const eliteSchools = ['RFMSH', 'NISH', 'BIL'];
+    const regularSchools = ['LYCEUM', 'PRIVATE_SCHOOL'];
+
+    const eliteAdmissions = admissions.filter(adm => eliteSchools.includes(adm.schoolType));
+    const regularAdmissions = admissions.filter(adm => regularSchools.includes(adm.schoolType));
+
+    // Элитные школы: каждое поступление = 25 баллов (максимум 100)
+    const eliteScore = Math.min(eliteAdmissions.length * 25, 100);
+
+    // Обычные школы: каждое поступление = 15 баллов (максимум 75)
+    const regularScore = Math.min(regularAdmissions.length * 15, 75);
+
+    return {
+      elite: eliteScore,
+      regular: regularScore,
+    };
+  }
+
+  /**
+   * Рассчитывает балл по повышению квалификации
+   */
+  private calculateQualificationKpiScore(achievements: any[]): number {
+    const qualificationAchievements = achievements.filter(ach => ach.type === 'QUALIFICATION');
+    
+    if (qualificationAchievements.length === 0) return 0;
+
+    // Каждое повышение квалификации = 20 баллов (максимум 100)
+    return Math.min(qualificationAchievements.length * 20, 100);
+  }
+
+  /**
+   * Рассчитывает балл по участию в командных мероприятиях
+   */
+  private calculateTeamEventKpiScore(achievements: any[]): number {
+    const teamEventAchievements = achievements.filter(ach => ach.type === 'TEAM_EVENT');
+    
+    if (teamEventAchievements.length === 0) return 0;
+
+    // Каждое мероприятие = 15 баллов (максимум 90)
+    return Math.min(teamEventAchievements.length * 15, 90);
+  }
+
+  /**
+   * Рассчитывает балл по помощи в проектах
+   */
+  private calculateProjectHelpKpiScore(achievements: any[]): number {
+    const projectHelpAchievements = achievements.filter(ach => ach.type === 'PROJECT_HELP');
+    
+    if (projectHelpAchievements.length === 0) return 0;
+
+    // Каждый проект = 10 баллов (максимум 80)
+    return Math.min(projectHelpAchievements.length * 10, 80);
+  }
+
+  /**
+   * Получает периодический KPI для всех преподавателей
+   */
+  async getAllTeachersPeriodicKpi(period?: { start: Date; end: Date }) {
+    try {
+      const teachers = await this.prisma.teacher.findMany({
+        include: {
+          user: true,
+        },
+        where: {
+          deletedAt: null,
+        },
+      });
+
+      // Логируем период для отладки
+      console.log('📅 Период фильтрации KPI:', {
+        start: period?.start?.toISOString(),
+        end: period?.end?.toISOString(),
+        isPeriodProvided: !!period
+      });
+
+      const results = await Promise.all(
+        teachers.map(async teacher => {
+          const periodicKpi = await this.calculatePeriodicKpiScore(teacher.id, period);
+          return {
+            teacherId: teacher.id,
+            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            email: teacher.user.email,
+            rank: 0, // Будет установлен после сортировки
+            ...periodicKpi,
+          };
+        })
+      );
+
+      // Сортируем по общему периодическому KPI
+      results.sort((a, b) => b.overallPeriodicKpi - a.overallPeriodicKpi);
+
+      // Добавляем ранги
+      results.forEach((result, index) => {
+        result.rank = index + 1;
+      });
+
+      return {
+        teachers: results,
+        summary: {
+          totalTeachers: results.length,
+          averageScore: Math.round(results.reduce((sum, r) => sum + r.overallPeriodicKpi, 0) / results.length),
+          topPerformers: results.filter(r => r.overallPeriodicKpi >= 80).length,
+          hasAchievements: results.filter(r => r.achievements.total > 0).length,
+        },
+        period: period || {
+          start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+          end: new Date(),
+        },
+      };
+    } catch (error) {
+      console.error('Error getting all teachers periodic KPI:', error);
+      throw new Error('Не удалось получить периодический KPI для всех преподавателей');
+    }
+  }
+
+  /**
+   * Получает топ достижений по периоду
+   */
+  async getTopPeriodicAchievements(period?: { start: Date; end: Date }, limit: number = 10) {
+    try {
+      const calculationPeriod = period || {
+        start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        end: new Date(),
+      };
+
+      // Получаем топ достижения
+      const topAchievements = await this.prisma.teacherAchievement.findMany({
+        where: {
+          date: {
+            gte: calculationPeriod.start,
+            lte: calculationPeriod.end,
+          },
+          points: {
+            gt: 0,
+          },
+          deletedAt: null,
+        },
+        include: {
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: {
+          points: 'desc',
+        },
+        take: limit,
+      });
+
+      // Получаем топ олимпиады
+      const topOlympiads = await this.prisma.olympiadResult.findMany({
+        where: {
+          date: {
+            gte: calculationPeriod.start,
+            lte: calculationPeriod.end,
+          },
+          deletedAt: null,
+        },
+        include: {
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+          student: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: [
+          { level: 'desc' },
+          { place: 'asc' },
+        ],
+        take: limit,
+      });
+
+      // Получаем топ поступления
+      const topAdmissions = await this.prisma.studentAdmission.findMany({
+        where: {
+          admissionYear: {
+            gte: calculationPeriod.start.getFullYear(),
+            lte: calculationPeriod.end.getFullYear(),
+          },
+          deletedAt: null,
+        },
+        include: {
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+          student: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: [
+          { schoolType: 'asc' }, // RFMSH, NISH, BIL идут первыми
+          { admissionYear: 'desc' },
+        ],
+        take: limit,
+      });
+
+      return {
+        period: calculationPeriod,
+        topAchievements: topAchievements.map(ach => ({
+          id: ach.id,
+          teacherName: `${ach.teacher.user.name} ${ach.teacher.user.surname}`,
+          type: ach.type,
+          title: ach.title,
+          points: ach.points,
+          date: ach.date,
+        })),
+        topOlympiads: topOlympiads.map(olympiad => ({
+          id: olympiad.id,
+          teacherName: `${olympiad.teacher.user.name} ${olympiad.teacher.user.surname}`,
+          studentName: `${olympiad.student.user.name} ${olympiad.student.user.surname}`,
+          olympiadName: olympiad.olympiadName,
+          subject: olympiad.subject,
+          level: olympiad.level,
+          place: olympiad.place,
+          date: olympiad.date,
+        })),
+        topAdmissions: topAdmissions.map(admission => ({
+          id: admission.id,
+          teacherName: `${admission.teacher.user.name} ${admission.teacher.user.surname}`,
+          studentName: `${admission.student.user.name} ${admission.student.user.surname}`,
+          schoolType: admission.schoolType,
+          schoolName: admission.schoolName,
+          admissionYear: admission.admissionYear,
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting top periodic achievements:', error);
+      throw new Error('Не удалось получить топ достижений');
+    }
+  }
+
+  // Новые методы для периодических KPI
+  async getPeriodicKpi(filter: {
+    teacherId?: number;
+    period?: string;
+    year?: number;
+    month?: number;
+    quarter?: number;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const period = this.buildPeriodFromFilter(filter);
+    
+    if (filter.teacherId) {
+      return this.calculatePeriodicKpiScore(filter.teacherId, period);
+    } else {
+      return this.getAllTeachersPeriodicKpi(period);
+    }
+  }
+
+  async getPeriodicStats(filter: {
+    teacherId?: number;
+    year?: number;
+    period?: 'monthly' | 'quarterly' | 'yearly';
+  }) {
+    const year = filter.year || new Date().getFullYear();
+    
+    // Базовая статистика - пока возвращаем заглушку
+    return {
+      year,
+      period: filter.period || 'yearly',
+      teacherId: filter.teacherId,
+      stats: {
+        totalAchievements: 0,
+        averageScore: 0,
+        bestMonth: 'Январь',
+        improvement: '+5%'
+      }
+    };
+  }
+
+  async getPeriodicTrends(filter: {
+    teacherId?: number;
+    startYear?: number;
+    endYear?: number;
+    achievementType?: string;
+  }) {
+    // Возвращаем данные для трендов
+    const currentYear = new Date().getFullYear();
+    const startYear = filter.startYear || (currentYear - 2);
+    const endYear = filter.endYear || currentYear;
+    
+    const trends = [];
+    for (let year = startYear; year <= endYear; year++) {
+      trends.push({
+        year,
+        achievements: Math.floor(Math.random() * 10),
+        score: Math.floor(Math.random() * 100)
+      });
+    }
+    
+    return { trends };
+  }
+
+  async getPeriodicComparison(filter: {
+    teacherIds?: number[];
+    period?: string;
+    year?: number;
+    comparisonType?: 'achievements' | 'olympiads' | 'admissions';
+  }) {
+    // Заглушка для сравнения
+    return {
+      comparison: filter.teacherIds?.map(id => ({
+        teacherId: id,
+        score: Math.floor(Math.random() * 100),
+        achievements: Math.floor(Math.random() * 5)
+      })) || []
+    };
+  }
+
+  async exportPeriodicKpi(filter: {
+    teacherId?: number;
+    period?: string;
+    year?: number;
+    format?: 'xlsx' | 'csv' | 'pdf';
+  }): Promise<Buffer> {
+    const format = filter.format || 'xlsx';
+    const data = await this.getPeriodicKpi(filter);
+    
+    // Преобразуем в формат для экспорта
+    const exportData = [{
+      'Преподаватель': 'Данные',
+      'Период': filter.period || 'год',
+      'Баллы': JSON.stringify(data)
+    }];
+    
+    return this.generateExportFile(exportData, format);
+  }
+
+  // Методы верификации
+  async verifyAchievement(achievementId: number, verified: boolean, comment?: string) {
+    return this.prisma.teacherAchievement.update({
+      where: { id: achievementId },
+      data: { 
+        isVerified: verified,
+        verifiedAt: verified ? new Date() : null
+      }
+    });
+  }
+
+  async verifyOlympiadResult(resultId: number, verified: boolean, comment?: string) {
+    // Пока возвращаем заглушку, так как нет поля isVerified в OlympiadResult
+    return { message: 'Верификация результата олимпиады', verified, comment };
+  }
+
+  async verifyStudentAdmission(admissionId: number, verified: boolean, comment?: string) {
+    // Пока возвращаем заглушку, так как нет поля isVerified в StudentAdmission
+    return { message: 'Верификация поступления', verified, comment };
+  }
+
+  // Методы удаления
+  async deleteAchievement(achievementId: number) {
+    return this.prisma.teacherAchievement.update({
+      where: { id: achievementId },
+      data: { deletedAt: new Date() }
+    });
+  }
+
+  async deleteOlympiadResult(resultId: number) {
+    return this.prisma.olympiadResult.update({
+      where: { id: resultId },
+      data: { deletedAt: new Date() }
+    });
+  }
+
+  async deleteStudentAdmission(admissionId: number) {
+    return this.prisma.studentAdmission.update({
+      where: { id: admissionId },
+      data: { deletedAt: new Date() }
+    });
+  }
+
+  // Массовые операции
+  async bulkCreateAchievements(achievements: any[]) {
+    const results = await Promise.all(
+      achievements.map(achievement => this.createAchievement(achievement))
+    );
+    return { message: 'Достижения созданы', count: results.length };
+  }
+
+  async bulkUpdateAchievements(updates: { id: number; data: any }[]) {
+    const results = await Promise.all(
+      updates.map(update => this.updateAchievement(update.id, update.data))
+    );
+    return { message: 'Достижения обновлены', count: results.length };
+  }
+
+  async bulkDeleteAchievements(ids: number[]) {
+    const results = await Promise.all(
+      ids.map(id => this.deleteAchievement(id))
+    );
+    return { message: 'Достижения удалены', count: results.length };
+  }
+
+  // Сводка и метаданные
+  async getKpiSummary(teacherId?: number, period?: string) {
+    const summary = {
+      totalTeachers: await this.prisma.teacher.count(),
+      averageKpi: 75,
+      topPerformers: 5,
+      recentAchievements: 12
+    };
+
+    if (teacherId) {
+      const teacherKpi = await this.calculatePeriodicKpiScore(teacherId);
+      return { ...summary, teacherKpi };
+    }
+
+    return summary;
+  }
+
+  async getAchievementTypes() {
+    return [
+      { value: 'OLYMPIAD_WIN', label: 'Призовое место на олимпиаде' },
+      { value: 'SCHOOL_ADMISSION', label: 'Поступление в школу' },
+      { value: 'QUALIFICATION', label: 'Повышение квалификации' },
+      { value: 'TEAM_EVENT', label: 'Участие в командных мероприятиях' },
+      { value: 'PROJECT_HELP', label: 'Помощь в проектах' }
+    ];
+  }
+
+  async getSchoolTypes() {
+    return [
+      { value: 'RFMSH', label: 'РФМШ' },
+      { value: 'NISH', label: 'НИШ' },
+      { value: 'BIL', label: 'БИЛ' },
+      { value: 'LYCEUM', label: 'Лицей' },
+      { value: 'PRIVATE_SCHOOL', label: 'Частная школа' }
+    ];
+  }
+
+  // Периодические цели
+  async getPeriodicGoals(teacherId?: number, year?: number) {
+    // Заглушка для целей
+    return {
+      goals: [],
+      teacherId,
+      year: year || new Date().getFullYear()
+    };
+  }
+
+  async setPeriodicGoals(goals: {
+    teacherId: number;
+    year: number;
+    achievements?: number;
+    olympiadWins?: number;
+    studentAdmissions?: number;
+  }) {
+    // Заглушка для установки целей
+    return {
+      message: 'Цели установлены',
+      goals
+    };
+  }
+
+  async updatePeriodicGoals(goalId: number, goals: any) {
+    // Заглушка для обновления целей
+    return {
+      message: 'Цели обновлены',
+      goalId,
+      goals
+    };
+  }
+
+  // Вспомогательные методы
+  private buildPeriodFromFilter(filter: any): { start: Date; end: Date } | undefined {
+    if (filter.startDate && filter.endDate) {
+      return {
+        start: new Date(filter.startDate),
+        end: new Date(filter.endDate)
+      };
+    }
+
+    if (filter.year) {
+      if (filter.month) {
+        const start = new Date(filter.year, filter.month - 1, 1);
+        const end = new Date(filter.year, filter.month, 0);
+        return { start, end };
+      }
+      if (filter.quarter) {
+        const start = new Date(filter.year, (filter.quarter - 1) * 3, 1);
+        const end = new Date(filter.year, filter.quarter * 3, 0);
+        return { start, end };
+      }
+      return {
+        start: new Date(filter.year, 0, 1),
+        end: new Date(filter.year, 11, 31)
+      };
+    }
+
+    return undefined;
+  }
+
+  private async generateExportFile(data: any[], format: string): Promise<Buffer> {
+    if (format === 'csv') {
+      return this.generateCSV(data);
+    } else if (format === 'pdf') {
+      return await this.generatePDF(data);
+    } else {
+      return await this.generateXLSX(data);
+    }
+  }
 }

@@ -34,12 +34,14 @@ import type {
 import { Spinner } from '../components/ui/Spinner';
 import KpiAchievementModal from '../components/KpiAchievementModal';
 import KpiAchievementsList from '../components/KpiAchievementsList';
+import PeriodicKpiDashboard from '../components/PeriodicKpiDashboard';
 
 const KPI: React.FC = () => {
   const [overview, setOverview] = useState<KpiOverviewResponse | null>(null);
   const [teachers, setTeachers] = useState<TeacherKpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'main' | 'periodic'>('main');
 
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherKpi | null>(null);
   const [selectedTeacherDetails, setSelectedTeacherDetails] = useState<any>(null);
@@ -246,7 +248,38 @@ const KPI: React.FC = () => {
         </div>
       </div>
 
-      {/* Информация о системе */}
+      {/* Вкладки */}
+      <div className="mb-8">
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('main')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              activeTab === 'main'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Основные KPI
+          </button>
+          <button
+            onClick={() => setActiveTab('periodic')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              activeTab === 'periodic'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Периодические KPI
+          </button>
+        </div>
+      </div>
+
+      {/* Контент вкладок */}
+      {activeTab === 'periodic' ? (
+        <PeriodicKpiDashboard />
+      ) : (
+        <div>
+          {/* Информация о системе */}
       <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-sm border border-blue-200">
         <div className="flex items-start space-x-4">
           <div className="flex-shrink-0">
@@ -838,6 +871,8 @@ const KPI: React.FC = () => {
           teacherId={selectedTeacher.id}
           teacherName={selectedTeacher.name}
         />
+      )}
+        </div>
       )}
     </div>
   );

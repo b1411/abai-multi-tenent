@@ -242,7 +242,7 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
                   } disabled:bg-gray-400`}
               >
                 <Mic className="h-6 w-6 mr-2" />
-                {isRecording ? 'Запись...' : 'Удерживайте для разговора'}
+                {isRecording ? 'Запись...' : 'Скажите что-нибудь'}
               </button>
             </div>
           </div>

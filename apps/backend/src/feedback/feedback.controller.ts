@@ -20,20 +20,17 @@ import { UpdateFeedbackTemplateDto } from './dto/update-feedback-template.dto';
 import { CreateFeedbackResponseDto } from './dto/create-feedback-response.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
-import { ThrottleGuard } from '../common/guards/throttle.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Throttle } from '../common/decorators/throttle.decorator';
 import { UserRole } from 'generated/prisma';
 
 @Controller('feedback')
-@UseGuards(AuthGuard, RolesGuard, ThrottleGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class FeedbackController {
-  constructor(private readonly feedbackService: FeedbackService) {}
+  constructor(private readonly feedbackService: FeedbackService) { }
 
   // Создание шаблона (только для админов)
   @Post('templates')
   @Roles(UserRole.ADMIN, UserRole.HR)
-  @Throttle(300, 10) // 10 запросов в 5 минут
   async createTemplate(
     @Body(ValidationPipe) createTemplateDto: CreateFeedbackTemplateDto,
     @Request() req,
@@ -76,7 +73,6 @@ export class FeedbackController {
 
   // Отправка ответа на форму
   @Post('responses')
-  @Throttle(60, 5) // 5 запросов в минуту
   async submitResponse(
     @Body(ValidationPipe) responseDto: CreateFeedbackResponseDto,
     @Request() req,

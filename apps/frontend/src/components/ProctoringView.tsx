@@ -81,22 +81,22 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
         if (videoRef.current && canvasRef.current) {
           const video = videoRef.current;
           const canvas = canvasRef.current;
-          
+
           // Получаем размеры контейнера
           const containerRect = video.getBoundingClientRect();
-          
+
           // Получаем реальные размеры видео
           const videoWidth = video.videoWidth;
           const videoHeight = video.videoHeight;
-          
+
           if (videoWidth === 0 || videoHeight === 0) return;
-          
+
           // Вычисляем соотношение сторон
           const videoAspect = videoWidth / videoHeight;
           const containerAspect = containerRect.width / containerRect.height;
-          
+
           let visibleWidth, visibleHeight, offsetX = 0, offsetY = 0;
-          
+
           // object-cover работает как background-size: cover
           if (containerAspect > videoAspect) {
             // Контейнер шире - видео растягивается по ширине, обрезается по высоте
@@ -109,14 +109,14 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
             visibleWidth = containerRect.height * videoAspect;
             offsetX = (containerRect.width - visibleWidth) / 2;
           }
-          
+
           canvas.width = containerRect.width;
           canvas.height = containerRect.height;
           canvas.style.width = `${containerRect.width}px`;
           canvas.style.height = `${containerRect.height}px`;
           canvas.style.left = '0px';
           canvas.style.top = '0px';
-          
+
           // Сохраняем параметры масштабирования для use в детекции
           canvas.dataset.scaleX = String(visibleWidth / videoWidth);
           canvas.dataset.scaleY = String(visibleHeight / videoHeight);
@@ -152,24 +152,24 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+
             if (detections.length > 0) {
               const scaleX = parseFloat(canvas.dataset.scaleX || '1');
               const scaleY = parseFloat(canvas.dataset.scaleY || '1');
               const offsetX = parseFloat(canvas.dataset.offsetX || '0');
               const offsetY = parseFloat(canvas.dataset.offsetY || '0');
-              
+
               // Применяем трансформации для корректного позиционирования
               ctx.save();
               ctx.translate(offsetX, offsetY);
               ctx.scale(scaleX, scaleY);
-              
+
               // Рисуем детекции с учетом размеров видео
               const videoDisplaySize = { width: video.videoWidth, height: video.videoHeight };
               faceapi.draw.drawDetections(canvas, detections);
               faceapi.draw.drawFaceLandmarks(canvas, detections);
               faceapi.draw.drawFaceExpressions(canvas, detections);
-              
+
               ctx.restore();
             }
           }
@@ -188,7 +188,7 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
 
   useEffect(() => {
     if (connectionState.status === "connected") {
-      sendSystemMessage(`Текущая тема урока: ${lessonTopic}`);
+      sendSystemMessage(`Текущая тема урока: ${lessonTopic} и поздоровайся с пользователем типа чем могу помочь по теме ${lessonTopic}`);
       console.log('Тема урока отправлена в чат:', lessonTopic);
     }
   }, [connectionState.status, lessonTopic, sendSystemMessage]);

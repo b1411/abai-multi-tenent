@@ -134,7 +134,7 @@ export class FeedbackService {
           userId,
           templateId: responseDto.templateId,
           period: responseDto.period || currentPeriod,
-          aboutTeacherId: responseDto.aboutTeacherId || null,
+          aboutTeacherId: responseDto.aboutTeacherId ?? null,
         },
       },
       create: {
@@ -143,6 +143,7 @@ export class FeedbackService {
         answers: responseDto.answers,
         isCompleted: responseDto.isCompleted || false,
         period: responseDto.period || currentPeriod,
+        aboutTeacherId: responseDto.aboutTeacherId ?? null,
         submittedAt: responseDto.isCompleted ? new Date() : null,
       },
       update: {

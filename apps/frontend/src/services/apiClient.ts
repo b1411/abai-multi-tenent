@@ -7,8 +7,10 @@ class ApiClient {
   private isRedirecting: boolean = false;
 
   constructor() {
+    let baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    baseURL = baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL; // Ensure no trailing slash
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+      baseURL: baseURL,
       headers: {
         'Content-Type': 'application/json',
       },

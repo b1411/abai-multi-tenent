@@ -43,7 +43,7 @@ class FileService {
    */
   async uploadFiles(files: File[], category: string = 'general'): Promise<UploadedFile[]> {
     const formData = new FormData();
-    
+
     files.forEach((file) => {
       formData.append('files', file);
     });
@@ -107,7 +107,7 @@ class FileService {
    */
   async downloadFile(id: number, filename?: string): Promise<void> {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/files/${id}/download`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}files/${id}/download`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -146,24 +146,24 @@ class FileService {
    */
   getImagePreviewUrl(url: string, width?: number, height?: number): string {
     if (!url) return '';
-    
+
     // Если это Vercel Blob URL, возвращаем как есть
     if (url.includes('vercel-storage.com')) {
       const params = new URLSearchParams();
       if (width) params.set('w', width.toString());
       if (height) params.set('h', height.toString());
-      
+
       if (params.toString()) {
         return `${url}?${params.toString()}`;
       }
       return url;
     }
-    
+
     // Если это ID файла из базы, формируем публичный URL
     if (/^\d+$/.test(url)) {
       return this.getPublicImageUrl(parseInt(url));
     }
-    
+
     return url;
   }
 
@@ -175,7 +175,7 @@ class FileService {
     if (file.url && file.url.startsWith('https://')) {
       return file.url;
     }
-    
+
     // Иначе используем публичный роут
     return this.getPublicImageUrl(file.id);
   }

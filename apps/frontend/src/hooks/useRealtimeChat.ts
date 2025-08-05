@@ -21,6 +21,8 @@ export const useRealtimeChat = () => {
   });
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isMicrophoneMuted, setIsMicrophoneMuted] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -48,6 +50,7 @@ export const useRealtimeChat = () => {
       // Настраиваем воспроизведение удаленного аудио
       const audioEl = document.createElement('audio');
       audioEl.autoplay = true;
+      audioEl.muted = isMuted;
       audioElementRef.current = audioEl;
       
       pc.ontrack = (e) => {
@@ -145,7 +148,7 @@ export const useRealtimeChat = () => {
         error: 'Не удалось подключиться к AI-ассистенту' 
       });
     }
-  }, [connectionState.status]);
+  }, [connectionState.status, isMuted]);
 
   // Отключение от Realtime API
   const disconnect = useCallback(() => {
@@ -343,6 +346,40 @@ export const useRealtimeChat = () => {
     }
   }, [connectionState.status]);
 
+  const toggleMute = useCallback(() => {
+    if (audioElementRef.current) {
+      const newMutedState = !audioElementRef.current.muted;
+      audioElementRef.current.muted = newMutedState;
+      setIsMuted(newMutedState);
+    }
+  }, []);
+
+  const toggleMicrophoneMute = useCallback(() => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMicrophoneMuted(!audioTrack.enabled);
+      }
+    }
+  }, []);
+
+  const sendSystemMessage = useCallback((text: string) => {
+    if (!dcRef.current || connectionState.status !== 'connected') {
+      console.error('Data channel not connected for system message');
+      return;
+    }
+    const event = {
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "system",
+        content: [{ type: "input_text", text }]
+      },
+    };
+    dcRef.current.send(JSON.stringify(event));
+  }, [connectionState.status]);
+
   // Проверка валидности токена
   useEffect(() => {
     if (tokenRef.current && !aiChatService.isTokenValid(tokenRef.current)) {
@@ -366,6 +403,11 @@ export const useRealtimeChat = () => {
     disconnect,
     sendTextMessage,
     togglePushToTalk,
-    clearMessages
+    clearMessages,
+    isMuted,
+    toggleMute,
+    isMicrophoneMuted,
+    toggleMicrophoneMute,
+    sendSystemMessage
   };
 };

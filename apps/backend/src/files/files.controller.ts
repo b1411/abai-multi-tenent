@@ -103,6 +103,11 @@ export class FilesController {
   async downloadFile(@Param('id') id: string, @Res() res: Response) {
     const file = await this.filesService.findOne(+id);
 
+    if (file.url.startsWith('https://')) {
+      // Если это Vercel Blob URL - возвращаем его как есть
+      return res.redirect(file.url);
+    }
+
     // Правильно формируем путь к файлу - убираем ведущий слеш из URL
     const filePath = join(process.cwd(), file.url.startsWith('/') ? file.url.substring(1) : file.url);
 

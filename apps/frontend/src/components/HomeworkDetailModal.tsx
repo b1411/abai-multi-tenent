@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, FileText, BookOpen, User, CheckCircle, Upload, ExternalLink, Trash2 } from 'lucide-react';
+import { X, Calendar, Clock, FileText, BookOpen, User, CheckCircle, Upload, ExternalLink, Trash2, Bot } from 'lucide-react';
 import { Homework, HomeworkStatus } from '../types/homework';
+import ProctoringView from './ProctoringView';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatDateTime } from '../utils';
 import { fileService, FileUploadResponse } from '../services/fileService';
@@ -25,6 +26,7 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
   const [submissionComment, setSubmissionComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [isProctoringVisible, setIsProctoringVisible] = useState(false);
 
   const getHomeworkStatus = (): HomeworkStatus => {
     const now = new Date();
@@ -356,6 +358,14 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
                     </>
                   )}
                 </button>
+
+                <button
+                  onClick={() => setIsProctoringVisible(true)}
+                  className="w-full bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 flex items-center justify-center mt-2"
+                >
+                  <Bot className="h-4 w-4 mr-2" />
+                  ИИ Прокторинг
+                </button>
               </div>
             </div>
           )}
@@ -376,6 +386,12 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
           )}
         </div>
       </div>
+      {isProctoringVisible && (
+        <ProctoringView
+          lessonTopic={homework.lesson?.name || 'Общая тема'}
+          onClose={() => setIsProctoringVisible(false)}
+        />
+      )}
     </div>
   );
 };

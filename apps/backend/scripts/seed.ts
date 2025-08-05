@@ -3,12 +3,11 @@ import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// Утилиты для генерации дат в Q3 2025
+// Утилиты для генерации дат в августе 2025
 
-function getDateInQ3_2025(year: number, month: number, day: number): Date {
-    // Убеждаемся что месяц в Q3 2025 (7-9)
-    const q3Month = Math.max(7, Math.min(9, month));
-    return new Date(2025, q3Month - 1, day);
+function getDateInAugust2025(day: number): Date {
+    // Все даты в августе 2025
+    return new Date(2025, 7, day); // месяц 7 = август (0-индексация)
 }
 
 async function main() {
@@ -204,6 +203,40 @@ async function main() {
             },
             include: { student: true },
         }),
+        prisma.user.create({
+            data: {
+                email: 'temirlan.student@abai.edu.kz',
+                name: 'Темирлан',
+                surname: 'Байбеков',
+                middlename: 'Асылович',
+                phone: '+7 700 000 0030',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[0].id, // 10А
+                    },
+                },
+            },
+            include: { student: true },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'aida2.student@abai.edu.kz',
+                name: 'Айдана',
+                surname: 'Нурланова',
+                middlename: 'Ерланқызы',
+                phone: '+7 700 000 0031',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[0].id, // 10А
+                    },
+                },
+            },
+            include: { student: true },
+        }),
         // Студенты 10Б
         prisma.user.create({
             data: {
@@ -212,6 +245,40 @@ async function main() {
                 surname: 'Сералиева',
                 middlename: 'Асылбековна',
                 phone: '+7 700 000 0012',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[1].id, // 10Б
+                    },
+                },
+            },
+            include: { student: true },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'amina.student@abai.edu.kz',
+                name: 'Амина',
+                surname: 'Жақсылыкова',
+                middlename: 'Бахытжанқызы',
+                phone: '+7 700 000 0032',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[1].id, // 10Б
+                    },
+                },
+            },
+            include: { student: true },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'askar.student@abai.edu.kz',
+                name: 'Асқар',
+                surname: 'Мұратов',
+                middlename: 'Серікұлы',
+                phone: '+7 700 000 0033',
                 role: 'STUDENT',
                 hashedPassword,
                 student: {
@@ -235,6 +302,76 @@ async function main() {
                 student: {
                     create: {
                         groupId: groups[2].id, // 11А
+                    },
+                },
+            },
+            include: { student: true },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'zarina.student@abai.edu.kz',
+                name: 'Зарина',
+                surname: 'Қасымова',
+                middlename: 'Ерболқызы',
+                phone: '+7 700 000 0034',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[2].id, // 11А
+                    },
+                },
+            },
+            include: { student: true },
+        }),
+        // Студенты 11Б
+        prisma.user.create({
+            data: {
+                email: 'dias.student@abai.edu.kz',
+                name: 'Диас',
+                surname: 'Әбділдаев',
+                middlename: 'Нұрланұлы',
+                phone: '+7 700 000 0035',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[3].id, // 11Б
+                    },
+                },
+            },
+            include: { student: true },
+        }),
+        // Студенты 9А
+        prisma.user.create({
+            data: {
+                email: 'aruzhan.student@abai.edu.kz',
+                name: 'Аружан',
+                surname: 'Тілеубекова',
+                middlename: 'Мақсатқызы',
+                phone: '+7 700 000 0036',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[4].id, // 9А
+                    },
+                },
+            },
+            include: { student: true },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'alibek.student@abai.edu.kz',
+                name: 'Әлібек',
+                surname: 'Досымов',
+                middlename: 'Болатұлы',
+                phone: '+7 700 000 0037',
+                role: 'STUDENT',
+                hashedPassword,
+                student: {
+                    create: {
+                        groupId: groups[4].id, // 9А
                     },
                 },
             },
@@ -537,15 +674,15 @@ async function main() {
 
     console.log('📖 Создаем уроки...');
 
-    // Создаем расширенный набор уроков для Q3 2025
+    // Создаем расширенный набор уроков для августа 2025
     const lessons = await Promise.all([
-        // Уроки алгебры (10 класс) - июль 2025
+        // Уроки алгебры (10 класс) - август 2025
         prisma.lesson.create({
             data: {
                 name: 'Квадратные уравнения',
                 description: 'Решение квадратных уравнений различными методами',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 7, 5),
+                date: getDateInAugust2025(5),
             },
         }),
         prisma.lesson.create({
@@ -553,7 +690,7 @@ async function main() {
                 name: 'Формулы сокращенного умножения',
                 description: 'Применение формул сокращенного умножения',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 7, 12),
+                date: getDateInAugust2025(8),
             },
         }),
         prisma.lesson.create({
@@ -561,7 +698,7 @@ async function main() {
                 name: 'Теорема Виета',
                 description: 'Изучение теоремы Виета и ее применение',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 7, 19),
+                date: getDateInAugust2025(12),
             },
         }),
         prisma.lesson.create({
@@ -569,16 +706,15 @@ async function main() {
                 name: 'Контрольная работа по алгебре',
                 description: 'Проверка знаний по пройденным темам',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 7, 26),
+                date: getDateInAugust2025(15),
             },
         }),
-        // Уроки алгебры - август 2025
         prisma.lesson.create({
             data: {
                 name: 'Системы уравнений',
                 description: 'Решение систем линейных и квадратных уравнений',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 8, 2),
+                date: getDateInAugust2025(19),
             },
         }),
         prisma.lesson.create({
@@ -586,16 +722,15 @@ async function main() {
                 name: 'Неравенства',
                 description: 'Решение линейных и квадратных неравенств',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 8, 9),
+                date: getDateInAugust2025(22),
             },
         }),
-        // Уроки алгебры - сентябрь 2025
         prisma.lesson.create({
             data: {
                 name: 'Функции и их графики',
                 description: 'Изучение основных функций и построение графиков',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 9, 6),
+                date: getDateInAugust2025(26),
             },
         }),
         prisma.lesson.create({
@@ -603,17 +738,17 @@ async function main() {
                 name: 'Практикум по функциям',
                 description: 'Решение задач на функции',
                 studyPlanId: studyPlans[0].id,
-                date: getDateInQ3_2025(2025, 9, 13),
+                date: getDateInAugust2025(29),
             },
         }),
 
-        // Уроки биологии (10 класс) - июль-сентябрь 2025
+        // Уроки биологии (10 класс) - август 2025
         prisma.lesson.create({
             data: {
                 name: 'Строение клетки',
                 description: 'Основы цитологии, строение эукариотической клетки',
                 studyPlanId: studyPlans[1].id,
-                date: getDateInQ3_2025(2025, 7, 8),
+                date: getDateInAugust2025(6),
             },
         }),
         prisma.lesson.create({
@@ -621,7 +756,7 @@ async function main() {
                 name: 'Фотосинтез',
                 description: 'Процесс фотосинтеза у растений',
                 studyPlanId: studyPlans[1].id,
-                date: getDateInQ3_2025(2025, 7, 15),
+                date: getDateInAugust2025(9),
             },
         }),
         prisma.lesson.create({
@@ -629,7 +764,7 @@ async function main() {
                 name: 'Дыхание растений',
                 description: 'Процессы дыхания у растений и животных',
                 studyPlanId: studyPlans[1].id,
-                date: getDateInQ3_2025(2025, 8, 5),
+                date: getDateInAugust2025(13),
             },
         }),
         prisma.lesson.create({
@@ -637,7 +772,7 @@ async function main() {
                 name: 'Генетика и наследственность',
                 description: 'Основы генетики, законы Менделя',
                 studyPlanId: studyPlans[1].id,
-                date: getDateInQ3_2025(2025, 8, 12),
+                date: getDateInAugust2025(16),
             },
         }),
         prisma.lesson.create({
@@ -645,17 +780,17 @@ async function main() {
                 name: 'Лабораторная работа по генетике',
                 description: 'Решение генетических задач',
                 studyPlanId: studyPlans[1].id,
-                date: getDateInQ3_2025(2025, 9, 2),
+                date: getDateInAugust2025(20),
             },
         }),
 
-        // Уроки физики (11 класс) - июль-сентябрь 2025
+        // Уроки физики (11 класс) - август 2025
         prisma.lesson.create({
             data: {
                 name: 'Молекулярно-кинетическая теория',
                 description: 'Основные положения МКТ',
                 studyPlanId: studyPlans[2].id,
-                date: getDateInQ3_2025(2025, 7, 10),
+                date: getDateInAugust2025(7),
             },
         }),
         prisma.lesson.create({
@@ -663,7 +798,7 @@ async function main() {
                 name: 'Газовые законы',
                 description: 'Изучение законов идеального газа',
                 studyPlanId: studyPlans[2].id,
-                date: getDateInQ3_2025(2025, 7, 17),
+                date: getDateInAugust2025(10),
             },
         }),
         prisma.lesson.create({
@@ -671,7 +806,7 @@ async function main() {
                 name: 'Термодинамика',
                 description: 'Первый и второй законы термодинамики',
                 studyPlanId: studyPlans[2].id,
-                date: getDateInQ3_2025(2025, 8, 7),
+                date: getDateInAugust2025(14),
             },
         }),
         prisma.lesson.create({
@@ -679,7 +814,7 @@ async function main() {
                 name: 'Лабораторная работа по термодинамике',
                 description: 'Экспериментальное изучение тепловых процессов',
                 studyPlanId: studyPlans[2].id,
-                date: getDateInQ3_2025(2025, 8, 14),
+                date: getDateInAugust2025(17),
             },
         }),
         prisma.lesson.create({
@@ -687,17 +822,17 @@ async function main() {
                 name: 'Электростатика',
                 description: 'Электрическое поле и его характеристики',
                 studyPlanId: studyPlans[2].id,
-                date: getDateInQ3_2025(2025, 9, 4),
+                date: getDateInAugust2025(21),
             },
         }),
 
-        // Уроки химии (9 класс) - июль-сентябрь 2025
+        // Уроки химии (9 класс) - август 2025
         prisma.lesson.create({
             data: {
                 name: 'Периодическая система',
                 description: 'Периодический закон и периодическая система элементов',
                 studyPlanId: studyPlans[3].id,
-                date: getDateInQ3_2025(2025, 7, 11),
+                date: getDateInAugust2025(11),
             },
         }),
         prisma.lesson.create({
@@ -705,7 +840,7 @@ async function main() {
                 name: 'Химические связи',
                 description: 'Ковалентная, ионная и металлическая связь',
                 studyPlanId: studyPlans[3].id,
-                date: getDateInQ3_2025(2025, 7, 18),
+                date: getDateInAugust2025(18),
             },
         }),
         prisma.lesson.create({
@@ -713,7 +848,7 @@ async function main() {
                 name: 'Практическая работа по химическим реакциям',
                 description: 'Проведение химических реакций в лаборатории',
                 studyPlanId: studyPlans[3].id,
-                date: getDateInQ3_2025(2025, 8, 8),
+                date: getDateInAugust2025(23),
             },
         }),
         prisma.lesson.create({
@@ -721,7 +856,7 @@ async function main() {
                 name: 'Кислоты и основания',
                 description: 'Свойства кислот и оснований, реакции нейтрализации',
                 studyPlanId: studyPlans[3].id,
-                date: getDateInQ3_2025(2025, 8, 15),
+                date: getDateInAugust2025(27),
             },
         }),
         prisma.lesson.create({
@@ -729,7 +864,7 @@ async function main() {
                 name: 'Окислительно-восстановительные реакции',
                 description: 'Изучение ОВР и составление уравнений',
                 studyPlanId: studyPlans[3].id,
-                date: getDateInQ3_2025(2025, 9, 5),
+                date: getDateInAugust2025(30),
             },
         }),
     ]);
@@ -992,14 +1127,14 @@ async function main() {
 
     console.log('🏖️ Создаем каникулы...');
 
-    // Создаем периоды каникул для Q3 2025
+    // Создаем периоды каникул для августа 2025
     await Promise.all([
         prisma.vacation.create({
             data: {
                 teacherId: teachers[0].teacher.id,
                 type: 'vacation',
-                startDate: getDateInQ3_2025(2025, 7, 1),
-                endDate: getDateInQ3_2025(2025, 7, 14),
+                startDate: getDateInAugust2025(1),
+                endDate: getDateInAugust2025(14),
                 days: 14,
                 status: 'completed',
                 comment: 'Летний отпуск',
@@ -1009,8 +1144,8 @@ async function main() {
             data: {
                 teacherId: teachers[1].teacher.id,
                 type: 'vacation',
-                startDate: getDateInQ3_2025(2025, 8, 15),
-                endDate: getDateInQ3_2025(2025, 8, 28),
+                startDate: getDateInAugust2025(15),
+                endDate: getDateInAugust2025(28),
                 days: 14,
                 status: 'approved',
                 comment: 'Отпуск в конце лета',
@@ -1020,14 +1155,14 @@ async function main() {
 
     console.log('📅 Создаем события календаря...');
 
-    // Создаем события календаря для Q3 2025
+    // Создаем события календаря для августа 2025
     await Promise.all([
         prisma.calendarEvent.create({
             data: {
                 title: 'День знаний - начало учебного года',
                 description: 'Торжественная линейка и первые уроки',
-                startDate: getDateInQ3_2025(2025, 9, 1),
-                endDate: getDateInQ3_2025(2025, 9, 1),
+                startDate: getDateInAugust2025(1),
+                endDate: getDateInAugust2025(1),
                 location: 'Школьный двор',
                 isAllDay: true,
                 createdById: admin.id,
@@ -1037,8 +1172,8 @@ async function main() {
             data: {
                 title: 'Родительское собрание 10 классов',
                 description: 'Обсуждение планов на новый учебный год',
-                startDate: getDateInQ3_2025(2025, 9, 10),
-                endDate: getDateInQ3_2025(2025, 9, 10),
+                startDate: getDateInAugust2025(10),
+                endDate: getDateInAugust2025(10),
                 location: 'Актовый зал',
                 isAllDay: false,
                 createdById: admin.id,
@@ -1047,9 +1182,9 @@ async function main() {
         prisma.calendarEvent.create({
             data: {
                 title: 'Контрольная работа по алгебре',
-                description: 'Итоговая контрольная работа за Q3',
-                startDate: getDateInQ3_2025(2025, 9, 15),
-                endDate: getDateInQ3_2025(2025, 9, 15),
+                description: 'Итоговая контрольная работа по алгебре',
+                startDate: getDateInAugust2025(15),
+                endDate: getDateInAugust2025(15),
                 location: 'Аудитория 101',
                 isAllDay: false,
                 createdById: teachers[0].id,
@@ -1059,48 +1194,162 @@ async function main() {
 
     console.log('📝 Создаем результаты уроков...');
 
-    // Создаем результаты уроков для студентов
-    await Promise.all([
-        // Результаты для урока алгебры
-        prisma.lessonResult.create({
-            data: {
-                lessonId: lessons[0].id, // Квадратные уравнения
-                studentId: studentUsers[0].student.id, // Айда
-                lessonScore: 5,
-                attendance: true,
-                lessonScorecomment: 'Отлично справилась с решением задач',
-            },
-        }),
-        prisma.lessonResult.create({
-            data: {
-                lessonId: lessons[0].id,
-                studentId: studentUsers[1].student.id, // Арман
-                lessonScore: 4,
-                attendance: true,
-                lessonScorecomment: 'Хорошо работал на уроке, но забыл домашнее задание',
-            },
-        }),
-        // Результаты для урока биологии
-        prisma.lessonResult.create({
-            data: {
-                lessonId: lessons[8].id, // Строение клетки
-                studentId: studentUsers[2].student.id, // Дана
-                lessonScore: 5,
-                attendance: true,
-                lessonScorecomment: 'Превосходное знание материала',
-            },
-        }),
-        // Результаты для урока физики
-        prisma.lessonResult.create({
-            data: {
-                lessonId: lessons[13].id, // МКТ
-                studentId: studentUsers[3].student.id, // Бекзат
-                lessonScore: 4,
-                attendance: true,
-                lessonScorecomment: 'Хорошее понимание теории',
-            },
-        }),
-    ]);
+    // Создаем результаты уроков для всех студентов по всем урокам
+    const lessonResults = [];
+
+    // Результаты для уроков алгебры (для студентов 10А и 10Б)
+    const algebraStudents = studentUsers.slice(0, 7); // Первые 7 студентов из 10А и 10Б
+    const algebraLessons = lessons.slice(0, 8); // Первые 8 уроков алгебры
+
+    for (const lesson of algebraLessons) {
+        for (let i = 0; i < algebraStudents.length; i++) {
+            const student = algebraStudents[i];
+            // Айда (0) - отличница, Арман (1) - хорошист с проблемами, остальные - средние студенты
+            let score, comment, attendance = true;
+            
+            if (i === 0) { // Айда - отличница
+                score = Math.random() > 0.1 ? 5 : 4;
+                comment = score === 5 ? 'Отлично справилась с задачами' : 'Хорошая работа, небольшие недочеты';
+            } else if (i === 1) { // Арман - проблемный студент
+                score = Math.random() > 0.3 ? (Math.random() > 0.5 ? 4 : 3) : 2;
+                attendance = Math.random() > 0.2;
+                comment = !attendance ? 'Отсутствовал на уроке' : 
+                         score <= 2 ? 'Не выполнил домашнее задание' : 'Удовлетворительно';
+            } else { // Остальные студенты
+                score = Math.random() > 0.1 ? (Math.random() > 0.4 ? 4 : 3) : (Math.random() > 0.5 ? 5 : 2);
+                attendance = Math.random() > 0.05;
+                comment = !attendance ? 'Отсутствовал' : 
+                         score === 5 ? 'Отличная работа' :
+                         score === 4 ? 'Хорошо понимает материал' :
+                         score === 3 ? 'Удовлетворительно' : 'Нужно подтянуть знания';
+            }
+
+            lessonResults.push(
+                prisma.lessonResult.create({
+                    data: {
+                        lessonId: lesson.id,
+                        studentId: student.student.id,
+                        lessonScore: attendance ? score : null,
+                        attendance: attendance,
+                        lessonScorecomment: comment,
+                    },
+                })
+            );
+        }
+    }
+
+    // Результаты для уроков биологии (для студентов 10Б)
+    const biologyStudents = studentUsers.slice(4, 7); // Студенты 10Б
+    const biologyLessons = lessons.slice(8, 13); // Уроки биологии
+
+    for (const lesson of biologyLessons) {
+        for (let i = 0; i < biologyStudents.length; i++) {
+            const student = biologyStudents[i];
+            // Дана (0 в этом массиве) - отличница по биологии
+            let score, comment, attendance = true;
+            
+            if (i === 0) { // Дана - отличница по биологии
+                score = Math.random() > 0.05 ? 5 : 4;
+                comment = score === 5 ? 'Превосходное знание материала' : 'Очень хорошо';
+            } else {
+                score = Math.random() > 0.1 ? (Math.random() > 0.3 ? 4 : 3) : (Math.random() > 0.7 ? 5 : 2);
+                attendance = Math.random() > 0.1;
+                comment = !attendance ? 'Отсутствовал' : 
+                         score === 5 ? 'Отличная работа' :
+                         score === 4 ? 'Хорошее понимание биологии' :
+                         score === 3 ? 'Средний уровень' : 'Требуется больше внимания';
+            }
+
+            lessonResults.push(
+                prisma.lessonResult.create({
+                    data: {
+                        lessonId: lesson.id,
+                        studentId: student.student.id,
+                        lessonScore: attendance ? score : null,
+                        attendance: attendance,
+                        lessonScorecomment: comment,
+                    },
+                })
+            );
+        }
+    }
+
+    // Результаты для уроков физики (для студентов 11А и 11Б)
+    const physicsStudents = studentUsers.slice(7, 10); // Студенты 11А и 11Б
+    const physicsLessons = lessons.slice(13, 18); // Уроки физики
+
+    for (const lesson of physicsLessons) {
+        for (let i = 0; i < physicsStudents.length; i++) {
+            const student = physicsStudents[i];
+            // Бекзат (0) - хорошист, Зарина (1) - отличница, Диас (2) - средний
+            let score, comment, attendance = true;
+            
+            if (i === 0) { // Бекзат - хорошист
+                score = Math.random() > 0.2 ? 4 : (Math.random() > 0.5 ? 5 : 3);
+                comment = score === 5 ? 'Отличное понимание теории' :
+                         score === 4 ? 'Хорошее понимание теории' : 'Нужно больше практики';
+            } else if (i === 1) { // Зарина - отличница
+                score = Math.random() > 0.1 ? 5 : 4;
+                comment = score === 5 ? 'Блестящие знания физики' : 'Очень хорошо';
+            } else { // Диас - средний
+                score = Math.random() > 0.2 ? 3 : (Math.random() > 0.6 ? 4 : 2);
+                attendance = Math.random() > 0.15;
+                comment = !attendance ? 'Отсутствовал' : 
+                         score === 4 ? 'Хорошо' :
+                         score === 3 ? 'Удовлетворительно' : 'Слабые знания';
+            }
+
+            lessonResults.push(
+                prisma.lessonResult.create({
+                    data: {
+                        lessonId: lesson.id,
+                        studentId: student.student.id,
+                        lessonScore: attendance ? score : null,
+                        attendance: attendance,
+                        lessonScorecomment: comment,
+                    },
+                })
+            );
+        }
+    }
+
+    // Результаты для уроков химии (для студентов 9А)
+    const chemistryStudents = studentUsers.slice(10, 12); // Студенты 9А
+    const chemistryLessons = lessons.slice(18, 23); // Уроки химии
+
+    for (const lesson of chemistryLessons) {
+        for (let i = 0; i < chemistryStudents.length; i++) {
+            const student = chemistryStudents[i];
+            // Аружан (0) - хорошистка, Әлібек (1) - средний с проблемами
+            let score, comment, attendance = true;
+            
+            if (i === 0) { // Аружан - хорошистка
+                score = Math.random() > 0.2 ? (Math.random() > 0.4 ? 4 : 5) : 3;
+                comment = score === 5 ? 'Отлично разбирается в химии' :
+                         score === 4 ? 'Хорошие знания' : 'Нормально';
+            } else { // Әлібек - проблемный
+                score = Math.random() > 0.4 ? 3 : (Math.random() > 0.6 ? 2 : 4);
+                attendance = Math.random() > 0.25;
+                comment = !attendance ? 'Отсутствовал' : 
+                         score === 4 ? 'Неожиданно хорошо' :
+                         score === 3 ? 'Удовлетворительно' : 'Плохо подготовился';
+            }
+
+            lessonResults.push(
+                prisma.lessonResult.create({
+                    data: {
+                        lessonId: lesson.id,
+                        studentId: student.student.id,
+                        lessonScore: attendance ? score : null,
+                        attendance: attendance,
+                        lessonScorecomment: comment,
+                    },
+                })
+            );
+        }
+    }
+
+    await Promise.all(lessonResults);
 
     console.log('💬 Создаем чаты...');
 
@@ -1123,12 +1372,12 @@ async function main() {
                         {
                             senderId: parents[0].id,
                             content: 'Добрый день! Как дела у Айды по алгебре?',
-                            createdAt: getDateInQ3_2025(2025, 8, 15),
+                            createdAt: getDateInAugust2025(15),
                         },
                         {
                             senderId: teachers[0].id,
                             content: 'Здравствуйте! Айда показывает отличные результаты, очень старательная ученица.',
-                            createdAt: getDateInQ3_2025(2025, 8, 15),
+                            createdAt: getDateInAugust2025(15),
                         },
                     ],
                 },
@@ -1148,7 +1397,7 @@ async function main() {
                 title: 'Не выполнил домашнее задание',
                 content: 'Не выполнил домашнее задание по алгебре',
                 isPrivate: true,
-                createdAt: getDateInQ3_2025(2025, 8, 10),
+                createdAt: getDateInAugust2025(10),
             },
         }),
         prisma.studentRemark.create({
@@ -1159,7 +1408,7 @@ async function main() {
                 title: 'Нарушение дисциплины',
                 content: 'Нарушение дисциплины на перемене',
                 isPrivate: true,
-                createdAt: getDateInQ3_2025(2025, 8, 14),
+                createdAt: getDateInAugust2025(14),
             },
         }),
     ]);
@@ -1174,7 +1423,7 @@ async function main() {
                 content: 'Отлично решила задачи на уроке, видно что готовилась дома',
                 type: 'ACADEMIC',
                 isPrivate: true,
-                createdAt: getDateInQ3_2025(2025, 8, 5),
+                createdAt: getDateInAugust2025(5),
             },
         }),
         prisma.studentComment.create({
@@ -1185,7 +1434,7 @@ async function main() {
                 content: 'Великолепная лабораторная работа по биологии!',
                 type: 'ACADEMIC',
                 isPrivate: true,
-                createdAt: getDateInQ3_2025(2025, 8, 18),
+                createdAt: getDateInAugust2025(18),
             },
         }),
     ]);
@@ -1413,10 +1662,10 @@ async function main() {
                 type: 'QUALIFICATION',
                 title: 'Повышение квалификации по современным методам обучения',
                 description: 'Прошла курсы повышения квалификации',
-                date: getDateInQ3_2025(2025, 7, 15),
+                date: getDateInAugust2025(15),
                 points: 50,
                 isVerified: true,
-                verifiedAt: getDateInQ3_2025(2025, 7, 20),
+                verifiedAt: getDateInAugust2025(20),
             },
         }),
         prisma.teacherAchievement.create({
@@ -1425,10 +1674,10 @@ async function main() {
                 type: 'TEAM_EVENT',
                 title: 'Организация математической олимпиады',
                 description: 'Организовала и провела школьную олимпиаду по математике',
-                date: getDateInQ3_2025(2025, 8, 10),
+                date: getDateInAugust2025(10),
                 points: 30,
                 isVerified: true,
-                verifiedAt: getDateInQ3_2025(2025, 8, 15),
+                verifiedAt: getDateInAugust2025(15),
             },
         }),
         // Достижения для Алиева
@@ -1438,10 +1687,10 @@ async function main() {
                 type: 'PROJECT_HELP',
                 title: 'Помощь в научном проекте',
                 description: 'Помогал студентам в подготовке научного проекта по биологии',
-                date: getDateInQ3_2025(2025, 8, 20),
+                date: getDateInAugust2025(20),
                 points: 25,
                 isVerified: true,
-                verifiedAt: getDateInQ3_2025(2025, 8, 25),
+                verifiedAt: getDateInAugust2025(25),
             },
         }),
     ]);
@@ -1458,7 +1707,7 @@ async function main() {
                 subject: 'Математика',
                 level: 'Городской',
                 place: 1,
-                date: getDateInQ3_2025(2025, 9, 1),
+                date: getDateInAugust2025(1),
             },
         }),
         prisma.olympiadResult.create({
@@ -1469,7 +1718,7 @@ async function main() {
                 subject: 'Алгебра',
                 level: 'Школьный',
                 place: 2,
-                date: getDateInQ3_2025(2025, 8, 15),
+                date: getDateInAugust2025(15),
             },
         }),
         prisma.olympiadResult.create({
@@ -1480,7 +1729,7 @@ async function main() {
                 subject: 'Биология',
                 level: 'Региональный',
                 place: 3,
-                date: getDateInQ3_2025(2025, 9, 10),
+                date: getDateInAugust2025(10),
             },
         }),
     ]);

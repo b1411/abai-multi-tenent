@@ -22,7 +22,7 @@ const CameraStream: React.FC<CameraStreamProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [detections, setDetections] = useState<AIDetection[]>([]);
-  const analysisIntervalRef = useRef<number | null>(null);
+  const analysisIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Запуск видеопотока
   const startStream = async () => {

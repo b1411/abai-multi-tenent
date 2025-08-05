@@ -188,7 +188,7 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
 
   useEffect(() => {
     if (connectionState.status === "connected") {
-      sendSystemMessage(`Текущая тема урока: ${lessonTopic} и поздоровайся с пользователем типа чем могу помочь по теме ${lessonTopic}`);
+      sendSystemMessage(`Ты AI-учитель по предмету: ${lessonTopic}. Тема домашнего задания: ${lessonTopic}. Сначала спроси, изучал ли он тему "${lessonTopic}" и что он запомнил. Затем задай не менее 3 вопросов по теме, чтобы проверить знания. Если ученик затрудняется ответить, дай короткую подсказку и снова задай три вопроса по теме. Не переходи к оценке, пока не получишь ответы. В конце оцени ответы и дай краткий комментарий. Всегда веди диалог на русском языке как строгий, но справедливый преподаватель-мужчина.`);
       console.log('Тема урока отправлена в чат:', lessonTopic);
     }
   }, [connectionState.status, lessonTopic, sendSystemMessage]);
@@ -198,7 +198,7 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold">ИИ Прокторинг</h2>
+          <h2 className="text-xl font-semibold">Сдача работы</h2>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
             <X className="h-6 w-6" />
           </button>

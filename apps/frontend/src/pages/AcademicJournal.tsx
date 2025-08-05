@@ -654,165 +654,167 @@ const AcademicJournal: React.FC = () => {
 
     if (loading && !lessons.length) {
         return (
-            <div className="p-6">
-                <div className="flex justify-center items-center h-64">
-                    <Spinner size="lg" />
-                </div>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <Spinner size="lg" />
             </div>
         );
     }
 
     return (
-        <div className="p-6 max-w-[1600px] mx-auto">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900">
-                    {user?.role === 'STUDENT' ? 'Мои оценки' :
-                        user?.role === 'PARENT' ? 'Оценки ребенка' :
-                            'Электронный журнал'}
-                </h1>
-            </div>
+        <div className="min-h-screen bg-gray-50">
+            <div className="p-4 sm:p-6 max-w-[1600px] mx-auto">
+                <div className="mb-6 text-center sm:text-left">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                        {user?.role === 'STUDENT' ? 'Мои оценки' :
+                            user?.role === 'PARENT' ? 'Оценки ребенка' :
+                                'Электронный журнал'}
+                    </h1>
+                </div>
 
-            {error && (
-                <Alert variant="error" className="mb-6">
-                    {error}
-                </Alert>
-            )}
+                {error && (
+                    <Alert variant="error" className="mb-6">
+                        {error}
+                    </Alert>
+                )}
 
-            {/* Фильтры */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {canViewAll && (
+                {/* Фильтры */}
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {canViewAll && (
+                            <Select
+                                label="Группа"
+                                value={filters.groupId?.toString() || ''}
+                                onChange={(value) => setFilters(prev => ({ ...prev, groupId: Number(value) || undefined }))}
+                                options={[
+                                    { value: '', label: 'Выберите группу' },
+                                    ...groups.map(g => ({ value: g.id.toString(), label: g.name }))
+                                ]}
+                            />
+                        )}
+
                         <Select
-                            label="Группа"
-                            value={filters.groupId?.toString() || ''}
-                            onChange={(value) => setFilters(prev => ({ ...prev, groupId: Number(value) || undefined }))}
+                            label="Предмет"
+                            value={filters.studyPlanId?.toString() || ''}
+                            onChange={(value) => setFilters(prev => ({ ...prev, studyPlanId: Number(value) || undefined }))}
                             options={[
-                                { value: '', label: 'Выберите группу' },
-                                ...groups.map(g => ({ value: g.id.toString(), label: g.name }))
+                                { value: '', label: 'Все предметы' },
+                                ...(studyPlans?.data?.map(sp => ({ value: sp.id.toString(), label: sp.name })) || [])
                             ]}
                         />
-                    )}
 
-                    <Select
-                        label="Предмет"
-                        value={filters.studyPlanId?.toString() || ''}
-                        onChange={(value) => setFilters(prev => ({ ...prev, studyPlanId: Number(value) || undefined }))}
-                        options={[
-                            { value: '', label: 'Все предметы' },
-                            ...(studyPlans?.data?.map(sp => ({ value: sp.id.toString(), label: sp.name })) || [])
-                        ]}
-                    />
+                        <Input
+                            label="Дата начала"
+                            type="date"
+                            value={filters.startDate || ''}
+                            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                        />
 
-                    <Input
-                        label="Дата начала"
-                        type="date"
-                        value={filters.startDate || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                    />
-
-                    <Input
-                        label="Дата окончания"
-                        type="date"
-                        value={filters.endDate || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                    />
-                </div>
-            </div>
-
-            {/* Журнал */}
-            {lessons.length > 0 ? (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="sticky left-0 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] border-r">
-                                        Студент
-                                    </th>
-                                    {lessons.map((lesson) => (
-                                        <th key={lesson.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px] border-r">
-                                            <div>
-                                                {new Date(lesson.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
-                                            </div>
-                                            <div className="text-xs font-normal text-gray-400 mt-1">
-                                                {(lesson as any).name || lesson.title}
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {students.length > 0 ? (
-                                    students.map((student) => (
-                                        <tr key={student.id} className="hover:bg-gray-50">
-                                            <td className="sticky left-0 bg-white px-6 py-4 whitespace-nowrap border-r">
-                                                <div>
-                                                    <div className="text-sm font-medium text-gray-900">
-                                                        {student.user.surname} {student.user.name}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500">
-                                                        {student.group?.name || 'Нет группы'}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            {lessons.map((lesson) => (
-                                                <td key={lesson.id} className="px-4 py-4 text-center border-r">
-                                                    {renderGradeCell(student.id, lesson.id)}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={lessons.length + 1} className="px-6 py-8 text-center text-gray-500">
-                                            Нет студентов в группе
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                        <Input
+                            label="Дата окончания"
+                            type="date"
+                            value={filters.endDate || ''}
+                            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                        />
                     </div>
                 </div>
-            ) : filters.groupId && filters.studyPlanId ? (
-                <div className="bg-white rounded-lg shadow p-8 text-center">
-                    <p className="text-gray-500">Нет уроков для отображения</p>
-                </div>
-            ) : canViewAll ? (
-                <div className="bg-white rounded-lg shadow p-8 text-center">
-                    <p className="text-gray-500">Выберите группу и предмет для просмотра журнала</p>
-                </div>
-            ) : null}
 
-            {/* Модальные окна */}
-            <GradeModal
-                isOpen={gradeModal.isOpen}
-                onClose={() => setGradeModal({ isOpen: false })}
-                studentId={gradeModal.studentId!}
-                lessonId={gradeModal.lessonId!}
-                initialResult={gradeModal.result}
-                onSave={handleSaveResult}
-            />
+                {/* Журнал */}
+                {lessons.length > 0 ? (
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-full">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="sticky left-0 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] border-r">
+                                            Студент
+                                        </th>
+                                        {lessons.map((lesson) => (
+                                            <th key={lesson.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px] border-r">
+                                                <div>
+                                                    {new Date(lesson.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                                                </div>
+                                                <div className="text-xs font-normal text-gray-400 mt-1">
+                                                    {(lesson as any).name || lesson.title}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {students.length > 0 ? (
+                                        students.map((student) => (
+                                            <tr key={student.id} className="hover:bg-gray-50">
+                                                <td className="sticky left-0 bg-white px-6 py-4 whitespace-nowrap border-r">
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-900">
+                                                            {student.user.surname} {student.user.name}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500">
+                                                            {student.group?.name || 'Нет группы'}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                {lessons.map((lesson) => (
+                                                    <td key={lesson.id} className="px-2 sm:px-4 py-4 text-center border-r">
+                                                        <div className="flex justify-center">
+                                                            {renderGradeCell(student.id, lesson.id)}
+                                                        </div>
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={lessons.length + 1} className="px-6 py-8 text-center text-gray-500">
+                                                Нет студентов в группе
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ) : filters.groupId && filters.studyPlanId ? (
+                    <div className="bg-white rounded-lg shadow p-6 sm:p-8 text-center">
+                        <p className="text-gray-500">Нет уроков для отображения</p>
+                    </div>
+                ) : canViewAll ? (
+                    <div className="bg-white rounded-lg shadow p-6 sm:p-8 text-center">
+                        <p className="text-gray-500">Выберите группу и предмет для просмотра журнала</p>
+                    </div>
+                ) : null}
 
-            <GradeInfoModal
-                isOpen={infoModal.isOpen}
-                onClose={() => setInfoModal({ isOpen: false })}
-                result={infoModal.result!}
-                student={infoModal.student!}
-                lesson={infoModal.lesson!}
-                onEdit={() => {
-                    if (infoModal.result && infoModal.student && infoModal.lesson) {
-                        // Закрываем информационную модалку
-                        setInfoModal({ isOpen: false });
-                        // Открываем модалку редактирования
-                        setGradeModal({
-                            isOpen: true,
-                            studentId: infoModal.student.id,
-                            lessonId: infoModal.lesson.id,
-                            result: infoModal.result,
-                        });
-                    }
-                }}
-            />
+                {/* Модальные окна */}
+                <GradeModal
+                    isOpen={gradeModal.isOpen}
+                    onClose={() => setGradeModal({ isOpen: false })}
+                    studentId={gradeModal.studentId!}
+                    lessonId={gradeModal.lessonId!}
+                    initialResult={gradeModal.result}
+                    onSave={handleSaveResult}
+                />
+
+                <GradeInfoModal
+                    isOpen={infoModal.isOpen}
+                    onClose={() => setInfoModal({ isOpen: false })}
+                    result={infoModal.result!}
+                    student={infoModal.student!}
+                    lesson={infoModal.lesson!}
+                    onEdit={() => {
+                        if (infoModal.result && infoModal.student && infoModal.lesson) {
+                            // Закрываем информационную модалку
+                            setInfoModal({ isOpen: false });
+                            // Открываем модалку редактирования
+                            setGradeModal({
+                                isOpen: true,
+                                studentId: infoModal.student.id,
+                                lessonId: infoModal.lesson.id,
+                                result: infoModal.result,
+                            });
+                        }
+                    }}
+                />
+            </div>
         </div>
     );
 };

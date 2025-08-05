@@ -21,6 +21,7 @@ const StudyPlansPage: React.FC = () => {
   const [showKtpModal, setShowKtpModal] = useState(false);
   const [ktpData, setKtpData] = useState<any>(null);
   const [ktpLoading, setKtpLoading] = useState(false);
+  const [isLoadingKtp, setIsLoadingKtp] = useState(false);
 
   const {
     studyPlans,
@@ -317,7 +318,7 @@ const StudyPlansPage: React.FC = () => {
                               className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
                               onClick={async (e) => {
                                 e.stopPropagation();
-                                setSelectedPlan(plan);
+                                setIsLoadingKtp(true);
                                 setKtpLoading(true);
                                 try {
                                   const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
@@ -327,12 +328,15 @@ const StudyPlansPage: React.FC = () => {
                                   } else {
                                     setKtpData(null);
                                   }
+                                  setSelectedPlan(plan);
                                 } catch (err) {
                                   console.error('Error loading KTP:', err);
                                   setKtpData(null);
+                                  setSelectedPlan(plan);
                                 } finally {
                                   setKtpLoading(false);
                                   setShowKtpModal(true);
+                                  setIsLoadingKtp(false);
                                 }
                               }}
                             >
@@ -447,7 +451,7 @@ const StudyPlansPage: React.FC = () => {
                       className="flex-1 min-w-[80px] px-3 py-2 text-purple-600 hover:bg-purple-50 border border-purple-200 rounded-md flex items-center justify-center button-hover text-xs"
                       onClick={async (e) => {
                         e.stopPropagation();
-                        setSelectedPlan(plan);
+                        setIsLoadingKtp(true);
                         setKtpLoading(true);
                         try {
                           const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
@@ -457,12 +461,15 @@ const StudyPlansPage: React.FC = () => {
                           } else {
                             setKtpData(null);
                           }
+                          setSelectedPlan(plan);
                         } catch (err) {
                           console.error('Error loading KTP:', err);
                           setKtpData(null);
+                          setSelectedPlan(plan);
                         } finally {
                           setKtpLoading(false);
                           setShowKtpModal(true);
+                          setIsLoadingKtp(false);
                         }
                       }}
                     >
@@ -584,7 +591,7 @@ const StudyPlansPage: React.FC = () => {
       )}
 
       {/* Модальное окно детального просмотра */}
-      {selectedPlan && !showKtpModal && (
+      {selectedPlan && !showKtpModal && !isLoadingKtp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col animate-fadeIn">
             {/* Шапка модального окна */}

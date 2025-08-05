@@ -364,7 +364,7 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
                   className="w-full bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 flex items-center justify-center mt-2"
                 >
                   <Bot className="h-4 w-4 mr-2" />
-                  ИИ Прокторинг
+                  Сдать работу
                 </button>
               </div>
             </div>
@@ -389,7 +389,7 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
                 className="w-full bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 flex items-center justify-center"
               >
                 <Bot className="h-4 w-4 mr-2" />
-                ИИ Прокторинг
+                Сдать работу
               </button>
             </div>
           )}

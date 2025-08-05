@@ -1778,4 +1778,72 @@ export class StudentsService {
       message: `Comment deleted successfully for student ${comment.student.user.surname} ${comment.student.user.name}`,
     };
   }
+
+  // === МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ПРЕПОДАВАТЕЛЕЙ СТУДЕНТА ===
+
+  async getStudentTeachers(studentId: number) {
+    const student = await this.findOne(studentId); // Проверяем существование студента
+
+    // Получаем всех преподавателей, которые ведут занятия у данного студента через учебные планы группы
+    const studyPlans = await this.prisma.studyPlan.findMany({
+      where: {
+        group: {
+          some: {
+            id: student.groupId,
+          },
+        },
+        deletedAt: null,
+      },
+      include: {
+        teacher: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                middlename: true,
+              },
+            },
+          },
+        },
+      },
+      distinct: ['teacherId'], // Убираем дубликаты преподавателей
+    });
+
+    // Формируем список уникальных преподавателей с их предметами
+    const teachersMap = new Map();
+
+    for (const studyPlan of studyPlans) {
+      if (studyPlan.teacher) {
+        const teacherId = studyPlan.teacher.id;
+        
+        if (!teachersMap.has(teacherId)) {
+          teachersMap.set(teacherId, {
+            id: teacherId,
+            name: studyPlan.teacher.user.name,
+            surname: studyPlan.teacher.user.surname,
+            middlename: studyPlan.teacher.user.middlename,
+            subjects: [],
+          });
+        }
+        
+        // Добавляем предмет к списку предметов преподавателя
+        const teacher = teachersMap.get(teacherId);
+        if (!teacher.subjects.includes(studyPlan.name)) {
+          teacher.subjects.push(studyPlan.name);
+        }
+      }
+    }
+
+    // Преобразуем Map в массив и форматируем для фронтенда
+    const teachers = Array.from(teachersMap.values()).map(teacher => ({
+      id: teacher.id,
+      name: teacher.name,
+      surname: teacher.surname,
+      subject: teacher.subjects.join(', '), // Объединяем предметы в строку
+    }));
+
+    return teachers;
+  }
 }

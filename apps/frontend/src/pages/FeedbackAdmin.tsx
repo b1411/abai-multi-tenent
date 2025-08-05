@@ -3,6 +3,7 @@ import { feedbackService, FeedbackTemplate } from '../services/feedbackService';
 import { Alert } from '../components/ui/Alert';
 import { Spinner } from '../components/ui/Spinner';
 import { useToastContext } from '../hooks/useToastContext';
+import FeedbackResponsesViewer from '../components/FeedbackResponsesViewer';
 
 const FeedbackAdmin: React.FC = () => {
   const [templates, setTemplates] = useState<FeedbackTemplate[]>([]);
@@ -12,6 +13,7 @@ const FeedbackAdmin: React.FC = () => {
   const [editingTemplate, setEditingTemplate] = useState<FeedbackTemplate | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [statistics, setStatistics] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'templates' | 'responses'>('templates');
   const toast = useToastContext();
 
   useEffect(() => {
@@ -58,11 +60,21 @@ const FeedbackAdmin: React.FC = () => {
 
   const handleCreateDefaultTemplates = async () => {
     try {
-      await feedbackService.createDefaultTemplates();
+      const result = await feedbackService.createDefaultTemplates();
       await loadData();
-      toast.success('Стандартные шаблоны созданы');
+      toast.success(result.message || 'Шаблоны KPI успешно созданы');
     } catch (err: any) {
       toast.error(err.message || 'Ошибка при создании стандартных шаблонов');
+    }
+  };
+
+  const handleCreateTeacherEvaluations = async () => {
+    try {
+      const result = await feedbackService.createDynamicTeacherEvaluations();
+      await loadData();
+      toast.success(result.message || 'Динамические формы оценки преподавателей созданы для всех студентов');
+    } catch (err: any) {
+      toast.error(err.message || 'Ошибка при создании форм оценки преподавателей');
     }
   };
 
@@ -102,6 +114,12 @@ const FeedbackAdmin: React.FC = () => {
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Добавить стандартные
+          </button>
+          <button
+            onClick={handleCreateTeacherEvaluations}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            Формы оценки преподавателей
           </button>
         </div>
       </div>
@@ -143,8 +161,143 @@ const FeedbackAdmin: React.FC = () => {
         </div>
       )}
 
-      {/* Список шаблонов */}
+      {/* Вкладки */}
       <div className="bg-white shadow rounded-lg">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex">
+            <button
+              onClick={() => setActiveTab('templates')}
+              className={`py-4 px-6 border-b-2 font-medium text-sm ${
+                activeTab === 'templates'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Шаблоны форм
+            </button>
+            <button
+              onClick={() => setActiveTab('responses')}
+              className={`py-4 px-6 border-b-2 font-medium text-sm ${
+                activeTab === 'responses'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Ответы студентов
+            </button>
+          </nav>
+        </div>
+
+        {activeTab === 'templates' ? (
+          <div>
+            {/* Список шаблонов */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Название
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Роль
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Частота
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Приоритет
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Статус
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Действия
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {templates.map((template) => (
+                    <tr key={template.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {template.title}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {template.name}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          {template.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {template.frequency}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${template.priority > 0
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                          }`}>
+                          {template.priority > 0 ? 'Обязательный' : 'Опциональный'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${template.isActive
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                          }`}>
+                          {template.isActive ? 'Активный' : 'Неактивный'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setSelectedTemplate(template)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Просмотр
+                          </button>
+                          <button
+                            onClick={() => handleEditTemplate(template)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            onClick={() => handleToggleActive(template.id)}
+                            className={`${template.isActive
+                              ? 'text-red-600 hover:text-red-900'
+                              : 'text-green-600 hover:text-green-900'
+                              }`}
+                          >
+                            {template.isActive ? 'Деактивировать' : 'Активировать'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTemplate(template.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6">
+            <FeedbackResponsesViewer />
+          </div>
+        )}
+      </div>
+
+      {/* Старый список шаблонов - удаляем */}
+      <div style={{ display: 'none' }} className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Шаблоны форм</h2>
         </div>

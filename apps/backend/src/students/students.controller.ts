@@ -381,4 +381,19 @@ export class StudentsController {
   deleteStudentComment(@Param('commentId') commentId: string, @Request() req) {
     return this.studentsService.deleteStudentComment(+commentId, req.user?.id, req.user?.role);
   }
+
+  // === МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ПРЕПОДАВАТЕЛЕЙ СТУДЕНТА ===
+
+  @Get(':id/teachers')
+  @ApiOperation({ 
+    summary: 'Получить преподавателей студента',
+    description: 'Получает список всех преподавателей, которые ведут занятия у данного студента'
+  })
+  @ApiResponse({ status: 200, description: 'Список преподавателей студента с предметами' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  getStudentTeachers(@Param('id') id: string) {
+    return this.studentsService.getStudentTeachers(+id);
+  }
 }

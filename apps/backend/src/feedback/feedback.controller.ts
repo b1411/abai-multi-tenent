@@ -89,6 +89,38 @@ export class FeedbackController {
     }
   }
 
+  // Создание стандартных шаблонов (включая KPI)
+  @Post('templates/create-defaults')
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  async createDefaultTemplates() {
+    try {
+      return await this.feedbackService.createDefaultTemplates();
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при создании стандартных шаблонов',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // Создание динамических форм оценки преподавателей для всех студентов
+  @Post('templates/create-teacher-evaluations')
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  async createDynamicTeacherEvaluations() {
+    try {
+      await this.feedbackService.createDynamicTeacherEvaluationTemplates();
+      return { 
+        message: 'Динамические формы оценки преподавателей созданы для всех студентов',
+        success: true 
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Ошибка при создании динамических форм оценки преподавателей',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   // Получение конкретного шаблона
   @Get('templates/:id')
   async getTemplate(@Param('id', ParseIntPipe) id: number) {
@@ -202,15 +234,28 @@ export class FeedbackController {
   // Получение аналитики по формам обратной связи (только для админов)
   @Get('analytics')
   @Roles(UserRole.ADMIN, UserRole.HR)
-  async getFeedbackAnalytics(
+  async getAnalytics(
     @Query('templateId') templateId?: string,
     @Query('period') period?: string,
   ) {
     try {
-      return await this.feedbackService.getFeedbackAnalytics(
+      // Получаем базовую статистику
+      const statistics = await this.feedbackService.getFeedbackStatistics(period);
+      
+      // Получаем детальную аналитику
+      const analytics = await this.feedbackService.getFeedbackAnalytics(
         templateId ? parseInt(templateId) : undefined,
         period,
       );
+
+      // Комбинируем данные для фронтенда
+      return {
+        totalResponses: statistics.totalResponses,
+        completionRate: statistics.completionRate,
+        byRole: statistics.responsesByRole,
+        period: statistics.period,
+        ...analytics,
+      };
     } catch (error) {
       throw new HttpException(
         'Ошибка при получении аналитики',
@@ -245,6 +290,30 @@ export class FeedbackController {
     } catch (error) {
       throw new HttpException(
         'Ошибка при получении истории эмоционального состояния',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Получение анонимизированных ответов студентов (только для админов)
+  @Get('responses')
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  async getAnonymizedResponses(
+    @Query('templateId') templateId?: string,
+    @Query('period') period?: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    try {
+      return await this.feedbackService.getAnonymizedResponses({
+        templateId: templateId ? parseInt(templateId) : undefined,
+        period,
+        page: parseInt(page),
+        limit: parseInt(limit),
+      });
+    } catch (error) {
+      throw new HttpException(
+        'Ошибка при получении ответов',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

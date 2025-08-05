@@ -128,40 +128,74 @@ export class FeedbackService {
   async submitResponse(userId: number, responseDto: CreateFeedbackResponseDto) {
     const currentPeriod = this.getCurrentPeriod();
     
-    const response = await this.prisma.feedbackResponse.upsert({
-      where: {
-        userId_templateId_period_aboutTeacherId: {
+    // Если aboutTeacherId не указан, используем отдельную логику для обычных фидбеков
+    if (responseDto.aboutTeacherId === undefined || responseDto.aboutTeacherId === null) {
+      // Для обычных фидбеков (без привязки к преподавателю)
+      const response = await this.prisma.feedbackResponse.upsert({
+        where: {
+          userId_templateId_period: {
+            userId,
+            templateId: responseDto.templateId,
+            period: responseDto.period || currentPeriod,
+          },
+        },
+        create: {
           userId,
           templateId: responseDto.templateId,
+          answers: responseDto.answers,
+          isCompleted: responseDto.isCompleted || false,
           period: responseDto.period || currentPeriod,
-          aboutTeacherId: responseDto.aboutTeacherId ?? null,
+          submittedAt: responseDto.isCompleted ? new Date() : null,
         },
-      },
-      create: {
-        userId,
-        templateId: responseDto.templateId,
-        answers: responseDto.answers,
-        isCompleted: responseDto.isCompleted || false,
-        period: responseDto.period || currentPeriod,
-        aboutTeacherId: responseDto.aboutTeacherId ?? null,
-        submittedAt: responseDto.isCompleted ? new Date() : null,
-      },
-      update: {
-        answers: responseDto.answers,
-        isCompleted: responseDto.isCompleted || false,
-        submittedAt: responseDto.isCompleted ? new Date() : null,
-      },
-    });
+        update: {
+          answers: responseDto.answers,
+          isCompleted: responseDto.isCompleted || false,
+          submittedAt: responseDto.isCompleted ? new Date() : null,
+        },
+      });
 
-    // Обновляем статус пользователя если форма завершена
-    if (responseDto.isCompleted) {
-      await this.updateUserFeedbackStatus(userId);
-      
-      // Интегрируем с другими модулями
-      await this.integrateWithOtherModules(userId, response);
+      // Обновляем статус пользователя если форма завершена
+      if (responseDto.isCompleted) {
+        await this.updateUserFeedbackStatus(userId);
+        await this.integrateWithOtherModules(userId, response);
+      }
+
+      return response;
+    } else {
+      // Для фидбеков с привязкой к преподавателю
+      const response = await this.prisma.feedbackResponse.upsert({
+        where: {
+          userId_templateId_period_aboutTeacherId: {
+            userId,
+            templateId: responseDto.templateId,
+            period: responseDto.period || currentPeriod,
+            aboutTeacherId: responseDto.aboutTeacherId,
+          },
+        },
+        create: {
+          userId,
+          templateId: responseDto.templateId,
+          answers: responseDto.answers,
+          isCompleted: responseDto.isCompleted || false,
+          period: responseDto.period || currentPeriod,
+          aboutTeacherId: responseDto.aboutTeacherId,
+          submittedAt: responseDto.isCompleted ? new Date() : null,
+        },
+        update: {
+          answers: responseDto.answers,
+          isCompleted: responseDto.isCompleted || false,
+          submittedAt: responseDto.isCompleted ? new Date() : null,
+        },
+      });
+
+      // Обновляем статус пользователя если форма завершена
+      if (responseDto.isCompleted) {
+        await this.updateUserFeedbackStatus(userId);
+        await this.integrateWithOtherModules(userId, response);
+      }
+
+      return response;
     }
-
-    return response;
   }
 
   // Проверка обязательных форм
@@ -600,18 +634,46 @@ export class FeedbackService {
   private async calculateCompletionRate(period?: string) {
     const currentPeriod = period || this.getCurrentPeriod();
     
-    // Общее количество пользователей, которые должны заполнить формы
-    const totalUsers = await this.prisma.user.count();
+    // Получаем все активные обязательные шаблоны
+    const mandatoryTemplates = await this.prisma.feedbackTemplate.findMany({
+      where: {
+        isActive: true,
+        priority: { gt: 0 }, // Приоритет > 0 означает обязательную форму
+      },
+      select: {
+        role: true,
+      },
+    });
+
+    // Если нет обязательных шаблонов, возвращаем 100%
+    if (mandatoryTemplates.length === 0) {
+      return 100;
+    }
+
+    // Получаем уникальные роли, для которых есть обязательные формы
+    const rolesWithMandatoryForms = [...new Set(mandatoryTemplates.map(t => t.role))];
+    
+    // Общее количество пользователей, которые должны заполнить формы (только с ролями, для которых есть обязательные формы)
+    const totalUsersWithMandatoryForms = await this.prisma.user.count({
+      where: {
+        role: { in: rolesWithMandatoryForms },
+        deletedAt: null,
+      },
+    });
     
     // Количество пользователей, которые заполнили обязательные формы
     const completedUsers = await this.prisma.userFeedbackStatus.count({
       where: {
         hasCompletedMandatory: true,
         currentPeriod,
+        user: {
+          role: { in: rolesWithMandatoryForms },
+          deletedAt: null,
+        },
       },
     });
 
-    return totalUsers > 0 ? Math.round((completedUsers / totalUsers) * 100) : 0;
+    return totalUsersWithMandatoryForms > 0 ? Math.round((completedUsers / totalUsersWithMandatoryForms) * 100) : 100;
   }
 
   // Получение эмоционального состояния студента на основе фидбеков
@@ -876,5 +938,561 @@ export class FeedbackService {
     });
 
     return teacherRatings;
+  }
+
+  // Создание стандартных шаблонов (включая KPI)
+  async createDefaultTemplates() {
+    const templates = await this.createKpiTemplates();
+    await this.createDynamicTeacherEvaluationTemplates();
+    
+    return {
+      message: 'Стандартные шаблоны созданы, включая динамические оценки преподавателей',
+      created: templates.length,
+      templates: templates.map(t => ({
+        id: t.id,
+        name: t.name,
+        title: t.title,
+        role: t.role
+      }))
+    };
+  }
+
+  // Создание динамических шаблонов оценки преподавателей для каждого студента
+  async createDynamicTeacherEvaluationTemplates() {
+    try {
+      // Получаем всех активных студентов
+      const students = await this.prisma.student.findMany({
+        where: { deletedAt: null },
+        include: {
+          user: true,
+          group: {
+            include: {
+              studyPlans: {
+                include: {
+                  teacher: {
+                    include: {
+                      user: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      console.log(`🎓 Найдено ${students.length} студентов для создания персональных форм оценки преподавателей`);
+
+      for (const student of students) {
+        // Получаем уникальных преподавателей студента
+        const teachersSet = new Set();
+        const teachers = student.group?.studyPlans
+          .map(plan => plan.teacher)
+          .filter(teacher => {
+            if (!teacher || teachersSet.has(teacher.id)) return false;
+            teachersSet.add(teacher.id);
+            return true;
+          }) || [];
+
+        if (teachers.length === 0) {
+          console.log(`⚠️ У студента ${student.user.name} ${student.user.surname} нет преподавателей`);
+          continue;
+        }
+
+        console.log(`📝 Создаем форму для студента ${student.user.name} ${student.user.surname} с ${teachers.length} преподавателями`);
+
+        // Создаем персональный шаблон для студента
+        const templateName = `teacher_evaluation_student_${student.id}`;
+        
+        // Создаем вопросы для каждого преподавателя
+        const questions = [];
+        
+        teachers.forEach((teacher) => {
+          // Вопрос о качестве объяснения материала
+          questions.push({
+            id: `teacher_${teacher.id}_clarity`,
+            question: `Насколько понятно ${teacher.user.name} ${teacher.user.surname} объясняет материал?`,
+            type: 'RATING_1_5',
+            required: true,
+            teacherId: teacher.id,
+            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            kpiMetric: 'TEACHING_QUALITY',
+            isKpiRelevant: true,
+            kpiWeight: 1.0,
+            options: [
+              '1 - Очень непонятно',
+              '2 - Непонятно', 
+              '3 - Приемлемо',
+              '4 - Понятно',
+              '5 - Очень понятно'
+            ]
+          });
+
+          // Вопрос о интересности уроков
+          questions.push({
+            id: `teacher_${teacher.id}_engagement`,
+            question: `Насколько интересны уроки ${teacher.user.name} ${teacher.user.surname}?`,
+            type: 'RATING_1_5',
+            required: true,
+            teacherId: teacher.id,
+            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            kpiMetric: 'LESSON_EFFECTIVENESS',
+            isKpiRelevant: true,
+            kpiWeight: 1.0,
+            options: [
+              '1 - Очень скучно',
+              '2 - Скучно',
+              '3 - Нормально', 
+              '4 - Интересно',
+              '5 - Очень интересно'
+            ]
+          });
+
+          // Вопрос о доступности преподавателя
+          questions.push({
+            id: `teacher_${teacher.id}_availability`,
+            question: `Доступен ли ${teacher.user.name} ${teacher.user.surname} для вопросов вне уроков?`,
+            type: 'YES_NO',
+            required: true,
+            teacherId: teacher.id,
+            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            kpiMetric: 'TEACHER_SATISFACTION',
+            isKpiRelevant: true,
+            kpiWeight: 0.7
+          });
+
+          // Вопрос о рекомендации преподавателя
+          questions.push({
+            id: `teacher_${teacher.id}_recommend`,
+            question: `Порекомендуете ли вы ${teacher.user.name} ${teacher.user.surname} другим студентам?`,
+            type: 'YES_NO',
+            required: true,
+            teacherId: teacher.id,
+            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            kpiMetric: 'TEACHER_SATISFACTION',
+            isKpiRelevant: true,
+            kpiWeight: 0.9
+          });
+        });
+
+        // Создаем или обновляем персональный шаблон
+        await this.prisma.feedbackTemplate.upsert({
+          where: { name: templateName },
+          update: {
+            questions: questions,
+            title: `Оценка преподавателей - ${student.user.name} ${student.user.surname}`,
+            description: `Персональная форма оценки ${teachers.length} преподавателей`,
+          },
+          create: {
+            name: templateName,
+            role: 'STUDENT',
+            title: `Оценка преподавателей - ${student.user.name} ${student.user.surname}`,
+            description: `Персональная форма оценки ${teachers.length} преподавателей`,
+            questions: questions,
+            isActive: true,
+            frequency: 'MONTHLY',
+            priority: 6, // Высокий приоритет для персональных форм
+            hasKpiQuestions: true,
+            kpiMetrics: ['TEACHING_QUALITY', 'LESSON_EFFECTIVENESS', 'TEACHER_SATISFACTION']
+          }
+        });
+
+        console.log(`✅ Создана персональная форма для студента ${student.user.name} ${student.user.surname} с оценкой ${teachers.length} преподавателей`);
+      }
+
+      console.log(`🎉 Создание персональных форм оценки преподавателей завершено!`);
+      
+    } catch (error) {
+      console.error('❌ Ошибка при создании динамических шаблонов оценки преподавателей:', error);
+      throw error;
+    }
+  }
+
+  // Создание KPI шаблонов
+  private async createKpiTemplates() {
+    const templates = [];
+
+    // 1. Шаблон для удержания студентов
+    try {
+      const studentRetentionTemplate = await this.prisma.feedbackTemplate.upsert({
+        where: { name: 'student_retention_survey' },
+        update: {},
+        create: {
+          name: 'student_retention_survey',
+          role: 'STUDENT',
+          title: 'Оценка учебного процесса',
+          description: 'Помогите нам улучшить качество обучения, ответив на несколько вопросов',
+          questions: [
+            {
+              id: 'continue_learning',
+              question: 'Планируете ли вы продолжить обучение в следующем семестре?',
+              type: 'YES_NO',
+              required: true,
+              kpiMetric: 'STUDENT_RETENTION',
+              isKpiRelevant: true,
+              kpiWeight: 1.0
+            },
+            {
+              id: 'recommend_academy',
+              question: 'Порекомендуете ли вы нашу академию друзьям?',
+              type: 'YES_NO',
+              required: true,
+              kpiMetric: 'STUDENT_RETENTION',
+              isKpiRelevant: true,
+              kpiWeight: 0.8
+            },
+            {
+              id: 'overall_satisfaction',
+              question: 'Оцените ваше общее удовлетворение качеством обучения',
+              type: 'RATING_1_5',
+              required: true,
+              kpiMetric: 'STUDENT_RETENTION',
+              isKpiRelevant: true,
+              kpiWeight: 1.0,
+              options: [
+                '1 - Очень неудовлетворен',
+                '2 - Неудовлетворен',
+                '3 - Нейтрально',
+                '4 - Удовлетворен',
+                '5 - Очень удовлетворен'
+              ]
+            },
+            {
+              id: 'learning_motivation',
+              question: 'Как изменилась ваша мотивация к обучению?',
+              type: 'RATING_1_5',
+              required: false,
+              kpiMetric: 'STUDENT_RETENTION',
+              isKpiRelevant: true,
+              kpiWeight: 0.6,
+              options: [
+                '1 - Значительно снизилась',
+                '2 - Снизилась',
+                '3 - Не изменилась',
+                '4 - Повысилась',
+                '5 - Значительно повысилась'
+              ]
+            }
+          ],
+          isActive: true,
+          frequency: 'MONTHLY',
+          priority: 5,
+          hasKpiQuestions: true,
+          kpiMetrics: ['STUDENT_RETENTION']
+        }
+      });
+      templates.push(studentRetentionTemplate);
+    } catch (error) {
+      console.error('Error creating student retention template:', error);
+    }
+
+    // 2. Шаблон отзывов от родителей
+    try {
+      const parentFeedbackTemplate = await this.prisma.feedbackTemplate.upsert({
+        where: { name: 'parent_satisfaction_survey' },
+        update: {},
+        create: {
+          name: 'parent_satisfaction_survey',
+          role: 'PARENT',
+          title: 'Отзыв родителей о качестве обучения',
+          description: 'Оцените качество обучения вашего ребенка',
+          questions: [
+            {
+              id: 'teacher_satisfaction',
+              question: 'Насколько вы удовлетворены работой преподавателей?',
+              type: 'RATING_1_5',
+              required: true,
+              kpiMetric: 'TEACHER_SATISFACTION',
+              isKpiRelevant: true,
+              kpiWeight: 1.0,
+              options: [
+                '1 - Очень неудовлетворен',
+                '2 - Неудовлетворен',
+                '3 - Нейтрально',
+                '4 - Удовлетворен',
+                '5 - Очень удовлетворен'
+              ]
+            },
+            {
+              id: 'teaching_quality',
+              question: 'Как вы оцениваете качество преподавания?',
+              type: 'RATING_1_5',
+              required: true,
+              kpiMetric: 'TEACHING_QUALITY',
+              isKpiRelevant: true,
+              kpiWeight: 1.0,
+              options: [
+                '1 - Очень низкое',
+                '2 - Низкое',
+                '3 - Среднее',
+                '4 - Высокое',
+                '5 - Очень высокое'
+              ]
+            },
+            {
+              id: 'child_progress',
+              question: 'Заметили ли вы прогресс в обучении вашего ребенка?',
+              type: 'YES_NO',
+              required: true,
+              kpiMetric: 'TEACHING_QUALITY',
+              isKpiRelevant: true,
+              kpiWeight: 0.8
+            },
+            {
+              id: 'overall_experience',
+              question: 'Оцените общее впечатление от академии',
+              type: 'RATING_1_10',
+              required: true,
+              kpiMetric: 'OVERALL_EXPERIENCE',
+              isKpiRelevant: true,
+              kpiWeight: 1.0
+            },
+            {
+              id: 'recommend_to_others',
+              question: 'Порекомендуете ли вы нашу академию другим родителям?',
+              type: 'YES_NO',
+              required: true,
+              kpiMetric: 'TEACHER_SATISFACTION',
+              isKpiRelevant: true,
+              kpiWeight: 0.9
+            }
+          ],
+          isActive: true,
+          frequency: 'QUARTERLY',
+          priority: 3,
+          hasKpiQuestions: true,
+          kpiMetrics: ['TEACHER_SATISFACTION', 'TEACHING_QUALITY', 'OVERALL_EXPERIENCE']
+        }
+      });
+      templates.push(parentFeedbackTemplate);
+    } catch (error) {
+      console.error('Error creating parent feedback template:', error);
+    }
+
+    // 3. Шаблон оценки преподавателей студентами
+    try {
+      const teacherEvaluationTemplate = await this.prisma.feedbackTemplate.upsert({
+        where: { name: 'teacher_evaluation_by_students' },
+        update: {},
+        create: {
+          name: 'teacher_evaluation_by_students',
+          role: 'STUDENT',
+          title: 'Оценка преподавателей',
+          description: 'Оцените работу ваших преподавателей',
+          questions: [
+            {
+              id: 'lesson_clarity',
+              question: 'Насколько понятно преподаватель объясняет материал?',
+              type: 'RATING_1_5',
+              required: true,
+              kpiMetric: 'TEACHING_QUALITY',
+              isKpiRelevant: true,
+              kpiWeight: 1.0,
+              options: [
+                '1 - Очень непонятно',
+                '2 - Непонятно',
+                '3 - Приемлемо',
+                '4 - Понятно',
+                '5 - Очень понятно'
+              ]
+            },
+            {
+              id: 'lesson_engagement',
+              question: 'Насколько интересны уроки?',
+              type: 'RATING_1_5',
+              required: true,
+              kpiMetric: 'LESSON_EFFECTIVENESS',
+              isKpiRelevant: true,
+              kpiWeight: 1.0,
+              options: [
+                '1 - Очень скучно',
+                '2 - Скучно',
+                '3 - Нормально',
+                '4 - Интересно',
+                '5 - Очень интересно'
+              ]
+            },
+            {
+              id: 'teacher_availability',
+              question: 'Доступен ли преподаватель для вопросов вне уроков?',
+              type: 'YES_NO',
+              required: true,
+              kpiMetric: 'TEACHER_SATISFACTION',
+              isKpiRelevant: true,
+              kpiWeight: 0.7
+            },
+            {
+              id: 'recommend_teacher',
+              question: 'Порекомендуете ли вы этого преподавателя другим студентам?',
+              type: 'YES_NO',
+              required: true,
+              kpiMetric: 'TEACHER_SATISFACTION',
+              isKpiRelevant: true,
+              kpiWeight: 0.9
+            }
+          ],
+          isActive: true,
+          frequency: 'MONTHLY',
+          priority: 4,
+          hasKpiQuestions: true,
+          kpiMetrics: ['TEACHING_QUALITY', 'LESSON_EFFECTIVENESS', 'TEACHER_SATISFACTION']
+        }
+      });
+      templates.push(teacherEvaluationTemplate);
+    } catch (error) {
+      console.error('Error creating teacher evaluation template:', error);
+    }
+
+    // 4. Эмоциональный шаблон для студентов
+    try {
+      const emotionalFeedbackTemplate = await this.prisma.feedbackTemplate.upsert({
+        where: { name: 'student_emotional_wellbeing' },
+        update: {},
+        create: {
+          name: 'student_emotional_wellbeing',
+          role: 'STUDENT',
+          title: 'Эмоциональное состояние',
+          description: 'Расскажите о своем самочувствии и настроении',
+          questions: [
+            {
+              id: 'mood_today',
+              question: 'Как вы оцениваете свое настроение сегодня?',
+              type: 'EMOTIONAL_SCALE',
+              required: true,
+              kpiMetric: 'STUDENT_RETENTION',
+              isKpiRelevant: true,
+              kpiWeight: 0.6
+            },
+            {
+              id: 'concentration_level',
+              question: 'Как вы оцениваете свою концентрацию на уроках?',
+              type: 'RATING_1_5',
+              required: true,
+              kpiMetric: 'LESSON_EFFECTIVENESS',
+              isKpiRelevant: true,
+              kpiWeight: 0.8,
+              options: [
+                '1 - Очень трудно сосредоточиться',
+                '2 - Трудно сосредоточиться',
+                '3 - Нормально',
+                '4 - Легко сосредоточиться',
+                '5 - Очень легко сосредоточиться'
+              ]
+            },
+            {
+              id: 'motivation_level',
+              question: 'Насколько вы мотивированы к учебе?',
+              type: 'RATING_1_10',
+              required: true,
+              kpiMetric: 'STUDENT_RETENTION',
+              isKpiRelevant: true,
+              kpiWeight: 1.0
+            },
+            {
+              id: 'stress_level',
+              question: 'Чувствуете ли вы стресс от учебной нагрузки?',
+              type: 'RATING_1_5',
+              required: false,
+              kpiMetric: 'STUDENT_RETENTION',
+              isKpiRelevant: true,
+              kpiWeight: 0.4,
+              options: [
+                '1 - Совсем нет стресса',
+                '2 - Небольшой стресс',
+                '3 - Умеренный стресс',
+                '4 - Сильный стресс',
+                '5 - Очень сильный стресс'
+              ]
+            }
+          ],
+          isActive: true,
+          frequency: 'WEEKLY',
+          priority: 2,
+          hasKpiQuestions: true,
+          kpiMetrics: ['STUDENT_RETENTION', 'LESSON_EFFECTIVENESS']
+        }
+      });
+      templates.push(emotionalFeedbackTemplate);
+    } catch (error) {
+      console.error('Error creating emotional feedback template:', error);
+    }
+
+    return templates;
+  }
+
+  // Получение анонимизированных ответов
+  async getAnonymizedResponses(options: {
+    templateId?: number;
+    period?: string;
+    page: number;
+    limit: number;
+  }) {
+    const { templateId, period, page, limit } = options;
+    const skip = (page - 1) * limit;
+
+    const where: any = { isCompleted: true };
+    if (templateId) where.templateId = templateId;
+    if (period) where.period = period;
+
+    const [responses, total] = await Promise.all([
+      this.prisma.feedbackResponse.findMany({
+        where,
+        include: {
+          template: {
+            select: {
+              id: true,
+              title: true,
+              questions: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { submittedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.feedbackResponse.count({ where }),
+    ]);
+
+    // Получаем всех уникальных пользователей для создания стабильного маппинга
+    const allUserIds = await this.prisma.feedbackResponse.findMany({
+      where: { isCompleted: true },
+      select: { userId: true },
+      distinct: ['userId'],
+      orderBy: { userId: 'asc' },
+    });
+
+    // Создаем маппинг userId -> анонимный номер
+    const userIdToAnonymousId = new Map<number, number>();
+    allUserIds.forEach((userResponse, index) => {
+      userIdToAnonymousId.set(userResponse.userId, index + 1);
+    });
+
+    // Анонимизируем ответы с стабильным ID
+    const anonymizedResponses = responses.map((response) => ({
+      id: response.id,
+      anonymousId: `Респондент ${userIdToAnonymousId.get(response.user.id)}`,
+      role: response.user.role,
+      template: response.template.title,
+      answers: response.answers,
+      period: response.period,
+      submittedAt: response.submittedAt,
+      templateQuestions: response.template.questions,
+    }));
+
+    return {
+      data: anonymizedResponses,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

@@ -739,5 +739,15 @@ export const studentService = {
   // Удалить комментарий (только для админов)
   async deleteStudentComment(commentId: number): Promise<any> {
     return await apiClient.delete(`/students/comments/${commentId}`);
+  },
+
+  // Получить преподавателей студента
+  async getStudentTeachers(studentId: number): Promise<Array<{
+    id: number;
+    name: string;
+    surname: string;
+    subject: string;
+  }>> {
+    return await apiClient.get(`/students/${studentId}/teachers`);
   }
 };

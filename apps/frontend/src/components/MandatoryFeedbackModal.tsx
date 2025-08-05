@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Alert } from './ui/Alert';
 import { Spinner } from './ui/Spinner';
 import { feedbackService, FeedbackTemplate, Question } from '../services/feedbackService';
+import { studentService } from '../services/studentService';
 
 interface MandatoryFeedbackModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
   const isLastTemplate = currentTemplateIndex === templates.length - 1;
 
   // Автосохранение черновиков
-  const saveDeaft = useCallback(async (templateId: number, currentAnswers: Record<string, any>) => {
+  const saveDraft = useCallback(async (templateId: number, currentAnswers: Record<string, any>) => {
     if (Object.keys(currentAnswers).length === 0) return;
 
     setAutoSaving(true);
@@ -73,12 +74,12 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
   useEffect(() => {
     if (currentTemplate && Object.keys(answers).length > 0) {
       const timeoutId = setTimeout(() => {
-        saveDeaft(currentTemplate.id, answers);
+        saveDraft(currentTemplate.id, answers);
       }, 2000); // Сохраняем через 2 секунды после последнего изменения
 
       return () => clearTimeout(timeoutId);
     }
-  }, [answers, currentTemplate, saveDeaft]);
+  }, [answers, currentTemplate, saveDraft]);
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({
@@ -88,15 +89,29 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
   };
 
   const isFormValid = () => {
-    if (!currentTemplate) return false;
+    if (!currentTemplate) {
+      console.log('Form invalid: no current template');
+      return false;
+    }
 
-    return currentTemplate.questions.every(question => {
+    const validation = currentTemplate.questions.map(question => {
       if (question.required !== false) {
         const answer = answers[question.id];
-        return answer !== undefined && answer !== null && answer !== '';
+        const isValid = answer !== undefined && answer !== null && answer !== '';
+        
+        if (!isValid) {
+          console.log(`Question "${question.question}" (ID: ${question.id}) is required but not answered. Answer:`, answer);
+        }
+        
+        return { questionId: question.id, question: question.question, isValid, answer };
       }
-      return true;
+      return { questionId: question.id, question: question.question, isValid: true, answer: answers[question.id] };
     });
+
+    const allValid = validation.every(v => v.isValid);
+    console.log('Form validation:', { allValid, validation, answers });
+    
+    return allValid;
   };
 
   const handleNext = async () => {
@@ -242,6 +257,32 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
         return <TeacherRatingComponent question={question} value={value} onChange={(v) => handleAnswerChange(question.id, v)} />;
 
       default:
+        // Для неизвестных типов или типов общего назначения используем базовый рейтинг 1-5
+        if (question.category === 'general' || !question.type) {
+          return (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                {[1, 2, 3, 4, 5].map(rating => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => handleAnswerChange(question.id, rating)}
+                    className={`w-12 h-12 rounded-full border-2 font-semibold transition-all ${value === rating
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                      }`}
+                  >
+                    {rating}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Совсем не удовлетворен</span>
+                <span>Полностью удовлетворен</span>
+              </div>
+            </div>
+          );
+        }
         return null;
     }
   };
@@ -354,21 +395,39 @@ const TeacherRatingComponent: React.FC<TeacherRatingComponentProps> = ({ questio
     const loadTeachers = async () => {
       try {
         setLoading(true);
-        // Если у вопроса есть конкретные ID преподавателей, используем их
-        if (question.teacherIds && question.teacherIds.length > 0) {
-          // TODO: загрузить конкретных преподавателей по ID
-          setTeachers([]); // временно пустой список
+        
+        // Получаем ID текущего пользователя из localStorage
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (user.role === 'STUDENT' && user.studentData?.id) {
+          // Если у вопроса есть конкретные ID преподавателей, используем их
+          if (question.teacherIds && question.teacherIds.length > 0) {
+            // Загружаем конкретных преподавателей по ID
+            const allTeachers = await studentService.getStudentTeachers(user.studentData.id);
+            const filteredTeachers = allTeachers.filter(teacher => 
+              question.teacherIds!.includes(teacher.id)
+            );
+            setTeachers(filteredTeachers.map(teacher => ({
+              id: teacher.id,
+              name: `${teacher.name} ${teacher.surname}`,
+              subject: teacher.subject
+            })));
+          } else {
+            // Загружаем всех преподавателей текущего студента
+            const teachersData = await studentService.getStudentTeachers(user.studentData.id);
+            setTeachers(teachersData.map(teacher => ({
+              id: teacher.id,
+              name: `${teacher.name} ${teacher.surname}`,
+              subject: teacher.subject
+            })));
+          }
         } else {
-          // Иначе загружаем всех преподавателей текущего студента
-          // TODO: API call to get student's teachers
-          setTeachers([
-            { id: 1, name: 'Иванов И.И.', subject: 'Математика' },
-            { id: 2, name: 'Петров П.П.', subject: 'Физика' },
-            { id: 3, name: 'Сидорова С.С.', subject: 'История' },
-          ]); // моковые данные для демонстрации
+          console.warn('Пользователь не является студентом или данные студента недоступны');
+          setTeachers([]);
         }
       } catch (error) {
         console.error('Error loading teachers:', error);
+        setTeachers([]);
       } finally {
         setLoading(false);
       }

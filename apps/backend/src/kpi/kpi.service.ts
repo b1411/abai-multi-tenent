@@ -1081,14 +1081,16 @@ export class KpiService {
     const workPlanFilling = await this.calculateWorkPlanFilling(teacher.id);
     const lessonMaterials = await this.calculateLessonMaterials(teacher.id);
     const studentRetention = await this.calculateStudentRetention(teacher.id);
+    const parentFeedback = await this.calculateParentFeedback(teacher.id); // Теперь активирован
+    const parentResponse = await this.calculateParentResponse(teacher.id);
 
     return {
       controlWorksProgress,
       journalFilling,
       workPlanFilling,
       lessonMaterials,
-      parentResponse: -1, // Пока в разработке
-      parentFeedback: -1, // Пока в разработке
+      parentResponse,
+      parentFeedback,
       studentRetention,
       // Для совместимости со старым API
       teachingQuality: controlWorksProgress,
@@ -1716,7 +1718,7 @@ export class KpiService {
   }
 
   /**
-   * Отзывы от родителей
+   * Отзывы от родителей - используем агрегацию фидбеков с KPI метриками
    */
   private async calculateParentFeedback(teacherId: number): Promise<number> {
     try {
@@ -1742,7 +1744,7 @@ export class KpiService {
       });
 
       if (studentsOfTeacher.length === 0) {
-        return -1; // Нет студентов у преподавателя
+        return 0; // Нет студентов у преподавателя
       }
 
       // Получаем ID всех родителей студентов этого преподавателя
@@ -1751,10 +1753,11 @@ export class KpiService {
       );
 
       if (parentUserIds.length === 0) {
-        return -1; // Нет родителей
+        return 0; // Нет родителей
       }
 
-      // Получаем отзывы только от родителей студентов этого преподавателя
+      // Получаем фидбеки от родителей с KPI-метриками
+      // Убираем требование aboutTeacherId, считаем что все фидбеки родителей относятся к преподавателю их детей
       const feedbacks = await this.prisma.feedbackResponse.findMany({
         include: {
           user: true,
@@ -1768,67 +1771,78 @@ export class KpiService {
             role: 'PARENT',
           },
           isCompleted: true,
-          // Получаем отзывы за последние 6 месяцев
+          template: {
+            hasKpiQuestions: true,
+            kpiMetrics: {
+              hasSome: ['TEACHER_SATISFACTION', 'TEACHING_QUALITY', 'OVERALL_EXPERIENCE'],
+            },
+          },
+          // Получаем отзывы за последние 3 месяца
           createdAt: {
-            gte: new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000),
+            gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
           },
         },
       });
 
       if (feedbacks.length === 0) {
-        return 0; // Нет отзывов от родителей данного преподавателя
+        return 0; // Нет KPI фидбеков от родителей данного преподавателя
       }
 
-      // Анализируем ответы родителей
-      let totalRating = 0;
-      let ratingCount = 0;
+      // Используем агрегацию фидбеков для расчета общего балла
+      const aggregationResult = this.feedbackAggregationService.aggregateKpiFromFeedbacks(
+        feedbacks,
+        'TEACHER_SATISFACTION' // Основная метрика для родительских отзывов
+      );
 
-      feedbacks.forEach(feedback => {
-        const answers = feedback.answers as any;
-        if (answers && typeof answers === 'object') {
-          // Ищем вопросы об оценке преподавателя/качества обучения
-          Object.entries(answers).forEach(([questionKey, answer]: [string, any]) => {
-            // Проверяем, относится ли вопрос к оценке качества обучения
-            const isTeacherRating = questionKey.toLowerCase().includes('преподават') ||
-              questionKey.toLowerCase().includes('качеств') ||
-              questionKey.toLowerCase().includes('удовлетворен') ||
-              questionKey.toLowerCase().includes('оценка');
+      // Если уверенность в результате низкая, используем fallback
+      if (aggregationResult.confidence < 0.3) {
+        return this.calculateParentFeedbackFallback(feedbacks);
+      }
 
-            if (isTeacherRating && typeof answer === 'number' && answer >= 1 && answer <= 5) {
-              totalRating += answer;
+      return aggregationResult.score;
+    } catch (error) {
+      console.error('Error calculating parent feedback:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Fallback метод для расчета родительских отзывов без KPI агрегации
+   */
+  private calculateParentFeedbackFallback(feedbacks: any[]): number {
+    let totalScore = 0;
+    let ratingCount = 0;
+
+    feedbacks.forEach(feedback => {
+      const answers = feedback.answers as any;
+      if (answers && typeof answers === 'object') {
+        Object.entries(answers).forEach(([questionKey, answer]: [string, any]) => {
+          // Обрабатываем разные типы ответов
+          if (typeof answer === 'number') {
+            let normalizedScore = 0;
+            
+            // Нормализуем в зависимости от шкалы
+            if (answer >= 1 && answer <= 5) {
+              normalizedScore = ((answer - 1) / 4) * 100;
+            } else if (answer >= 1 && answer <= 10) {
+              normalizedScore = ((answer - 1) / 9) * 100;
+            } else if (answer >= 0 && answer <= 100) {
+              normalizedScore = answer;
+            }
+
+            if (normalizedScore > 0) {
+              totalScore += normalizedScore;
               ratingCount++;
             }
-          });
-        }
-      });
-
-      if (ratingCount === 0) {
-        // Если нет специфических оценок, анализируем все числовые ответы
-        feedbacks.forEach(feedback => {
-          const answers = feedback.answers as any;
-          if (answers && typeof answers === 'object') {
-            Object.values(answers).forEach((answer: any) => {
-              if (typeof answer === 'number' && answer >= 1 && answer <= 5) {
-                totalRating += answer;
-                ratingCount++;
-              }
-            });
+          } else if (typeof answer === 'boolean') {
+            totalScore += answer ? 100 : 0;
+            ratingCount++;
           }
         });
       }
+    });
 
-      if (ratingCount === 0) {
-        return 50; // Базовый балл если есть фидбеки, но нет числовых оценок
-      }
-
-      const avgRating = totalRating / ratingCount;
-      const feedbackScore = (avgRating / 5) * 100; // Приводим к шкале 0-100
-
-      return Math.round(feedbackScore);
-    } catch (error) {
-      console.error('Error calculating parent feedback:', error);
-      return -1;
-    }
+    return ratingCount > 0 ? Math.round(totalScore / ratingCount) : 50;
   }
 
   /**
@@ -1836,20 +1850,102 @@ export class KpiService {
    */
   private async calculateStudentRetention(teacherId: number): Promise<number> {
     try {
-      // Получаем данные только из агрегации фидбеков
-      const feedbackResult = await this.feedbackAggregationService.aggregateStudentRetentionKpi(teacherId);
+      // Получаем студентов данного преподавателя
+      const studentsOfTeacher = await this.prisma.student.findMany({
+        where: {
+          group: {
+            studyPlans: {
+              some: {
+                teacherId: teacherId,
+              },
+            },
+          },
+          deletedAt: null,
+        },
+        include: {
+          user: true,
+        },
+      });
 
-      // Если есть фидбеки с достаточной уверенностью (>= 0.3), используем их
-      if (feedbackResult.confidence >= 0.3 && feedbackResult.responseCount > 0) {
-        return feedbackResult.score;
+      if (studentsOfTeacher.length === 0) {
+        return 0; // Нет студентов у преподавателя
       }
 
-      // Если фидбеков недостаточно - возвращаем 0 (нет данных)
-      return 0;
+      const studentUserIds = studentsOfTeacher.map(s => s.user.id);
+
+      // Получаем фидбеки от студентов этого преподавателя с KPI-вопросами об удержании
+      const retentionFeedbacks = await this.prisma.feedbackResponse.findMany({
+        where: {
+          userId: {
+            in: studentUserIds,
+          },
+          user: {
+            role: 'STUDENT',
+          },
+          isCompleted: true,
+          template: {
+            hasKpiQuestions: true,
+            kpiMetrics: {
+              has: 'STUDENT_RETENTION',
+            },
+          },
+          // Фидбеки за последние 3 месяца
+          createdAt: {
+            gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+          },
+        },
+        include: {
+          template: true,
+        },
+      });
+
+      if (retentionFeedbacks.length === 0) {
+        return 0; // Нет фидбеков об удержании
+      }
+
+      // Используем агрегацию фидбеков для расчета общего балла
+      const aggregationResult = this.feedbackAggregationService.aggregateKpiFromFeedbacks(
+        retentionFeedbacks,
+        'STUDENT_RETENTION'
+      );
+
+      // Если уверенность в результате достаточная, возвращаем результат
+      if (aggregationResult.confidence >= 0.3) {
+        return aggregationResult.score;
+      }
+
+      // Fallback: простой расчет на основе ответов Yes/No
+      return this.calculateRetentionFallback(retentionFeedbacks);
     } catch (error) {
       console.error('Error calculating student retention:', error);
       return 0;
     }
+  }
+
+  /**
+   * Fallback метод для расчета удержания без агрегации
+   */
+  private calculateRetentionFallback(feedbacks: any[]): number {
+    let positiveResponses = 0;
+    let totalResponses = 0;
+
+    feedbacks.forEach(feedback => {
+      const answers = feedback.answers as any;
+      if (answers && typeof answers === 'object') {
+        // Ищем вопросы об удержании (continue_learning, recommend_teacher)
+        Object.entries(answers).forEach(([questionKey, answer]: [string, any]) => {
+          if (questionKey.toLowerCase().includes('continue') || 
+              questionKey.toLowerCase().includes('recommend')) {
+            totalResponses++;
+            if (answer === true || answer === 'true' || answer > 3) {
+              positiveResponses++;
+            }
+          }
+        });
+      }
+    });
+
+    return totalResponses > 0 ? Math.round((positiveResponses / totalResponses) * 100) : 0;
   }
 
   /**

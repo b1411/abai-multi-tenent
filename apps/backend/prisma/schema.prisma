@@ -1078,6 +1078,7 @@ model FeedbackResponse {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
+  @@unique([userId, templateId, period])
   @@unique([userId, templateId, period, aboutTeacherId])
 }
 

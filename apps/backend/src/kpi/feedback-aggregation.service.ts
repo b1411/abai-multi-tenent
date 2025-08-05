@@ -54,8 +54,8 @@ export class FeedbackAggregationService {
 
     const studentUserIds = studentsOfTeacher.map(s => s.user.id);
 
-    // Получаем фидбеки от студентов с KPI-вопросами об удержании, 
-    // которые относятся к данному преподавателю
+    // Получаем фидбеки от студентов с KPI-вопросами об удержании
+    // Убираем требование aboutTeacherId, так как считаем что все фидбеки студентов относятся к их преподавателю
     const retentionFeedbacks = await this.prisma.feedbackResponse.findMany({
       where: {
         userId: {
@@ -71,8 +71,6 @@ export class FeedbackAggregationService {
             has: 'STUDENT_RETENTION',
           },
         },
-        // НОВОЕ: Фидбеки должны относиться к конкретному преподавателю
-        aboutTeacherId: teacherId,
         // Фидбеки за последние 3 месяца
         createdAt: {
           gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),

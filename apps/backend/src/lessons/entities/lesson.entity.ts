@@ -1,4 +1,5 @@
 import { ApiProperty, ApiSchema } from "@nestjs/swagger";
+import { LessonType } from "generated/prisma";
 
 @ApiSchema({
     name: 'Lesson',
@@ -34,4 +35,7 @@ export class Lesson {
 
     @ApiProperty({ nullable: true })
     materialsId: number | null;
+
+    @ApiProperty({ enum: LessonType, default: LessonType.REGULAR })
+    type: LessonType;
 }

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsDateString, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsDateString, MaxLength, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { LessonType } from 'generated/prisma';
 
 export class CreateLessonDto {
     @ApiProperty({ 
@@ -59,4 +60,13 @@ export class CreateLessonDto {
     @IsNumber()
     @IsPositive()
     materialsId?: number | null;
+
+    @ApiPropertyOptional({
+        description: 'Тип урока',
+        enum: LessonType,
+        example: LessonType.REGULAR
+    })
+    @IsOptional()
+    @IsEnum(LessonType)
+    type?: LessonType;
 }

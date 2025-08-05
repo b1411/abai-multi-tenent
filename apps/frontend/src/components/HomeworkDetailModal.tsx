@@ -372,16 +372,25 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
 
           {/* Teacher Actions */}
           {(hasRole('ADMIN') || hasRole('TEACHER')) && (
-            <div className="flex space-x-3 pt-4 border-t border-gray-200">
-              {onViewSubmissions && (
-                <button
-                  onClick={onViewSubmissions}
-                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 flex items-center justify-center"
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Проверить работы ({homework.studentsSubmissions?.length || 0})
-                </button>
-              )}
+            <div className="space-y-3 pt-4 border-t border-gray-200">
+              <div className="flex space-x-3">
+                {onViewSubmissions && (
+                  <button
+                    onClick={onViewSubmissions}
+                    className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 flex items-center justify-center"
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Проверить работы ({homework.studentsSubmissions?.length || 0})
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setIsProctoringVisible(true)}
+                className="w-full bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 flex items-center justify-center"
+              >
+                <Bot className="h-4 w-4 mr-2" />
+                ИИ Прокторинг
+              </button>
             </div>
           )}
         </div>

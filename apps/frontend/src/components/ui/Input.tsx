@@ -26,7 +26,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
 
   const inputType = showPasswordToggle ? (showPassword ? 'text' : 'password') : type;
 
-  const baseClasses = "w-full px-3 py-2 text-sm border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0";
+  const baseClasses = "w-full px-4 py-3 text-base min-h-[48px] border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 sm:px-3 sm:py-2 sm:text-sm sm:min-h-[40px]";
   
   const variantClasses = {
     default: `border-gray-300 focus:border-[#ca181f] focus:ring-[#ca181f]/20 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`,

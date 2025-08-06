@@ -174,9 +174,9 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen flex bg-gray-50 overflow-hidden">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Sidebar with chats */}
-      <div className={`${currentChat ? 'hidden lg:flex' : 'flex'} w-full lg:w-1/3 xl:w-1/4 bg-white border-r border-gray-200 flex-col h-full max-h-full overflow-hidden`}>
+      <div className={`${currentChat ? 'hidden lg:flex' : 'flex'} w-full lg:w-1/3 xl:w-1/4 bg-white border-r border-gray-200 flex-col h-full`}>
         {/* Header */}
         <div className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -255,9 +255,9 @@ const Chat: React.FC = () => {
         )}
 
         {/* Chats list */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto">
           {filteredChats.length === 0 ? (
-            <div className="p-4 sm:p-6 lg:p-8 text-center">
+            <div className="p-4 sm:p-6 lg:p-8 text-center h-full flex flex-col justify-center">
               <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <Send className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-gray-400" />
               </div>
@@ -354,7 +354,7 @@ const Chat: React.FC = () => {
       </div>
 
       {/* Chat area */}
-      <div className={`${currentChat ? 'flex' : 'hidden lg:flex'} flex-1 flex-col h-full max-h-full overflow-hidden`}>
+      <div className={`${currentChat ? 'flex' : 'hidden lg:flex'} flex-1 flex-col h-full`}>
         {currentChat ? (
           <>
             {/* Chat header */}
@@ -430,7 +430,7 @@ const Chat: React.FC = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100 min-h-0">
+            <div className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100">
               {messagesLoading ? (
                 <div className="flex items-center justify-center py-8 sm:py-12">
                   <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 flex items-center space-x-2 sm:space-x-3">

@@ -184,50 +184,50 @@ export default function AdminChats() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-8">
+      <div className="flex flex-col gap-2 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Чаты сотрудников</h1>
-          <p className="text-gray-600">Просмотр и мониторинг всех чатов сотрудников</p>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Чаты сотрудников</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Просмотр и мониторинг всех чатов сотрудников</p>
         </div>
       </div>
 
       {/* Поиск */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4 lg:p-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
             <Input
               placeholder="Поиск по участникам или названию чата..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Статистика */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-6">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center">
-              <MessageCircle className="h-8 w-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Всего чатов</p>
-                <p className="text-2xl font-bold text-gray-900">{chats.length}</p>
+              <MessageCircle className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-blue-600 flex-shrink-0" />
+              <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Всего чатов</p>
+                <p className="text-base sm:text-lg lg:text-2xl font-bold text-gray-900">{chats.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center">
-              <Users className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Групповые чаты</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-green-600 flex-shrink-0" />
+              <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Групповые</p>
+                <p className="text-base sm:text-lg lg:text-2xl font-bold text-gray-900">
                   {chats.filter(chat => chat.isGroup).length}
                 </p>
               </div>
@@ -236,12 +236,12 @@ export default function AdminChats() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center">
-              <MessageCircle className="h-8 w-8 text-purple-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Личные чаты</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <MessageCircle className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-purple-600 flex-shrink-0" />
+              <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Личные</p>
+                <p className="text-base sm:text-lg lg:text-2xl font-bold text-gray-900">
                   {chats.filter(chat => !chat.isGroup).length}
                 </p>
               </div>
@@ -250,12 +250,12 @@ export default function AdminChats() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center">
-              <Clock className="h-8 w-8 text-orange-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Всего сообщений</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <Clock className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-orange-600 flex-shrink-0" />
+              <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Сообщений</p>
+                <p className="text-base sm:text-lg lg:text-2xl font-bold text-gray-900">
                   {chats.reduce((sum, chat) => sum + chat.messageCount, 0)}
                 </p>
               </div>
@@ -282,25 +282,25 @@ export default function AdminChats() {
               filteredChats.map((chat) => (
                 <div
                   key={chat.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 lg:p-6 border rounded-lg sm:rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors gap-3 sm:gap-4"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-medium text-gray-900 truncate">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2 sm:mb-3">
+                      <h3 className="font-semibold text-sm sm:text-base lg:text-lg text-gray-900 truncate">
                         {getChatDisplayName(chat)}
                       </h3>
                       {chat.isGroup && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs sm:text-sm self-start">
                           Группа
                         </Badge>
                       )}
                     </div>
                     
-                    <div className="flex flex-wrap gap-1 mb-2">
+                    <div className="flex flex-wrap gap-1 sm:gap-2 mb-2 sm:mb-3">
                       {chat.participants.map((participant) => (
                         <Badge
                           key={participant.id}
-                          className={`text-xs ${getRoleBadgeColor(participant.user.role)}`}
+                          className={`text-xs sm:text-sm ${getRoleBadgeColor(participant.user.role)}`}
                         >
                           {participant.user.roleDisplay || participant.user.role}
                         </Badge>
@@ -308,7 +308,7 @@ export default function AdminChats() {
                     </div>
 
                     {chat.lastMessage && (
-                      <p className="text-sm text-gray-600 truncate">
+                      <p className="text-xs sm:text-sm lg:text-base text-gray-600 truncate mb-2 sm:mb-3">
                         <span className="font-medium">
                           {chat.lastMessage.sender.name}:
                         </span>{' '}
@@ -316,12 +316,13 @@ export default function AdminChats() {
                       </p>
                     )}
                     
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 lg:gap-4 text-xs text-gray-500">
                       <span>
                         Сообщений: {chat.messageCount}
                       </span>
+                      <span className="hidden sm:inline">•</span>
                       <span>
-                        Обновлен: {format(new Date(chat.updatedAt), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                        {format(new Date(chat.updatedAt), 'dd.MM.yyyy HH:mm', { locale: ru })}
                       </span>
                     </div>
                   </div>
@@ -330,9 +331,9 @@ export default function AdminChats() {
                     onClick={() => handleViewMessages(chat)}
                     variant="outline"
                     size="sm"
-                    className="ml-4"
+                    className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base"
                   >
-                    <Eye className="h-4 w-4 mr-2" />
+                    <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     Просмотр
                   </Button>
                 </div>
@@ -344,14 +345,14 @@ export default function AdminChats() {
 
       {/* Диалог просмотра сообщений */}
       <Dialog open={isMessagesDialogOpen} onOpenChange={setIsMessagesDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] m-2 sm:m-4">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-base sm:text-lg lg:text-xl pr-8">
               {selectedChat && getChatDisplayName(selectedChat)}
             </DialogTitle>
           </DialogHeader>
           
-          <ScrollArea className="h-96 w-full p-4 border rounded">
+          <ScrollArea className="h-64 sm:h-80 lg:h-96 w-full p-2 sm:p-4 border rounded-lg sm:rounded-xl">
             {messagesLoading ? (
               <div className="flex items-center justify-center h-32">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -359,9 +360,9 @@ export default function AdminChats() {
             ) : chatMessages && chatMessages.data.length > 0 ? (
               <div className="space-y-4">
                 {chatMessages.data.map((message) => (
-                  <div key={message.id} className="flex gap-3">
+                  <div key={message.id} className="flex gap-2 sm:gap-3 lg:gap-4">
                     <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gray-300 rounded-full flex items-center justify-center">
                         <span className="text-xs font-medium text-gray-700">
                           {message.sender.name.charAt(0)}
                         </span>
@@ -369,11 +370,11 @@ export default function AdminChats() {
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 mb-1 sm:mb-2">
+                        <span className="font-medium text-xs sm:text-sm lg:text-base">
                           {message.sender.name} {message.sender.surname}
                         </span>
-                        <Badge className={`text-xs ${getRoleBadgeColor(message.sender.role)}`}>
+                        <Badge className={`text-xs ${getRoleBadgeColor(message.sender.role)} self-start`}>
                           {message.sender.role}
                         </Badge>
                         <span className="text-xs text-gray-500">
@@ -385,13 +386,13 @@ export default function AdminChats() {
                       </div>
                       
                       {message.replyTo && (
-                        <div className="bg-gray-100 border-l-4 border-gray-300 pl-3 py-2 mb-2 text-sm">
+                        <div className="bg-gray-100 border-l-4 border-gray-300 pl-2 sm:pl-3 py-1 sm:py-2 mb-1 sm:mb-2 text-xs sm:text-sm rounded-r-lg">
                           <span className="font-medium">{message.replyTo.sender.name}:</span>
-                          <p className="text-gray-600">{message.replyTo.content}</p>
+                          <p className="text-gray-600 break-words">{message.replyTo.content}</p>
                         </div>
                       )}
                       
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                      <p className="text-xs sm:text-sm lg:text-base text-gray-900 whitespace-pre-wrap break-words">
                         {message.content}
                       </p>
                     </div>
@@ -406,7 +407,7 @@ export default function AdminChats() {
           </ScrollArea>
 
           {chatMessages && (
-            <div className="text-sm text-gray-500 text-center">
+            <div className="text-xs sm:text-sm lg:text-base text-gray-500 text-center p-2 sm:p-4">
               Показано {chatMessages.data.length} из {chatMessages.pagination.total} сообщений
             </div>
           )}

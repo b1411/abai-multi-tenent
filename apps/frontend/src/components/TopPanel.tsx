@@ -13,13 +13,13 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
   const { user } = useAuth();
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="flex items-center justify-between px-4 lg:px-6 py-4">
-        <div className="flex items-center flex-1">
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+      <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4">
+        <div className="flex items-center flex-1 min-w-0">
           {/* Mobile menu button */}
           <button
             onClick={onToggleSidebar}
-            className="lg:hidden p-2 text-gray-400 hover:text-gray-600 mr-4"
+            className="lg:hidden p-3 text-gray-400 hover:text-gray-600 mr-2 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
           >
             <Menu className="h-6 w-6" />
           </button>
@@ -31,18 +31,12 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
             <input
               type="text"
               placeholder="Поиск..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary"
+              className="block w-full pl-10 pr-3 py-3 text-base min-h-[48px] border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:py-2 sm:text-sm sm:min-h-[40px]"
             />
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 lg:space-x-4">
-          {/* Индикатор активности для всех пользователей */}
-          <ActivityIndicator showDetails={false} className="hidden sm:flex" />
-          
-          {/* Статус бейдж для админов */}
-          <ActivityStatusBadge />
-          
+        <div className="flex items-center space-x-2 lg:space-x-4 ml-2 lg:ml-4">
           <NotificationPanel />
 
           {/* Виджет профиля студента */}
@@ -51,14 +45,14 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
           )}
 
           <div className="flex items-center space-x-2 lg:space-x-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-gray-900">
+            <div className="text-right hidden md:block">
+              <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">
                 {user?.name} {user?.surname}
               </p>
               <p className="text-xs text-gray-500">{user?.role}</p>
             </div>
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-white text-sm font-medium">
+            <div className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 touch-manipulation">
+              <span className="text-white text-base sm:text-sm font-medium">
                 {user?.name?.[0]}{user?.surname?.[0]}
               </span>
             </div>

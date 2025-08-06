@@ -63,8 +63,9 @@ export const Select: React.FC<SelectProps> = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          w-full px-3 py-2 text-sm border rounded-lg transition-all duration-200 
+          w-full px-4 py-3 text-base min-h-[48px] border rounded-lg transition-all duration-200 
           focus:outline-none focus:ring-2 focus:ring-offset-0 text-left
+          sm:px-3 sm:py-2 sm:text-sm sm:min-h-[40px]
           ${error 
             ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
             : 'border-gray-300 focus:border-[#ca181f] focus:ring-[#ca181f]/20'

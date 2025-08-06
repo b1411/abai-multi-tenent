@@ -34,9 +34,9 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const sizeClasses = {
-    sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2 text-sm",
-    lg: "px-6 py-3 text-base"
+    sm: "px-3 py-2 text-sm min-h-[40px] sm:min-h-[36px]",
+    md: "px-4 py-3 text-base min-h-[48px] sm:min-h-[40px] sm:text-sm",
+    lg: "px-6 py-4 text-lg min-h-[52px] sm:min-h-[44px] sm:text-base"
   };
 
   const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;

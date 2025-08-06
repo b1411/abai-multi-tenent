@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopPanel from './TopPanel';
 import { ActivityTestButton } from './ActivityTestButton';
+import RealtimeChatWidget from './realtime-assistant-widget/RealtimeChatWidget';
 
 const DashboardLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -24,17 +25,15 @@ const DashboardLayout: React.FC = () => {
           onClick={closeSidebar}
         />
       )}
-      
+
       <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
-      
-      <div className="flex-1 flex flex-col lg:ml-64">
+
+      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen">
         <TopPanel onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 overflow-auto bg-gray-50 p-4 lg:p-6">
+        <main className="flex-1 bg-gray-50 p-0 sm:p-4 lg:p-6 overflow-x-auto">
           <Outlet />
+          <RealtimeChatWidget />
         </main>
-        
-        {/* Тестовая кнопка активности */}
-        <ActivityTestButton />
       </div>
     </div>
   );

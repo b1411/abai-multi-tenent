@@ -202,7 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'
+    <div className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0`}>
       <div className="flex h-full flex-col">
         {/* Logo and close button */}
@@ -210,9 +210,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <h1 className="text-xl font-bold text-primary">ABAI LMS</h1>
           <button
             onClick={onClose}
-            className="lg:hidden p-1 text-gray-400 hover:text-gray-600"
+            className="lg:hidden p-2 text-gray-400 hover:text-gray-600 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
           >
-            <X className="h-5 w-5" />
+            <X className="h-6 w-6" />
           </button>
         </div>
 

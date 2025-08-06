@@ -316,109 +316,127 @@ const LessonsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6">
+    <div className="p-4 min-h-screen bg-gray-50" style={{fontSize: '16px'}}>
       {/* Header */}
-      <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 mb-4 lg:mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Уроки</h1>
-          <p className="text-gray-500 mt-1 text-sm sm:text-base">
-            Управление уроками и расписанием
-          </p>
-        </div>
+      <div className="mb-6">
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">Уроки</h1>
+            <p className="text-gray-500 mt-2 text-base md:text-lg">
+              Управление уроками и расписанием
+            </p>
+          </div>
 
-        {(hasRole('ADMIN') || hasRole('TEACHER')) && (
-          <Button
-            variant="primary"
-            onClick={() => setIsCreating(true)}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Создать урок</span>
-            <span className="sm:hidden">Создать</span>
-          </Button>
-        )}
+          {(hasRole('ADMIN') || hasRole('TEACHER')) && (
+            <div className="flex-shrink-0">
+              <Button
+                variant="primary"
+                onClick={() => setIsCreating(true)}
+                className="w-full md:w-auto min-h-[48px] text-base font-medium shadow-sm px-6 py-3"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                <span>Создать урок</span>
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 lg:mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <div className="lg:col-span-1">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="space-y-4">
+          {/* Search */}
+          <div>
             <Input
               placeholder="Поиск по названию..."
               value={filters.search || ''}
               onChange={(e) => updateFilters({ search: e.target.value })}
-              icon={<Search className="h-4 w-4" />}
+              icon={<Search className="h-5 w-5" />}
+              className="text-base min-h-[48px] px-4 py-3"
             />
           </div>
 
-          <Select
-            placeholder="Тип урока"
-            value={filters.type || 'all'}
-            onChange={(value) => updateFilters({ type: value === 'all' ? undefined : value as LessonType })}
-            options={[
-              { value: 'all', label: 'Все типы' },
-              ...getLessonTypeOptions()
-            ]}
-          />
-
-          <Select
-            placeholder="Учебный план"
-            value={filters.studyPlanId?.toString() || 'all'}
-            onChange={(value) => updateFilters({ studyPlanId: value === 'all' ? undefined : parseInt(value) })}
-            options={[
-              { value: 'all', label: 'Все планы' },
-              ...studyPlans.map(plan => ({
-                value: plan.id.toString(),
-                label: plan.name
-              }))
-            ]}
-          />
-
-          <Input
-            type="date"
-            placeholder="Дата от"
-            value={filters.dateFrom || ''}
-            onChange={(e) => updateFilters({ dateFrom: e.target.value })}
-          />
-
-          <Input
-            type="date"
-            placeholder="Дата до"
-            value={filters.dateTo || ''}
-            onChange={(e) => updateFilters({ dateTo: e.target.value })}
-          />
-        </div>
-
-        <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 mt-4 pt-4 border-t border-gray-200">
-          <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
+          {/* Filters Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
-              placeholder="Сортировка"
-              value={filters.sortBy || 'date'}
-              onChange={(value) => updateFilters({ sortBy: value as any })}
-              options={sortOptions}
-            />
-
-            <Select
-              placeholder="Порядок"
-              value={filters.order || 'desc'}
-              onChange={(value) => updateFilters({ order: value as any })}
+              placeholder="Тип урока"
+              value={filters.type || 'all'}
+              onChange={(value) => updateFilters({ type: value === 'all' ? undefined : value as LessonType })}
               options={[
-                { value: 'asc', label: 'По возрастанию' },
-                { value: 'desc', label: 'По убыванию' }
+                { value: 'all', label: 'Все типы' },
+                ...getLessonTypeOptions()
               ]}
+              className="text-base min-h-[48px]"
+            />
+
+            <Select
+              placeholder="Учебный план"
+              value={filters.studyPlanId?.toString() || 'all'}
+              onChange={(value) => updateFilters({ studyPlanId: value === 'all' ? undefined : parseInt(value) })}
+              options={[
+                { value: 'all', label: 'Все планы' },
+                ...studyPlans.map(plan => ({
+                  value: plan.id.toString(),
+                  label: plan.name.length > 30 ? `${plan.name.substring(0, 30)}...` : plan.name
+                }))
+              ]}
+              className="text-base min-h-[48px]"
             />
           </div>
 
-          <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
-            Найдено: {pagination.total} уроков
+          {/* Filters Row 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              type="date"
+              placeholder="Дата от"
+              value={filters.dateFrom || ''}
+              onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+              className="text-base min-h-[48px] px-4 py-3"
+            />
+
+            <Input
+              type="date"
+              placeholder="Дата до"
+              value={filters.dateTo || ''}
+              onChange={(e) => updateFilters({ dateTo: e.target.value })}
+              className="text-base min-h-[48px] px-4 py-3"
+            />
+          </div>
+
+          {/* Sort and Stats */}
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 pt-4 border-t border-gray-200">
+            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-x-4 md:space-y-0">
+              <Select
+                placeholder="Сортировка"
+                value={filters.sortBy || 'date'}
+                onChange={(value) => updateFilters({ sortBy: value as any })}
+                options={sortOptions}
+                className="text-base min-h-[48px]"
+              />
+
+              <Select
+                placeholder="Порядок"
+                value={filters.order || 'desc'}
+                onChange={(value) => updateFilters({ order: value as any })}
+                options={[
+                  { value: 'asc', label: 'По возрастанию' },
+                  { value: 'desc', label: 'По убыванию' }
+                ]}
+                className="text-base min-h-[48px]"
+              />
+            </div>
+
+            <div className="text-base text-gray-500 text-center md:text-right px-3 py-2 rounded bg-gray-50">
+              Найдено: <span className="font-medium">{pagination.total}</span> уроков
+            </div>
           </div>
         </div>
       </div>
 
       {/* Table/Cards */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {/* Desktop Table View */}
-        <div className="hidden lg:block">
+        {/* Desktop Table View - Only show on very large screens */}
+        <div className="hidden xl:block">
           <Table
             columns={columns}
             data={lessons}
@@ -429,102 +447,113 @@ const LessonsPage: React.FC = () => {
           />
         </div>
 
-        {/* Mobile Card View */}
-        <div className="lg:hidden">
+        {/* Mobile Card View - Show on all screens up to xl */}
+        <div className="xl:hidden">
           {lessonsLoading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-16">
               <Loading text="Загрузка уроков..." />
             </div>
           ) : lessons.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>Уроки не найдены</p>
+            <div className="text-center py-16 px-4">
+              <BookOpen className="w-20 h-20 mx-auto mb-6 text-gray-300" />
+              <h3 className="text-xl font-medium text-gray-900 mb-3">Уроки не найдены</h3>
+              <p className="text-base text-gray-500">Попробуйте изменить фильтры поиска</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-100">
               {lessons.map((lesson) => (
-                <div key={lesson.id} className="p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <button
-                        onClick={() => navigate(`/lessons/${lesson.id}`)}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-sm truncate block w-full text-left"
-                      >
-                        {lesson.name}
-                      </button>
-
-                      {lesson.description && (
-                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">{lesson.description}</p>
-                      )}
-
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center text-xs text-gray-500">
-                          <BookOpen className="w-3 h-3 mr-1" />
-                          <span className="truncate">{lesson.studyPlan?.name || 'Не указан'}</span>
+                <div key={lesson.id} className="p-4 hover:bg-gray-50 transition-colors duration-150" style={{minHeight: '120px'}}>
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0 pr-3">
+                        <button
+                          onClick={() => navigate(`/lessons/${lesson.id}`)}
+                          className="text-blue-600 hover:text-blue-800 font-semibold text-lg leading-tight block w-full text-left min-h-[48px] flex items-center transition-colors duration-150"
+                          style={{fontSize: '18px', lineHeight: '1.4'}}
+                        >
+                          <span className="truncate">{lesson.name}</span>
+                        </button>
+                        
+                        <div className="flex items-center mt-2 text-sm text-gray-500" style={{fontSize: '14px'}}>
+                          <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">{formatDate(lesson.date)}</span>
+                          <span className="mx-2">•</span>
+                          <Clock className="w-4 h-4 mr-1 flex-shrink-0" />
+                          <span>{formatDateTime(lesson.date).split(' ')[1]}</span>
                         </div>
-
-                        <div className="flex items-center text-xs text-gray-500">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          <span>{formatDate(lesson.date)}</span>
-                        </div>
-
-                        {lesson.studyPlan?.teacher?.user && (
-                          <div className="flex items-center text-xs text-gray-500">
-                            <span className="truncate">
-                              {lesson.studyPlan.teacher.user.name} {lesson.studyPlan.teacher.user.surname}
-                            </span>
-                          </div>
-                        )}
                       </div>
 
-                      <div className="flex items-center space-x-2 mt-2 flex-wrap gap-1">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getLessonTypeColor(lesson.type)}`}>
-                          {getLessonTypeLabel(lesson.type)}
-                        </span>
+                      <div className="flex items-center space-x-2 ml-3">
+                        <button
+                          onClick={() => navigate(`/lessons/${lesson.id}`)}
+                          className="text-blue-600 hover:text-blue-800 p-3 rounded-lg transition-colors bg-blue-50 hover:bg-blue-100 min-h-[48px] min-w-[48px] flex items-center justify-center touch-manipulation"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
 
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-3 h-3 text-gray-400" />
-                          <span className="text-xs text-gray-500">{lesson._count?.LessonResult || 0}</span>
-                        </div>
-
-                        {lesson.materials && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Материалы
-                          </span>
+                        {(hasRole('ADMIN') || (hasRole('TEACHER') && lesson.studyPlan?.teacher?.user?.id === user?.id)) && (
+                          <button
+                            onClick={() => handleEdit(lesson)}
+                            className="text-gray-600 hover:text-gray-800 p-3 rounded-lg transition-colors bg-gray-50 hover:bg-gray-100 min-h-[48px] min-w-[48px] flex items-center justify-center touch-manipulation"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
                         )}
 
-                        {lesson.homework && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            ДЗ
-                          </span>
+                        {hasRole('ADMIN') && (
+                          <button
+                            onClick={() => setDeletingLesson(lesson)}
+                            className="text-red-600 hover:text-red-800 p-3 rounded-lg transition-colors bg-red-50 hover:bg-red-100 min-h-[48px] min-w-[48px] flex items-center justify-center touch-manipulation"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-1 ml-2">
-                      <button
-                        onClick={() => navigate(`/lessons/${lesson.id}`)}
-                        className="text-blue-600 hover:text-blue-800 p-1.5 rounded transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                    {/* Description */}
+                    {lesson.description && (
+                      <p className="text-sm text-gray-600 leading-relaxed px-1" style={{fontSize: '14px', lineHeight: '1.5'}}>{lesson.description}</p>
+                    )}
 
-                      {(hasRole('ADMIN') || (hasRole('TEACHER') && lesson.studyPlan?.teacher?.user?.id === user?.id)) && (
-                        <button
-                          onClick={() => handleEdit(lesson)}
-                          className="text-gray-600 hover:text-gray-800 p-1.5 rounded transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                    {/* Info */}
+                    <div className="space-y-3">
+                      <div className="flex items-center text-sm text-gray-600" style={{fontSize: '14px'}}>
+                        <BookOpen className="w-4 h-4 mr-3 flex-shrink-0 text-gray-400" />
+                        <span className="truncate font-medium">{lesson.studyPlan?.name || 'Не указан'}</span>
+                      </div>
+
+                      {lesson.studyPlan?.teacher?.user && (
+                        <div className="flex items-center text-sm text-gray-500 ml-7" style={{fontSize: '14px'}}>
+                          <span className="truncate">
+                            {lesson.studyPlan.teacher.user.name} {lesson.studyPlan.teacher.user.surname}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex items-center flex-wrap gap-2">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getLessonTypeColor(lesson.type)}`} style={{fontSize: '13px'}}>
+                        {getLessonTypeLabel(lesson.type)}
+                      </span>
+
+                      <div className="flex items-center space-x-1 bg-gray-100 px-3 py-1 rounded-full">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-600" style={{fontSize: '13px'}}>{lesson._count?.LessonResult || 0}</span>
+                      </div>
+
+                      {lesson.materials && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700" style={{fontSize: '13px'}}>
+                          Материалы
+                        </span>
                       )}
 
-                      {hasRole('ADMIN') && (
-                        <button
-                          onClick={() => setDeletingLesson(lesson)}
-                          className="text-red-600 hover:text-red-800 p-1.5 rounded transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      {lesson.homework && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700" style={{fontSize: '13px'}}>
+                          ДЗ
+                        </span>
                       )}
                     </div>
                   </div>
@@ -536,24 +565,27 @@ const LessonsPage: React.FC = () => {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200">
-            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-              <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
-                Показано {(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} из {pagination.total}
+          <div className="px-4 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+              <div className="text-sm text-gray-500 text-center md:text-left order-2 md:order-1" style={{fontSize: '14px'}}>
+                <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)}</span>
+                <span> из </span>
+                <span className="font-medium">{pagination.total}</span>
+                <span> записей</span>
               </div>
 
-              <div className="flex items-center justify-center sm:justify-end space-x-2">
+              <div className="flex items-center justify-center space-x-3 order-1 md:order-2">
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={pagination.page === 1}
                   onClick={() => changePage(pagination.page - 1)}
-                  className="text-xs sm:text-sm px-2 sm:px-3"
+                  className="text-base px-4 py-3 min-h-[48px] touch-manipulation"
                 >
                   Назад
                 </Button>
 
-                <span className="text-xs sm:text-sm whitespace-nowrap">
+                <span className="text-base font-medium px-4 py-3 bg-white border border-gray-300 rounded-md min-h-[48px] flex items-center" style={{fontSize: '16px'}}>
                   {pagination.page} из {pagination.totalPages}
                 </span>
 
@@ -562,7 +594,7 @@ const LessonsPage: React.FC = () => {
                   size="sm"
                   disabled={pagination.page === pagination.totalPages}
                   onClick={() => changePage(pagination.page + 1)}
-                  className="text-xs sm:text-sm px-2 sm:px-3"
+                  className="text-base px-4 py-3 min-h-[48px] touch-manipulation"
                 >
                   Далее
                 </Button>
@@ -574,14 +606,27 @@ const LessonsPage: React.FC = () => {
 
       {/* Create/Edit Modal */}
       {(!!editingLesson || isCreating) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm sm:max-w-md max-h-[90vh] flex flex-col">
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base sm:text-lg font-semibold">
-                {editingLesson ? 'Редактировать урок' : 'Создать урок'}
-              </h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] flex flex-col animate-slide-up sm:animate-none">
+            <div className="px-4 sm:px-6 py-4 sm:py-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
+                  {editingLesson ? 'Редактировать урок' : 'Создать урок'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setEditingLesson(null);
+                    setIsCreating(false);
+                  }}
+                  className="sm:hidden p-2 text-gray-400 hover:text-gray-600 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
               <LessonForm
                 isOpen={!!editingLesson || isCreating}
                 onClose={() => {
@@ -692,29 +737,29 @@ const LessonForm: React.FC<{
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Название *
+        <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+          Название <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           placeholder="Введите название урока"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
           required
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
           Тип урока
         </label>
         <select
           value={formData.type}
           onChange={(e) => setFormData({ ...formData, type: e.target.value as LessonType })}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
         >
           {getLessonTypeOptions().map(option => (
             <option key={option.value} value={option.value}>
@@ -725,26 +770,26 @@ const LessonForm: React.FC<{
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Дата и время *
+        <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+          Дата и время <span className="text-red-500">*</span>
         </label>
         <input
           type="datetime-local"
           value={formData.date}
           onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
           required
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Учебный план *
+        <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+          Учебный план <span className="text-red-500">*</span>
         </label>
         <select
           value={formData.studyPlanId}
           onChange={(e) => setFormData({ ...formData, studyPlanId: e.target.value })}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
           required
         >
           <option value="">Выберите учебный план</option>
@@ -757,31 +802,31 @@ const LessonForm: React.FC<{
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
           Описание
         </label>
         <textarea
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="Введите описание урока"
-          rows={3}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows={4}
+          className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-colors"
         />
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
+      <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4 sm:pt-6 border-t border-gray-200 sticky bottom-0 bg-white pb-4 sm:pb-0 sm:static sm:border-0">
         <button
           type="button"
           onClick={onClose}
           disabled={loading}
-          className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50 text-sm"
+          className="w-full sm:w-auto px-4 sm:px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] font-medium transition-colors touch-manipulation"
         >
           Отмена
         </button>
         <button
           type="submit"
           disabled={!formData.name || !formData.date || !formData.studyPlanId || loading}
-          className="w-full sm:w-auto px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 text-sm"
+          className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] font-medium transition-colors touch-manipulation"
         >
           {loading ? 'Сохранение...' : (lesson ? 'Сохранить' : 'Создать')}
         </button>

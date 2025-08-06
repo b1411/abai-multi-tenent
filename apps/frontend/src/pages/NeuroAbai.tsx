@@ -59,7 +59,7 @@ function ChatBubbleMessage({
   children?: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-lg p-3 max-w-[80%] ${
+    <div className={`rounded-lg p-2 sm:p-3 max-w-[85%] sm:max-w-[80%] text-sm sm:text-base ${
       variant === "sent" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-900"
     }`}>
       {isLoading ? (
@@ -67,7 +67,7 @@ function ChatBubbleMessage({
           <MessageLoading />
         </div>
       ) : (
-        <div className="whitespace-pre-wrap">{children}</div>
+        <div className="whitespace-pre-wrap break-words">{children}</div>
       )}
     </div>
   );
@@ -110,7 +110,7 @@ function FileUploadArea({ files, onFileChange, onRemoveFile, disabled }: FileUpl
   };
 
   return (
-    <div className="mt-4">
+    <div className="mt-2 sm:mt-4">
       <input
         ref={fileInputRef}
         type="file"
@@ -125,36 +125,36 @@ function FileUploadArea({ files, onFileChange, onRemoveFile, disabled }: FileUpl
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 transition-colors ${
+        className={`flex cursor-pointer flex-col items-center justify-center gap-1 sm:gap-2 rounded-lg border-2 border-dashed p-3 sm:p-4 transition-colors ${
           isDragging 
             ? "border-blue-500/50 bg-blue-500/5" 
             : "border-gray-300 bg-gray-50 hover:bg-gray-100"
         } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       >
-        <div className="rounded-full bg-white p-2 shadow-sm">
-          <Paperclip className="h-5 w-5 text-gray-400" />
+        <div className="rounded-full bg-white p-1.5 sm:p-2 shadow-sm">
+          <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium">Нажмите для выбора файлов</p>
-          <p className="text-xs text-gray-400">или перетащите файлы сюда</p>
+          <p className="text-xs sm:text-sm font-medium">Нажмите для выбора файлов</p>
+          <p className="text-xs text-gray-400 hidden sm:block">или перетащите файлы сюда</p>
         </div>
       </div>
       {files.length > 0 && (
-        <div className="mt-3 space-y-2">
-          <p className="text-sm font-medium">Выбранные файлы:</p>
-          <div className="space-y-2">
+        <div className="mt-2 sm:mt-3 space-y-1 sm:space-y-2">
+          <p className="text-xs sm:text-sm font-medium">Выбранные файлы:</p>
+          <div className="space-y-1 sm:space-y-2">
             {files.map((file, index) => (
-              <div key={index} className="flex items-center justify-between rounded-md bg-gray-100 p-2 text-sm">
-                <div className="flex items-center gap-2 truncate">
-                  <FileText size={16} className="shrink-0 text-gray-400" />
+              <div key={index} className="flex items-center justify-between rounded-md bg-gray-100 p-2 text-xs sm:text-sm">
+                <div className="flex items-center gap-2 truncate min-w-0">
+                  <FileText size={14} className="sm:w-4 sm:h-4 shrink-0 text-gray-400" />
                   <span className="truncate">{file.name}</span>
                 </div>
                 <button
                   onClick={() => onRemoveFile(index)}
-                  className="ml-2 rounded-full p-1 hover:bg-white"
+                  className="ml-2 rounded-full p-1 hover:bg-white shrink-0"
                   disabled={disabled}
                 >
-                  <X size={14} />
+                  <X size={12} className="sm:w-3.5 sm:h-3.5" />
                 </button>
               </div>
             ))}
@@ -230,21 +230,21 @@ export default function NeuroAbai() {
   };
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full bg-gray-50 flex flex-col">
       {/* Заголовок */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">Neuro Abai</h1>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white shadow-sm border-b px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Neuro Abai</h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">
           Интеллектуальный помощник для учителей
         </p>
       </div>
 
       {/* Основной контент */}
-      <div className="mx-auto max-w-4xl p-4">
-        <div className="overflow-hidden rounded-xl border bg-white shadow-lg">
+      <div className="flex-1 flex flex-col mx-auto w-full max-w-4xl p-2 sm:p-4">
+        <div className="flex-1 flex flex-col overflow-hidden rounded-lg sm:rounded-xl border bg-white shadow-lg">
           {/* Выбор сценария */}
-          <div className="border-b p-4">
-            <h2 className="text-center text-xl font-bold text-blue-600 mb-4">Fizmat AI Ala</h2>
+          <div className="border-b p-3 sm:p-4 flex-shrink-0">
+            <h2 className="text-center text-lg sm:text-xl font-bold text-blue-600 mb-3 sm:mb-4">Fizmat AI Ala</h2>
             <div className="relative">
               <select
                 value={scenario}
@@ -260,12 +260,12 @@ export default function NeuroAbai() {
           </div>
 
           {/* Область чата */}
-          <div className="h-[500px] overflow-y-auto p-4 bg-gray-50">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50 min-h-0">
             {messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center text-gray-400">
-                <Bot size={48} className="mb-4 text-blue-500" />
-                <h3 className="text-lg font-medium">Начните диалог с Neuro Abai</h3>
-                <p className="mt-2 text-sm">Задайте вопрос или загрузите файл для анализа</p>
+              <div className="flex h-full flex-col items-center justify-center text-center text-gray-400 px-4">
+                <Bot size={36} className="sm:w-12 sm:h-12 mb-4 text-blue-500" />
+                <h3 className="text-base sm:text-lg font-medium">Начните диалог с Neuro Abai</h3>
+                <p className="mt-2 text-xs sm:text-sm">Задайте вопрос или загрузите файл для анализа</p>
               </div>
             ) : (
               messages.map((msg, idx) => (
@@ -287,18 +287,18 @@ export default function NeuroAbai() {
           </div>
 
           {/* Область ввода */}
-          <div className="border-t p-4">
+          <div className="border-t p-3 sm:p-4 flex-shrink-0">
             <div className="relative rounded-lg border bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
               <textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 placeholder="Введите сообщение..."
-                className="min-h-[80px] w-full resize-none rounded-lg border-0 bg-transparent p-3 text-sm shadow-none focus:outline-none focus:ring-0"
+                className="min-h-[60px] sm:min-h-[80px] w-full resize-none rounded-lg border-0 bg-transparent p-2 sm:p-3 text-sm shadow-none focus:outline-none focus:ring-0"
                 onKeyDown={handleKeyDown}
                 disabled={loading}
               />
-              <div className="flex items-center justify-between border-t p-2">
-                <div className="flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t p-2 gap-2">
+                <div className="flex-1 order-2 sm:order-1">
                   <FileUploadArea
                     files={files}
                     onFileChange={handleFileChange}
@@ -309,9 +309,9 @@ export default function NeuroAbai() {
                 <button
                   onClick={handleSend}
                   disabled={loading || (!input && files.length === 0)}
-                  className="ml-auto flex h-10 items-center gap-2 rounded-lg bg-blue-500 px-4 text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                  className="order-1 sm:order-2 sm:ml-auto flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-500 px-3 sm:px-4 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 text-sm"
                 >
-                  Отправить
+                  <span className="hidden sm:inline">Отправить</span>
                   <Send size={16} />
                 </button>
               </div>

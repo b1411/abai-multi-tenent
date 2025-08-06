@@ -224,7 +224,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <StudentProfileWidget variant="sidebar" />
             </div>
           )}
-          
+
           <ul className="space-y-2">
             {filteredItems.map((item) => (
               <li key={item.name}>

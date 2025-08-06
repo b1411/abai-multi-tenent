@@ -41,24 +41,6 @@ const Performance: React.FC = () => {
     [selectedClass]
   );
 
-  useEffect(() => {
-    loadData();
-  }, [filter]);
-
-  // Проверяем, имеет ли пользователь доступ к странице
-  if (!hasRole('ADMIN') && !hasRole('TEACHER')) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="text-lg font-medium text-red-800 mb-2">Доступ запрещен</h3>
-          <p className="text-red-600">
-            У вас нет прав для просмотра этой страницы. Данная страница доступна только администраторам и учителям.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -111,6 +93,24 @@ const Performance: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    loadData();
+  }, [filter]);
+
+  // Проверяем, имеет ли пользователь доступ к странице
+  if (!hasRole('ADMIN') && !hasRole('TEACHER') && !hasRole('PARENT') && !hasRole('STUDENT')) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-lg font-medium text-red-800 mb-2">Доступ запрещен</h3>
+          <p className="text-red-600">
+            У вас нет прав для просмотра этой страницы.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -142,44 +142,53 @@ const Performance: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {hasRole('PARENT') ? 'Успеваемость моих детей' : 'Успеваемость по группам'}
+              {hasRole('PARENT') 
+                ? 'Успеваемость моих детей' 
+                : hasRole('STUDENT')
+                ? 'Моя успеваемость'
+                : 'Успеваемость по группам'
+              }
             </h1>
             <p className="mt-1 text-sm text-gray-600">
               {hasRole('PARENT')
                 ? 'Отчеты и статистика успеваемости ваших детей'
+                : hasRole('STUDENT')
+                ? 'Ваша персональная статистика и достижения'
                 : 'Анализ успеваемости студентов по группам'
               }
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <button
-            className={`px-4 py-2 rounded-md transition-all ${selectedClass === 'all'
-                ? 'bg-blue-500 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            onClick={() => setSelectedClass('all')}
-          >
-            Все группы
-          </button>
-          {classes.map((cls) => (
+        {(hasRole('ADMIN') || hasRole('TEACHER')) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <button
-              key={cls.id}
-              className={`flex flex-col items-center justify-center px-6 py-4 rounded-lg transition-all ${selectedClass === cls.id
+              className={`px-4 py-2 rounded-md transition-all ${selectedClass === 'all'
                   ? 'bg-blue-500 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
-              onClick={() => setSelectedClass(cls.id)}
+              onClick={() => setSelectedClass('all')}
             >
-              <span className="text-lg font-medium">{cls.name}</span>
-              <div className="flex items-center gap-2 mt-2 text-sm opacity-80">
-                <span>{cls.studentsCount} учеников</span>
-                <span>•</span>
-                <span>{cls.averageGrade} ср.балл</span>
-              </div>
+              Все группы
             </button>
-          ))}
-        </div>
+            {classes.map((cls) => (
+              <button
+                key={cls.id}
+                className={`flex flex-col items-center justify-center px-6 py-4 rounded-lg transition-all ${selectedClass === cls.id
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border'
+                  }`}
+                onClick={() => setSelectedClass(cls.id)}
+              >
+                <span className="text-lg font-medium">{cls.name}</span>
+                <div className="flex items-center gap-2 mt-2 text-sm opacity-80">
+                  <span>{cls.studentsCount} учеников</span>
+                  <span>•</span>
+                  <span>{cls.averageGrade} ср.балл</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Верхние карточки */}

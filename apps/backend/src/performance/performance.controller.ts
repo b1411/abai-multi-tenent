@@ -34,11 +34,15 @@ export class PerformanceController {
     description: 'Статистика успешно получена',
     type: StatisticsResponseDto,
   })
-  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT')
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
   async getStatistics(@Query() filter: PerformanceFilterDto, @Req() req: any) {
     // Для родителей фильтруем по их детям
     if (req.user.role === 'PARENT') {
       return this.performanceService.getParentStatistics(req.user.id, filter);
+    }
+    // Для студентов возвращаем только их собственные данные
+    if (req.user.role === 'STUDENT') {
+      return this.performanceService.getStudentStatistics(req.user.id, filter);
     }
     return this.performanceService.getStatistics(filter);
   }
@@ -53,11 +57,15 @@ export class PerformanceController {
     description: 'Статистика по предметам успешно получена',
     type: SubjectsResponseDto,
   })
-  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT')
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
   async getSubjects(@Query() filter: PerformanceFilterDto, @Req() req: any) {
     // Для родителей возвращаем предметы только их детей
     if (req.user.role === 'PARENT') {
       return this.performanceService.getParentSubjects(req.user.id, filter);
+    }
+    // Для студентов возвращаем только их предметы
+    if (req.user.role === 'STUDENT') {
+      return this.performanceService.getStudentSubjects(req.user.id, filter);
     }
     return this.performanceService.getSubjects(filter);
   }
@@ -72,11 +80,15 @@ export class PerformanceController {
     description: 'Статистика по группам успешно получена',
     type: ClassesResponseDto,
   })
-  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT')
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
   async getClasses(@Query() filter: PerformanceFilterDto, @Req() req: any) {
     // Для родителей возвращаем группы только их детей
     if (req.user.role === 'PARENT') {
       return this.performanceService.getParentClasses(req.user.id);
+    }
+    // Для студентов возвращаем только их группу
+    if (req.user.role === 'STUDENT') {
+      return this.performanceService.getStudentClasses(req.user.id);
     }
     return this.performanceService.getClasses(filter);
   }
@@ -133,6 +145,7 @@ export class PerformanceController {
     description: 'Помесячные данные успешно получены',
     type: [MonthlyDataDto],
   })
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
   async getMonthlyData(@Query() filter: PerformanceFilterDto) {
     return this.performanceService.getMonthlyData(filter);
   }
@@ -147,6 +160,7 @@ export class PerformanceController {
     description: 'Распределение оценок успешно получено',
     type: [GradeDistributionDto],
   })
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
   async getGradeDistribution(@Query() filter: PerformanceFilterDto) {
     return this.performanceService.getGradeDistribution(filter);
   }
@@ -161,6 +175,7 @@ export class PerformanceController {
     description: 'Метрики производительности успешно получены',
     type: [PerformanceMetricDto],
   })
+  @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
   async getPerformanceMetrics(@Query() filter: PerformanceFilterDto) {
     return this.performanceService.getPerformanceMetrics(filter);
   }

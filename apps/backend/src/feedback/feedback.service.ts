@@ -6,7 +6,7 @@ import { CreateFeedbackResponseDto } from './dto/create-feedback-response.dto';
 
 @Injectable()
 export class FeedbackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // Шаблоны форм обратной связи
   async createTemplate(createTemplateDto: CreateFeedbackTemplateDto) {
@@ -127,75 +127,52 @@ export class FeedbackService {
   // Ответы на формы
   async submitResponse(userId: number, responseDto: CreateFeedbackResponseDto) {
     const currentPeriod = this.getCurrentPeriod();
-    
-    // Если aboutTeacherId не указан, используем отдельную логику для обычных фидбеков
-    if (responseDto.aboutTeacherId === undefined || responseDto.aboutTeacherId === null) {
-      // Для обычных фидбеков (без привязки к преподавателю)
-      const response = await this.prisma.feedbackResponse.upsert({
+
+    // Создаем или обновляем запись напрямую без использования unique constraint с null
+    const existingResponse = await this.prisma.feedbackResponse.findFirst({
+      where: {
+        userId,
+        templateId: responseDto.templateId,
+        period: responseDto.period || currentPeriod,
+        aboutTeacherId: responseDto.aboutTeacherId || null,
+      },
+    });
+
+    let response;
+    if (existingResponse) {
+      // Обновляем существующую запись
+      response = await this.prisma.feedbackResponse.update({
         where: {
-          userId_templateId_period: {
-            userId,
-            templateId: responseDto.templateId,
-            period: responseDto.period || currentPeriod,
-          },
+          id: existingResponse.id,
         },
-        create: {
-          userId,
-          templateId: responseDto.templateId,
-          answers: responseDto.answers,
-          isCompleted: responseDto.isCompleted || false,
-          period: responseDto.period || currentPeriod,
-          submittedAt: responseDto.isCompleted ? new Date() : null,
-        },
-        update: {
+        data: {
           answers: responseDto.answers,
           isCompleted: responseDto.isCompleted || false,
           submittedAt: responseDto.isCompleted ? new Date() : null,
         },
       });
-
-      // Обновляем статус пользователя если форма завершена
-      if (responseDto.isCompleted) {
-        await this.updateUserFeedbackStatus(userId);
-        await this.integrateWithOtherModules(userId, response);
-      }
-
-      return response;
     } else {
-      // Для фидбеков с привязкой к преподавателю
-      const response = await this.prisma.feedbackResponse.upsert({
-        where: {
-          userId_templateId_period_aboutTeacherId: {
-            userId,
-            templateId: responseDto.templateId,
-            period: responseDto.period || currentPeriod,
-            aboutTeacherId: responseDto.aboutTeacherId,
-          },
-        },
-        create: {
+      // Создаем новую запись
+      response = await this.prisma.feedbackResponse.create({
+        data: {
           userId,
           templateId: responseDto.templateId,
           answers: responseDto.answers,
           isCompleted: responseDto.isCompleted || false,
           period: responseDto.period || currentPeriod,
-          aboutTeacherId: responseDto.aboutTeacherId,
-          submittedAt: responseDto.isCompleted ? new Date() : null,
-        },
-        update: {
-          answers: responseDto.answers,
-          isCompleted: responseDto.isCompleted || false,
+          aboutTeacherId: responseDto.aboutTeacherId || null,
           submittedAt: responseDto.isCompleted ? new Date() : null,
         },
       });
-
-      // Обновляем статус пользователя если форма завершена
-      if (responseDto.isCompleted) {
-        await this.updateUserFeedbackStatus(userId);
-        await this.integrateWithOtherModules(userId, response);
-      }
-
-      return response;
     }
+
+    // Обновляем статус пользователя если форма завершена
+    if (responseDto.isCompleted) {
+      await this.updateUserFeedbackStatus(userId);
+      await this.integrateWithOtherModules(userId, response);
+    }
+
+    return response;
   }
 
   // Проверка обязательных форм
@@ -216,7 +193,7 @@ export class FeedbackService {
     }
 
     const currentPeriod = this.getCurrentPeriod();
-    
+
     // Получаем обязательные шаблоны для роли пользователя
     const mandatoryTemplates = await this.prisma.feedbackTemplate.findMany({
       where: {
@@ -383,13 +360,13 @@ export class FeedbackService {
     // - Уведомления при критических изменениях
     // - Агрегация данных для аналитики
     // - Интеграция с внешними системами мониторинга
-    
+
     // Пример: проверка на критические изменения настроения
     if (answers.mood_today && answers.mood_today < 2) {
       console.warn(`Critical mood level detected for student ${studentId}: ${answers.mood_today}`);
       // Здесь можно добавить уведомление администрации или психолога
     }
-    
+
     // Логирование для мониторинга
     console.log(`Emotional state history updated for student ${studentId}`);
   }
@@ -409,7 +386,7 @@ export class FeedbackService {
 
   private async updateUserFeedbackStatus(userId: number) {
     const currentPeriod = this.getCurrentPeriod();
-    
+
     await this.prisma.userFeedbackStatus.upsert({
       where: { userId },
       create: {
@@ -434,7 +411,7 @@ export class FeedbackService {
   private getNextDueDate(role: string): Date {
     const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    
+
     // Разная частота для разных ролей
     switch (role) {
       case 'STUDENT':
@@ -482,7 +459,7 @@ export class FeedbackService {
   // Аналитика и отчеты
   async getFeedbackAnalytics(templateId?: number, period?: string) {
     const where: any = {};
-    
+
     if (templateId) where.templateId = templateId;
     if (period) where.period = period;
 
@@ -601,7 +578,7 @@ export class FeedbackService {
     if (period) where.period = period;
 
     const totalResponses = await this.prisma.feedbackResponse.count({ where });
-    
+
     const responsesByRole = await this.prisma.feedbackResponse.groupBy({
       by: ['userId'],
       where,
@@ -633,7 +610,7 @@ export class FeedbackService {
 
   private async calculateCompletionRate(period?: string) {
     const currentPeriod = period || this.getCurrentPeriod();
-    
+
     // Получаем все активные обязательные шаблоны
     const mandatoryTemplates = await this.prisma.feedbackTemplate.findMany({
       where: {
@@ -652,7 +629,7 @@ export class FeedbackService {
 
     // Получаем уникальные роли, для которых есть обязательные формы
     const rolesWithMandatoryForms = [...new Set(mandatoryTemplates.map(t => t.role))];
-    
+
     // Общее количество пользователей, которые должны заполнить формы (только с ролями, для которых есть обязательные формы)
     const totalUsersWithMandatoryForms = await this.prisma.user.count({
       where: {
@@ -660,7 +637,7 @@ export class FeedbackService {
         deletedAt: null,
       },
     });
-    
+
     // Количество пользователей, которые заполнили обязательные формы
     const completedUsers = await this.prisma.userFeedbackStatus.count({
       where: {
@@ -703,7 +680,7 @@ export class FeedbackService {
 
     // Анализируем ответы для получения эмоционального состояния
     const emotionalMetrics = this.analyzeEmotionalResponses(recentResponses);
-    
+
     // Извлекаем оценки преподавателей
     const teacherRatings = this.extractTeacherRatings(recentResponses);
 
@@ -760,7 +737,7 @@ export class FeedbackService {
 
   // Анализ эмоциональных ответов
   private analyzeEmotionalResponses(responses: any[]) {
-    const emotionalAnswers = responses.flatMap(response => 
+    const emotionalAnswers = responses.flatMap(response =>
       this.extractEmotionalData(response.answers)
     ).filter(data => data !== null);
 
@@ -944,7 +921,7 @@ export class FeedbackService {
   async createDefaultTemplates() {
     const templates = await this.createKpiTemplates();
     await this.createDynamicTeacherEvaluationTemplates();
-    
+
     return {
       message: 'Стандартные шаблоны созданы, включая динамические оценки преподавателей',
       created: templates.length,
@@ -1003,25 +980,28 @@ export class FeedbackService {
 
         // Создаем персональный шаблон для студента
         const templateName = `teacher_evaluation_student_${student.id}`;
-        
+
         // Создаем вопросы для каждого преподавателя
         const questions = [];
-        
+
         teachers.forEach((teacher) => {
+          // Формируем полное имя преподавателя один раз для консистентности
+          const teacherFullName = `${teacher.user.name} ${teacher.user.surname}`.trim();
+          
           // Вопрос о качестве объяснения материала
           questions.push({
             id: `teacher_${teacher.id}_clarity`,
-            question: `Насколько понятно ${teacher.user.name} ${teacher.user.surname} объясняет материал?`,
+            question: `Насколько понятно ${teacherFullName} объясняет материал?`,
             type: 'RATING_1_5',
             required: true,
             teacherId: teacher.id,
-            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            teacherName: teacherFullName,
             kpiMetric: 'TEACHING_QUALITY',
             isKpiRelevant: true,
             kpiWeight: 1.0,
             options: [
               '1 - Очень непонятно',
-              '2 - Непонятно', 
+              '2 - Непонятно',
               '3 - Приемлемо',
               '4 - Понятно',
               '5 - Очень понятно'
@@ -1031,18 +1011,18 @@ export class FeedbackService {
           // Вопрос о интересности уроков
           questions.push({
             id: `teacher_${teacher.id}_engagement`,
-            question: `Насколько интересны уроки ${teacher.user.name} ${teacher.user.surname}?`,
+            question: `Насколько интересны уроки ${teacherFullName}?`,
             type: 'RATING_1_5',
             required: true,
             teacherId: teacher.id,
-            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            teacherName: teacherFullName,
             kpiMetric: 'LESSON_EFFECTIVENESS',
             isKpiRelevant: true,
             kpiWeight: 1.0,
             options: [
               '1 - Очень скучно',
               '2 - Скучно',
-              '3 - Нормально', 
+              '3 - Нормально',
               '4 - Интересно',
               '5 - Очень интересно'
             ]
@@ -1051,11 +1031,11 @@ export class FeedbackService {
           // Вопрос о доступности преподавателя
           questions.push({
             id: `teacher_${teacher.id}_availability`,
-            question: `Доступен ли ${teacher.user.name} ${teacher.user.surname} для вопросов вне уроков?`,
+            question: `Доступен ли ${teacherFullName} для вопросов вне уроков?`,
             type: 'YES_NO',
             required: true,
             teacherId: teacher.id,
-            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            teacherName: teacherFullName,
             kpiMetric: 'TEACHER_SATISFACTION',
             isKpiRelevant: true,
             kpiWeight: 0.7
@@ -1064,11 +1044,11 @@ export class FeedbackService {
           // Вопрос о рекомендации преподавателя
           questions.push({
             id: `teacher_${teacher.id}_recommend`,
-            question: `Порекомендуете ли вы ${teacher.user.name} ${teacher.user.surname} другим студентам?`,
+            question: `Порекомендуете ли вы ${teacherFullName} другим студентам?`,
             type: 'YES_NO',
             required: true,
             teacherId: teacher.id,
-            teacherName: `${teacher.user.name} ${teacher.user.surname}`,
+            teacherName: teacherFullName,
             kpiMetric: 'TEACHER_SATISFACTION',
             isKpiRelevant: true,
             kpiWeight: 0.9
@@ -1080,14 +1060,14 @@ export class FeedbackService {
           where: { name: templateName },
           update: {
             questions: questions,
-            title: `Оценка преподавателей - ${student.user.name} ${student.user.surname}`,
-            description: `Персональная форма оценки ${teachers.length} преподавателей`,
+            title: `Оценка преподавателей (для студента ${student.user.name} ${student.user.surname})`,
+            description: `Персональная форма оценки ${teachers.length} преподавателей студентом`,
           },
           create: {
             name: templateName,
             role: 'STUDENT',
-            title: `Оценка преподавателей - ${student.user.name} ${student.user.surname}`,
-            description: `Персональная форма оценки ${teachers.length} преподавателей`,
+            title: `Оценка преподавателей (для студента ${student.user.name} ${student.user.surname})`,
+            description: `Персональная форма оценки ${teachers.length} преподавателей студентом`,
             questions: questions,
             isActive: true,
             frequency: 'MONTHLY',
@@ -1101,7 +1081,7 @@ export class FeedbackService {
       }
 
       console.log(`🎉 Создание персональных форм оценки преподавателей завершено!`);
-      
+
     } catch (error) {
       console.error('❌ Ошибка при создании динамических шаблонов оценки преподавателей:', error);
       throw error;

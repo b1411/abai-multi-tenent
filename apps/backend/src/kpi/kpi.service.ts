@@ -1722,86 +1722,59 @@ export class KpiService {
    */
   private async calculateParentFeedback(teacherId: number): Promise<number> {
     try {
-      // Получаем студентов данного преподавателя
-      const studentsOfTeacher = await this.prisma.student.findMany({
-        where: {
-          group: {
-            studyPlans: {
-              some: {
-                teacherId: teacherId,
-              },
-            },
-          },
-          deletedAt: null,
-        },
-        include: {
-          Parents: {
-            include: {
-              user: true,
-            },
-          },
-        },
+      // Используем специализированный метод агрегации родительских фидбеков
+      const aggregationResult = await this.feedbackAggregationService.aggregateParentFeedbackKpi(teacherId);
+      
+      console.log(`📈 Результат агрегации родительских отзывов для преподавателя ${teacherId}:`, {
+        score: aggregationResult.score,
+        confidence: aggregationResult.confidence,
+        responseCount: aggregationResult.responseCount
       });
 
-      if (studentsOfTeacher.length === 0) {
-        return 0; // Нет студентов у преподавателя
+      // Если уверенность в результате достаточная, возвращаем результат
+      if (aggregationResult.confidence >= 0.3) {
+        return aggregationResult.score;
       }
 
-      // Получаем ID всех родителей студентов этого преподавателя
-      const parentUserIds = studentsOfTeacher.flatMap(student =>
-        student.Parents.map(parent => parent.user.id)
-      );
-
-      if (parentUserIds.length === 0) {
-        return 0; // Нет родителей
+      // Если данных недостаточно, но есть хоть какой-то результат
+      if (aggregationResult.responseCount > 0) {
+        return Math.round(aggregationResult.score * 0.8); // Снижаем балл из-за низкой уверенности
       }
 
-      // Получаем фидбеки от родителей с KPI-метриками
-      // Убираем требование aboutTeacherId, считаем что все фидбеки родителей относятся к преподавателю их детей
-      const feedbacks = await this.prisma.feedbackResponse.findMany({
-        include: {
-          user: true,
-          template: true,
-        },
-        where: {
-          userId: {
-            in: parentUserIds,
-          },
-          user: {
-            role: 'PARENT',
-          },
-          isCompleted: true,
-          template: {
-            hasKpiQuestions: true,
-            kpiMetrics: {
-              hasSome: ['TEACHER_SATISFACTION', 'TEACHING_QUALITY', 'OVERALL_EXPERIENCE'],
-            },
-          },
-          // Получаем отзывы за последние 3 месяца
-          createdAt: {
-            gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-          },
-        },
-      });
-
-      if (feedbacks.length === 0) {
-        return 0; // Нет KPI фидбеков от родителей данного преподавателя
-      }
-
-      // Используем агрегацию фидбеков для расчета общего балла
-      const aggregationResult = this.feedbackAggregationService.aggregateKpiFromFeedbacks(
-        feedbacks,
-        'TEACHER_SATISFACTION' // Основная метрика для родительских отзывов
-      );
-
-      // Если уверенность в результате низкая, используем fallback
-      if (aggregationResult.confidence < 0.3) {
-        return this.calculateParentFeedbackFallback(feedbacks);
-      }
-
-      return aggregationResult.score;
+      return 0; // Нет данных
     } catch (error) {
       console.error('Error calculating parent feedback:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Оценки преподавателя студентами из персональных форм
+   */
+  private async calculateStudentEvaluationOfTeacher(teacherId: number): Promise<number> {
+    try {
+      // Используем специализированный метод агрегации оценок преподавателя из персональных форм
+      const aggregationResult = await this.feedbackAggregationService.aggregateTeacherEvaluationFromStudents(teacherId);
+      
+      console.log(`👨‍🎓 Результат агрегации студенческих оценок для преподавателя ${teacherId}:`, {
+        score: aggregationResult.score,
+        confidence: aggregationResult.confidence,
+        responseCount: aggregationResult.responseCount
+      });
+
+      // Если уверенность в результате достаточная, возвращаем результат
+      if (aggregationResult.confidence >= 0.3) {
+        return aggregationResult.score;
+      }
+
+      // Если данных недостаточно, но есть хоть какой-то результат
+      if (aggregationResult.responseCount > 0) {
+        return Math.round(aggregationResult.score * 0.8); // Снижаем балл из-за низкой уверенности
+      }
+
+      return 0; // Нет данных
+    } catch (error) {
+      console.error('Error calculating student evaluation of teacher:', error);
       return 0;
     }
   }
@@ -1850,72 +1823,26 @@ export class KpiService {
    */
   private async calculateStudentRetention(teacherId: number): Promise<number> {
     try {
-      // Получаем студентов данного преподавателя
-      const studentsOfTeacher = await this.prisma.student.findMany({
-        where: {
-          group: {
-            studyPlans: {
-              some: {
-                teacherId: teacherId,
-              },
-            },
-          },
-          deletedAt: null,
-        },
-        include: {
-          user: true,
-        },
+      // Используем новый метод агрегации из сервиса
+      const aggregationResult = await this.feedbackAggregationService.aggregateStudentRetentionKpi(teacherId);
+      
+      console.log(`📈 Результат агрегации удержания студентов для преподавателя ${teacherId}:`, {
+        score: aggregationResult.score,
+        confidence: aggregationResult.confidence,
+        responseCount: aggregationResult.responseCount
       });
-
-      if (studentsOfTeacher.length === 0) {
-        return 0; // Нет студентов у преподавателя
-      }
-
-      const studentUserIds = studentsOfTeacher.map(s => s.user.id);
-
-      // Получаем фидбеки от студентов этого преподавателя с KPI-вопросами об удержании
-      const retentionFeedbacks = await this.prisma.feedbackResponse.findMany({
-        where: {
-          userId: {
-            in: studentUserIds,
-          },
-          user: {
-            role: 'STUDENT',
-          },
-          isCompleted: true,
-          template: {
-            hasKpiQuestions: true,
-            kpiMetrics: {
-              has: 'STUDENT_RETENTION',
-            },
-          },
-          // Фидбеки за последние 3 месяца
-          createdAt: {
-            gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-          },
-        },
-        include: {
-          template: true,
-        },
-      });
-
-      if (retentionFeedbacks.length === 0) {
-        return 0; // Нет фидбеков об удержании
-      }
-
-      // Используем агрегацию фидбеков для расчета общего балла
-      const aggregationResult = this.feedbackAggregationService.aggregateKpiFromFeedbacks(
-        retentionFeedbacks,
-        'STUDENT_RETENTION'
-      );
 
       // Если уверенность в результате достаточная, возвращаем результат
       if (aggregationResult.confidence >= 0.3) {
         return aggregationResult.score;
       }
 
-      // Fallback: простой расчет на основе ответов Yes/No
-      return this.calculateRetentionFallback(retentionFeedbacks);
+      // Если данных недостаточно, но есть хоть какой-то результат
+      if (aggregationResult.responseCount > 0) {
+        return Math.round(aggregationResult.score * 0.8); // Снижаем балл из-за низкой уверенности
+      }
+
+      return 0; // Нет данных
     } catch (error) {
       console.error('Error calculating student retention:', error);
       return 0;

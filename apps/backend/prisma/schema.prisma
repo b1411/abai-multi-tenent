@@ -203,10 +203,10 @@ model Teacher {
   workedHours TeacherWorkedHours[]
 
   // KPI связи
-  achievements    TeacherAchievement[]
-  olympiadResults OlympiadResult[]
+  achievements      TeacherAchievement[]
+  olympiadResults   OlympiadResult[]
   studentAdmissions StudentAdmission[]
-  
+
   // Фидбеки о преподавателе
   feedbacksAbout FeedbackResponse[]
 }
@@ -325,26 +325,26 @@ model File {
 }
 
 model Quiz {
-  id          Int              @id @default(autoincrement())
-  name        String
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  deletedAt   DateTime?
-  duration    Int? // in minutes
-  maxScore    Int?
-  startDate   DateTime?
-  endDate     DateTime?
-  isActive    Boolean          @default(false)
-  materials   Materials?
-  questions   Question[]
-  attempts    QuizAttempt[]
+  id        Int           @id @default(autoincrement())
+  name      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+  duration  Int? // in minutes
+  maxScore  Int?
+  startDate DateTime?
+  endDate   DateTime?
+  isActive  Boolean       @default(false)
+  materials Materials?
+  questions Question[]
+  attempts  QuizAttempt[]
 }
 
 model Question {
   id             Int             @id @default(autoincrement())
   name           String
   createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt  
+  updatedAt      DateTime        @updatedAt
   deletedAt      DateTime?
   quizId         Int
   quiz           Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
@@ -883,27 +883,27 @@ enum AllowanceType {
 }
 
 model Salary {
-  id         Int                 @id @default(autoincrement())
-  teacherId  Int
-  teacher    Teacher             @relation(fields: [teacherId], references: [id])
-  hourlyRate Float // Часовая ставка в тенге
+  id          Int               @id @default(autoincrement())
+  teacherId   Int
+  teacher     Teacher           @relation(fields: [teacherId], references: [id])
+  hourlyRate  Float // Часовая ставка в тенге
   hoursWorked Float // Отработанные часы
-  baseSalary Int // Базовая зарплата в тенге (hourlyRate * hoursWorked)
-  allowances SalaryAllowance[]
-  bonuses    SalaryBonus[]
-  deductions SalaryDeduction[]
-  totalGross Int // Общая сумма до вычетов
-  totalNet   Int // Сумма к выплате
-  month      Int // 1-12
-  year       Int
-  status     SalaryStatus      @default(DRAFT)
-  approvedBy Int?
-  approvedAt DateTime?
-  paidAt     DateTime?
-  comment    String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  deletedAt  DateTime?
+  baseSalary  Int // Базовая зарплата в тенге (hourlyRate * hoursWorked)
+  allowances  SalaryAllowance[]
+  bonuses     SalaryBonus[]
+  deductions  SalaryDeduction[]
+  totalGross  Int // Общая сумма до вычетов
+  totalNet    Int // Сумма к выплате
+  month       Int // 1-12
+  year        Int
+  status      SalaryStatus      @default(DRAFT)
+  approvedBy  Int?
+  approvedAt  DateTime?
+  paidAt      DateTime?
+  comment     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
 
   @@unique([teacherId, month, year])
 }
@@ -1048,14 +1048,14 @@ model FeedbackTemplate {
   isActive    Boolean           @default(true)
   frequency   FeedbackFrequency @default(MONTHLY)
   priority    Int               @default(0) // Порядок показа
-  
+
   // KPI интеграция
-  hasKpiQuestions Boolean @default(false) // Есть ли вопросы для KPI
+  hasKpiQuestions Boolean  @default(false) // Есть ли вопросы для KPI
   kpiMetrics      String[] // Массив типов KPI метрик в шаблоне
-  
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  deletedAt   DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   responses FeedbackResponse[]
 }
@@ -1070,15 +1070,14 @@ model FeedbackResponse {
   isCompleted Boolean          @default(false)
   submittedAt DateTime?
   period      String? // "2025-01", "2025-Q1" для отслеживания периода
-  
+
   // Связь с конкретным преподавателем (для фидбеков о преподавателях)
   aboutTeacherId Int?
   aboutTeacher   Teacher? @relation(fields: [aboutTeacherId], references: [id])
-  
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
 
-  @@unique([userId, templateId, period])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, templateId, period, aboutTeacherId])
 }
 
@@ -1827,12 +1826,12 @@ model TeacherWorkedHours {
 
 // Настройки системы
 model SystemSettings {
-  id                    Int      @id @default(autoincrement())
-  key                   String   @unique
-  value                 String
-  description           String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([key])
 }
@@ -1840,17 +1839,17 @@ model SystemSettings {
 // --- Dashboard Widgets ---
 
 model DashboardWidget {
-  id       String @id @default(uuid())
-  userId   Int
-  type     String
-  title    String
-  size     String @default("medium")
-  position Json
-  config   Json?
-  isActive Boolean @default(true)
-  order    Int     @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(uuid())
+  userId    Int
+  type      String
+  title     String
+  size      String    @default("medium")
+  position  Json
+  config    Json?
+  isActive  Boolean   @default(true)
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   @@index([userId])
@@ -1899,20 +1898,20 @@ model TeacherAchievement {
 
 // Результаты олимпиад учеников
 model OlympiadResult {
-  id            Int      @id @default(autoincrement())
-  studentId     Int
-  student       Student  @relation(fields: [studentId], references: [id])
-  teacherId     Int
-  teacher       Teacher  @relation(fields: [teacherId], references: [id])
-  olympiadName  String
-  subject       String
-  level         String // "Школьный", "Городской", "Республиканский", "Международный"
-  place         Int // 1, 2, 3 место
-  date          DateTime
+  id             Int       @id @default(autoincrement())
+  studentId      Int
+  student        Student   @relation(fields: [studentId], references: [id])
+  teacherId      Int
+  teacher        Teacher   @relation(fields: [teacherId], references: [id])
+  olympiadName   String
+  subject        String
+  level          String // "Школьный", "Городской", "Республиканский", "Международный"
+  place          Int // 1, 2, 3 место
+  date           DateTime
   certificateUrl String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
 
   @@index([teacherId, date])
   @@index([studentId])
@@ -1920,18 +1919,18 @@ model OlympiadResult {
 
 // Поступления учеников в учебные заведения
 model StudentAdmission {
-  id          Int        @id @default(autoincrement())
-  studentId   Int
-  student     Student    @relation(fields: [studentId], references: [id])
-  teacherId   Int
-  teacher     Teacher    @relation(fields: [teacherId], references: [id])
-  schoolType  SchoolType
-  schoolName  String
+  id            Int        @id @default(autoincrement())
+  studentId     Int
+  student       Student    @relation(fields: [studentId], references: [id])
+  teacherId     Int
+  teacher       Teacher    @relation(fields: [teacherId], references: [id])
+  schoolType    SchoolType
+  schoolName    String
   admissionYear Int
-  documentUrl String? // Ссылка на справку о поступлении
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
+  documentUrl   String? // Ссылка на справку о поступлении
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
 
   @@index([teacherId, admissionYear])
   @@index([studentId])
@@ -1939,16 +1938,16 @@ model StudentAdmission {
 
 // КТП (Календарно-тематическое планирование)
 model CurriculumPlan {
-  id          Int       @id @default(autoincrement())
-  studyPlanId Int       @unique
-  studyPlan   StudyPlan @relation(fields: [studyPlanId], references: [id])
-  totalLessons Int
+  id             Int       @id @default(autoincrement())
+  studyPlanId    Int       @unique
+  studyPlan      StudyPlan @relation(fields: [studyPlanId], references: [id])
+  totalLessons   Int
   plannedLessons Json // [{week: 1, topic: "Тема", hours: 2}]
-  actualLessons Json? // [{week: 1, completed: true, date: "2025-01-01"}]
-  completionRate Float @default(0) // Процент выполнения КТП
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  actualLessons  Json? // [{week: 1, completed: true, date: "2025-01-01"}]
+  completionRate Float     @default(0) // Процент выполнения КТП
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
 
   @@index([studyPlanId])
 }

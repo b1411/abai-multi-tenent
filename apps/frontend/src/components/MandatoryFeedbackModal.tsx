@@ -223,6 +223,31 @@ const MandatoryFeedbackModal: React.FC<MandatoryFeedbackModalProps> = ({
           </div>
         );
 
+      case 'RATING_1_10':
+        return (
+          <div className="space-y-3">
+            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(rating => (
+                <button
+                  key={rating}
+                  type="button"
+                  onClick={() => handleAnswerChange(question.id, rating)}
+                  className={`w-12 h-12 rounded-lg border-2 font-semibold transition-all text-sm ${value === rating
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                    }`}
+                >
+                  {rating}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>1 - Очень плохо</span>
+              <span>10 - Превосходно</span>
+            </div>
+          </div>
+        );
+
       case 'YES_NO':
         return (
           <div className="flex space-x-4">

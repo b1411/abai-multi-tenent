@@ -136,10 +136,10 @@ export default function RealtimeChatWidget() {
                     id="chat-modal-title"
                     className="text-lg sm:text-2xl font-bold text-white"
                   >
-                    AI Realtime Chat
+                    Abai AI Голосовой Чат
                   </h2>
                   <span className="text-xs sm:text-sm text-green-300 bg-green-400/10 px-2 sm:px-3 py-1 rounded-full border border-green-400/20">
-                    Online
+                    Онлайн
                   </span>
                 </div>
 

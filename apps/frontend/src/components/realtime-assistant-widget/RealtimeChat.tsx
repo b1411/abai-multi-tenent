@@ -611,7 +611,7 @@ export default function RealtimeChat({ className = '' }: RealtimeChatProps) {
                     }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
-                    Listening...
+                    Слушаю...
                   </motion.span>
                 </motion.div>
               </motion.div>
@@ -643,7 +643,7 @@ export default function RealtimeChat({ className = '' }: RealtimeChatProps) {
           }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
-          {isSpeaking ? '🎤 AI is Speaking...' : '🤖 Ready to Chat'}
+          {isSpeaking ? '🎤 Abai AI говорит...' : '🤖 Готов к общению'}
         </motion.h1>
 
         <motion.p
@@ -654,12 +654,12 @@ export default function RealtimeChat({ className = '' }: RealtimeChatProps) {
           transition={{ duration: 2, repeat: Infinity }}
         >
           {connectionStatus === 'connected'
-            ? '🔥 Connected to OpenAI Realtime API'
+            ? '🔥 Подключено к Abai AI Realtime API'
             : connectionStatus === 'connecting'
-              ? '⚡ Connecting...'
+              ? '⚡ Подключаемся...'
               : connectionStatus === 'error'
-                ? '❌ Connection failed'
-                : '🚀 Press connect to start the magic'
+                ? '❌ Ошибка подключения'
+                : '🚀 Нажмите "Подключиться" для начала'
           }
         </motion.p>
 
@@ -694,7 +694,7 @@ export default function RealtimeChat({ className = '' }: RealtimeChatProps) {
                 transition={{ duration: 3, repeat: Infinity }}
               />
               <span className="relative z-10 text-white">
-                {connectionStatus === 'connecting' ? '⚡ Connecting...' : '🚀 Connect'}
+                {connectionStatus === 'connecting' ? '⚡ Подключаемся...' : '🚀 Подключиться'}
               </span>
             </motion.button>
           ) : (
@@ -725,7 +725,7 @@ export default function RealtimeChat({ className = '' }: RealtimeChatProps) {
                 transition={{ duration: 3, repeat: Infinity }}
               />
               <span className="relative z-10 text-white">
-                🛑 Disconnect
+                🛑 Отключиться
               </span>
             </motion.button>
           )}

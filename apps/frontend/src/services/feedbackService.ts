@@ -417,6 +417,11 @@ class FeedbackService {
   async createDynamicTeacherEvaluations(): Promise<any> {
     return await apiClient.post<any>('/feedback/templates/create-teacher-evaluations');
   }
+
+  // Создание комплексных KPI опросов для фидбек-системы
+  async createKpiSurveys(): Promise<any> {
+    return await apiClient.post<any>('/feedback/templates/create-kpi-surveys');
+  }
 }
 
 export const feedbackService = new FeedbackService();

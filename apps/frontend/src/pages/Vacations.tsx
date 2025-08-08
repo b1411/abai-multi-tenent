@@ -47,47 +47,47 @@ const VacationCard: React.FC<{
   const canChangeStatus = vacationService.canChangeStatus(userRole);
   
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
-      <div className="flex justify-between items-start mb-4">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-shadow duration-200">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 space-y-3 sm:space-y-0">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Calendar className="w-6 h-6 text-blue-600" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
               {vacation.teacher.user.name} {vacation.teacher.user.surname}
             </h3>
-            <p className="text-sm text-gray-600">{vacation.teacher.user.email}</p>
+            <p className="text-xs sm:text-sm text-gray-600 truncate">{vacation.teacher.user.email}</p>
           </div>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${vacationService.getTypeColor(vacation.type)}`}>
+        <div className="flex items-center space-x-2 flex-wrap">
+          <span className={`px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-medium ${vacationService.getTypeColor(vacation.type)}`}>
             {VACATION_TYPE_LABELS[vacation.type]}
           </span>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${VACATION_STATUS_COLORS[vacation.status]}`}>
+          <span className={`px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-medium ${VACATION_STATUS_COLORS[vacation.status]}`}>
             {VACATION_STATUS_LABELS[vacation.status]}
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-4">
         <div className="flex items-center space-x-2">
-          <CalendarDays className="w-4 h-4 text-gray-500" />
-          <span className="text-sm text-gray-600">
+          <CalendarDays className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <span className="text-xs sm:text-sm text-gray-600">
             {vacationService.formatPeriod(vacation.startDate, vacation.endDate)}
           </span>
         </div>
         <div className="flex items-center space-x-2">
-          <Clock className="w-4 h-4 text-gray-500" />
-          <span className="text-sm text-gray-600">{vacation.days} дней</span>
+          <Clock className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <span className="text-xs sm:text-sm text-gray-600">{vacation.days} дней</span>
         </div>
       </div>
 
       {vacation.substitute && (
-        <div className="flex items-center space-x-2 mb-4">
-          <User className="w-4 h-4 text-gray-500" />
-          <span className="text-sm text-gray-600">
+        <div className="flex items-start space-x-2 mb-4">
+          <User className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
+          <span className="text-xs sm:text-sm text-gray-600">
             Замещение: {vacation.substitute.user.name} {vacation.substitute.user.surname}
           </span>
         </div>
@@ -95,17 +95,17 @@ const VacationCard: React.FC<{
 
       {vacation.comment && (
         <div className="mb-4">
-          <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+          <p className="text-xs sm:text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
             {vacation.comment}
           </p>
         </div>
       )}
 
-      <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-        <div className="flex space-x-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-4 border-t border-gray-200 space-y-3 sm:space-y-0">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onViewDetails(vacation)}
-            className="flex items-center space-x-1 px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors"
+            className="flex items-center space-x-1 px-3 py-2 text-xs sm:text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors min-h-[36px]"
           >
             <Eye className="w-4 h-4" />
             <span>Просмотр</span>
@@ -113,7 +113,7 @@ const VacationCard: React.FC<{
           {canEdit && (
             <button
               onClick={() => onEdit(vacation)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+              className="flex items-center space-x-1 px-3 py-2 text-xs sm:text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors min-h-[36px]"
             >
               <Edit className="w-4 h-4" />
               <span>Редактировать</span>
@@ -122,7 +122,7 @@ const VacationCard: React.FC<{
           {canEdit && vacation.status === 'pending' && (
             <button
               onClick={() => onDelete(vacation.id)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+              className="flex items-center space-x-1 px-3 py-2 text-xs sm:text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors min-h-[36px]"
             >
               <Trash2 className="w-4 h-4" />
               <span>Удалить</span>
@@ -131,17 +131,17 @@ const VacationCard: React.FC<{
         </div>
 
         {canChangeStatus && vacation.status === 'pending' && userRole !== 'TEACHER' && (
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onStatusChange(vacation.id, VacationStatus.approved)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors"
+              className="flex items-center space-x-1 px-3 py-2 text-xs sm:text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors min-h-[36px]"
             >
               <CheckCircle className="w-4 h-4" />
               <span>Одобрить</span>
             </button>
             <button
               onClick={() => onStatusChange(vacation.id, VacationStatus.rejected)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+              className="flex items-center space-x-1 px-3 py-2 text-xs sm:text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors min-h-[36px]"
             >
               <XCircle className="w-4 h-4" />
               <span>Отклонить</span>
@@ -280,15 +280,15 @@ const VacationForm: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
             {vacation ? 'Редактировать отпуск' : 'Новая заявка на отпуск'}
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {errors.length > 0 && (
             <Alert variant="error" title="Ошибки валидации">
               <ul className="list-disc list-inside space-y-1">
@@ -324,7 +324,7 @@ const VacationForm: React.FC<{
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Тип отпуска
@@ -368,7 +368,7 @@ const VacationForm: React.FC<{
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Дата начала
@@ -516,17 +516,17 @@ const VacationForm: React.FC<{
             </div>
           )}
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className="w-full sm:w-auto px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
               Отмена
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               {vacation ? 'Сохранить' : 'Создать заявку'}
             </button>
@@ -574,11 +574,11 @@ const VacationDetailsModal: React.FC<{
   if (!isOpen || !vacation) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[95vh] overflow-y-auto">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
               Подробности заявки на отпуск
             </h2>
             <button
@@ -590,9 +590,9 @@ const VacationDetailsModal: React.FC<{
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Основная информация */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Информация о сотруднике</h3>

@@ -179,26 +179,29 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
 
   // Единая форма для создания и редактирования
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto"
+        className="bg-white rounded-t-xl sm:rounded-lg w-full sm:w-[500px] max-h-[95vh] sm:max-h-[85vh] overflow-y-auto"
       >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">
+        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white">
+          <h3 className="text-base sm:text-lg font-medium text-gray-900 pr-8 sm:pr-4">
             {isEdit ? 'Редактировать занятие' : 'Добавить занятие'}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600 p-2 rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center touch-manipulation transition-colors"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 p-4 sm:p-6">
           {/* Выбор учебного плана */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-1">
               Учебный план (Предмет)
             </label>
             <Autocomplete
@@ -398,18 +401,18 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
           )}
 
           {/* Кнопки */}
-          <div className="flex justify-end space-x-2 pt-4">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4 sm:pt-6 border-t border-gray-200 sticky bottom-0 bg-white pb-4 sm:pb-0 sm:static sm:border-0 -mx-4 sm:-mx-6 px-4 sm:px-6 sm:mx-0 sm:px-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors text-sm sm:text-base min-h-[44px] touch-manipulation"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={!selectedStudyPlan || !formData.day || !formData.startTime || (lessonFormat === 'offline' && !formData.roomId)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
             >
               {isEdit ? 'Сохранить' : 'Добавить'}
             </button>
@@ -1323,24 +1326,53 @@ const SchedulePage: React.FC = () => {
   return (
     <>
       <div className="p-3 md:p-6 max-w-[1600px] mx-auto">
-        {/* Заголовок и кнопки - мобильная адаптация */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6 space-y-3 sm:space-y-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
-            <h1 className="text-xl md:text-3xl font-bold text-gray-900">
-              {role === 'STUDENT' ? 'Моё расписание' :
-                role === 'PARENT' ? 'Расписание занятий' :
-                  role === 'TEACHER' ? 'Мои занятия' :
-                    'Управление расписанием'}
-            </h1>
+        {/* Заголовок и кнопки */}
+        <div className="flex flex-col space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-3 sm:space-y-0">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900 leading-tight">
+                {role === 'STUDENT' ? 'Моё расписание' :
+                  role === 'PARENT' ? 'Расписание занятий' :
+                    role === 'TEACHER' ? 'Мои занятия' :
+                      'Управление расписанием'}
+              </h1>
+            </div>
 
+            {/* Переключатель вида */}
+            <div className="flex rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${
+                  viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Table className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">Таблица</span>
+                <span className="sm:hidden">Табл.</span>
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${
+                  viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Calendar className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">Сетка</span>
+                <span className="sm:hidden">Сетка</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Кнопки действий */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {/* Показываем кнопку AI только администратору */}
             {role === 'ADMIN' && (
               <button
                 onClick={() => setIsAILessonModalOpen(true)}
                 disabled={isLoading}
-                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm md:text-base"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
               >
-                <Bot className="h-4 w-4 mr-2" />
+                <Bot className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">AI Планирование</span>
                 <span className="sm:hidden">AI План</span>
               </button>
@@ -1353,7 +1385,6 @@ const SchedulePage: React.FC = () => {
                   try {
                     const result = await scheduleService.updateStatuses();
                     alert(`Статусы обновлены! Изменено записей: ${result.updated}`);
-                    // Перезагружаем данные для отображения изменений
                     loadScheduleData();
                   } catch (error) {
                     console.error('Ошибка при обновлении статусов:', error);
@@ -1361,54 +1392,31 @@ const SchedulePage: React.FC = () => {
                   }
                 }}
                 disabled={isLoading}
-                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm md:text-base"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Обновить статусы</span>
                 <span className="sm:hidden">Обновить</span>
               </button>
             )}
-          </div>
 
-          {/* Кнопки управления */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
             {canEditSchedule() && (
               <button
                 onClick={() => handleAddClick()}
-                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center transition-colors text-sm md:text-base"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center transition-colors text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Добавить занятие</span>
                 <span className="sm:hidden">Добавить</span>
               </button>
             )}
-
-            {/* Переключатель вида */}
-            <div className="flex rounded-lg overflow-hidden border border-gray-300">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-              >
-                <Table className="h-4 w-4 inline-block mr-1 md:mr-2" />
-                Таблица
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`flex-1 sm:flex-none px-3 md:px-4 py-2 transition-colors text-sm md:text-base ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-              >
-                <Calendar className="h-4 w-4 inline-block mr-1 md:mr-2" />
-                Сетка
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Панель фильтров - адаптированная под роли с реальными данными из API */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-700">Фильтры</h3>
+        {/* Панель фильтров */}
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 sm:mb-4 space-y-2 sm:space-y-0">
+            <h3 className="text-sm sm:text-base font-medium text-gray-700">Фильтры</h3>
             <button
               onClick={() => {
                 setFilters({
@@ -1420,57 +1428,93 @@ const SchedulePage: React.FC = () => {
                 });
                 setPage(1);
               }}
-              className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center sm:justify-start px-3 py-1.5 sm:px-2 sm:py-1 rounded-md bg-blue-50 hover:bg-blue-100 transition-colors touch-manipulation"
             >
-              <RefreshCw className="w-3 h-3 mr-1" /> Сбросить все
+              <RefreshCw className="w-3 h-3 mr-1 flex-shrink-0" />
+              <span>Сбросить все</span>
             </button>
           </div>
-          <div className="grid grid-cols-5 gap-4">
-            {/* День недели доступен всем */}
-            <div>
-              <select
-                value={filters.day}
-                onChange={(e) => setFilters({ ...filters, day: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">День недели</option>
-                <option value="monday">Понедельник</option>
-                <option value="tuesday">Вторник</option>
-                <option value="wednesday">Среда</option>
-                <option value="thursday">Четверг</option>
-                <option value="friday">Пятница</option>
-                <option value="saturday">Суббота</option>
-                <option value="sunday">Воскресенье</option>
-              </select>
-            </div>
 
-            {/* Группа */}
-            {availableFilters.group && (
+          <div className="space-y-3 sm:space-y-4">
+            {/* Первая строка фильтров */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {/* День недели доступен всем */}
               <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-1">
+                  День недели
+                </label>
                 <select
-                  value={filters.groupId}
-                  onChange={(e) => setFilters({ ...filters, groupId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={filters.day}
+                  onChange={(e) => setFilters({ ...filters, day: e.target.value })}
+                  className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
                 >
-                  <option value="">Выберите группу</option>
-                  {groups.map(group => (
-                    <option key={group.id} value={group.id.toString()}>
-                      {group.name} (курс {group.courseNumber})
-                    </option>
-                  ))}
+                  <option value="">Все дни</option>
+                  <option value="monday">Понедельник</option>
+                  <option value="tuesday">Вторник</option>
+                  <option value="wednesday">Среда</option>
+                  <option value="thursday">Четверг</option>
+                  <option value="friday">Пятница</option>
+                  <option value="saturday">Суббота</option>
+                  <option value="sunday">Воскресенье</option>
                 </select>
               </div>
-            )}
 
-            {/* Учебный план (предмет) */}
-            {availableFilters.studyPlan && (
-              <div>
-                <div className="relative">
+              {/* Группа */}
+              {availableFilters.group && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-1">
+                    Группа
+                  </label>
+                  <select
+                    value={filters.groupId}
+                    onChange={(e) => setFilters({ ...filters, groupId: e.target.value })}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
+                  >
+                    <option value="">Все группы</option>
+                    {groups.map(group => (
+                      <option key={group.id} value={group.id.toString()}>
+                        {group.name} (курс {group.courseNumber})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Преподаватель для админа */}
+              {availableFilters.teacher && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-1">
+                    Преподаватель
+                  </label>
+                  <select
+                    value={filters.teacherId}
+                    onChange={(e) => setFilters({ ...filters, teacherId: e.target.value })}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
+                  >
+                    <option value="">Все преподаватели</option>
+                    {teachers.map(teacher => (
+                      <option key={teacher.id} value={teacher.id.toString()}>
+                        {teacher.name} {teacher.surname}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Вторая строка фильтров */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {/* Учебный план (предмет) */}
+              {availableFilters.studyPlan && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-1">
+                    Учебный план
+                  </label>
                   <Autocomplete
                     placeholder="Поиск предмета..."
                     options={studyPlans.map(plan => ({
                       id: plan.id,
-                      label: plan.name,
+                      label: plan.name.length > 40 ? `${plan.name.substring(0, 40)}...` : plan.name,
                       value: plan.id.toString()
                     }))}
                     value={filters.studyPlanId ? {
@@ -1479,26 +1523,19 @@ const SchedulePage: React.FC = () => {
                       value: filters.studyPlanId
                     } : null}
                     onChange={(option) => {
-                      // Обновляем фильтр, что автоматически обновит URL и вызовет загрузку данных
                       setFilters({
                         ...filters,
                         studyPlanId: option ? option.value.toString() : ''
                       });
-
-                      // Сбрасываем страницу при изменении фильтра
                       setPage(1);
                     }}
                     onSearch={(query: string) => {
-                      // Очищаем предыдущий таймаут, если он есть
                       if (studyPlanSearchTimeoutRef.current) {
                         clearTimeout(studyPlanSearchTimeoutRef.current);
                       }
 
-                      // Поиск только при вводе минимум 2 символов
                       if (query.length >= 2) {
                         setIsLoadingStudyPlans(true);
-
-                        // Создаем новый таймаут для дебаунса
                         studyPlanSearchTimeoutRef.current = setTimeout(() => {
                           scheduleService.searchStudyPlans(query)
                             .then(plans => {
@@ -1511,7 +1548,6 @@ const SchedulePage: React.FC = () => {
                             });
                         }, 300);
                       } else if (query.length === 0) {
-                        // Загрузить все планы при очистке поля
                         setIsLoadingStudyPlans(true);
                         scheduleService.getStudyPlans()
                           .then(plans => {
@@ -1525,58 +1561,48 @@ const SchedulePage: React.FC = () => {
                       }
                     }}
                     isLoading={isLoadingStudyPlans}
-                    label="Учебный план"
-                    helperText="Начните вводить название предмета для поиска"
+                    className="min-h-[44px]"
                   />
                 </div>
+              )}
+
+              {/* Аудитория */}
+              {availableFilters.classroom && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-1">
+                    Аудитория
+                  </label>
+                  <select
+                    value={filters.classroomId}
+                    onChange={(e) => setFilters({ ...filters, classroomId: e.target.value })}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] transition-colors"
+                  >
+                    <option value="">Все аудитории</option>
+                    {classrooms.map(classroom => (
+                      <option key={classroom.id} value={classroom.id.toString()}>
+                        {classroom.name} ({classroom.building})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Статистика */}
+            <div className="pt-2 sm:pt-3 border-t border-gray-100">
+              <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-right bg-gray-50 px-3 py-2 rounded-md">
+                Найдено: <span className="font-medium text-gray-700">{total}</span> занятий
               </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Преподаватель виден только администратору */}
-        {role === 'ADMIN' && (
-          <div>
-            <select
-              value={filters.teacherId}
-              onChange={(e) => setFilters({ ...filters, teacherId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Выберите преподавателя</option>
-              {teachers.map(teacher => (
-                <option key={teacher.id} value={teacher.id.toString()}>
-                  {teacher.name} {teacher.surname}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Аудитория */}
-        {availableFilters.classroom && (
-          <div>
-            <select
-              value={filters.classroomId}
-              onChange={(e) => setFilters({ ...filters, classroomId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Выберите аудиторию</option>
-              {classrooms.map(classroom => (
-                <option key={classroom.id} value={classroom.id.toString()}>
-                  {classroom.name} ({classroom.building})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-      )
-
-      {/* Таблица расписания */}
-      {
-        viewMode === 'table' && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
+        {/* Таблица расписания */}
+        {viewMode === 'table' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1712,120 +1738,260 @@ const SchedulePage: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden">
+              {getFilteredSchedule().length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Занятий не найдено</h3>
+                  <p className="text-gray-500">Попробуйте изменить фильтры поиска</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {getFilteredSchedule().map((item) => (
+                    <div key={item.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="space-y-3">
+                        {/* Header */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0 pr-3">
+                            <h3 className="font-semibold text-gray-900 text-base leading-tight">
+                              {item.subject}
+                            </h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Группа: {item.classId}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            {canEditSchedule() && (
+                              <>
+                                <button
+                                  onClick={() => handleEditClick(item)}
+                                  className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center touch-manipulation transition-colors"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(item.id)}
+                                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center touch-manipulation transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Info Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          {/* Date and Time */}
+                          <div className="flex items-center text-gray-700">
+                            <Calendar className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                            <div>
+                              {item.date ? (
+                                <div>
+                                  <div className="font-medium">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {item.day === 'monday' ? 'Понедельник' :
+                                      item.day === 'tuesday' ? 'Вторник' :
+                                        item.day === 'wednesday' ? 'Среда' :
+                                          item.day === 'thursday' ? 'Четверг' :
+                                            item.day === 'friday' ? 'Пятница' :
+                                              item.day === 'saturday' ? 'Суббота' : 'Воскресенье'}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>
+                                  {item.day === 'monday' ? 'Понедельник' :
+                                    item.day === 'tuesday' ? 'Вторник' :
+                                      item.day === 'wednesday' ? 'Среда' :
+                                        item.day === 'thursday' ? 'Четверг' :
+                                          item.day === 'friday' ? 'Пятница' :
+                                            item.day === 'saturday' ? 'Суббота' : 'Воскресенье'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center text-gray-700">
+                            <Clock className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                            <span>{item.startTime} - {item.endTime}</span>
+                          </div>
+
+                          <div className="flex items-center text-gray-700">
+                            <User className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{item.teacherName}</span>
+                          </div>
+
+                          <div className="flex items-center text-gray-700">
+                            <MapPin className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                            <button
+                              onClick={() => handleRoomClick(item.roomId)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                            >
+                              {item.roomId}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Tags */}
+                        <div className="flex items-center flex-wrap gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            item.type === 'lesson' ? 'bg-blue-100 text-blue-800' :
+                              item.type === 'consultation' ? 'bg-green-100 text-green-800' :
+                                'bg-purple-100 text-purple-800'
+                          }`}>
+                            {item.type === 'lesson' ? 'Урок' :
+                              item.type === 'consultation' ? 'Консультация' : 'Доп. занятие'}
+                          </span>
+
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {item.repeat === 'weekly' ? 'Еженедельно' :
+                              item.repeat === 'biweekly' ? 'Раз в 2 недели' : 'Единожды'}
+                          </span>
+
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            item.status === 'upcoming' ? 'bg-green-100 text-green-800' :
+                              item.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                                'bg-red-100 text-red-800'
+                          }`}>
+                            {item.status === 'upcoming' ? 'Предстоит' :
+                              item.status === 'completed' ? 'Завершено' : 'Отменено'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Пагинация */}
-            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t">
-              <div className="flex items-center space-x-2">
-                <span>Строк на странице:</span>
-                <select value={pageSize} onChange={handlePageSizeChange} className="border rounded px-2 py-1">
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
-                  className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
-                >
-                  Назад
-                </button>
-                <span>Страница {page} из {Math.ceil(total / pageSize) || 1}</span>
-                <button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page >= Math.ceil(total / pageSize)}
-                  className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
-                >
-                  Вперёд
-                </button>
-              </div>
-              <div className="text-sm text-gray-500">
-                Всего: {total}
+            <div className="px-4 py-4 bg-gray-50 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                <div className="flex items-center justify-center sm:justify-start space-x-2 text-sm">
+                  <span>Строк на странице:</span>
+                  <select 
+                    value={pageSize} 
+                    onChange={handlePageSizeChange} 
+                    className="border border-gray-300 rounded px-2 py-1.5 text-sm min-h-[36px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-center space-x-3">
+                  <button
+                    onClick={() => handlePageChange(page - 1)}
+                    disabled={page === 1}
+                    className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-[36px] transition-colors touch-manipulation"
+                  >
+                    Назад
+                  </button>
+                  <span className="text-sm font-medium px-2">
+                    Страница {page} из {Math.ceil(total / pageSize) || 1}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(page + 1)}
+                    disabled={page >= Math.ceil(total / pageSize)}
+                    className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-[36px] transition-colors touch-manipulation"
+                  >
+                    Вперёд
+                  </button>
+                </div>
+
+                <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-right">
+                  Всего: <span className="font-medium">{total}</span>
+                </div>
               </div>
             </div>
           </div>
-        )
-      }
-
-      {/* Сетка расписания */}
-      {viewMode === 'grid' && (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <div className="bg-white rounded-lg shadow overflow-hidden p-4">
-            <div className="grid grid-cols-6 gap-4">
-              <div className="col-span-1"></div>
-              <div className="text-center font-medium py-2 bg-gray-100">Понедельник</div>
-              <div className="text-center font-medium py-2 bg-gray-100">Вторник</div>
-              <div className="text-center font-medium py-2 bg-gray-100">Среда</div>
-              <div className="text-center font-medium py-2 bg-gray-100">Четверг</div>
-              <div className="text-center font-medium py-2 bg-gray-100">Пятница</div>
-
-              {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'].map((time) => (
-                <React.Fragment key={time}>
-                  <div className="text-center font-medium py-2 bg-gray-50">{time}</div>
-                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map((day) => {
-                    const itemsInCell = getFilteredSchedule().filter(
-                      (item) => item.day === day && item.startTime === time
-                    );
-                    const droppableId = `${day}-${time}`;
-
-                    return (
-                      <DroppableCell
-                        key={droppableId}
-                        id={droppableId}
-                        onAddClick={() => canEditSchedule() && handleAddClick(day as ScheduleItem['day'], time)}
-                      >
-                        {itemsInCell.map((item) => (
-                          <DraggableScheduleItem
-                            key={item.id}
-                            item={item}
-                            canEdit={canEditSchedule()}
-                            onEdit={handleEditClick}
-                            onDelete={handleDeleteClick}
-                          />
-                        ))}
-                      </DroppableCell>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        </DndContext>
-      )}
-
-      {/* Модальные окна показываются только если есть права на редактирование */}
-      <AnimatePresence>
-        {isModalOpen && canEditSchedule() && (
-          <ScheduleModal
-            isOpen={isModalOpen}
-            onClose={() => {
-              setIsModalOpen(false);
-              setSelectedItem(null);
-            }}
-            onSave={handleScheduleSave}
-            initialData={selectedItem || undefined}
-            isEdit={isEditMode}
-            groups={groups}
-            teachers={teachers}
-            studyPlans={studyPlans}
-            classrooms={classrooms}
-          />
         )}
-      </AnimatePresence>
 
-      {/* AI Study Plan Generator Modal */}
-      <AIStudyPlanGeneratorModal
-        isOpen={isAILessonModalOpen}
-        onClose={() => setIsAILessonModalOpen(false)}
-        onGenerate={handleAIGenerateFromStudyPlans}
-        groups={groups}
-        teachers={teachers}
-        studyPlans={studyPlans}
-      />
+        {/* Сетка расписания */}
+        {viewMode === 'grid' && (
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <div className="bg-white rounded-lg shadow overflow-hidden p-4">
+              <div className="grid grid-cols-6 gap-4">
+                <div className="col-span-1"></div>
+                <div className="text-center font-medium py-2 bg-gray-100">Понедельник</div>
+                <div className="text-center font-medium py-2 bg-gray-100">Вторник</div>
+                <div className="text-center font-medium py-2 bg-gray-100">Среда</div>
+                <div className="text-center font-medium py-2 bg-gray-100">Четверг</div>
+                <div className="text-center font-medium py-2 bg-gray-100">Пятница</div>
+
+                {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'].map((time) => (
+                  <React.Fragment key={time}>
+                    <div className="text-center font-medium py-2 bg-gray-50">{time}</div>
+                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map((day) => {
+                      const itemsInCell = getFilteredSchedule().filter(
+                        (item) => item.day === day && item.startTime === time
+                      );
+                      const droppableId = `${day}-${time}`;
+
+                      return (
+                        <DroppableCell
+                          key={droppableId}
+                          id={droppableId}
+                          onAddClick={() => canEditSchedule() && handleAddClick(day as ScheduleItem['day'], time)}
+                        >
+                          {itemsInCell.map((item) => (
+                            <DraggableScheduleItem
+                              key={item.id}
+                              item={item}
+                              canEdit={canEditSchedule()}
+                              onEdit={handleEditClick}
+                              onDelete={handleDeleteClick}
+                            />
+                          ))}
+                        </DroppableCell>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </DndContext>
+        )}
+
+        {/* Модальные окна показываются только если есть права на редактирование */}
+        <AnimatePresence>
+          {isModalOpen && canEditSchedule() && (
+            <ScheduleModal
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                setSelectedItem(null);
+              }}
+              onSave={handleScheduleSave}
+              initialData={selectedItem || undefined}
+              isEdit={isEditMode}
+              groups={groups}
+              teachers={teachers}
+              studyPlans={studyPlans}
+              classrooms={classrooms}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* AI Study Plan Generator Modal */}
+        <AIStudyPlanGeneratorModal
+          isOpen={isAILessonModalOpen}
+          onClose={() => setIsAILessonModalOpen(false)}
+          onGenerate={handleAIGenerateFromStudyPlans}
+          groups={groups}
+          teachers={teachers}
+          studyPlans={studyPlans}
+        />
+      </div>
     </>
-  )
+  );
 };
 
 export default SchedulePage;

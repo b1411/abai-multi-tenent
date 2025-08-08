@@ -222,16 +222,16 @@ const KPI: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto">
       {/* Заголовок */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">KPI Преподавателей</h1>
-          <p className="text-gray-600 mt-1">Система оценки эффективности</p>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">KPI Преподавателей</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Система оценки эффективности</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
           <button 
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center justify-center px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base min-h-[44px]"
             onClick={loadData}
             disabled={loading}
           >
@@ -239,7 +239,7 @@ const KPI: React.FC = () => {
             Обновить
           </button>
           <button 
-            className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            className="flex items-center justify-center px-3 sm:px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base min-h-[44px]"
             onClick={handleExport}
           >
             <FaFileExport className="mr-2" />
@@ -249,11 +249,11 @@ const KPI: React.FC = () => {
       </div>
 
       {/* Вкладки */}
-      <div className="mb-8">
-        <div className="flex border-b border-gray-200">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex border-b border-gray-200 overflow-x-auto">
           <button
             onClick={() => setActiveTab('main')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${
+            className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap min-h-[44px] ${
               activeTab === 'main'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -263,7 +263,7 @@ const KPI: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('periodic')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${
+            className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap min-h-[44px] ${
               activeTab === 'periodic'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -280,25 +280,25 @@ const KPI: React.FC = () => {
       ) : (
         <div>
           {/* Информация о системе */}
-      <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-sm border border-blue-200">
-        <div className="flex items-start space-x-4">
+      <div className="mb-6 sm:mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg shadow-sm border border-blue-200">
+        <div className="flex items-start space-x-3 sm:space-x-4">
           <div className="flex-shrink-0">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <FaChartLine className="text-white text-xl" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+              <FaChartLine className="text-white text-lg sm:text-xl" />
             </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">
               🚀 Новая система расчета KPI удержания учеников
             </h3>
-            <div className="text-sm text-blue-800 space-y-2">
+            <div className="text-xs sm:text-sm text-blue-800 space-y-2">
               <p>
                 <strong>Новый подход:</strong> Система анализирует только фидбеки студентов с KPI-метками 
                 для максимальной объективности и точности расчета удержания.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-3">
                 <div className="bg-white p-3 rounded border border-blue-200">
-                  <div className="font-medium text-blue-900 mb-1">📊 Источник данных:</div>
+                  <div className="font-medium text-blue-900 mb-1 text-xs sm:text-sm">📊 Источник данных:</div>
                   <ul className="text-xs text-blue-700 space-y-1">
                     <li>• Фидбеки студентов с KPI-вопросами</li>
                     <li>• Анализ уверенности данных (≥30%)</li>
@@ -306,7 +306,7 @@ const KPI: React.FC = () => {
                   </ul>
                 </div>
                 <div className="bg-white p-3 rounded border border-blue-200">
-                  <div className="font-medium text-blue-900 mb-1">⚡ Алгоритм работы:</div>
+                  <div className="font-medium text-blue-900 mb-1 text-xs sm:text-sm">⚡ Алгоритм работы:</div>
                   <ul className="text-xs text-blue-700 space-y-1">
                     <li>• Поиск релевантных фидбеков</li>
                     <li>• Применение весов вопросов</li>
@@ -320,25 +320,25 @@ const KPI: React.FC = () => {
       </div>
 
       {/* Поиск */}
-      <div className="mb-8 bg-white p-4 rounded-lg shadow-sm">
-        <div className="relative max-w-md">
+      <div className="mb-6 sm:mb-8 bg-white p-4 rounded-lg shadow-sm">
+        <div className="relative max-w-full sm:max-w-md">
           <input
             type="text"
             placeholder="Поиск преподавателя..."
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base min-h-[44px]"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
+          <FaSearch className="absolute left-3 top-3.5 text-gray-400" />
         </div>
       </div>
 
       {/* Два графика */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* График 1: Распределение по уровням KPI */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Распределение по уровням KPI</h3>
-          <div className="h-[300px]">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4">Распределение по уровням KPI</h3>
+          <div className="h-[250px] sm:h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -365,30 +365,30 @@ const KPI: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
-              <span>Отлично: {teachers?.statistics.topPerformers || 0}</span>
+              <div className="w-3 h-3 bg-green-500 rounded mr-2 flex-shrink-0"></div>
+              <span className="truncate">Отлично: {teachers?.statistics.topPerformers || 0}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
-              <span>Хорошо: {teachers?.statistics.onTrack || 0}</span>
+              <div className="w-3 h-3 bg-blue-500 rounded mr-2 flex-shrink-0"></div>
+              <span className="truncate">Хорошо: {teachers?.statistics.onTrack || 0}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-yellow-500 rounded mr-2"></div>
-              <span>Удовлетворительно: {Math.max(0, (teachers?.teachers.length || 0) - (teachers?.statistics.topPerformers || 0) - (teachers?.statistics.onTrack || 0) - (teachers?.statistics.needsImprovement || 0))}</span>
+              <div className="w-3 h-3 bg-yellow-500 rounded mr-2 flex-shrink-0"></div>
+              <span className="truncate">Удовлетворительно: {Math.max(0, (teachers?.teachers.length || 0) - (teachers?.statistics.topPerformers || 0) - (teachers?.statistics.onTrack || 0) - (teachers?.statistics.needsImprovement || 0))}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
-              <span>Требует улучшения: {teachers?.statistics.needsImprovement || 0}</span>
+              <div className="w-3 h-3 bg-red-500 rounded mr-2 flex-shrink-0"></div>
+              <span className="truncate">Требует улучшения: {teachers?.statistics.needsImprovement || 0}</span>
             </div>
           </div>
         </div>
 
         {/* График 2: Средние показатели по метрикам */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Средние показатели по метрикам</h3>
-          <div className="h-[300px]">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4">Средние показатели по метрикам</h3>
+          <div className="h-[250px] sm:h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={[
@@ -457,10 +457,10 @@ const KPI: React.FC = () => {
       {/* Таблица преподавателей */}
       {teachers && (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Рейтинг преподавателей</h3>
-              <div className="text-sm text-gray-500">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+              <h3 className="text-base sm:text-lg font-semibold">Рейтинг преподавателей</h3>
+              <div className="text-xs sm:text-sm text-gray-500">
                 Всего: {filteredTeachers.length} преподавателей
               </div>
             </div>
@@ -469,31 +469,31 @@ const KPI: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Рейтинг
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
                     Преподаватель
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Общий KPI
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Контрольные (25%)
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Журнал (25%)
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     КТП (25%)
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Материалы (15%)
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Активность (10%)
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Тренд
                   </th>
                 </tr>
@@ -502,39 +502,39 @@ const KPI: React.FC = () => {
                 {filteredTeachers.map((teacher) => (
                   <tr
                     key={teacher.id}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="hover:bg-gray-50 cursor-pointer transition-colors active:bg-gray-100"
                     onClick={() => handleTeacherClick(teacher)}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
                       #{teacher.rank}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{teacher.name}</div>
+                    <td className="px-3 sm:px-6 py-4">
+                      <div className="text-xs sm:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-none">{teacher.name}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(teacher.overallScore)}`}>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                      <div className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getScoreColor(teacher.overallScore)}`}>
                         {teacher.overallScore}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       {formatMetricValue(teacher.teachingQuality)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       {formatMetricValue(teacher.classAttendance)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       {formatMetricValue(teacher.workloadCompliance)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       {formatMetricValue(teacher.professionalDevelopment)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       {formatMetricValue(teacher.studentSatisfaction)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         {getTrendIcon(teacher.trend)}
-                        <span className="ml-1 text-sm">{Math.abs(teacher.trend)}</span>
+                        <span className="ml-1 text-xs sm:text-sm">{Math.abs(teacher.trend)}</span>
                       </div>
                     </td>
                   </tr>
@@ -547,20 +547,20 @@ const KPI: React.FC = () => {
 
       {/* Модальное окно детальной информации */}
       {isModalOpen && selectedTeacher && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-5/6 max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedTeacher.name}</h2>
-                  <p className="text-gray-600">Детальная информация о KPI</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start mb-4 sm:mb-6 space-y-4 sm:space-y-0">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">{selectedTeacher.name}</h2>
+                  <p className="text-sm sm:text-base text-gray-600">Детальная информация о KPI</p>
                 </div>
-                <div className="flex items-center">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mr-4 ${getScoreColor(selectedTeacher.overallScore)}`}>
-                    <span className="font-bold text-2xl">{selectedTeacher.overallScore}</span>
+                <div className="flex items-center space-x-3 sm:space-x-4 flex-shrink-0">
+                  <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center ${getScoreColor(selectedTeacher.overallScore)}`}>
+                    <span className="font-bold text-lg sm:text-xl lg:text-2xl">{selectedTeacher.overallScore}</span>
                   </div>
                   <button
-                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                    className="text-gray-500 hover:text-gray-700 text-xl sm:text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
                     onClick={() => setIsModalOpen(false)}
                   >
                     ✕
@@ -568,11 +568,11 @@ const KPI: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Радар-график */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-4 text-center">Профиль KPI</h3>
-                  <div className="h-[300px]">
+                <div className="bg-gray-50 rounded-lg p-4 order-2 lg:order-1">
+                  <h3 className="text-base sm:text-lg font-semibold mb-4 text-center">Профиль KPI</h3>
+                  <div className="h-[250px] sm:h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart data={prepareCategoryRadarData(selectedTeacher)}>
                         <PolarGrid stroke="#E5E7EB" />
@@ -602,7 +602,7 @@ const KPI: React.FC = () => {
                 </div>
 
                 {/* Детальные показатели */}
-                <div className="space-y-3">
+                <div className="space-y-3 order-1 lg:order-2">
                   {/* Основные метрики с весами */}
                   <div className="mb-4">
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Основные метрики (с весами)</h4>
@@ -839,9 +839,9 @@ const KPI: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-6 border-t mt-6 space-x-3">
+              <div className="flex justify-end pt-4 sm:pt-6 border-t mt-4 sm:mt-6 space-x-3">
                 <button 
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base min-h-[44px] min-w-[80px]"
                   onClick={() => setIsModalOpen(false)}
                 >
                   Закрыть

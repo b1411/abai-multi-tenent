@@ -235,38 +235,40 @@ const WorkloadPage: React.FC = () => {
     return (
         <div className="p-4 sm:p-6">
             {/* Заголовок и основные контролы */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex flex-col gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Отработанные часы преподавателей</h1>
-                    <p className="text-sm text-gray-500">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Отработанные часы преподавателей</h1>
+                    <p className="text-sm text-gray-500 mt-1">
                         Реальные данные из расписания за {getMonthName(selectedMonth)} {selectedYear}
                     </p>
                 </div>
 
                 {/* Фильтры */}
-                <div className="flex flex-wrap gap-2">
-                    <select
-                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    >
-                        {Array.from({ length: 5 }, (_, i) => selectedYear - 2 + i).map(year => (
-                            <option key={year} value={year}>{year}</option>
-                        ))}
-                    </select>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex gap-2">
+                        <select
+                            className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        >
+                            {Array.from({ length: 5 }, (_, i) => selectedYear - 2 + i).map(year => (
+                                <option key={year} value={year}>{year}</option>
+                            ))}
+                        </select>
 
-                    <select
-                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    >
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                            <option key={month} value={month}>{getMonthName(month)}</option>
-                        ))}
-                    </select>
+                        <select
+                            className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        >
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                <option key={month} value={month}>{getMonthName(month)}</option>
+                            ))}
+                        </select>
+                    </div>
 
                     <button
-                        className={`px-4 py-2 bg-green-600 text-white rounded-md flex items-center text-sm ${isRecalculating ? 'opacity-50 cursor-not-allowed' : ''
+                        className={`px-4 py-2 bg-green-600 text-white rounded-md flex items-center justify-center text-sm ${isRecalculating ? 'opacity-50 cursor-not-allowed' : ''
                             }`}
                         onClick={recalculateAllHours}
                         disabled={isRecalculating}
@@ -282,11 +284,11 @@ const WorkloadPage: React.FC = () => {
             </div>
 
             {/* Графики */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
                 {/* График нагрузки преподавателей */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                    <h2 className="text-lg font-semibold mb-4">Отработанные часы по преподавателям</h2>
-                    <div className="h-[400px]">
+                <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+                    <h2 className="text-base sm:text-lg font-semibold mb-4">Отработанные часы по преподавателям</h2>
+                    <div className="h-[300px] sm:h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={teacherChartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -336,9 +338,9 @@ const WorkloadPage: React.FC = () => {
                 </div>
 
                 {/* График распределения по предметам */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                    <h2 className="text-lg font-semibold mb-4">Распределение часов по предметам</h2>
-                    <div className="h-[400px]">
+                <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+                    <h2 className="text-base sm:text-lg font-semibold mb-4">Распределение часов по предметам</h2>
+                    <div className="h-[300px] sm:h-[400px]">
                         {subjectChartData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -391,12 +393,12 @@ const WorkloadPage: React.FC = () => {
             </div>
 
             {/* Поиск */}
-            <div className="flex justify-between items-center mb-4">
-                <div className="relative">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div className="relative w-full sm:w-64">
                     <input
                         type="text"
                         placeholder="Поиск преподавателя..."
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-64"
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full text-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -414,22 +416,22 @@ const WorkloadPage: React.FC = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Преподаватель
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                                     Запланировано
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Отработано
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                                     Замещений
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Отклонение
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Действия
                                 </th>
                             </tr>
@@ -445,20 +447,23 @@ const WorkloadPage: React.FC = () => {
                                         className="hover:bg-gray-50 cursor-pointer"
                                         onClick={() => fetchTeacherDetails(teacher.teacherId)}
                                     >
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-3 sm:px-6 py-4">
                                             <div className="text-sm font-medium text-gray-900">{fullName}</div>
-                                            <div className="text-sm text-gray-500">{teacher.teacher.user.email}</div>
+                                            <div className="text-xs sm:text-sm text-gray-500">{teacher.teacher.user.email}</div>
+                                            <div className="text-xs text-gray-500 sm:hidden mt-1">
+                                                План: {teacher.scheduledHours}ч | Замещ: {teacher.substitutedHours}ч
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
                                             {teacher.scheduledHours} ч.
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {teacher.workedHours} ч.
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden md:table-cell">
                                             {teacher.substitutedHours} ч.
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                         ${difference > 0 ? 'bg-green-100 text-green-800' :
                                                     difference < 0 ? 'bg-red-100 text-red-800' :
@@ -466,7 +471,7 @@ const WorkloadPage: React.FC = () => {
                                                 {difference > 0 ? '+' : ''}{difference} ч.
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();

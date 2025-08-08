@@ -140,23 +140,23 @@ const Teachers: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Заголовок и действия */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Преподаватели</h1>
-          <p className="text-gray-600 mt-1">Управление профилями и ставками преподавателей</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Преподаватели</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Управление профилями и ставками преподавателей</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
             onClick={() => setShowFilters(!showFilters)}
           >
             <FaFilter className="mr-2" />
             Фильтры
           </button>
           <button
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
           >
             <FaPlus className="mr-2" />
             Добавить преподавателя
@@ -165,46 +165,46 @@ const Teachers: React.FC = () => {
       </div>
 
       {/* Статистика */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Всего преподавателей</div>
-            <FaUsers className="text-blue-600" />
+            <div className="text-xs sm:text-sm text-gray-600">Всего преподавателей</div>
+            <FaUsers className="text-blue-600 text-sm sm:text-base" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold">{teachers.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">{teachers.length}</div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Активных</div>
-            <FaUserTie className="text-green-600" />
+            <div className="text-xs sm:text-sm text-gray-600">Активных</div>
+            <FaUserTie className="text-green-600 text-sm sm:text-base" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-green-600">{teachers.length}</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">{teachers.length}</div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Со ставками</div>
-            <FaDollarSign className="text-purple-600" />
+            <div className="text-xs sm:text-sm text-gray-600">Со ставками</div>
+            <FaDollarSign className="text-purple-600 text-sm sm:text-base" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-purple-600">
+            <div className="text-xl sm:text-2xl font-bold text-purple-600">
               {Object.keys(teacherStats).length}
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Средний стаж</div>
-            <FaChartLine className="text-orange-600" />
+            <div className="text-xs sm:text-sm text-gray-600">Средний стаж</div>
+            <FaChartLine className="text-orange-600 text-sm sm:text-base" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-xl sm:text-2xl font-bold text-orange-600">
               {teachers.length > 0 
                 ? Math.round(teachers.reduce((sum, t) => sum + ((t as any).experience || 0), 0) / teachers.length)
                 : 0
@@ -215,16 +215,16 @@ const Teachers: React.FC = () => {
       </div>
 
       {/* Поиск и фильтры */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div className="flex flex-col gap-4">
           {/* Поиск */}
-          <div className="flex-1">
+          <div className="w-full">
             <div className="relative">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Поиск по имени, фамилии или email..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -233,9 +233,9 @@ const Teachers: React.FC = () => {
 
           {/* Фильтры */}
           {showFilters && (
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <select
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value)}
               >
@@ -247,7 +247,7 @@ const Teachers: React.FC = () => {
               </select>
 
               <select
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
@@ -263,12 +263,12 @@ const Teachers: React.FC = () => {
       </div>
 
       {/* Список преподавателей */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredTeachers.map((teacher) => {
           const stats = teacherStats[teacher.id];
           
           return (
-            <div key={teacher.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div key={teacher.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
               {/* Заголовок карточки */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">

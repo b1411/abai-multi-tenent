@@ -766,31 +766,35 @@ const EducationalReports: React.FC = () => {
   }, [filteredStudents]);
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 max-w-none mx-auto">
+    <div className="p-2 sm:p-3 md:p-4 lg:p-6 max-w-none mx-auto min-h-screen bg-gray-50">
       {/* Error Message */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center">
-            <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
-            <p className="text-red-700">{error}</p>
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mr-2 flex-shrink-0" />
+            <p className="text-red-700 text-sm sm:text-base">{error}</p>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="mb-4 lg:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Отчёты по учебному процессу</h1>
-        <p className="text-sm text-gray-600">360°-панель аналитики и отчетности • {filteredStudents.length} учащихся</p>
+      <div className="mb-3 sm:mb-4 lg:mb-6">
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mb-1 sm:mb-2 leading-tight">
+          Отчёты по учебному процессу
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-600">
+          360°-панель аналитики и отчетности • {filteredStudents.length} учащихся
+        </p>
       </div>
 
       {/* Filters Section */}
-      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Класс</label>
             <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
               value={filters.class}
               onChange={(e) => handleFilterChange('class', e.target.value)}
             >
@@ -802,9 +806,9 @@ const EducationalReports: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Предмет</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Предмет</label>
             <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
               value={filters.subject}
               onChange={(e) => handleFilterChange('subject', e.target.value)}
             >
@@ -816,9 +820,9 @@ const EducationalReports: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Учитель</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Учитель</label>
             <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
               value={filters.teacher}
               onChange={(e) => handleFilterChange('teacher', e.target.value)}
             >
@@ -830,10 +834,10 @@ const EducationalReports: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Поиск ФИО</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Поиск ФИО</label>
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
               placeholder="Поиск учащегося..."
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
@@ -841,95 +845,97 @@ const EducationalReports: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t space-y-3 sm:space-y-0">
           <button
             onClick={handleRefreshData}
             disabled={loading}
-            className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
+            className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 rounded-md hover:bg-gray-50 transition-colors min-h-[40px] touch-manipulation"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Обновить данные
+            <RefreshCw className={`w-4 h-4 mr-2 flex-shrink-0 ${loading ? 'animate-spin' : ''}`} />
+            <span>Обновить данные</span>
           </button>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
             <button
               onClick={() => setShowExportModal(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+              className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm transition-colors min-h-[44px] touch-manipulation"
             >
-              <Download className="w-4 h-4 mr-2" />
-              Экспорт
+              <Download className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span>Экспорт</span>
             </button>
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
+              className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm transition-colors min-h-[44px] touch-manipulation"
             >
-              <Settings className="w-4 h-4 mr-2" />
-              Настройки
+              <Settings className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span>Настройки</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm border p-4 cursor-pointer hover:shadow-md transition-shadow">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Всего обучающихся</p>
-              <p className="text-2xl font-bold text-gray-900">{kpiMetrics.totalStudents}</p>
+            <div className="min-w-0 flex-1 pr-2">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Всего обучающихся</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-900">{kpiMetrics.totalStudents}</p>
             </div>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600" />
+            <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+              <Users className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-4 cursor-pointer hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Качество знаний</p>
-              <p className="text-2xl font-bold text-green-600">{kpiMetrics.qualityPercentage}%</p>
+            <div className="min-w-0 flex-1 pr-2">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Качество знаний</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">{kpiMetrics.qualityPercentage}%</p>
             </div>
-            <div className="p-2 bg-green-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-green-600" />
+            <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg flex-shrink-0">
+              <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6 text-green-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-4 cursor-pointer hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Средний балл</p>
-              <p className="text-2xl font-bold text-blue-600">{kpiMetrics.averageGrade}</p>
+            <div className="min-w-0 flex-1 pr-2">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Средний балл</p>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">{kpiMetrics.averageGrade}</p>
             </div>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <BookOpen className="w-6 h-6 text-blue-600" />
+            <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+              <BookOpen className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-4 cursor-pointer hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Пропуски без уваж. причины</p>
-              <p className="text-2xl font-bold text-red-600">{kpiMetrics.unexcusedAbsences}</p>
+            <div className="min-w-0 flex-1 pr-2">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Пропуски без уваж. причины</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-600">{kpiMetrics.unexcusedAbsences}</p>
             </div>
-            <div className="p-2 bg-red-100 rounded-lg">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+            <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg flex-shrink-0">
+              <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-red-600" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Динамика среднего балла</h3>
-          <div className="h-64">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+        <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 md:p-6">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">
+            Динамика среднего балла
+          </h3>
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis domain={[3, 5]} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis domain={[3, 5]} tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
                 <Line type="monotone" dataKey="averageGrade" stroke="#3B82F6" strokeWidth={2} name="Средний балл" />
@@ -938,14 +944,16 @@ const EducationalReports: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Пропуски по месяцам</h3>
-          <div className="h-64">
+        <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 md:p-6">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">
+            Пропуски по месяцам
+          </h3>
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="absences" fill="#EF4444" name="Пропуски" />
@@ -954,16 +962,18 @@ const EducationalReports: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Распределение оценок</h3>
-          <div className="h-64">
+        <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 md:p-6">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">
+            Распределение оценок
+          </h3>
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={gradeDistributionData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={80}
+                  outerRadius={60}
                   dataKey="value"
                 >
                   {gradeDistributionData.map((entry, index) => (
@@ -980,122 +990,229 @@ const EducationalReports: React.FC = () => {
 
       {/* Main Table */}
       <div className="bg-white rounded-lg shadow-sm border">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-800">
+        <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 leading-tight">
               Ведомость успеваемости по всем предметам
               {filters.class && ` • ${filters.class}`}
             </h3>
-            <div className="text-sm text-gray-600">
+            <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
               Показано {filteredStudents.length} учащихся
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto select-none" style={{ cursor: 'grab' }}>
-          <table className="w-full border-collapse min-w-max">
-            <thead className="bg-gray-50 sticky top-0">
-              <tr className="border-b-2 border-gray-200">
-                <th className="border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase w-[250px]">
-                  № / ФИО
-                </th>
-                {subjects.map((subject) => (
-                  <th key={subject} className="border-r border-gray-200 px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[100px]">
-                    <div className="h-12 flex items-center justify-center">
-                      <span className="text-center leading-tight">{subject}</span>
-                    </div>
-                  </th>
-                ))}
-                <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
-                  Ср. балл
-                </th>
-                <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
-                  Качество
-                </th>
-                <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[90px]">
-                  Пропуски
-                </th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
-                  Действия
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white">
+        {/* Mobile Card View - Show on screens smaller than xl */}
+        <div className="xl:hidden">
+          {filteredStudents.length === 0 ? (
+            <div className="text-center py-12 px-4">
+              <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Студенты не найдены</h3>
+              <p className="text-gray-500">Попробуйте изменить фильтры поиска</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
               {filteredStudents.map((student, index) => (
-                <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="border-r border-gray-200 px-4 py-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      {index + 1}. {student.fullName}
+                <div key={student.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+                  <div className="space-y-3">
+                    {/* Student Info Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-900 leading-tight">
+                          {index + 1}. {student.fullName}
+                        </h4>
+                        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{student.className}</p>
+                      </div>
+                      <div className="flex items-center space-x-1 ml-2">
+                        <button
+                          onClick={() => handleStudentView(student)}
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors min-h-[36px] min-w-[36px] touch-manipulation"
+                          title="Просмотр"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleStudentEdit(student)}
+                          className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors min-h-[36px] min-w-[36px] touch-manipulation"
+                          title="Редактировать"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{student.className}</div>
-                  </td>
-                  {subjects.map((subject) => {
-                    const subjectGrades = student.grades[subject] || [];
-                    const subjectAverage = subjectGrades.length > 0
-                      ? Math.round((subjectGrades.reduce((sum, grade) => sum + grade, 0) / subjectGrades.length) * 10) / 10
-                      : 0;
 
-                    return (
-                      <td key={subject} className="border-r border-gray-200 px-2 py-4 text-center">
-                        <div className="h-16 flex flex-col justify-center items-center">
-                          {subjectGrades.length > 0 ? (
-                            <div
-                              className="cursor-pointer hover:opacity-75"
-                              onClick={() => handleGradeClick(student, subject)}
-                              title="Нажмите для просмотра деталей оценки"
-                            >
-                              <span
-                                className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold border-2 ${getGradeColor(subjectGrades[0])} ${subjectGrades[0] >= 4 ? 'border-green-300' : subjectGrades[0] >= 3 ? 'border-blue-300' : 'border-red-300'
-                                  } hover:scale-110 transition-transform`}
-                              >
-                                {subjectGrades[0]}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-300">—</div>
-                          )}
+                    {/* Main Stats */}
+                    <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                      <div className="text-center p-2 bg-gray-50 rounded-lg">
+                        <div className={`text-lg sm:text-xl font-bold ${getGradeColor(student.averageGrade).split(' ')[0]}`}>
+                          {student.averageGrade}
                         </div>
-                      </td>
-                    );
-                  })}
-                  <td className="border-r border-gray-200 px-3 py-4 text-center">
-                    <div className={`text-lg font-bold ${getGradeColor(student.averageGrade).split(' ')[0]}`}>
-                      {student.averageGrade}
+                        <div className="text-xs text-gray-600">Ср. балл</div>
+                      </div>
+                      <div className="text-center p-2 bg-gray-50 rounded-lg">
+                        <div className={`text-sm font-medium px-2 py-1 rounded ${getQualityColor(student.qualityPercentage)}`}>
+                          {student.qualityPercentage}%
+                        </div>
+                        <div className="text-xs text-gray-600">Качество</div>
+                      </div>
+                      <div className="text-center p-2 bg-gray-50 rounded-lg">
+                        <div className="text-xs space-y-0.5">
+                          <div className="text-green-600 font-medium">У: {student.absencesExcused}</div>
+                          <div className="text-red-600 font-medium">Н: {student.absencesUnexcused}</div>
+                        </div>
+                        <div className="text-xs text-gray-600">Пропуски</div>
+                      </div>
                     </div>
-                  </td>
-                  <td className="border-r border-gray-200 px-3 py-4 text-center">
-                    <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getQualityColor(student.qualityPercentage)}`}>
-                      {student.qualityPercentage}%
+
+                    {/* Subject Grades */}
+                    <div>
+                      <div className="text-xs text-gray-600 mb-2">Оценки по предметам:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {subjects.slice(0, 6).map(subject => {
+                          const subjectGrades = student.grades[subject] || [];
+                          const latestGrade = subjectGrades[0];
+                          
+                          return (
+                            <button
+                              key={subject}
+                              onClick={() => handleGradeClick(student, subject)}
+                              className="flex flex-col items-center p-2 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow min-h-[48px] touch-manipulation"
+                            >
+                              <div className="text-xs text-gray-600 truncate w-full text-center mb-1" style={{fontSize: '10px'}}>
+                                {subject.length > 8 ? `${subject.substring(0, 8)}...` : subject}
+                              </div>
+                              {latestGrade ? (
+                                <div className={`text-sm font-bold ${getGradeColor(latestGrade).split(' ')[0]}`}>
+                                  {latestGrade}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-400">—</div>
+                              )}
+                            </button>
+                          );
+                        })}
+                        
+                        {subjects.length > 6 && (
+                          <div className="flex items-center justify-center p-2 bg-gray-50 border border-gray-200 rounded-lg min-h-[48px]">
+                            <span className="text-xs text-gray-500">+{subjects.length - 6}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </td>
-                  <td className="border-r border-gray-200 px-3 py-4 text-center">
-                    <div className="text-xs">
-                      <div className="text-green-600 font-medium">У: {student.absencesExcused}</div>
-                      <div className="text-red-600 font-medium">Н: {student.absencesUnexcused}</div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 text-center">
-                    <div className="flex justify-center space-x-1">
-                      <button
-                        onClick={() => handleStudentView(student)}
-                        className="text-blue-600 hover:text-blue-900 p-1.5 rounded hover:bg-blue-50"
-                        title="Просмотр"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleStudentEdit(student)}
-                        className="text-gray-600 hover:text-gray-900 p-1.5 rounded hover:bg-gray-50"
-                        title="Редактировать"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table View - Only show on xl screens */}
+        <div className="hidden xl:block">
+          <div className="overflow-x-auto select-none" style={{ cursor: 'grab' }}>
+            <table className="w-full border-collapse min-w-max">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr className="border-b-2 border-gray-200">
+                  <th className="border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase w-[250px]">
+                    № / ФИО
+                  </th>
+                  {subjects.map((subject) => (
+                    <th key={subject} className="border-r border-gray-200 px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[100px]">
+                      <div className="h-12 flex items-center justify-center">
+                        <span className="text-center leading-tight">{subject}</span>
+                      </div>
+                    </th>
+                  ))}
+                  <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
+                    Ср. балл
+                  </th>
+                  <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
+                    Качество
+                  </th>
+                  <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[90px]">
+                    Пропуски
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
+                    Действия
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                {filteredStudents.map((student, index) => (
+                  <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="border-r border-gray-200 px-4 py-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {index + 1}. {student.fullName}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">{student.className}</div>
+                    </td>
+                    {subjects.map((subject) => {
+                      const subjectGrades = student.grades[subject] || [];
+                      const subjectAverage = subjectGrades.length > 0
+                        ? Math.round((subjectGrades.reduce((sum, grade) => sum + grade, 0) / subjectGrades.length) * 10) / 10
+                        : 0;
+
+                      return (
+                        <td key={subject} className="border-r border-gray-200 px-2 py-4 text-center">
+                          <div className="h-16 flex flex-col justify-center items-center">
+                            {subjectGrades.length > 0 ? (
+                              <div
+                                className="cursor-pointer hover:opacity-75"
+                                onClick={() => handleGradeClick(student, subject)}
+                                title="Нажмите для просмотра деталей оценки"
+                              >
+                                <span
+                                  className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold border-2 ${getGradeColor(subjectGrades[0])} ${subjectGrades[0] >= 4 ? 'border-green-300' : subjectGrades[0] >= 3 ? 'border-blue-300' : 'border-red-300'
+                                    } hover:scale-110 transition-transform`}
+                                >
+                                  {subjectGrades[0]}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-300">—</div>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="border-r border-gray-200 px-3 py-4 text-center">
+                      <div className={`text-lg font-bold ${getGradeColor(student.averageGrade).split(' ')[0]}`}>
+                        {student.averageGrade}
+                      </div>
+                    </td>
+                    <td className="border-r border-gray-200 px-3 py-4 text-center">
+                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getQualityColor(student.qualityPercentage)}`}>
+                        {student.qualityPercentage}%
+                      </div>
+                    </td>
+                    <td className="border-r border-gray-200 px-3 py-4 text-center">
+                      <div className="text-xs">
+                        <div className="text-green-600 font-medium">У: {student.absencesExcused}</div>
+                        <div className="text-red-600 font-medium">Н: {student.absencesUnexcused}</div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-center">
+                      <div className="flex justify-center space-x-1">
+                        <button
+                          onClick={() => handleStudentView(student)}
+                          className="text-blue-600 hover:text-blue-900 p-1.5 rounded hover:bg-blue-50"
+                          title="Просмотр"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleStudentEdit(student)}
+                          className="text-gray-600 hover:text-gray-900 p-1.5 rounded hover:bg-gray-50"
+                          title="Редактировать"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Table Footer with Subject Averages */}
@@ -1145,24 +1262,39 @@ const EducationalReports: React.FC = () => {
       </div>
 
       {/* Export Buttons Below Table */}
-      <div className="mt-6 flex justify-center items-center space-x-4 p-4 bg-white rounded-lg shadow-sm border">
-        <span className="text-sm text-gray-600 font-medium">Скачать отчет:</span>
-        <button
-          onClick={() => handleFilteredExport('xlsx')}
-          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm transition-colors"
-        >
-          <FileDown className="w-4 h-4 mr-2" />
-          Excel (XLSX)
-        </button>
-        <button
-          onClick={() => handleFilteredExport('pdf')}
-          className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm transition-colors"
-        >
-          <FileText className="w-4 h-4 mr-2" />
-          PDF
-        </button>
-        <div className="text-xs text-gray-500">
-          {filteredStudents.length} учащихся • {filters.class || 'Все классы'} • Текущий период
+      <div className="mt-4 sm:mt-6 bg-white rounded-lg shadow-sm border p-3 sm:p-4">
+        <div className="flex flex-col space-y-3 sm:space-y-4">
+          <div className="text-center sm:text-left">
+            <span className="text-sm sm:text-base text-gray-600 font-medium">Скачать отчет:</span>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 lg:gap-4">
+            <button
+              onClick={() => handleFilteredExport('xlsx')}
+              className="flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm sm:text-base font-medium transition-colors min-h-[48px] touch-manipulation shadow-sm hover:shadow-md"
+            >
+              <FileDown className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+              <span>Excel (XLSX)</span>
+            </button>
+            
+            <button
+              onClick={() => handleFilteredExport('pdf')}
+              className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm sm:text-base font-medium transition-colors min-h-[48px] touch-manipulation shadow-sm hover:shadow-md"
+            >
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+              <span>PDF</span>
+            </button>
+          </div>
+          
+          <div className="text-center sm:text-left pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200">
+            <div className="text-xs sm:text-sm text-gray-500 leading-relaxed">
+              <span className="font-medium">{filteredStudents.length}</span> учащихся
+              <span className="hidden sm:inline"> • </span>
+              <span className="block sm:inline">{filters.class || 'Все классы'}</span>
+              <span className="hidden sm:inline"> • </span>
+              <span className="block sm:inline text-gray-400">Текущий период</span>
+            </div>
+          </div>
         </div>
       </div>
 

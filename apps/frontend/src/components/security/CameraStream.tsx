@@ -221,27 +221,27 @@ const CameraStream: React.FC<CameraStreamProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       {/* Заголовок камеры */}
-      <div className="p-3 border-b border-gray-200 bg-gray-50">
+      <div className="p-2 sm:p-3 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
-            <h3 className="text-sm font-medium text-gray-900">{camera.name}</h3>
-            <span className="text-xs text-gray-500">{camera.location}</span>
+          <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+            <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${getStatusColor()}`}></div>
+            <h3 className="text-xs sm:text-sm font-medium text-gray-900 truncate">{camera.name}</h3>
+            <span className="hidden sm:inline text-xs text-gray-500 truncate">{camera.location}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={switchCamera}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
               title="Переключить камеру"
             >
-              <RotateCcw className="h-4 w-4" />
+              <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
             </button>
             <button
               onClick={onFullscreen}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
               title="Полный экран"
             >
-              <Maximize className="h-4 w-4" />
+              <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
             </button>
           </div>
         </div>

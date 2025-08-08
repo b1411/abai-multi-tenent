@@ -152,17 +152,17 @@ const Inventory: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Package className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Package className="h-5 w-5 sm:h-6 sm:w-6" />
             Инвентаризация
           </h1>
-          <p className="text-gray-600">Управление инвентарем учебного заведения</p>
+          <p className="text-sm sm:text-base text-gray-600">Управление инвентарем учебного заведения</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -203,8 +203,8 @@ const Inventory: React.FC = () => {
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Категория
@@ -262,19 +262,19 @@ const Inventory: React.FC = () => {
       )}
 
       {/* Items Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {items.map((item) => (
           <div
             key={item.id}
             className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => handleViewItem(item)}
           >
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-medium text-gray-900 truncate">
+                <h3 className="text-sm sm:text-lg font-medium text-gray-900 truncate pr-2">
                   {item.name}
                 </h3>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${getStatusColor(item.status)}`}>
                   {getStatusText(item.status)}
                 </span>
               </div>
@@ -312,23 +312,62 @@ const Inventory: React.FC = () => {
               </div>
             </div>
             
-            <div className="px-4 py-3 bg-gray-50 rounded-b-lg">
+            <div className="px-3 sm:px-4 py-3 bg-gray-50 rounded-b-lg">
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 min-w-0">
                   {item.qrCode && (
-                    <span className="inline-flex items-center text-xs text-gray-500">
+                    <span className="inline-flex items-center text-xs text-gray-500 flex-shrink-0">
                       <QrCode className="h-3 w-3 mr-1" />
                       QR
                     </span>
                   )}
                   {item.manufacturer && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 truncate">
                       {item.manufacturer}
                     </span>
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-2">
+              
+              {/* Мобильная версия - вертикальное размещение кнопок */}
+              <div className="flex flex-col sm:hidden space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMoveItem(item);
+                    }}
+                    className="inline-flex items-center px-2 py-1 text-xs text-green-600 hover:text-green-800 font-medium"
+                    title="Переместить"
+                  >
+                    <Move className="h-3 w-3 mr-1" />
+                    Переместить
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMaintenanceItem(item);
+                    }}
+                    className="inline-flex items-center px-2 py-1 text-xs text-yellow-600 hover:text-yellow-800 font-medium"
+                    title="Обслуживание"
+                  >
+                    <Wrench className="h-3 w-3 mr-1" />
+                    Обслуживание
+                  </button>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditItem(item);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium text-center py-1"
+                >
+                  Редактировать
+                </button>
+              </div>
+
+              {/* Десктопная версия - горизонтальное размещение */}
+              <div className="hidden sm:flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => {

@@ -91,35 +91,38 @@ const FeedbackAdmin: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Заголовок */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
             Управление обратной связью
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             Настройка шаблонов форм и управление опросами
           </p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <button
             onClick={() => setShowCreateForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
           >
-            Создать шаблон
+            <span className="sm:hidden">Создать</span>
+            <span className="hidden sm:inline">Создать шаблон</span>
           </button>
           <button
             onClick={handleCreateDefaultTemplates}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm sm:text-base"
           >
-            Добавить стандартные
+            <span className="sm:hidden">Стандартные</span>
+            <span className="hidden sm:inline">Добавить стандартные</span>
           </button>
           <button
             onClick={handleCreateTeacherEvaluations}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
           >
-            Формы оценки преподавателей
+            <span className="sm:hidden">Оценка преподавателей</span>
+            <span className="hidden sm:inline">Формы оценки преподавателей</span>
           </button>
         </div>
       </div>
@@ -128,30 +131,30 @@ const FeedbackAdmin: React.FC = () => {
 
       {/* Статистика */}
       {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900">Всего ответов</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-900">Всего ответов</h3>
+            <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1 sm:mt-2">
               {statistics.totalResponses}
             </p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900">Процент заполнения</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-900">Процент заполнения</h3>
+            <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1 sm:mt-2">
               {statistics.completionRate || 0}%
             </p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900">Активных шаблонов</h3>
-            <p className="text-3xl font-bold text-purple-600 mt-2">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-900">Активных шаблонов</h3>
+            <p className="text-2xl sm:text-3xl font-bold text-purple-600 mt-1 sm:mt-2">
               {templates.filter(t => t.isActive).length}
             </p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900">По ролям</h3>
-            <div className="mt-2 space-y-1">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-900">По ролям</h3>
+            <div className="mt-1 sm:mt-2 space-y-1">
               {Object.entries(statistics.byRole || {}).map(([role, count]) => (
-                <div key={role} className="flex justify-between text-sm">
+                <div key={role} className="flex justify-between text-xs sm:text-sm">
                   <span>{role}:</span>
                   <span className="font-semibold">{count as number}</span>
                 </div>
@@ -167,23 +170,25 @@ const FeedbackAdmin: React.FC = () => {
           <nav className="-mb-px flex">
             <button
               onClick={() => setActiveTab('templates')}
-              className={`py-4 px-6 border-b-2 font-medium text-sm ${
+              className={`flex-1 sm:flex-initial py-3 sm:py-4 px-4 sm:px-6 border-b-2 font-medium text-xs sm:text-sm ${
                 activeTab === 'templates'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Шаблоны форм
+              <span className="sm:hidden">Шаблоны</span>
+              <span className="hidden sm:inline">Шаблоны форм</span>
             </button>
             <button
               onClick={() => setActiveTab('responses')}
-              className={`py-4 px-6 border-b-2 font-medium text-sm ${
+              className={`flex-1 sm:flex-initial py-3 sm:py-4 px-4 sm:px-6 border-b-2 font-medium text-xs sm:text-sm ${
                 activeTab === 'responses'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Ответы студентов
+              <span className="sm:hidden">Ответы</span>
+              <span className="hidden sm:inline">Ответы студентов</span>
             </button>
           </nav>
         </div>

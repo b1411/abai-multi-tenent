@@ -112,24 +112,24 @@ const SystemSettingsPage: React.FC = () => {
       }
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto">
       {/* Header - мобильная адаптация */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6 space-y-3 sm:space-y-0">
-        <h1 className="text-xl md:text-2xl font-bold">Системные настройки</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+        <h1 className="text-xl sm:text-2xl font-bold">Системные настройки</h1>
         <div className="flex flex-col sm:flex-row gap-2">
           {saveMessage && (
             <Alert 
               variant={saveMessage.includes('Ошибка') ? 'error' : 'success'} 
               message={saveMessage}
-              className="mb-2 sm:mb-0 sm:mr-4"
+              className="mb-2 sm:mb-0 sm:mr-4 text-xs sm:text-sm"
             />
           )}
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-3 md:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm md:text-base"
+            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            {isSaving ? <Spinner size="sm" /> : <FaSave className="text-sm md:text-base" />}
+            {isSaving ? <Spinner size="sm" /> : <FaSave className="w-4 h-4" />}
             <span className="hidden sm:inline">Сохранить изменения</span>
             <span className="sm:hidden">Сохранить</span>
           </button>

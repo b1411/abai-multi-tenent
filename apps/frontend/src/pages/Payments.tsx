@@ -228,14 +228,14 @@ const PaymentsPage: React.FC = () => {
 
   // Компоненты фильтров
   const FilterModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg w-full max-w-md">
         <h3 className="text-lg font-semibold mb-4">Фильтры</h3>
         
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
           <select
-            className="w-full border border-gray-300 rounded-md p-2"
+            className="w-full border border-gray-300 rounded-md p-2 text-sm"
             value={filters.grade || ''}
             onChange={(e) => handleFilterChange('grade', e.target.value)}
           >
@@ -251,7 +251,7 @@ const PaymentsPage: React.FC = () => {
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Тип услуги</label>
           <select
-            className="w-full border border-gray-300 rounded-md p-2"
+            className="w-full border border-gray-300 rounded-md p-2 text-sm"
             value={filters.serviceType || ''}
             onChange={(e) => handleFilterChange('serviceType', e.target.value)}
           >
@@ -266,7 +266,7 @@ const PaymentsPage: React.FC = () => {
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
           <select
-            className="w-full border border-gray-300 rounded-md p-2"
+            className="w-full border border-gray-300 rounded-md p-2 text-sm"
             value={filters.status || ''}
             onChange={(e) => handleFilterChange('status', e.target.value)}
           >
@@ -278,15 +278,15 @@ const PaymentsPage: React.FC = () => {
           </select>
         </div>
         
-        <div className="flex justify-end space-x-3">
+        <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
           <button
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm"
             onClick={handleResetFilters}
           >
             Сбросить
           </button>
           <button
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md text-sm"
             onClick={() => setShowFilterModal(false)}
           >
             Применить
@@ -301,93 +301,102 @@ const PaymentsPage: React.FC = () => {
     if (!selectedPayment) return null;
     
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg w-[600px]">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Информация о платеже</h3>
-            <button onClick={() => setShowPaymentModal(false)} className="text-gray-500">
+            <button 
+              onClick={() => setShowPaymentModal(false)} 
+              className="text-gray-500 text-2xl leading-none hover:text-gray-700"
+            >
               &times;
             </button>
           </div>
           
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
-              <p className="text-sm text-gray-500">Ученик</p>
-              <p className="font-medium">{selectedPayment.studentName}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Ученик</p>
+              <p className="font-medium text-sm sm:text-base">{selectedPayment.studentName}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Класс</p>
-              <p className="font-medium">{selectedPayment.grade}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Класс</p>
+              <p className="font-medium text-sm sm:text-base">{selectedPayment.grade}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs sm:text-sm text-gray-500">Услуга</p>
+              <p className="font-medium text-sm sm:text-base">{selectedPayment.serviceName}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs sm:text-sm text-gray-500">Тип услуги</p>
+              <p className="font-medium text-sm sm:text-base">{SERVICE_TYPE_LABELS[selectedPayment.serviceType as keyof typeof SERVICE_TYPE_LABELS] || selectedPayment.serviceType}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Услуга</p>
-              <p className="font-medium">{selectedPayment.serviceName}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Сумма</p>
+              <p className="font-medium text-sm sm:text-base">{selectedPayment.amount.toLocaleString()} {selectedPayment.currency}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Тип услуги</p>
-              <p className="font-medium">{SERVICE_TYPE_LABELS[selectedPayment.serviceType as keyof typeof SERVICE_TYPE_LABELS] || selectedPayment.serviceType}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Срок оплаты</p>
+              <p className="font-medium text-sm sm:text-base">{new Date(selectedPayment.dueDate).toLocaleDateString()}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Сумма</p>
-              <p className="font-medium">{selectedPayment.amount.toLocaleString()} {selectedPayment.currency}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Срок оплаты</p>
-              <p className="font-medium">{new Date(selectedPayment.dueDate).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Статус</p>
+              <p className="text-xs sm:text-sm text-gray-500">Статус</p>
               <span className={`inline-block px-2 py-1 rounded-full text-xs ${PAYMENT_STATUS_COLORS[selectedPayment.status as keyof typeof PAYMENT_STATUS_COLORS] || 'bg-gray-100 text-gray-800'}`}>
                 {PAYMENT_STATUS_LABELS[selectedPayment.status as keyof typeof PAYMENT_STATUS_LABELS] || selectedPayment.status}
               </span>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Дата оплаты</p>
-              <p className="font-medium">
+              <p className="text-xs sm:text-sm text-gray-500">Дата оплаты</p>
+              <p className="font-medium text-sm sm:text-base">
                 {selectedPayment.paymentDate 
                   ? new Date(selectedPayment.paymentDate).toLocaleDateString() 
                   : '-'}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Оплачено</p>
-              <p className="font-medium">
+              <p className="text-xs sm:text-sm text-gray-500">Оплачено</p>
+              <p className="font-medium text-sm sm:text-base">
                 {selectedPayment.paidAmount !== undefined 
                   ? `${selectedPayment.paidAmount.toLocaleString()} ${selectedPayment.currency}` 
                   : '0 ' + selectedPayment.currency}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Остаток</p>
-              <p className="font-medium text-red-600">
+              <p className="text-xs sm:text-sm text-gray-500">Остаток</p>
+              <p className="font-medium text-red-600 text-sm sm:text-base">
                 {((selectedPayment.amount - (selectedPayment.paidAmount || 0))).toLocaleString()} {selectedPayment.currency}
               </p>
             </div>
           </div>
           
-          <div className="flex justify-end space-x-3">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
             {!isParent && (
               <button
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm flex items-center"
+                className="w-full sm:w-auto px-3 py-2 sm:px-4 border border-gray-300 rounded-md text-xs sm:text-sm flex items-center justify-center"
                 onClick={() => handleSendReminder(selectedPayment.id)}
                 disabled={loading}
               >
-                <FaBell className="mr-2" /> Отправить напоминание
+                <FaBell className="mr-1 sm:mr-2" /> 
+                <span className="hidden sm:inline">Отправить напоминание</span>
+                <span className="sm:hidden">Напоминание</span>
               </button>
             )}
             <button
-              className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md text-sm flex items-center"
+              className="w-full sm:w-auto px-3 py-2 sm:px-4 border border-blue-600 text-blue-600 rounded-md text-xs sm:text-sm flex items-center justify-center"
               onClick={() => handleGenerateSummaryInvoice(selectedPayment)}
               disabled={loading}
             >
-              <FaDownload className="mr-2" /> Сводная квитанция
+              <FaDownload className="mr-1 sm:mr-2" /> 
+              <span className="hidden sm:inline">Сводная квитанция</span>
+              <span className="sm:hidden">Сводная</span>
             </button>
             <button
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm flex items-center"
+              className="w-full sm:w-auto px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-md text-xs sm:text-sm flex items-center justify-center"
               onClick={() => handleGenerateInvoice(selectedPayment)}
               disabled={loading}
             >
-              <FaDownload className="mr-2" /> Сформировать квитанцию
+              <FaDownload className="mr-1 sm:mr-2" /> 
+              <span className="hidden sm:inline">Сформировать квитанцию</span>
+              <span className="sm:hidden">Квитанция</span>
             </button>
           </div>
         </div>
@@ -404,8 +413,8 @@ const PaymentsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">
+    <div className="p-4 sm:p-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">
         {isParent ? 'Платежи моих детей' : 'Оплаты и задолженности'}
       </h1>
       
@@ -416,85 +425,89 @@ const PaymentsPage: React.FC = () => {
       )}
       
       {/* Фильтры и действия */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+        <div className="flex items-center">
           <button 
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+            className="px-3 py-2 sm:px-4 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
             onClick={() => setShowFilterModal(true)}
           >
-            <FaFilter className="mr-2" />
-            Фильтры
+            <FaFilter className="mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Фильтры</span>
+            <span className="sm:hidden">Фильтр</span>
             {(filters.grade || filters.serviceType || filters.status) && (
-              <span className="ml-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="ml-1 sm:ml-2 bg-blue-600 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
                 {Object.values(filters).filter(Boolean).length}
               </span>
             )}
           </button>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto">
           {canCreatePayments && (
             <>
               <button 
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
+                className="px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors flex items-center whitespace-nowrap"
                 onClick={() => setShowCreatePaymentModal(true)}
               >
-                <FaMoneyBill className="mr-2" />
-                Добавить оплату
+                <FaMoneyBill className="mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Добавить оплату</span>
+                <span className="sm:hidden">Оплата</span>
               </button>
               <button 
-                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center"
+                className="px-3 py-2 sm:px-4 bg-green-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-green-700 transition-colors flex items-center whitespace-nowrap"
                 onClick={() => setShowGroupPaymentModal(true)}
               >
-                <FaUsers className="mr-2" />
-                Групповой платеж
+                <FaUsers className="mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Групповой платеж</span>
+                <span className="sm:hidden">Группа</span>
               </button>
             </>
           )}
           <button 
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+            className="px-3 py-2 sm:px-4 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors flex items-center whitespace-nowrap"
             onClick={handleExport}
           >
-            <FaFileExport className="mr-2" />
-            Экспорт
+            <FaFileExport className="mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Экспорт</span>
+            <span className="sm:hidden">Excel</span>
           </button>
         </div>
       </div>
 
       {/* Статистика */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl shadow-sm">
-          <div className="text-sm text-gray-600 mb-1">Общая сумма к оплате</div>
-          <div className="text-2xl font-bold">{stats?.totalDue?.toLocaleString() || '0'} KZT</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="text-xs sm:text-sm text-gray-600 mb-1">Общая сумма к оплате</div>
+          <div className="text-lg sm:text-2xl font-bold">{stats?.totalDue?.toLocaleString() || '0'} KZT</div>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm">
-          <div className="text-sm text-gray-600 mb-1">Собрано оплат</div>
-          <div className="text-2xl font-bold">{stats?.totalPaid?.toLocaleString() || '0'} KZT</div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="text-xs sm:text-sm text-gray-600 mb-1">Собрано оплат</div>
+          <div className="text-lg sm:text-2xl font-bold">{stats?.totalPaid?.toLocaleString() || '0'} KZT</div>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm">
-          <div className="text-sm text-gray-600 mb-1">Процент сбора</div>
-          <div className="text-2xl font-bold">{stats?.collectionRate || 0}%</div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="text-xs sm:text-sm text-gray-600 mb-1">Процент сбора</div>
+          <div className="text-lg sm:text-2xl font-bold">{stats?.collectionRate || 0}%</div>
+          <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5 mt-2">
             <div 
-              className="bg-blue-600 h-2.5 rounded-full" 
+              className="bg-blue-600 h-2 sm:h-2.5 rounded-full" 
               style={{ width: `${stats?.collectionRate || 0}%` }}
             ></div>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm">
-          <div className="text-sm text-gray-600 mb-1">Просроченные оплаты</div>
-          <div className="text-2xl font-bold text-red-600">{stats?.overdueCount || 0}</div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+          <div className="text-xs sm:text-sm text-gray-600 mb-1">Просроченные оплаты</div>
+          <div className="text-lg sm:text-2xl font-bold text-red-600">{stats?.overdueCount || 0}</div>
         </div>
       </div>
 
       {/* Таблица платежей */}
       <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
         {filteredPayments.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8 px-4">
             <div className="text-gray-500 mb-4">
-              <FaMoneyBill className="mx-auto h-12 w-12 text-gray-400" />
+              <FaMoneyBill className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Нет данных о платежах</h3>
-            <p className="text-gray-500">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Нет данных о платежах</h3>
+            <p className="text-sm sm:text-base text-gray-500 px-2">
               {Object.values(filters).some(Boolean) 
                 ? 'Попробуйте изменить фильтры для отображения данных.'
                 : 'Данные о платежах пока не загружены или отсутствуют в системе.'}
@@ -505,22 +518,22 @@ const PaymentsPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ученик
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Услуга
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Сумма
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Срок
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Статус
                 </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Действия
                 </th>
               </tr>
@@ -532,65 +545,73 @@ const PaymentsPage: React.FC = () => {
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => handleRowClick(payment)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-3 sm:px-6 sm:py-4">
                     <div className="flex items-center">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{payment.studentName}</div>
-                        <div className="text-sm text-gray-500">Класс: {payment.grade}</div>
+                        <div className="text-xs sm:text-sm font-medium text-gray-900">{payment.studentName}</div>
+                        <div className="text-xs text-gray-500">Класс: {payment.grade}</div>
+                        <div className="sm:hidden text-xs text-gray-500 mt-1">{payment.serviceName}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{payment.serviceName}</div>
                     <div className="text-sm text-gray-500">{SERVICE_TYPE_LABELS[payment.serviceType as keyof typeof SERVICE_TYPE_LABELS] || payment.serviceType}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{payment.amount.toLocaleString()} {payment.currency}</div>
+                  <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
+                    <div className="text-xs sm:text-sm text-gray-900 font-medium">{payment.amount.toLocaleString()} {payment.currency}</div>
                     {payment.paidAmount !== undefined && payment.paidAmount > 0 && payment.paidAmount < payment.amount && (
-                      <div className="text-sm text-green-600">Оплачено: {payment.paidAmount.toLocaleString()} {payment.currency}</div>
+                      <div className="text-xs text-green-600">Оплачено: {payment.paidAmount.toLocaleString()}</div>
                     )}
+                    <div className="md:hidden text-xs text-gray-500 mt-1">{new Date(payment.dueDate).toLocaleDateString()}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{new Date(payment.dueDate).toLocaleDateString()}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${PAYMENT_STATUS_COLORS[payment.status as keyof typeof PAYMENT_STATUS_COLORS] || 'bg-gray-100 text-gray-800'}`}>
-                      {PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] || payment.status}
+                  <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
+                    <span className={`px-1.5 py-0.5 sm:px-2 sm:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${PAYMENT_STATUS_COLORS[payment.status as keyof typeof PAYMENT_STATUS_COLORS] || 'bg-gray-100 text-gray-800'}`}>
+                      <span className="hidden sm:inline">{PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] || payment.status}</span>
+                      <span className="sm:hidden">
+                        {payment.status === 'paid' ? 'ОК' : 
+                         payment.status === 'unpaid' ? 'НЕТ' : 
+                         payment.status === 'partial' ? 'ЧАСТ' : 
+                         payment.status === 'overdue' ? 'ПРОСР' : payment.status}
+                      </span>
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
+                  <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-1 sm:space-x-2">
                       {!isParent && (
                         <button 
-                          className="text-blue-600 hover:text-blue-900 p-1"
+                          className="text-blue-600 hover:text-blue-900 p-0.5 sm:p-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleSendReminder(payment.id);
                           }}
                           title="Отправить напоминание"
                         >
-                          <FaBell />
+                          <FaBell className="w-3 h-3 sm:w-4 sm:h-4" />
                         </button>
                       )}
                       <button 
-                        className="text-purple-600 hover:text-purple-900 p-1"
+                        className="text-purple-600 hover:text-purple-900 p-0.5 sm:p-1"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleGenerateSummaryInvoice(payment);
                         }}
                         title="Сводная квитанция"
                       >
-                        <FaFileExport />
+                        <FaFileExport className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button 
-                        className="text-green-600 hover:text-green-900 p-1"
+                        className="text-green-600 hover:text-green-900 p-0.5 sm:p-1"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleGenerateInvoice(payment);
                         }}
                         title="Квитанция"
                       >
-                        <FaDownload />
+                        <FaDownload className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </td>

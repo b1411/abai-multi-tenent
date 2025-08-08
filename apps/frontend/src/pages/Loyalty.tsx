@@ -33,7 +33,7 @@ const Loyalty: React.FC = () => {
   const handleFilterChange = (newFilter: Partial<LoyaltyFilter>) => {
     const updatedFilter = { ...filter, ...newFilter };
     setFilter(updatedFilter);
-    
+
     if (activeTab === 'analytics') {
       updateAnalyticsFilter(updatedFilter);
     } else {
@@ -56,7 +56,7 @@ const Loyalty: React.FC = () => {
 
   const handleTabChange = (tab: 'analytics' | 'reviews' | 'feedback' | 'add-review') => {
     setActiveTab(tab);
-    
+
     // Загружаем данные при переключении на таб отзывов
     if (tab === 'reviews') {
       console.log('Loading reviews data...');
@@ -84,34 +84,34 @@ const Loyalty: React.FC = () => {
       <div className="space-y-6">
         {/* Общая статистика */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-sm font-medium text-gray-500">Всего отзывов</h3>
-              <p className="text-2xl font-bold text-gray-900">{summary.totalReviews}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500">Всего отзывов</h3>
+              <p className="text-lg sm:text-2xl font-bold text-gray-900">{summary.totalReviews}</p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-sm font-medium text-gray-500">Средний рейтинг</h3>
-              <p className="text-2xl font-bold text-blue-600">
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500">Средний рейтинг</h3>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">
                 {summary.averageRating.toFixed(1)}/5
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-sm font-medium text-gray-500">Активных учителей</h3>
-              <p className="text-2xl font-bold text-green-600">{summary.activeTeachers}</p>
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500">Активных учителей</h3>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">{summary.activeTeachers}</p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-sm font-medium text-gray-500">Активных групп</h3>
-              <p className="text-2xl font-bold text-purple-600">{summary.activeGroups}</p>
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500">Активных групп</h3>
+              <p className="text-lg sm:text-2xl font-bold text-purple-600">{summary.activeGroups}</p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-sm font-medium text-gray-500">Повторные покупки</h3>
-              <p className="text-2xl font-bold text-indigo-600">
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500">Повторные покупки</h3>
+              <p className="text-lg sm:text-2xl font-bold text-indigo-600">
                 {summary.repeatPurchaseRate?.toFixed(1) || 0}%
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-sm font-medium text-gray-500">Уровень удовлетворенности</h3>
-              <p className="text-2xl font-bold text-orange-600">
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500">Уровень удовлетворенности</h3>
+              <p className="text-lg sm:text-2xl font-bold text-orange-600">
                 {summary.satisfactionRate.toFixed(1)}%
               </p>
             </div>
@@ -120,21 +120,21 @@ const Loyalty: React.FC = () => {
 
         {/* Распределение рейтингов */}
         {analytics && (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold mb-4">Распределение рейтингов</h3>
-            <div className="space-y-3">
+          <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Распределение рейтингов</h3>
+            <div className="space-y-2 sm:space-y-3">
               {analytics.ratingDistribution.map((item) => (
                 <div key={item.rating} className="flex items-center">
-                  <span className="w-12 text-sm text-gray-600">{item.rating} ⭐</span>
-                  <div className="flex-1 bg-gray-200 rounded-full h-3 mx-3">
+                  <span className="w-8 sm:w-12 text-xs sm:text-sm text-gray-600">{item.rating} ⭐</span>
+                  <div className="flex-1 bg-gray-200 rounded-full h-2 sm:h-3 mx-2 sm:mx-3">
                     <div
-                      className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                      className="bg-blue-500 h-2 sm:h-3 rounded-full transition-all duration-300"
                       style={{
                         width: `${(item._count.rating / analytics.totalReviews) * 100}%`,
                       }}
                     />
                   </div>
-                  <span className="w-16 text-sm text-gray-600 text-right">
+                  <span className="w-12 sm:w-16 text-xs sm:text-sm text-gray-600 text-right">
                     {item._count.rating} ({((item._count.rating / analytics.totalReviews) * 100).toFixed(1)}%)
                   </span>
                 </div>
@@ -145,29 +145,29 @@ const Loyalty: React.FC = () => {
 
         {/* Топ учителей */}
         {analytics && analytics.topTeachers.length > 0 && (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold mb-4">Топ учителей по рейтингу</h3>
-            <div className="space-y-3">
+          <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Топ учителей по рейтингу</h3>
+            <div className="space-y-2 sm:space-y-3">
               {analytics.topTeachers.slice(0, 10).map((teacher, index) => (
-                <div key={teacher.teacherId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3">
+                <div key={teacher.teacherId} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center min-w-0 flex-1">
+                    <span className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium mr-2 sm:mr-3 flex-shrink-0">
                       {index + 1}
                     </span>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {teacher.teacher?.user ? 
-                          `${teacher.teacher.user.name} ${teacher.teacher.user.surname}` : 
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm sm:text-base font-medium text-gray-900 truncate">
+                        {teacher.teacher?.user ?
+                          `${teacher.teacher.user.name} ${teacher.teacher.user.surname}` :
                           'Неизвестный учитель'
                         }
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {teacher._count.rating} отзыв{teacher._count.rating > 1 ? 'а' : ''}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-blue-600">
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <p className="text-sm sm:text-base font-semibold text-blue-600">
                       {teacher._avg.rating?.toFixed(1)}/5
                     </p>
                   </div>
@@ -179,22 +179,22 @@ const Loyalty: React.FC = () => {
 
         {/* Тренды */}
         {trends && trends.length > 0 && (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold mb-4">Тренды рейтингов</h3>
-            <div className="space-y-2">
+          <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Тренды рейтингов</h3>
+            <div className="space-y-1 sm:space-y-2">
               {trends.slice(-10).map((trend, index) => (
                 <div key={index} className="flex items-center justify-between p-2 border-b border-gray-100 last:border-b-0">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-xs sm:text-sm text-gray-600">
                     {new Date(trend.period).toLocaleDateString('ru-RU', {
                       year: 'numeric',
                       month: 'long',
                     })}
                   </span>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-600">
+                  <div className="flex items-center space-x-2 sm:space-x-4">
+                    <span className="text-xs sm:text-sm text-gray-600">
                       {trend.review_count} отзыв{trend.review_count > 1 ? 'ов' : ''}
                     </span>
-                    <span className="text-sm font-medium text-blue-600">
+                    <span className="text-xs sm:text-sm font-medium text-blue-600">
                       {Number(trend.average_rating).toFixed(1)}/5
                     </span>
                   </div>
@@ -229,44 +229,43 @@ const Loyalty: React.FC = () => {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {reviews.data.map((review) => (
-          <div key={review.id} className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h4 className="font-semibold text-gray-900">
-                  {review.teacher?.user ? 
-                    `${review.teacher.user.name} ${review.teacher.user.surname}` : 
+          <div key={review.id} className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 sm:mb-4">
+              <div className="mb-2 sm:mb-0">
+                <h4 className="text-sm sm:text-base font-semibold text-gray-900 truncate">
+                  {review.teacher?.user ?
+                    `${review.teacher.user.name} ${review.teacher.user.surname}` :
                     'Неизвестный учитель'
                   }
                 </h4>
-                <p className="text-sm text-gray-500">Группа: {review.group?.name}</p>
+                <p className="text-xs sm:text-sm text-gray-500">Группа: {review.group?.name}</p>
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center flex-shrink-0">
                 <div className="flex">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <span
                       key={star}
-                      className={`text-lg ${
-                        star <= review.rating ? 'text-yellow-400' : 'text-gray-300'
-                      }`}
+                      className={`text-sm sm:text-lg ${star <= review.rating ? 'text-yellow-400' : 'text-gray-300'
+                        }`}
                     >
                       ⭐
                     </span>
                   ))}
                 </div>
-                <span className="ml-2 text-sm text-gray-600">{review.rating}/5</span>
+                <span className="ml-1 sm:ml-2 text-xs sm:text-sm text-gray-600">{review.rating}/5</span>
               </div>
             </div>
 
-            <p className="text-gray-700 mb-4">{review.comment}</p>
+            <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 line-clamp-3">{review.comment}</p>
 
-            <div className="flex items-center justify-between text-sm text-gray-500">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm text-gray-500 space-y-2 sm:space-y-0">
+              <div className="flex items-center space-x-3 sm:space-x-4">
                 <span>👍 {review.likes}</span>
                 <span>💡 {review.helpful}</span>
               </div>
-              <span>
+              <span className="text-xs sm:text-sm">
                 {new Date(review.createdAt).toLocaleDateString('ru-RU', {
                   year: 'numeric',
                   month: 'long',
@@ -285,11 +284,10 @@ const Loyalty: React.FC = () => {
                 <button
                   key={page}
                   onClick={() => handleFilterChange({ page })}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    page === reviews.page
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                  }`}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${page === reviews.page
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
                 >
                   {page}
                 </button>
@@ -329,8 +327,8 @@ const Loyalty: React.FC = () => {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h4 className="font-semibold text-gray-900">
-                  {response.user ? 
-                    `${response.user.name} ${response.user.surname}` : 
+                  {response.user ?
+                    `${response.user.name} ${response.user.surname}` :
                     'Неизвестный пользователь'
                   }
                 </h4>
@@ -405,11 +403,10 @@ const Loyalty: React.FC = () => {
             {response.displayData.recommendCourse !== null && (
               <div className="flex items-center">
                 <span className="text-sm text-gray-600 mr-2">Рекомендует курс:</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  response.displayData.recommendCourse 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${response.displayData.recommendCourse
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
+                  }`}>
                   {response.displayData.recommendCourse ? 'Да' : 'Нет'}
                 </span>
               </div>
@@ -429,11 +426,10 @@ const Loyalty: React.FC = () => {
                     setFilter(newFilter);
                     loadFeedbackResponses();
                   }}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    page === feedbackResponses.page
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                  }`}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${page === feedbackResponses.page
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
                 >
                   {page}
                 </button>
@@ -446,15 +442,15 @@ const Loyalty: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Анализ лояльности студентов</h1>
-        <p className="text-gray-600">Мониторинг отзывов и удовлетворенности студентов</p>
+    <div className="p-4 sm:p-6 w-full">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Анализ лояльности студентов</h1>
+        <p className="text-sm sm:text-base text-gray-600">Мониторинг отзывов и удовлетворенности студентов</p>
       </div>
 
       {/* Фильтры */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-md">
-        <div className="flex flex-wrap gap-4">
+      <div className="mb-4 sm:mb-6 bg-white p-3 sm:p-4 rounded-lg shadow-md">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Период</label>
             <select
@@ -507,46 +503,57 @@ const Loyalty: React.FC = () => {
       </div>
 
       {/* Табы */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+      <div className="mb-4 sm:mb-6">
+        {/* Мобильная версия - дропдаун */}
+        <div className="sm:hidden mb-4">
+          <select
+            value={activeTab}
+            onChange={(e) => handleTabChange(e.target.value as any)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="analytics">Аналитика</option>
+            <option value="reviews">Отзывы</option>
+            <option value="feedback">Feedback Ответы</option>
+            <option value="add-review">Добавить отзыв</option>
+          </select>
+        </div>
+
+        {/* Десктопная версия - табы */}
+        <div className="hidden sm:block border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 overflow-x-auto">
             <button
               onClick={() => handleTabChange('analytics')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'analytics'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'analytics'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Аналитика
             </button>
             <button
               onClick={() => handleTabChange('reviews')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'reviews'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'reviews'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Отзывы
             </button>
             <button
               onClick={() => handleTabChange('feedback')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'feedback'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'feedback'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Feedback Ответы
             </button>
             <button
               onClick={() => handleTabChange('add-review')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'add-review'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'add-review'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Добавить отзыв
             </button>
@@ -559,7 +566,7 @@ const Loyalty: React.FC = () => {
       {activeTab === 'reviews' && renderReviews()}
       {activeTab === 'feedback' && renderFeedbackResponses()}
       {activeTab === 'add-review' && (
-        <ReviewForm 
+        <ReviewForm
           onSubmit={(newReview) => {
             console.log('New review created:', newReview);
             // Переключаемся на вкладку с отзывами после успешного добавления

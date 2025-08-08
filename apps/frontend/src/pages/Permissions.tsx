@@ -73,13 +73,13 @@ const RoleModal: React.FC<RoleModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
           {role ? 'Редактировать роль' : 'Создать роль'}
         </h2>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Название роли
@@ -108,25 +108,25 @@ const RoleModal: React.FC<RoleModalProps> = ({
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
               Права доступа
             </label>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {availablePermissions.map(module => (
-                <div key={module.module} className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-3">{module.module}</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                <div key={module.module} className="border rounded-lg p-3 sm:p-4">
+                  <h4 className="font-medium mb-2 sm:mb-3 text-sm sm:text-base">{module.module}</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {module.permissions.map(permission => {
                       const permissionId = `${module.module}_${permission}`;
                       return (
                         <label key={permission} className="flex items-center">
                           <input
                             type="checkbox"
-                            className="mr-2"
+                            className="mr-2 flex-shrink-0"
                             checked={formData.permissions.includes(permissionId)}
                             onChange={() => handlePermissionToggle(permissionId)}
                           />
-                          <span className="text-sm capitalize">{permission}</span>
+                          <span className="text-xs sm:text-sm capitalize">{permission}</span>
                         </label>
                       );
                     })}
@@ -208,31 +208,33 @@ const PermissionsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Управление правами доступа</h1>
+    <div className="p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+        <h1 className="text-xl sm:text-2xl font-bold">Управление правами доступа</h1>
         <button 
           onClick={handleCreateRole}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          className="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
         >
-          <FaPlus /> Создать роль
+          <FaPlus className="w-4 h-4" />
+          <span className="hidden sm:inline">Создать роль</span>
+          <span className="sm:hidden">Создать</span>
         </button>
       </div>
 
       {error && <Alert variant="error" message={error} className="mb-4" />}
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-1">
-          <div className="mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="lg:col-span-1">
+          <div className="mb-3 sm:mb-4">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Поиск ролей..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border rounded-lg"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <FaSearch className="absolute left-3 top-3 text-gray-400" />
+              <FaSearch className="absolute left-3 top-2.5 sm:top-3 text-gray-400 text-sm" />
             </div>
           </div>
 
@@ -240,20 +242,20 @@ const PermissionsPage: React.FC = () => {
             {filteredRoles.map(role => (
               <div
                 key={role.id}
-                className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+                className={`p-3 sm:p-4 border-b cursor-pointer hover:bg-gray-50 ${
                   selectedRole?.id === role.id ? 'bg-blue-50 border-blue-200' : ''
                 }`}
                 onClick={() => setSelectedRole(role)}
               >
                 <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{role.name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{role.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm sm:text-base truncate">{role.name}</h3>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{role.description}</p>
                     <p className="text-xs text-gray-400 mt-2">
                       {role.permissions.length} прав доступа
                     </p>
                   </div>
-                  <div className="flex gap-1 ml-2">
+                  <div className="flex gap-1 ml-2 flex-shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -284,31 +286,33 @@ const PermissionsPage: React.FC = () => {
             ))}
             
             {filteredRoles.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
+              <div className="p-6 sm:p-8 text-center text-gray-500 text-sm sm:text-base">
                 Роли не найдены
               </div>
             )}
           </div>
         </div>
 
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           {selectedRole ? (
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-xl font-bold">{selectedRole.name}</h2>
-                  <p className="text-gray-500">{selectedRole.description}</p>
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-xl font-bold truncate">{selectedRole.name}</h2>
+                  <p className="text-sm sm:text-base text-gray-500 line-clamp-2">{selectedRole.description}</p>
                 </div>
                 <button 
                   onClick={() => handleEditRole(selectedRole)}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  className="bg-green-500 hover:bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
                 >
-                  <FaSave /> Редактировать
+                  <FaSave className="w-4 h-4" />
+                  <span className="hidden sm:inline">Редактировать</span>
+                  <span className="sm:hidden">Редактировать</span>
                 </button>
               </div>
 
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold">Права доступа</h3>
+              <div className="space-y-4 sm:space-y-6">
+                <h3 className="text-base sm:text-lg font-semibold">Права доступа</h3>
                 
                 {permissions.map(module => {
                   const rolePermissions = selectedRole.permissions.filter(p => 
@@ -316,9 +320,9 @@ const PermissionsPage: React.FC = () => {
                   );
                   
                   return (
-                    <div key={module.module} className="border-t pt-4">
-                      <h4 className="font-semibold mb-3">{module.module}</h4>
-                      <div className="grid grid-cols-2 gap-3">
+                    <div key={module.module} className="border-t pt-3 sm:pt-4">
+                      <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">{module.module}</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                         {module.permissions.map(permission => {
                           const hasPermission = rolePermissions.some(p => 
                             p.action === permission
@@ -326,10 +330,10 @@ const PermissionsPage: React.FC = () => {
                           
                           return (
                             <div key={permission} className="flex items-center">
-                              <div className={`w-3 h-3 rounded-full mr-3 ${
+                              <div className={`w-3 h-3 rounded-full mr-3 flex-shrink-0 ${
                                 hasPermission ? 'bg-green-500' : 'bg-gray-300'
                               }`} />
-                              <span className={`text-sm capitalize ${
+                              <span className={`text-xs sm:text-sm capitalize ${
                                 hasPermission ? 'text-gray-900' : 'text-gray-500'
                               }`}>
                                 {permission}
@@ -343,17 +347,17 @@ const PermissionsPage: React.FC = () => {
                 })}
                 
                 {selectedRole.permissions.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">
                     У этой роли нет прав доступа
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-6 flex items-center justify-center">
+            <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-4 sm:p-6 flex items-center justify-center min-h-[200px]">
               <div className="text-center">
-                <FaShieldAlt className="mx-auto text-4xl text-gray-400 mb-4" />
-                <p className="text-gray-500">
+                <FaShieldAlt className="mx-auto text-3xl sm:text-4xl text-gray-400 mb-3 sm:mb-4" />
+                <p className="text-gray-500 text-sm sm:text-base px-4">
                   Выберите роль для просмотра и редактирования прав доступа
                 </p>
               </div>

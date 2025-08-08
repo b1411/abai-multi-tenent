@@ -82,13 +82,13 @@ const UserModal: React.FC<UserModalProps> = ({ user, isOpen, onClose, onSave }) 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
           {user ? 'Редактировать пользователя' : 'Добавить пользователя'}
         </h2>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Имя
@@ -276,33 +276,35 @@ const UsersPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Управление пользователями</h1>
+    <div className="p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+        <h1 className="text-xl sm:text-2xl font-bold">Управление пользователями</h1>
         <button 
           onClick={handleCreateUser}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          className="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
         >
-          <FaUserPlus /> Добавить пользователя
+          <FaUserPlus className="w-4 h-4" />
+          <span className="hidden sm:inline">Добавить пользователя</span>
+          <span className="sm:hidden">Добавить</span>
         </button>
       </div>
 
       {error && <Alert variant="error" message={error} className="mb-4" />}
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="relative">
+      <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="relative sm:col-span-1">
           <input
             type="text"
             placeholder="Поиск пользователей..."
-            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+            className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border rounded-lg"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
+          <FaSearch className="absolute left-3 top-2.5 sm:top-3 text-gray-400 text-sm" />
         </div>
         
         <select
-          className="p-2 border rounded-lg"
+          className="p-2 text-sm sm:text-base border rounded-lg"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
         >
@@ -314,7 +316,7 @@ const UsersPage: React.FC = () => {
         </select>
         
         <select
-          className="p-2 border rounded-lg"
+          className="p-2 text-sm sm:text-base border rounded-lg"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -324,7 +326,8 @@ const UsersPage: React.FC = () => {
         </select>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Десктоп таблица */}
+      <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -394,6 +397,79 @@ const UsersPage: React.FC = () => {
           <div className="p-8 text-center text-gray-500">
             Пользователи не найдены
           </div>
+        )}
+      </div>
+
+      {/* Мобильные карточки */}
+      <div className="lg:hidden space-y-3">
+        {filteredUsers.length === 0 ? (
+          <div className="bg-white rounded-lg p-6 text-center text-gray-500">
+            Пользователи не найдены
+          </div>
+        ) : (
+          filteredUsers.map((user) => (
+            <div key={user.id} className="bg-white rounded-lg p-4 shadow border">
+              <div className="flex items-start justify-between mb-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-semibold text-gray-900 truncate">
+                    {user.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ml-2 ${
+                  user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {user.status === 'active' ? 'Активен' : 'Неактивен'}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                <div>
+                  <span className="text-gray-500">Роль:</span>
+                  <div className="font-medium capitalize">{user.role}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Отдел:</span>
+                  <div className="font-medium truncate">{user.department || '—'}</div>
+                </div>
+              </div>
+              
+              <div className="mb-3 text-sm">
+                <span className="text-gray-500">Последний вход:</span>
+                <div className="font-medium">
+                  {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('ru-RU') : 'Никогда'}
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
+                <button 
+                  onClick={() => handleEditUser(user)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded text-sm"
+                >
+                  <FaEdit className="w-3 h-3" />
+                  Редактировать
+                </button>
+                <button 
+                  onClick={() => handleResetPassword(user.id)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-yellow-600 hover:bg-yellow-50 rounded text-sm"
+                >
+                  <FaKey className="w-3 h-3" />
+                  Сбросить пароль
+                </button>
+                <button 
+                  onClick={() => handleDeleteUser(user.id)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm ${
+                    deleteConfirm === user.id 
+                      ? 'text-white bg-red-600 hover:bg-red-700' 
+                      : 'text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  <FaTrash className="w-3 h-3" />
+                  {deleteConfirm === user.id ? 'Подтвердить' : 'Удалить'}
+                </button>
+              </div>
+            </div>
+          ))
         )}
       </div>
 

@@ -184,17 +184,17 @@ const Supply: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Truck className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Truck className="h-5 w-5 sm:h-6 sm:w-6" />
             Снабжение
           </h1>
-          <p className="text-gray-600">Управление закупками и поставщиками</p>
+          <p className="text-sm sm:text-base text-gray-600">Управление закупками и поставщиками</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -219,11 +219,11 @@ const Supply: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      <div className="border-b border-gray-200 overflow-x-auto">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
           <button
             onClick={() => setActiveTab('requests')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               activeTab === 'requests'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -233,7 +233,7 @@ const Supply: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('suppliers')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               activeTab === 'suppliers'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -243,7 +243,7 @@ const Supply: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('orders')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               activeTab === 'orders'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -270,8 +270,8 @@ const Supply: React.FC = () => {
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {activeTab === 'requests' && (
               <>
                 <div>
@@ -332,30 +332,30 @@ const Supply: React.FC = () => {
       {/* Content */}
       <div className="space-y-4">
         {activeTab === 'requests' && (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
             {requests.map((request) => (
               <div
                 key={request.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer p-6"
+                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer p-3 sm:p-6"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">{request.title}</h3>
-                    <p className="text-sm text-gray-500">#{request.id}</p>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 sm:mb-4 space-y-2 sm:space-y-0">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">{request.title}</h3>
+                    <p className="text-xs sm:text-sm text-gray-500">#{request.id}</p>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 flex-shrink-0">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status.toString())}`}>
                       {getStatusText(request.status.toString())}
                     </span>
-                    <span className={`text-sm font-medium ${getUrgencyColor(request.urgency)}`}>
+                    <span className={`text-xs sm:text-sm font-medium ${getUrgencyColor(request.urgency)}`}>
                       {request.urgency}
                     </span>
                   </div>
                 </div>
                 
-                <p className="text-gray-600 mb-4">{request.description}</p>
+                <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4 line-clamp-2">{request.description}</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <span className="text-gray-500">Сумма:</span>
                     <div className="font-medium text-gray-900">{formatCurrency(request.totalAmount)}</div>
@@ -370,21 +370,21 @@ const Supply: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
-                  <div className="flex space-x-4 text-sm text-gray-500">
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
+                  <div className="flex space-x-3 sm:space-x-4 text-xs sm:text-sm text-gray-500">
                     <span>{request.quotes?.length || 0} предложений</span>
                     <span>{request.orders?.length || 0} заказов</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 sm:gap-2">
                     <button 
                       onClick={() => handleView(request)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium px-2 py-1"
                     >
                       Просмотр
                     </button>
                     <button 
                       onClick={() => handleEdit(request)}
-                      className="text-sm text-green-600 hover:text-green-800 font-medium"
+                      className="text-xs sm:text-sm text-green-600 hover:text-green-800 font-medium px-2 py-1"
                     >
                       Редактировать
                     </button>
@@ -396,58 +396,58 @@ const Supply: React.FC = () => {
         )}
 
         {activeTab === 'suppliers' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
             {suppliers.map((supplier) => (
               <div
                 key={supplier.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer p-6"
+                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer p-3 sm:p-6"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">{supplier.name}</h3>
-                    <p className="text-sm text-gray-500">{supplier.contactPerson}</p>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 sm:mb-4 space-y-2 sm:space-y-0">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">{supplier.name}</h3>
+                    <p className="text-xs sm:text-sm text-gray-500 truncate">{supplier.contactPerson}</p>
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center flex-shrink-0">
                     {supplier.rating && (
                       <div className="flex items-center">
                         <span className="text-yellow-400">★</span>
-                        <span className="ml-1 text-sm text-gray-600">{supplier.rating}</span>
+                        <span className="ml-1 text-xs sm:text-sm text-gray-600">{supplier.rating}</span>
                       </div>
                     )}
                   </div>
                 </div>
                 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-xs sm:text-sm">
                   <div className="flex items-center">
-                    <span className="text-gray-500 w-16">Email:</span>
-                    <span className="text-gray-900">{supplier.email || 'Не указан'}</span>
+                    <span className="text-gray-500 w-12 sm:w-16 flex-shrink-0">Email:</span>
+                    <span className="text-gray-900 truncate">{supplier.email || 'Не указан'}</span>
                   </div>
                   <div className="flex items-center">
-                    <span className="text-gray-500 w-16">Телефон:</span>
-                    <span className="text-gray-900">{supplier.phone || 'Не указан'}</span>
+                    <span className="text-gray-500 w-12 sm:w-16 flex-shrink-0">Телефон:</span>
+                    <span className="text-gray-900 truncate">{supplier.phone || 'Не указан'}</span>
                   </div>
                   <div className="flex items-center">
-                    <span className="text-gray-500 w-16">Статус:</span>
+                    <span className="text-gray-500 w-12 sm:w-16 flex-shrink-0">Статус:</span>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(supplier.status.toString())}`}>
                       {supplier.status.toString() === 'ACTIVE' ? 'Активный' : supplier.status.toString()}
                     </span>
                   </div>
                 </div>
                 
-                <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
                   <span className="text-xs text-gray-500">
                     Добавлен {formatDate(supplier.createdAt)}
                   </span>
                   <div className="flex gap-2">
                     <button 
                       onClick={() => handleView(supplier)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium px-2 py-1"
                     >
                       Просмотр
                     </button>
                     <button 
                       onClick={() => handleEdit(supplier)}
-                      className="text-sm text-green-600 hover:text-green-800 font-medium"
+                      className="text-xs sm:text-sm text-green-600 hover:text-green-800 font-medium px-2 py-1"
                     >
                       Редактировать
                     </button>

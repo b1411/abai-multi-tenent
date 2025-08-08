@@ -96,17 +96,18 @@ const AlertsFeed: React.FC<AlertsFeedProps> = ({ alerts, onAlertClick, onResolve
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-red-600" />
-          Лента тревог и событий
+      <div className="p-3 sm:p-4 border-b border-gray-200">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+          <span className="hidden sm:inline">Лента тревог и событий</span>
+          <span className="sm:hidden">Тревоги</span>
         </h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">
           События в реальном времени
         </p>
       </div>
 
-      <div className="p-4 max-h-96 overflow-y-auto">
+      <div className="p-2 sm:p-4 max-h-80 sm:max-h-96 overflow-y-auto">
         {alerts.length === 0 ? (
           <div className="text-center py-8">
             <AlertTriangle className="mx-auto h-12 w-12 text-gray-400" />
@@ -116,74 +117,76 @@ const AlertsFeed: React.FC<AlertsFeedProps> = ({ alerts, onAlertClick, onResolve
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {alerts.map((alert) => (
               <div
                 key={alert.id}
-                className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+                className={`border rounded-lg p-2 sm:p-3 cursor-pointer transition-all hover:shadow-md ${
                   alert.resolved ? 'opacity-60' : ''
                 }`}
                 onClick={() => onAlertClick(alert)}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-full ${getSeverityColor(alert.severity)}`}>
+                  <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className={`p-1 sm:p-2 rounded-full flex-shrink-0 ${getSeverityColor(alert.severity)}`}>
                       {getAlertIcon(alert.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-sm font-medium text-gray-900">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1 gap-1 sm:gap-0">
+                        <h4 className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                           {getAlertTypeText(alert.type)}
                         </h4>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getSeverityColor(alert.severity)}`}>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full border self-start ${getSeverityColor(alert.severity)}`}>
                           {getSeverityText(alert.severity)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{alert.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{alert.description}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-gray-500">
                         <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatTimestamp(alert.timestamp)}
+                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{formatTimestamp(alert.timestamp)}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {alert.location}
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{alert.location}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" />
-                          {alert.camera}
+                          <Eye className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{alert.camera}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="mt-3 flex items-center justify-between">
+                <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onAlertClick(alert);
                     }}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium text-left"
                   >
                     Подробнее
                   </button>
-                  {!alert.resolved && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onResolveAlert(alert.id);
-                      }}
-                      className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 transition-colors"
-                    >
-                      Решено
-                    </button>
-                  )}
-                  {alert.resolved && (
-                    <span className="text-xs text-green-600 font-medium">
-                      ✓ Решено
-                    </span>
-                  )}
+                  <div className="flex items-center">
+                    {!alert.resolved && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onResolveAlert(alert.id);
+                        }}
+                        className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 transition-colors"
+                      >
+                        Решено
+                      </button>
+                    )}
+                    {alert.resolved && (
+                      <span className="text-xs text-green-600 font-medium">
+                        ✓ Решено
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

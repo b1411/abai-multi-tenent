@@ -903,11 +903,11 @@ const Salaries: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Заголовок и действия */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Управление заработной платой</h1>
-        <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Управление заработной платой</h1>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
             onClick={() => setShowFilterModal(true)}
@@ -946,47 +946,47 @@ const Salaries: React.FC = () => {
       </div>
 
       {/* Основные показатели */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">Фонд оплаты труда</div>
             <FaChartLine className="text-blue-600" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalPayroll)}</div>
-            <div className="text-sm text-green-600 flex items-center mt-1">
+            <div className="text-lg sm:text-2xl font-bold">{formatCurrency(stats.totalPayroll)}</div>
+            <div className="text-xs sm:text-sm text-green-600 flex items-center mt-1">
               <span>к прошлому месяцу</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Средняя зарплата</div>
+            <div className="text-xs sm:text-sm text-gray-600">Средняя зарплата</div>
             <FaUserTie className="text-blue-600" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold">{formatCurrency(stats.avgSalary)}</div>
-            <div className="text-sm text-green-600 flex items-center mt-1">
+            <div className="text-lg sm:text-2xl font-bold">{formatCurrency(stats.avgSalary)}</div>
+            <div className="text-xs sm:text-sm text-green-600 flex items-center mt-1">
               <span>+3.8% к прошлому месяцу</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Сотрудников</div>
+            <div className="text-xs sm:text-sm text-gray-600">Сотрудников</div>
             <FaUsers className="text-blue-600" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold">{stats.employeeCount}</div>
-            <div className="text-sm text-gray-600 flex items-center mt-1">
+            <div className="text-lg sm:text-2xl font-bold">{stats.employeeCount}</div>
+            <div className="text-xs sm:text-sm text-gray-600 flex items-center mt-1">
               <span>{departments.teaching.count} учителей</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">Премиальный фонд</div>
             <FaChartLine className="text-blue-600" />
@@ -1001,8 +1001,8 @@ const Salaries: React.FC = () => {
       </div>
 
       {/* Анализ выплат */}
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Структура выплат</h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -1102,10 +1102,77 @@ const Salaries: React.FC = () => {
 
       {/* Таблица зарплат */}
       <div className="bg-white rounded-xl shadow-sm">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Список зарплат</h2>
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800">Список зарплат</h2>
         </div>
-        <div className="overflow-x-auto">
+        
+        {/* Мобильная версия - карточки */}
+        <div className="block sm:hidden">
+          {filteredSalaries.map((salary, index) => (
+            <div key={index} className="p-4 border-b border-gray-200 last:border-b-0">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-gray-900 truncate">
+                    {salary.teacher?.user.surname} {salary.teacher?.user.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 truncate">{salary.teacher?.user.email}</p>
+                </div>
+                <div className="ml-2 flex-shrink-0">
+                  {getStatusBadge(salary.status!)}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                <div>
+                  <span className="text-gray-600">Период:</span>
+                  <span className="ml-1 font-medium">{salary.month}/{salary.year}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">К выплате:</span>
+                  <span className="ml-1 font-medium text-blue-600">{formatCurrency(salary.totalNet!)}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-gray-600">Ставка:</span>
+                  <span className="ml-1 font-medium">{formatCurrency(salary.hourlyRate || 0)}/ч</span>
+                  <span className="ml-2 text-xs text-gray-500">
+                    ({salary.hoursWorked || 0}ч)
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedSalaryForBreakdown(salary.id!);
+                    setShowCalculationBreakdown(true);
+                  }}
+                  className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200 transition-colors"
+                >
+                  Подробности
+                </button>
+                
+                <button
+                  onClick={() => handleEditAdjustments(salary)}
+                  className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200 transition-colors"
+                >
+                  Корректировки
+                </button>
+
+                {salary.status === 'DRAFT' && (
+                  <button
+                    onClick={() => handleApproveSalary(salary.id!)}
+                    className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium hover:bg-green-200 transition-colors"
+                  >
+                    Утвердить
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Десктопная версия - таблица */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

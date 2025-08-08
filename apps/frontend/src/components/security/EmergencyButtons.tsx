@@ -98,34 +98,35 @@ const EmergencyButtons: React.FC<EmergencyButtonsProps> = ({ onEmergencyCall, re
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <Phone className="h-5 w-5 text-red-600" />
-          Экстренная связь
+      <div className="p-3 sm:p-4 border-b border-gray-200">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+          <span className="hidden sm:inline">Экстренная связь</span>
+          <span className="sm:hidden">Экстренная связь</span>
         </h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">
           Кнопки вызова экстренных служб
         </p>
       </div>
 
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {/* Кнопки экстренных служб */}
-        <div className="grid grid-cols-1 gap-4 mb-6">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {emergencyServices.map((service) => {
             const Icon = service.icon;
             return (
               <button
                 key={service.type}
                 onClick={() => handleEmergencyClick(service.type)}
-                className={`${service.color} text-white p-6 rounded-lg transition-all transform hover:scale-105 active:scale-95 shadow-lg`}
+                className={`${service.color} text-white p-4 sm:p-6 rounded-lg transition-all transform hover:scale-105 active:scale-95 shadow-lg`}
                 disabled={isConfirming}
               >
-                <div className="flex items-center justify-center gap-4">
-                  <Icon className="h-8 w-8" />
-                  <div className="text-left">
-                    <div className="text-2xl font-bold">{service.number}</div>
-                    <div className="text-lg font-medium">{service.name}</div>
-                    <div className="text-sm opacity-90">{service.description}</div>
+                <div className="flex items-center justify-center gap-3 sm:gap-4">
+                  <Icon className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+                  <div className="text-left min-w-0">
+                    <div className="text-xl sm:text-2xl font-bold">{service.number}</div>
+                    <div className="text-base sm:text-lg font-medium truncate">{service.name}</div>
+                    <div className="text-xs sm:text-sm opacity-90 line-clamp-2">{service.description}</div>
                   </div>
                 </div>
               </button>
@@ -169,18 +170,18 @@ const EmergencyButtons: React.FC<EmergencyButtonsProps> = ({ onEmergencyCall, re
 
       {/* Модальное окно подтверждения */}
       {showConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full">
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
+              <div className="mx-auto flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-red-100 mb-3 sm:mb-4">
+                <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
               </div>
               
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 Подтвердите вызов экстренной службы
               </h3>
               
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
                 Вы действительно хотите вызвать{' '}
                 <strong>
                   {emergencyServices.find(s => s.type === showConfirmation)?.name}
@@ -192,24 +193,24 @@ const EmergencyButtons: React.FC<EmergencyButtonsProps> = ({ onEmergencyCall, re
                 </span>
               </p>
 
-              <div className="flex gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
                   disabled={isConfirming}
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
                   Отмена
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
                   disabled={isConfirming}
                 >
                   {isConfirming ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                   ) : (
-                    <Check className="h-4 w-4" />
+                    <Check className="h-3 w-3 sm:h-4 sm:w-4" />
                   )}
                   {isConfirming ? 'Вызов...' : 'Подтвердить вызов'}
                 </button>

@@ -281,55 +281,55 @@ const Security: React.FC = () => {
 
       {/* Модальное окно деталей тревоги */}
       {selectedAlert && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-3 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900">
                 Детали тревоги
               </h3>
               <button
                 onClick={() => setSelectedAlert(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
                 ✕
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Тип события</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAlert.type}</p>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Тип события</label>
+                <p className="mt-1 text-xs sm:text-sm text-gray-900">{selectedAlert.type}</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Описание</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAlert.description}</p>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Описание</label>
+                <p className="mt-1 text-xs sm:text-sm text-gray-900">{selectedAlert.description}</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Местоположение</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAlert.location}</p>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Местоположение</label>
+                <p className="mt-1 text-xs sm:text-sm text-gray-900">{selectedAlert.location}</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Время</label>
-                <p className="mt-1 text-sm text-gray-900">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Время</label>
+                <p className="mt-1 text-xs sm:text-sm text-gray-900">
                   {new Date(selectedAlert.timestamp).toLocaleString('ru-RU')}
                 </p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Скриншот</label>
-                <div className="mt-1 w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <span className="text-gray-500">Скриншот недоступен</span>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Скриншот</label>
+                <div className="mt-1 w-full h-32 sm:h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                  <span className="text-xs sm:text-sm text-gray-500">Скриншот недоступен</span>
                 </div>
               </div>
             </div>
             
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
               <button
                 onClick={() => setSelectedAlert(null)}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Закрыть
               </button>
@@ -339,7 +339,7 @@ const Security: React.FC = () => {
                     handleResolveAlert(selectedAlert.id);
                     setSelectedAlert(null);
                   }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   Решить тревогу
                 </button>

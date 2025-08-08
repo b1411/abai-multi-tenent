@@ -105,22 +105,23 @@ const FaceIDLog: React.FC<FaceIDLogProps> = ({ entries, onExportData }) => {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="p-3 sm:p-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              Журнал Face ID
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              <span className="hidden sm:inline">Журнал Face ID</span>
+              <span className="sm:hidden">Face ID</span>
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
               Записи входов и выходов через турникеты
             </p>
           </div>
           <button
             onClick={onExportData}
-            className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-xs sm:text-sm rounded-lg hover:bg-green-700 transition-colors"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
             Экспорт
           </button>
         </div>

@@ -16,6 +16,7 @@ export interface TeacherKpi {
   classAttendance: number;
   workloadCompliance: number;
   professionalDevelopment: number;
+  parentFeedback: number; // Новая метрика: Отзывы от родителей
   trend: number;
   rank: number;
 }

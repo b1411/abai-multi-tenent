@@ -131,6 +131,7 @@ export class KpiService {
         const workPlanFilling = await this.calculateWorkPlanFilling(teacher.id);
         const lessonMaterials = await this.calculateLessonMaterials(teacher.id);
         const studentRetention = await this.calculateStudentRetention(teacher.id);
+        const parentFeedback = await this.calculateParentFeedback(teacher.id);
 
         // Рассчитываем общий балл на основе весов (только активные метрики)
         const weights = {
@@ -138,6 +139,7 @@ export class KpiService {
           journal: 15,
           workPlan: 15,
           materials: 15,
+          parentFeedback: 10,
           retention: 10
         };
 
@@ -164,6 +166,10 @@ export class KpiService {
           totalScore += studentRetention * (weights.retention / 100);
           totalWeight += weights.retention;
         }
+        if (parentFeedback >= 0) {
+          totalScore += parentFeedback * (weights.parentFeedback / 100);
+          totalWeight += weights.parentFeedback;
+        }
 
         const overallScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
 
@@ -181,6 +187,7 @@ export class KpiService {
           classAttendance: journalFilling, // Заполнение журнала
           workloadCompliance: workPlanFilling, // Выполнение КТП
           professionalDevelopment: lessonMaterials, // Материалы к урокам
+          parentFeedback: parentFeedback, // Отзывы от родителей
           trend: Math.max(-10, Math.min(10, trend)),
           rank: index + 1,
         };

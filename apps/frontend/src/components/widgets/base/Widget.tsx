@@ -46,13 +46,13 @@ const Widget: React.FC<WidgetProps> = ({
   const getSizeClasses = () => {
     switch (widget.size) {
       case 'small':
-        return 'h-64 min-h-64'; // Увеличили высоту для small
+  return 'h-60 min-h-60 sm:h-64 sm:min-h-64';
       case 'medium':
-        return 'h-80 min-h-80'; // Увеличили высоту для medium
+  return 'h-72 min-h-72 sm:h-80 sm:min-h-80';
       case 'large':
-        return 'h-96 min-h-96'; // Увеличили высоту для large
+  return 'h-[28rem] min-h-[28rem] sm:h-96 sm:min-h-96';
       default:
-        return 'h-80 min-h-80';
+  return 'h-72 min-h-72 sm:h-80 sm:min-h-80';
     }
   };
 
@@ -72,10 +72,10 @@ const Widget: React.FC<WidgetProps> = ({
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
       {/* Header with modern design */}
-      <div className="relative z-20 flex items-center justify-between p-4 border-b border-gray-100/80 bg-white/90 backdrop-blur-sm shadow-sm">
+    <div className="relative z-20 flex items-center justify-between p-3 sm:p-4 border-b border-gray-100/80 bg-white/90 backdrop-blur-sm shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"></div>
-          <h3 className="font-semibold text-gray-900 truncate text-sm">{widget.title}</h3>
+      <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">{widget.title}</h3>
         </div>
         
         <div className="relative z-30">
@@ -113,7 +113,7 @@ const Widget: React.FC<WidgetProps> = ({
 
       {/* Content with controlled height */}
       <div className="relative z-10 flex-1 overflow-hidden">
-        <div className="p-4 h-full overflow-auto">
+  <div className="p-3 sm:p-4 h-full overflow-auto">
           {children}
         </div>
       </div>

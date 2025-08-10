@@ -44,44 +44,58 @@ const Dashboard: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 bg-white border-b border-gray-200">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Добро пожаловать, {user.name} {user.surname}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Настройте свой дашборд, добавив нужные виджеты
-          </p>
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto w-full px-3 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4 sm:py-6">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                Добро пожаловать, {user.name} {user.surname}
+              </h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                Настройте свой дашборд, добавив нужные виджеты
+              </p>
+            </div>
+
+            <div className="flex-shrink-0">
+              <AddWidgetButton 
+                onClick={() => setShowWidgetModal(true)}
+              />
+            </div>
+          </div>
         </div>
-        
-        <AddWidgetButton 
-          onClick={() => setShowWidgetModal(true)}
-        />
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-red-800">{error}</p>
-            <button
-              onClick={clearError}
-              className="text-red-600 hover:text-red-800 text-sm font-medium"
-            >
-              Закрыть
-            </button>
+        <div className="w-full">
+          <div className="max-w-7xl mx-auto w-full px-3 sm:px-6">
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-red-800 text-sm sm:text-base truncate">{error}</p>
+                <button
+                  onClick={clearError}
+                  className="text-red-600 hover:text-red-800 text-xs sm:text-sm font-medium whitespace-nowrap"
+                >
+                  Закрыть
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Dashboard Canvas */}
-      <DashboardCanvas
-        widgets={widgets}
-        onUpdateWidget={updateWidget}
-        onDeleteWidget={deleteWidget}
-        onUpdateWidgetPositions={updateWidgetPositions}
-        loading={loading}
-      />
+      <div className="w-full">
+        <div className="max-w-7xl mx-auto w-full px-1.5 sm:px-6">
+          <DashboardCanvas
+            widgets={widgets}
+            onUpdateWidget={updateWidget}
+            onDeleteWidget={deleteWidget}
+            onUpdateWidgetPositions={updateWidgetPositions}
+            loading={loading}
+          />
+        </div>
+      </div>
 
       {/* Widget Selection Modal */}
       <WidgetSelectionModal

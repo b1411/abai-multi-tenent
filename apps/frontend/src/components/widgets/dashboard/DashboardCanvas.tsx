@@ -20,10 +20,19 @@ const DashboardCanvas: React.FC<DashboardCanvasProps> = ({
   loading = false
 }) => {
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Ensure component is mounted before rendering drag & drop
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Track mobile breakpoint (<= 640px)
+  useEffect(() => {
+    const update = () => setIsMobile(window.matchMedia('(max-width: 639px)').matches);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
   const handleDragEnd = (result: DropResult) => {
@@ -95,7 +104,7 @@ const DashboardCanvas: React.FC<DashboardCanvasProps> = ({
   }
 
   return (
-    <div className="flex-1 p-6">
+    <div className="flex-1 p-3 sm:p-6">
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="dashboard" direction="vertical">
           {(provided, snapshot) => (
@@ -103,7 +112,7 @@ const DashboardCanvas: React.FC<DashboardCanvasProps> = ({
               {...provided.droppableProps}
               ref={provided.innerRef}
               className={`
-                grid gap-6 
+                grid gap-3 sm:gap-6 
                 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
                 auto-rows-min
                 transition-colors duration-200
@@ -115,6 +124,7 @@ const DashboardCanvas: React.FC<DashboardCanvasProps> = ({
                   key={widget.id}
                   draggableId={widget.id}
                   index={index}
+                  isDragDisabled={isMobile}
                 >
                   {(provided, snapshot) => (
                     <div
@@ -127,8 +137,8 @@ const DashboardCanvas: React.FC<DashboardCanvasProps> = ({
                       `}
                       style={{
                         ...provided.draggableProps.style,
-                        transform: snapshot.isDragging 
-                          ? `${provided.draggableProps.style?.transform} rotate(5deg)` 
+                        transform: snapshot.isDragging && !isMobile
+                          ? `${provided.draggableProps.style?.transform} rotate(3deg)`
                           : provided.draggableProps.style?.transform
                       }}
                     >

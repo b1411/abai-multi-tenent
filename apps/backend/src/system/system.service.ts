@@ -483,15 +483,45 @@ export class SystemService {
 
   // Branding
   async getBrandingSettings() {
-    return {
+    // Базовые настройки по умолчанию
+    const base = {
       schoolName: 'Fizmat AI Ala',
-      logo: null,
-      favicon: null,
+      logo: null as string | null,
+      favicon: null as string | null,
       primaryColor: '#1C7E66',
       secondaryColor: '#ffffff',
       accentColor: '#1C7E66',
       fontFamily: 'Inter',
     };
+
+    try {
+      // Ищем последний загруженный логотип и фавикон в таблице files
+      const [lastLogo, lastFavicon] = await Promise.all([
+        this.prisma.file.findFirst({
+          where: { deletedAt: null, OR: [
+            { name: { contains: 'logos/' } },
+            { url: { contains: '/logos/' } },
+          ] },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.file.findFirst({
+          where: { deletedAt: null, OR: [
+            { name: { contains: 'favicons/' } },
+            { url: { contains: '/favicons/' } },
+          ] },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      return {
+        ...base,
+        logo: lastLogo?.url ?? base.logo,
+        favicon: lastFavicon?.url ?? base.favicon,
+      };
+    } catch (e) {
+      // В случае ошибки возвращаем базовые значения
+      return base;
+    }
   }
 
   async updateBrandingSettings(settings: any) {

@@ -13,6 +13,20 @@ interface RoleModalProps {
   availablePermissions: { module: string; permissions: string[] }[];
 }
 
+// Маппинг отображаемых названий модулей к slug, используемому в id прав (slug_action)
+const MODULE_SLUGS: Record<string, string> = {
+  'Пользователи': 'users',
+  'Настройки': 'settings',
+  'Уроки': 'lessons',
+  'Студенты': 'students',
+  'Платежи': 'payments',
+  'Бюджет': 'budget',
+  'Сотрудники': 'employees',
+  'Отпуска': 'vacations',
+};
+
+const moduleToSlug = (label: string) => MODULE_SLUGS[label] ?? label.toLowerCase().trim().replace(/\s+/g, '-');
+
 const RoleModal: React.FC<RoleModalProps> = ({ 
   role, 
   isOpen, 
@@ -117,7 +131,7 @@ const RoleModal: React.FC<RoleModalProps> = ({
                   <h4 className="font-medium mb-2 sm:mb-3 text-sm sm:text-base">{module.module}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {module.permissions.map(permission => {
-                      const permissionId = `${module.module}_${permission}`;
+          const permissionId = `${moduleToSlug(module.module)}_${permission}`;
                       return (
                         <label key={permission} className="flex items-center">
                           <input
@@ -147,7 +161,7 @@ const RoleModal: React.FC<RoleModalProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        className="bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center gap-2"
             >
               {isSaving ? <Spinner size="sm" /> : null}
               {role ? 'Обновить' : 'Создать'}
@@ -213,7 +227,7 @@ const PermissionsPage: React.FC = () => {
         <h1 className="text-xl sm:text-2xl font-bold">Управление правами доступа</h1>
         <button 
           onClick={handleCreateRole}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
+          className="bg-primary-500 hover:bg-primary-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
         >
           <FaPlus className="w-4 h-4" />
           <span className="hidden sm:inline">Создать роль</span>
@@ -243,7 +257,7 @@ const PermissionsPage: React.FC = () => {
               <div
                 key={role.id}
                 className={`p-3 sm:p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                  selectedRole?.id === role.id ? 'bg-blue-50 border-blue-200' : ''
+          selectedRole?.id === role.id ? 'bg-primary-50 border-primary-200' : ''
                 }`}
                 onClick={() => setSelectedRole(role)}
               >
@@ -261,7 +275,7 @@ const PermissionsPage: React.FC = () => {
                         e.stopPropagation();
                         handleEditRole(role);
                       }}
-                      className="text-blue-500 hover:text-blue-600 p-1"
+            className="text-primary-500 hover:text-primary-600 p-1"
                       title="Редактировать"
                     >
                       <FaShieldAlt size={14} />
@@ -303,7 +317,7 @@ const PermissionsPage: React.FC = () => {
                 </div>
                 <button 
                   onClick={() => handleEditRole(selectedRole)}
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
+                  className="bg-accent-500 hover:bg-accent-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
                 >
                   <FaSave className="w-4 h-4" />
                   <span className="hidden sm:inline">Редактировать</span>
@@ -331,7 +345,7 @@ const PermissionsPage: React.FC = () => {
                           return (
                             <div key={permission} className="flex items-center">
                               <div className={`w-3 h-3 rounded-full mr-3 flex-shrink-0 ${
-                                hasPermission ? 'bg-green-500' : 'bg-gray-300'
+                                hasPermission ? 'bg-accent-500' : 'bg-gray-300'
                               }`} />
                               <span className={`text-xs sm:text-sm capitalize ${
                                 hasPermission ? 'text-gray-900' : 'text-gray-500'

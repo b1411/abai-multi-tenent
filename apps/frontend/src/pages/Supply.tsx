@@ -1,25 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Filter, Download, Truck, Building2 } from 'lucide-react';
 import { Loading } from '../components/ui';
 import SupplyModals, { PurchaseRequest, Supplier } from '../components/supply/SupplyModals';
-import { supplyService } from '../services/supplyService';
+import { supplyService, CreatePurchaseRequest, CreateSupplier } from '../services/supplyService';
 
 const Supply: React.FC = () => {
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'requests' | 'suppliers' | 'orders'>('requests');
-  const [filters, setFilters] = useState<any>({});
+  type Filters = Record<string, string | number | undefined>;
+  const [filters, setFilters] = useState<Filters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'createRequest' | 'editRequest' | 'viewRequest' | 'createSupplier' | 'editSupplier' | 'viewSupplier' | 'createOrder' | 'editOrder' | 'viewOrder'>('createRequest');
   const [selectedData, setSelectedData] = useState<PurchaseRequest | Supplier | undefined>();
 
-  useEffect(() => {
-    loadData();
-  }, [activeTab, filters]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -35,7 +32,11 @@ const Supply: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, filters]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, search: e.target.value });
@@ -77,11 +78,23 @@ const Supply: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleSave = async (data: any) => {
+  type CreateOrder = {
+    orderNumber: string;
+    supplierId: number;
+    totalAmount: number;
+    currency?: string;
+    orderDate: string;
+    expectedDate?: string;
+    deliveryAddress?: string;
+    paymentTerms?: string;
+    notes?: string;
+    items: Array<{ name: string; quantity: number; unit: string; unitPrice?: number; totalPrice?: number }>;
+  };
+  const handleSave = async (data: CreatePurchaseRequest | CreateSupplier | CreateOrder) => {
     try {
       if (modalType.includes('Request')) {
         if (modalType === 'createRequest') {
-          await supplyService.createPurchaseRequest(data);
+          await supplyService.createPurchaseRequest(data as CreatePurchaseRequest);
         } else if (modalType === 'editRequest') {
           // Для редактирования используем updatePurchaseRequestStatus или создаем новый метод
           // Пока оставим как есть, так как нужно добавить метод в сервис
@@ -89,15 +102,15 @@ const Supply: React.FC = () => {
         }
       } else if (modalType.includes('Supplier')) {
         if (modalType === 'createSupplier') {
-          await supplyService.createSupplier(data);
+          await supplyService.createSupplier(data as CreateSupplier);
         } else if (modalType === 'editSupplier') {
           if (selectedData?.id) {
-            await supplyService.updateSupplier(selectedData.id, data);
+            await supplyService.updateSupplier(selectedData.id, data as CreateSupplier);
           }
         }
       } else if (modalType.includes('Order')) {
         if (modalType === 'createOrder') {
-          await supplyService.createPurchaseOrder(data);
+          await supplyService.createPurchaseOrder(data as CreateOrder);
         } else if (modalType === 'editOrder') {
           // Позже добавим метод для редактирования заказов
           console.log('Edit order not implemented yet', selectedData?.id, data);
@@ -203,6 +216,15 @@ const Supply: React.FC = () => {
             Фильтры
           </button>
           <button
+      onClick={async () => {
+              try {
+                // вызываем экспорт из сервиса, который сам инициирует скачивание
+        await supplyService.exportData(filters);
+              } catch (e) {
+                console.error('Ошибка экспорта снабжения:', e);
+                alert('Не удалось экспортировать данные снабжения');
+              }
+            }}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
             <Download className="h-4 w-4 mr-2" />

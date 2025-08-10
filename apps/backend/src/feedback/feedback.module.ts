@@ -3,8 +3,10 @@ import { FeedbackController } from './feedback.controller';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FeedbackService } from './feedback.service';
 import { JwtService } from 'src/jwt/jwt.service';
+import { KpiModule } from 'src/kpi/kpi.module';
 
 @Module({
+    imports: [KpiModule],
     controllers: [FeedbackController],
     providers: [FeedbackService, PrismaService, JwtService],
     exports: [FeedbackService],

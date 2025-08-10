@@ -1,6 +1,5 @@
 import { 
   IsString, 
-  IsIn, 
   IsArray, 
   IsOptional, 
   IsBoolean, 
@@ -26,7 +25,7 @@ class QuestionDto {
   @Length(5, 500, { message: 'Текст вопроса должен быть от 5 до 500 символов' })
   question: string;
 
-  @IsEnum(['RATING_1_5', 'RATING_1_10', 'TEXT', 'MULTIPLE_CHOICE', 'SINGLE_CHOICE', 'EMOTIONAL_SCALE', 'YES_NO'], {
+  @IsEnum(['RATING_1_5', 'RATING_1_10', 'TEXT', 'EMOTIONAL_SCALE', 'YES_NO', 'TEACHER_RATING'], {
     message: 'Неверный тип вопроса'
   })
   type: string;
@@ -38,6 +37,24 @@ class QuestionDto {
   @IsOptional()
   @IsBoolean({ message: 'required должно быть булевым значением' })
   required?: boolean;
+
+  // Для вопросов типа TEACHER_RATING можно указать ограниченный список преподавателей
+  @IsOptional()
+  @IsArray({ message: 'teacherIds должен быть массивом идентификаторов преподавателей' })
+  teacherIds?: number[];
+
+  // KPI-маркировка вопроса (дополнительно, для упрощённой системы KPI)
+  @IsOptional()
+  @IsBoolean({ message: 'isKpiRelevant должно быть булевым значением' })
+  isKpiRelevant?: boolean;
+
+  @IsOptional()
+  @IsString({ message: 'kpiMetric должна быть строкой' })
+  kpiMetric?: string;
+
+  @IsOptional()
+  @IsInt({ message: 'kpiWeight должен быть числом' })
+  kpiWeight?: number;
 }
 
 export class CreateFeedbackTemplateDto {
@@ -80,4 +97,13 @@ export class CreateFeedbackTemplateDto {
   @Min(0, { message: 'Приоритет не может быть отрицательным' })
   @Max(10, { message: 'Приоритет не может быть больше 10' })
   priority?: number;
+
+  // Агрегированные KPI-флаги на уровне шаблона
+  @IsOptional()
+  @IsBoolean({ message: 'hasKpiQuestions должно быть булевым значением' })
+  hasKpiQuestions?: boolean;
+
+  @IsOptional()
+  @IsArray({ message: 'kpiMetrics должен быть массивом' })
+  kpiMetrics?: string[];
 }

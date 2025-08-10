@@ -7,6 +7,10 @@ export interface Question {
   category: string;
   required?: boolean;
   teacherIds?: number[]; // Для вопросов типа TEACHER_RATING
+  // KPI-поля (опционально)
+  isKpiRelevant?: boolean;
+  kpiMetric?: string;
+  kpiWeight?: number;
 }
 
 export interface FeedbackTemplate {
@@ -19,12 +23,15 @@ export interface FeedbackTemplate {
   frequency: string;
   priority: number;
   isActive: boolean;
+  // KPI-настройки на уровне шаблона (опционально)
+  hasKpiQuestions?: boolean;
+  kpiMetrics?: string[];
 }
 
 export interface FeedbackResponse {
   id: number;
   templateId: number;
-  answers: any;
+  answers: Record<string, unknown>;
   isCompleted: boolean;
   submittedAt?: string;
   period?: string;
@@ -38,11 +45,36 @@ export interface MandatoryFeedbackStatus {
 
 export interface CreateFeedbackResponseDto {
   templateId: number;
-  answers: any;
+  answers: Record<string, unknown>;
   isCompleted?: boolean;
   period?: string;
   aboutTeacherId?: number; // Новое поле для связи с преподавателем
 }
+
+export type FeedbackStatistics = {
+  totalResponses: number;
+  completionRate?: number;
+  responsesByRole?: Record<string, number>;
+  period?: string;
+};
+
+// Types for emotional state feature
+export type EmotionalTrendsPoint = { date?: string; mood: number; concentration: number; socialization: number; motivation: number };
+export type Recommendation = { type: string; priority: 'low' | 'medium' | 'high'; message: string };
+export type TeacherRatingEntry = { teacherId: number; rating: number; date?: string; questionId: string };
+export type EmotionalStateResult = {
+  currentState: {
+    mood: { value: number; description: string; trend: 'up' | 'down' | 'stable' };
+    concentration: { value: number; description: string; trend: 'up' | 'down' | 'stable' };
+    socialization: { value: number; description: string; trend: 'up' | 'down' | 'stable' };
+    motivation: { value: number; description: string; trend: 'up' | 'down' | 'stable' };
+  };
+  lastUpdated?: string;
+  trends: EmotionalTrendsPoint[];
+  recommendations: Recommendation[];
+  teacherRatings: TeacherRatingEntry[];
+} | null;
+
 
 class FeedbackService {
   // Проверка обязательных форм
@@ -71,12 +103,12 @@ class FeedbackService {
   }
 
   // Получение аналитики
-  async getAnalytics(templateId?: number, period?: string): Promise<any> {
+  async getAnalytics(templateId?: number, period?: string): Promise<FeedbackStatistics> {
     const params = new URLSearchParams();
     if (templateId) params.append('templateId', templateId.toString());
     if (period) params.append('period', period);
 
-    return await apiClient.get<any>(`/feedback/analytics?${params.toString()}`);
+  return await apiClient.get<FeedbackStatistics>(`/feedback/analytics?${params.toString()}`);
   }
 
   // Шаблоны вопросов для разных ролей
@@ -111,19 +143,19 @@ class FeedbackService {
   }
 
   // Получение ответов на шаблон
-  async getTemplateResponses(id: number, period?: string): Promise<any[]> {
+  async getTemplateResponses(id: number, period?: string): Promise<FeedbackResponse[]> {
     const params = new URLSearchParams();
     if (period) params.append('period', period);
 
-    return await apiClient.get<any[]>(`/feedback/templates/${id}/responses?${params.toString()}`);
+  return await apiClient.get<FeedbackResponse[]>(`/feedback/templates/${id}/responses?${params.toString()}`);
   }
 
   // Получение статистики
-  async getStatistics(period?: string): Promise<any> {
+  async getStatistics(period?: string): Promise<FeedbackStatistics> {
     const params = new URLSearchParams();
     if (period) params.append('period', period);
 
-    return await apiClient.get<any>(`/feedback/statistics?${params.toString()}`);
+  return await apiClient.get<FeedbackStatistics>(`/feedback/statistics?${params.toString()}`);
   }
 
   // Сброс статуса обязательной формы
@@ -131,18 +163,13 @@ class FeedbackService {
     await apiClient.put(`/feedback/users/${userId}/reset-mandatory`);
   }
 
-  // Получение эмоционального состояния студента на основе фидбеков
-  async getStudentEmotionalStateFromFeedbacks(studentId: number): Promise<any> {
+  async getStudentEmotionalStateFromFeedbacks(studentId: number): Promise<EmotionalStateResult> {
     try {
       const response = await apiClient.get(`/feedback/students/${studentId}/emotional-state`);
-      
-      // Обрабатываем данные из фидбеков для психоэмоционального портрета
-      if (response && (response as any).responses) {
-        const processedData = this.processFeedbackEmotionalData(response);
-        return processedData;
+      if (response && typeof response === 'object' && response !== null && 'responses' in response) {
+        return this.processFeedbackEmotionalData(response as { responses: Array<{ answers: Record<string, unknown>; submittedAt?: string }> });
       }
-      
-      return response;
+      return null;
     } catch (error) {
       console.warn('Не удалось загрузить данные из фидбеков:', error);
       return null;
@@ -150,7 +177,7 @@ class FeedbackService {
   }
 
   // Обработка данных фидбеков для психоэмоционального портрета
-  private processFeedbackEmotionalData(feedbackData: any): any {
+  private processFeedbackEmotionalData(feedbackData: { responses: Array<{ answers: Record<string, unknown>; submittedAt?: string }> }): EmotionalStateResult {
     if (!feedbackData || !feedbackData.responses || feedbackData.responses.length === 0) {
       return null;
     }
@@ -159,13 +186,13 @@ class FeedbackService {
     const latestResponse = responses[0]; // Предполагаем, что ответы отсортированы по дате
 
     // Извлекаем эмоциональные показатели из последнего ответа
-    const emotionalMetrics = this.extractEmotionalMetrics(latestResponse.answers);
+  const emotionalMetrics = this.extractEmotionalMetrics(latestResponse.answers);
     
     // Анализируем тренды на основе исторических данных
-    const trends = this.analyzeTrends(responses);
+  const trends = this.analyzeTrends(responses);
     
     // Генерируем рекомендации
-    const recommendations = this.generateRecommendations(emotionalMetrics, trends);
+  const recommendations = this.generateRecommendations(emotionalMetrics, trends);
 
     return {
       currentState: {
@@ -192,14 +219,14 @@ class FeedbackService {
       },
       lastUpdated: latestResponse.submittedAt,
       trends: this.formatTrendsData(responses),
-      recommendations: recommendations,
-      teacherRatings: this.extractTeacherRatings(responses)
+  recommendations: recommendations,
+  teacherRatings: this.extractTeacherRatings(responses)
     };
   }
 
   // Извлечение эмоциональных метрик из ответов
-  private extractEmotionalMetrics(answers: any): any {
-    const metrics: any = {};
+  private extractEmotionalMetrics(answers: Record<string, unknown>): Record<string, number | undefined> {
+    const metrics: Record<string, number | undefined> = {};
 
     Object.entries(answers).forEach(([questionId, answer]) => {
       // Анализируем тип вопроса и извлекаем соответствующие метрики
@@ -221,14 +248,14 @@ class FeedbackService {
   }
 
   // Извлечение оценок преподавателей
-  private extractTeacherRatings(responses: any[]): any[] {
-    const teacherRatings: any[] = [];
+  private extractTeacherRatings(responses: Array<{ answers?: Record<string, unknown>; submittedAt?: string }>): Array<{ teacherId: number; rating: number; date?: string; questionId: string }> {
+    const teacherRatings: Array<{ teacherId: number; rating: number; date?: string; questionId: string }> = [];
 
     responses.forEach(response => {
-      Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
+      Object.entries((response.answers || {}) as Record<string, unknown>).forEach(([questionId, answer]) => {
         // Если это вопрос с оценкой преподавателей
         if (typeof answer === 'object' && answer !== null) {
-          Object.entries(answer).forEach(([teacherId, rating]) => {
+          Object.entries(answer as Record<string, unknown>).forEach(([teacherId, rating]) => {
             if (typeof rating === 'number') {
               teacherRatings.push({
                 teacherId: parseInt(teacherId),
@@ -246,14 +273,14 @@ class FeedbackService {
   }
 
   // Анализ трендов
-  private analyzeTrends(responses: any[]): any {
-    if (responses.length < 2) return {};
+  private analyzeTrends(responses: Array<{ answers: Record<string, unknown> }>): Record<string, 'up' | 'down' | 'stable'> {
+    if (responses.length < 2) return {} as Record<string, 'up' | 'down' | 'stable'>;
 
-    const trends: any = {};
+    const trends: Record<string, 'up' | 'down' | 'stable'> = {};
     const metrics = ['mood', 'concentration', 'socialization', 'motivation'];
 
     metrics.forEach(metric => {
-      const values = responses.map(r => this.extractEmotionalMetrics(r.answers)[metric]).filter(v => v !== undefined);
+      const values = responses.map(r => this.extractEmotionalMetrics(r.answers)[metric]).filter((v): v is number => v !== undefined);
       if (values.length >= 2) {
         const latest = values[0];
         const previous = values[1];
@@ -265,8 +292,8 @@ class FeedbackService {
   }
 
   // Генерация рекомендаций
-  private generateRecommendations(metrics: any, trends: any): any[] {
-    const recommendations: any[] = [];
+  private generateRecommendations(metrics: Record<string, number | undefined>, trends: Record<string, 'up' | 'down' | 'stable'>): Array<{ type: string; priority: 'low' | 'medium' | 'high'; message: string }> {
+    const recommendations: Array<{ type: string; priority: 'low' | 'medium' | 'high'; message: string }> = [];
 
     // Рекомендации по настроению
     if (metrics.mood && metrics.mood < 30) {
@@ -313,11 +340,11 @@ class FeedbackService {
       });
     }
 
-    return recommendations;
+  return recommendations;
   }
 
   // Форматирование данных трендов для графика
-  private formatTrendsData(responses: any[]): any[] {
+  private formatTrendsData(responses: Array<{ answers: Record<string, unknown>; submittedAt?: string }>): Array<{ date?: string; mood: number; concentration: number; socialization: number; motivation: number }> {
     return responses.map(response => {
       const metrics = this.extractEmotionalMetrics(response.answers);
       return {
@@ -363,7 +390,7 @@ class FeedbackService {
     return 'Очень низкая мотивация';
   }
 
-  private convertToScale(value: any): number {
+  private convertToScale(value: unknown): number {
     if (typeof value === 'boolean') return value ? 80 : 20;
     if (typeof value === 'string') {
       // Конвертируем текстовые ответы в числовую шкалу
@@ -378,10 +405,10 @@ class FeedbackService {
   }
 
   // Получение истории эмоциональных ответов студента
-  async getStudentEmotionalHistory(studentId: number, period?: string): Promise<any> {
+  async getStudentEmotionalHistory(studentId: number, period?: string): Promise<EmotionalTrendsPoint[]> {
     const params = new URLSearchParams();
     if (period) params.append('period', period);
-    return await apiClient.get(`/feedback/students/${studentId}/emotional-history?${params.toString()}`);
+    return await apiClient.get<EmotionalTrendsPoint[]>(`/feedback/students/${studentId}/emotional-history?${params.toString()}`);
   }
 
   // Получение анонимизированных ответов студентов
@@ -391,7 +418,7 @@ class FeedbackService {
     page?: number;
     limit?: number;
   } = {}): Promise<{
-    data: any[];
+    data: FeedbackResponse[];
     pagination: {
       page: number;
       limit: number;
@@ -405,22 +432,22 @@ class FeedbackService {
     params.append('page', (options.page || 1).toString());
     params.append('limit', (options.limit || 20).toString());
 
-    return await apiClient.get(`/feedback/responses?${params.toString()}`);
+  return await apiClient.get<{ data: FeedbackResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/feedback/responses?${params.toString()}`);
   }
 
   // Создание предустановленных шаблонов через новый API
-  async createDefaultTemplates(): Promise<any> {
-    return await apiClient.post<any>('/feedback/templates/create-defaults');
+  async createDefaultTemplates(): Promise<{ message: string; created?: number }> {
+    return await apiClient.post<{ message: string; created?: number }>('/feedback/templates/create-defaults');
   }
 
   // Создание динамических форм оценки преподавателей для всех студентов
-  async createDynamicTeacherEvaluations(): Promise<any> {
-    return await apiClient.post<any>('/feedback/templates/create-teacher-evaluations');
+  async createDynamicTeacherEvaluations(): Promise<{ message: string; success: boolean }> {
+    return await apiClient.post<{ message: string; success: boolean }>('/feedback/templates/create-teacher-evaluations');
   }
 
   // Создание комплексных KPI опросов для фидбек-системы
-  async createKpiSurveys(): Promise<any> {
-    return await apiClient.post<any>('/feedback/templates/create-kpi-surveys');
+  async createKpiSurveys(): Promise<{ message: string }> {
+    return await apiClient.post<{ message: string }>('/feedback/templates/create-kpi-surveys');
   }
 }
 

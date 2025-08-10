@@ -1,5 +1,5 @@
 import { useBranding } from "../hooks/useSystem";
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { BrandingSettings } from '../types/system';
 import { BrandingContext } from "../contexts/BrandingContext";
 
@@ -8,18 +8,10 @@ interface BrandingProviderProps {
 }
 
 export const BrandingProvider: React.FC<BrandingProviderProps> = ({ children }) => {
-    const { settings, loading, updateSettings } = useBranding();
+    const { settings, loading, updateSettings, uploadLogo, uploadFavicon } = useBranding();
     const [appliedBranding, setAppliedBranding] = useState<BrandingSettings | null>(null);
 
-    // Применяем настройки брендинга к документу
-    useEffect(() => {
-        if (settings) {
-            setAppliedBranding(settings);
-            applyBrandingToDocument(settings);
-        }
-    }, [settings]);
-
-    const applyBrandingToDocument = (branding: BrandingSettings) => {
+    const applyBrandingToDocument = useCallback((branding: BrandingSettings) => {
         const root = document.documentElement;
 
         // Применяем цвета как CSS переменные
@@ -85,7 +77,15 @@ export const BrandingProvider: React.FC<BrandingProviderProps> = ({ children }) 
         if (branding.schoolName) {
             document.title = `${branding.schoolName} - Система управления`;
         }
-    };
+    }, []);
+
+    // Применяем настройки брендинга к документу
+    useEffect(() => {
+        if (settings) {
+            setAppliedBranding(settings);
+            applyBrandingToDocument(settings);
+        }
+    }, [settings, applyBrandingToDocument]);
 
     const hexToRgb = (hex: string): string => {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -127,12 +127,27 @@ export const BrandingProvider: React.FC<BrandingProviderProps> = ({ children }) 
         }
     };
 
+    const handleUploadLogo = async (file: File) => {
+        const url = await uploadLogo(file);
+        // Сохраняем URL в настройках брендинга
+        await handleUpdateBranding({ logo: url });
+        return url;
+    };
+
+    const handleUploadFavicon = async (file: File) => {
+        const url = await uploadFavicon(file);
+        await handleUpdateBranding({ favicon: url });
+        return url;
+    };
+
     return (
         <BrandingContext.Provider
             value={{
                 branding: appliedBranding,
                 loading,
-                updateBranding: handleUpdateBranding
+                updateBranding: handleUpdateBranding,
+                uploadLogo: handleUploadLogo,
+                uploadFavicon: handleUploadFavicon
             }}
         >
             {children}

@@ -17,8 +17,31 @@ const AlumniList: React.FC = () => {
   };
 
   const handleExport = () => {
-    // В будущем можно реализовать экспорт в CSV/Excel
-    console.log('Экспорт данных выпускников');
+    try {
+      const headers = ['ID','Фамилия','Имя','Email','Год выпуска'];
+      const rows = alumni.map(a => [
+        a.id,
+        a.surname ?? '',
+        a.name ?? '',
+        a.email ?? '',
+        a.graduationYear ?? ''
+      ]);
+      const csv = [headers, ...rows]
+        .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `alumni-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Ошибка экспорта выпускников:', e);
+      alert('Не удалось экспортировать список выпускников');
+    }
   };
 
   if (error) {

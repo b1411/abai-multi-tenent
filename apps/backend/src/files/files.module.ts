@@ -8,5 +8,6 @@ import { JwtService } from 'src/jwt/jwt.service';
 @Module({
   controllers: [FilesController, PublicFilesController],
   providers: [FilesService, PrismaService, JwtService],
+  exports: [FilesService],
 })
 export class FilesModule { }

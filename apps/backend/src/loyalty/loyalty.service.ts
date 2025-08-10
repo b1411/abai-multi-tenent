@@ -218,6 +218,95 @@ export class LoyaltyService {
     };
   }
 
+  // Аналитика лояльности в формате LoyaltyAnalytics, рассчитанная из feedback-ответов
+  async getAnalyticsFromFeedback(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+
+    // Берем только завершенные ответы по шаблонам, содержащим оценки преподавателя/курса
+    const responses = await this.prisma.feedbackResponse.findMany({
+      where: {
+        isCompleted: true,
+        template: {
+          name: {
+            in: ['teacher_rating', 'teacher_evaluation', 'course_evaluation'],
+          },
+        },
+        ...dateFilter,
+      },
+      select: {
+        answers: true,
+      },
+    });
+
+    type RatingEntry = { teacherId: number; rating: number };
+    const ratings: RatingEntry[] = [];
+
+    for (const resp of responses) {
+      const answers: any = resp.answers || {};
+      const rawRating = answers.teacher_rating ?? answers.rating;
+      const rawTeacherId = answers.teacher_id ?? answers.teacherId;
+      const rating = Number(rawRating);
+      const teacherId = Number(rawTeacherId);
+      if (!Number.isNaN(rating) && rating > 0 && !Number.isNaN(teacherId)) {
+        ratings.push({ teacherId, rating });
+      }
+    }
+
+    const totalReviews = ratings.length;
+    const averageRating = totalReviews
+      ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+      : 0;
+
+    // Распределение по оценкам (целые 1..5)
+    const distMap = new Map<number, number>();
+    ratings.forEach(({ rating }) => {
+      const key = Math.max(1, Math.min(5, Math.round(rating)));
+      distMap.set(key, (distMap.get(key) || 0) + 1);
+    });
+
+    const ratingDistribution = Array.from(distMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([rating, count]) => ({ rating, _count: { rating: count } }));
+
+    // Агрегация по преподавателям
+    const teacherAgg: Record<number, { sum: number; count: number }> = {};
+    ratings.forEach(({ teacherId, rating }) => {
+      const agg = teacherAgg[teacherId] || { sum: 0, count: 0 };
+      agg.sum += rating;
+      agg.count += 1;
+      teacherAgg[teacherId] = agg;
+    });
+
+    const teacherIds = Object.keys(teacherAgg).map((id) => Number(id));
+    const teachers = teacherIds.length
+      ? await this.prisma.teacher.findMany({
+          where: { id: { in: teacherIds } },
+          include: {
+            user: {
+              select: { id: true, name: true, surname: true },
+            },
+          },
+        })
+      : [];
+
+    const topTeachers = teacherIds
+      .map((id) => ({
+        teacherId: id,
+        _avg: { rating: teacherAgg[id].sum / teacherAgg[id].count },
+        _count: { rating: teacherAgg[id].count },
+        teacher: teachers.find((t) => t.id === id) || null,
+      }))
+      .sort((a, b) => (b._avg.rating || 0) - (a._avg.rating || 0))
+      .slice(0, 10);
+
+    return {
+      totalReviews,
+      averageRating,
+      ratingDistribution,
+      topTeachers,
+    };
+  }
+
   // Анализ лояльности на основе feedback responses
   async getFeedbackBasedLoyalty(filter?: LoyaltyFilter) {
     const period = filter?.period || this.getCurrentPeriod();
@@ -347,50 +436,68 @@ export class LoyaltyService {
 
   // Сводная информация о лояльности
   async getSummary(filter?: LoyaltyFilter) {
-    const dateFilter = this.buildDateFilter(filter);
-    const whereWithPublished = { ...dateFilter, isPublished: true };
+    // По умолчанию используем сводку из feedback
+    return this.getSummaryFromFeedback(filter);
+  }
 
-    const [
-      totalReviews,
-      averageRatingResult,
-      activeTeachers,
-      activeGroups,
-      emotionalData,
-      repeatPurchases,
-    ] = await Promise.all([
-      this.prisma.studentReview.count({
-        where: whereWithPublished,
-      }),
-      this.prisma.studentReview.aggregate({
-        where: whereWithPublished,
-        _avg: {
-          rating: true,
+  // Сводная информация на основе feedback-ответов
+  async getSummaryFromFeedback(filter?: LoyaltyFilter) {
+    const dateFilter = this.buildDateFilter(filter);
+    const where = {
+      isCompleted: true,
+      template: {
+        name: {
+          in: ['student_satisfaction', 'course_evaluation', 'teacher_rating', 'teacher_evaluation'],
+        },
+      },
+      ...dateFilter,
+    } as const;
+
+    const [totalResponses, responses, averages, repeatPurchases] = await Promise.all([
+      this.prisma.feedbackResponse.count({ where }),
+      this.prisma.feedbackResponse.findMany({
+        where,
+        select: {
+          answers: true,
+          user: {
+            select: {
+              student: {
+                select: {
+                  id: true,
+                  group: { select: { id: true } },
+                },
+              },
+            },
+          },
         },
       }),
-      this.prisma.studentReview.groupBy({
-        by: ['teacherId'],
-        where: whereWithPublished,
-      }).then(results => results.length),
-      this.prisma.studentReview.groupBy({
-        by: ['groupId'],
-        where: whereWithPublished,
-      }).then(results => results.length),
-      this.getEmotionalLoyalty(filter),
+      this.getAverageRatingsFromResponses(filter),
       this.getRepeatPurchaseRate(filter),
     ]);
 
-    const averageRating = averageRatingResult._avg.rating || 0;
-    const satisfactionRate = emotionalData.averages.satisfaction || 0;
+    const teacherIdSet = new Set<number>();
+    const groupIdSet = new Set<number>();
+
+    for (const resp of responses) {
+      const ans: any = resp.answers || {};
+      const tid = Number(ans.teacher_id ?? ans.teacherId);
+      if (!Number.isNaN(tid)) teacherIdSet.add(tid);
+      const gid = resp.user?.student?.group?.id;
+      if (gid) groupIdSet.add(gid);
+    }
+
+    const averageRating = averages.averageTeacherRating || 0;
+    const satisfactionRate = (averages.averageSatisfaction || 0) * 10; // 0-10 -> %
     const repeatPurchaseRate = repeatPurchases.rate || 0;
 
     return {
-      totalReviews,
+      totalReviews: totalResponses,
       averageRating,
-      activeTeachers,
-      activeGroups,
+      activeTeachers: teacherIdSet.size,
+      activeGroups: groupIdSet.size,
       satisfactionRate,
       repeatPurchaseRate,
-      loyaltyScore: Math.round((averageRating / 5 * 100 + satisfactionRate + repeatPurchaseRate) / 3),
+      loyaltyScore: Math.round(((averageRating / 5) * 100 + satisfactionRate + repeatPurchaseRate) / 3),
     };
   }
 
@@ -533,7 +640,7 @@ export class LoyaltyService {
         _avg: { rating: true },
         _count: { rating: true },
       }),
-      this.getTeacherFeedbackData(teacherId, filter),
+  this.getTeacherFeedbackData(teacherId),
     ]);
 
     return {
@@ -756,7 +863,7 @@ export class LoyaltyService {
     }
   }
 
-  private async getTeacherFeedbackData(teacherId: number, filter?: LoyaltyFilter) {
+  private async getTeacherFeedbackData(teacherId: number) {
     // Получаем feedback данные для конкретного учителя
     const responses = await this.prisma.feedbackResponse.findMany({
       where: {
@@ -788,7 +895,7 @@ export class LoyaltyService {
   }
 
   private async getGroupEmotionalData(groupId: number, filter?: LoyaltyFilter) {
-    const dateFilter = this.buildDateFilter(filter);
+    this.buildDateFilter(filter); // keep invocation for future filters, ignore result to avoid unused var
     
     const students = await this.prisma.student.findMany({
       where: { groupId },

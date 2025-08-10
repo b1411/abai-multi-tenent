@@ -45,6 +45,8 @@ import {
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useBranding } from '../hooks/useSystem';
+import type { BrandingSettings } from '../types/system';
 
 // Types
 interface Student {
@@ -126,6 +128,9 @@ const periods = {
 };
 
 const EducationalReports: React.FC = () => {
+  // Branding (logo, school name, colors)
+  const { settings: branding } = useBranding();
+
   const [filters, setFilters] = useState<ReportFilters>({
     class: '10А',
     subject: '',
@@ -359,6 +364,9 @@ const EducationalReports: React.FC = () => {
 
   // Generate dynamic chart data
   const chartData: ChartDataPoint[] = useMemo(() => {
+    // tie to filters to intentionally re-seed mock data without direct usage
+    const _deps = `${filters.class}|${filters.subject}`;
+    void _deps;
     const months = ['Сен', 'Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар', 'Апр', 'Май'];
     return months.map(month => {
       const baseGrade = 3.5 + Math.random() * 1.5;
@@ -455,7 +463,7 @@ const EducationalReports: React.FC = () => {
     }
   };
 
-  const handleExport = (format: 'xlsx' | 'csv' | 'pdf') => {
+  const handleExport = async (format: 'xlsx' | 'csv' | 'pdf') => {
     const newLog: ExportLog = {
       id: Date.now().toString(),
       user: 'Текущий пользователь',
@@ -467,12 +475,39 @@ const EducationalReports: React.FC = () => {
     setExportLogs(prev => [newLog, ...prev]);
     setShowExportModal(false);
 
-    // Simulate download
-    console.log(`Экспортируется отчет в формате ${format.toUpperCase()}`);
-    alert(`Отчет экспортирован в формате ${format.toUpperCase()}`);
+    // Собираем инфо для экспорта аналогично handleFilteredExport
+    const filterInfo: ExportFilterInfo = {
+      period: 'Текущий период',
+      class: filters.class || 'Все классы',
+      subject: filters.subject || 'Все предметы',
+      studentsCount: filteredStudents.length,
+      totalStudents: allStudents.length
+    };
+    const fileName = `Отчет_успеваемость_${filterInfo.class}_${filterInfo.period}_${new Date().toISOString().split('T')[0]}`;
+
+    try {
+      if (format === 'xlsx') {
+        exportToExcel(fileName, filterInfo);
+      } else if (format === 'pdf') {
+        await exportToPDF(fileName, filterInfo, branding);
+      } else if (format === 'csv') {
+        exportToCSV(fileName, filterInfo);
+      }
+    } catch (e) {
+      console.error('Ошибка экспорта:', e);
+      alert('Произошла ошибка при экспорте');
+    }
   };
 
-  const handleFilteredExport = (format: 'xlsx' | 'pdf') => {
+  type ExportFilterInfo = {
+    period: string;
+    class: string;
+    subject: string;
+    studentsCount: number;
+    totalStudents: number;
+  };
+
+  const handleFilteredExport = async (format: 'xlsx' | 'pdf') => {
     const newLog: ExportLog = {
       id: Date.now().toString(),
       user: 'Текущий пользователь',
@@ -484,7 +519,7 @@ const EducationalReports: React.FC = () => {
     setExportLogs(prev => [newLog, ...prev]);
 
     // Generate filtered report info
-    const filterInfo = {
+    const filterInfo: ExportFilterInfo = {
       period: 'Текущий период',
       class: filters.class || 'Все классы',
       subject: filters.subject || 'Все предметы',
@@ -497,15 +532,16 @@ const EducationalReports: React.FC = () => {
     if (format === 'xlsx') {
       exportToExcel(fileName, filterInfo);
     } else if (format === 'pdf') {
-      exportToPDF(fileName, filterInfo);
+      await exportToPDF(fileName, filterInfo, branding);
     }
   };
 
-  const exportToExcel = (fileName: string, filterInfo: any) => {
+  const exportToExcel = (fileName: string, filterInfo: ExportFilterInfo) => {
     try {
       // Prepare data for Excel
-      const excelData = filteredStudents.map((student, index) => {
-        const row: any = {
+      type ExcelRow = Record<string, string | number>;
+      const excelData: ExcelRow[] = filteredStudents.map((student, index) => {
+        const row: ExcelRow = {
           '№': index + 1,
           'ФИО': student.fullName,
           'Класс': student.className,
@@ -526,7 +562,7 @@ const EducationalReports: React.FC = () => {
       });
 
       // Add summary row
-      const summaryRow: any = {
+      const summaryRow: ExcelRow = {
         '№': '',
         'ФИО': 'СРЕДНИЙ БАЛЛ ПО КЛАССУ:',
         'Класс': '',
@@ -551,6 +587,15 @@ const EducationalReports: React.FC = () => {
       const ws = XLSX.utils.json_to_sheet(excelData);
       const wb = XLSX.utils.book_new();
 
+      // Workbook properties (metadata)
+      const wbWithProps = wb as unknown as { Props?: { Title?: string; Subject?: string; Author?: string; CreatedDate?: Date } };
+      wbWithProps.Props = {
+        Title: 'Отчет по успеваемости',
+        Subject: `${filterInfo.class} • ${filterInfo.period}`,
+        Author: branding?.schoolName || 'Школа',
+        CreatedDate: new Date()
+      };
+
       // Set column widths
       const colWidths = [
         { wch: 5 },  // №
@@ -563,6 +608,11 @@ const EducationalReports: React.FC = () => {
         { wch: 12 }  // Пропуски (Н)
       ];
       ws['!cols'] = colWidths;
+
+      // Enable AutoFilter on header row
+      if (ws['!ref']) {
+        (ws as unknown as { ['!autofilter']?: { ref: string } })['!autofilter'] = { ref: ws['!ref'] as string };
+      }
 
       XLSX.utils.book_append_sheet(wb, ws, 'Успеваемость');
 
@@ -595,24 +645,114 @@ const EducationalReports: React.FC = () => {
     }
   };
 
-  const exportToPDF = (fileName: string, filterInfo: any) => {
+  // Экспорт CSV на основе тех же данных
+  const exportToCSV = (fileName: string, filterInfo: ExportFilterInfo) => {
+    try {
+      type Row = Record<string, string | number>;
+      const rows: Row[] = filteredStudents.map((student, index) => {
+        const r: Row = { '№': index + 1, 'ФИО': student.fullName, 'Класс': student.className };
+        subjects.forEach(subject => {
+          const grade = student.grades[subject]?.[0];
+          r[subject] = typeof grade === 'number' ? grade : '—';
+        });
+        r['Средний балл'] = student.averageGrade;
+        r['Качество'] = `${student.qualityPercentage}%`;
+        r['Пропуски (У)'] = student.absencesExcused;
+        r['Пропуски (Н)'] = student.absencesUnexcused;
+        return r;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const csv = XLSX.utils.sheet_to_csv(ws, { FS: ',', RS: '\n' });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileName}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при создании CSV файла:', error);
+      alert('Произошла ошибка при создании CSV файла');
+    }
+  };
+
+  const exportToPDF = async (fileName: string, filterInfo: ExportFilterInfo, brandingSettings?: Partial<BrandingSettings> | null) => {
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
 
-      // Set font for Cyrillic support
+      // Set document metadata
+      doc.setProperties({
+        title: 'Отчёт по успеваемости',
+        subject: `${filterInfo.class} • ${filterInfo.period}`,
+        author: brandingSettings?.schoolName || 'Школа',
+        creator: 'abai-multi-tenant'
+      });
+
+      // Set font
       doc.setFont('helvetica');
 
-      // Title
-      doc.setFontSize(16);
-      doc.text('Отчет по успеваемости', 20, 20);
+      // Header helper
+      const drawHeader = (logoDataUrl?: string) => {
+        const margin = 15;
+        let x = margin;
+        const y = 12;
+        if (logoDataUrl) {
+          try {
+            // best-effort detect format
+            const fmt = ((brandingSettings?.logo || '').toLowerCase().endsWith('.jpg') || (brandingSettings?.logo || '').toLowerCase().endsWith('.jpeg') ? 'JPEG' : 'PNG') as 'JPEG' | 'PNG';
+            doc.addImage(logoDataUrl, fmt, x, y - 5, 20, 20);
+            x += 24;
+          } catch (e) { /* ignore image draw errors */ }
+        }
+        doc.setFontSize(12);
+        doc.text(brandingSettings?.schoolName || 'Образовательная организация', x, y);
+        doc.setFontSize(10);
+        doc.text(`Отчет: Успеваемость`, x, y + 6);
+        doc.text(`Класс: ${filterInfo.class} • Предмет: ${filterInfo.subject}`, x, y + 11);
+        doc.text(`Период: ${filterInfo.period} • Уч-ся: ${filterInfo.studentsCount} из ${filterInfo.totalStudents}`, x, y + 16);
+        // top line
+        doc.setDrawColor(200);
+        doc.line(margin, y + 19, doc.internal.pageSize.width - margin, y + 19);
+      };
 
-      // Report info
-      doc.setFontSize(10);
-      doc.text(`Период: ${filterInfo.period}`, 20, 30);
-      doc.text(`Класс: ${filterInfo.class}`, 20, 35);
-      doc.text(`Предмет: ${filterInfo.subject}`, 20, 40);
-      doc.text(`Учащихся: ${filterInfo.studentsCount} из ${filterInfo.totalStudents}`, 20, 45);
-      doc.text(`Дата: ${new Date().toLocaleString('ru-RU')}`, 20, 50);
+      // Footer helper
+      const drawFooter = (page: number, total: number) => {
+        const margin = 15;
+        const y = doc.internal.pageSize.height - 12;
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Система учета успеваемости • ${new Date().toLocaleString('ru-RU')}`, margin, y);
+        const pageStr = `Стр. ${page} / ${total}`;
+        const txtW = doc.getTextWidth(pageStr);
+        doc.text(pageStr, doc.internal.pageSize.width - margin - txtW, y);
+      };
+
+      const getPageCount = (d: jsPDF) => (d as unknown as { internal: { getNumberOfPages(): number } }).internal.getNumberOfPages();
+
+      // Load logo (if available)
+      const loadImageAsDataURL = async (url?: string): Promise<string | undefined> => {
+        try {
+          if (!url) return undefined;
+          const res = await fetch(url);
+          const blob = await res.blob();
+          return await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        } catch {
+          return undefined;
+        }
+      };
+
+      const logoUrl = brandingSettings?.logo || '/logo rfm.png';
+      const logoData = await loadImageAsDataURL(logoUrl);
+
+      // Draw header on first page
+      drawHeader(logoData);
 
       // Prepare table data
       const tableData = filteredStudents.map((student, index) => {
@@ -659,7 +799,8 @@ const EducationalReports: React.FC = () => {
       autoTable(doc, {
         head: [tableHeaders],
         body: tableData,
-        startY: 60,
+        startY: 38,
+        margin: { top: 38, bottom: 30, left: 15, right: 15 },
         styles: {
           fontSize: 8,
           cellPadding: 2,
@@ -677,12 +818,25 @@ const EducationalReports: React.FC = () => {
           [subjects.length + 4]: { cellWidth: 15 }, // Качество
           [subjects.length + 5]: { cellWidth: 20 }  // Пропуски
         },
-        didDrawPage: function (data: any) {
-          // Footer
-          doc.setFontSize(8);
-          doc.text('Система учета успеваемости', 20, doc.internal.pageSize.height - 10);
+        didDrawPage: function (data: { pageNumber: number }) {
+          // Header/Footer per page
+          const current = data.pageNumber;
+          drawHeader(logoData);
+          drawFooter(current, getPageCount(doc));
         }
       });
+
+      // Draw signature block on last page
+      const totalPages = getPageCount(doc);
+      doc.setPage(totalPages);
+      const sigY = doc.internal.pageSize.height - 22;
+      doc.setFontSize(9);
+      doc.setTextColor(50);
+      doc.text('Подписи:', 15, sigY - 6);
+      // Director
+      doc.text('Директор __________________ / __________________', 15, sigY);
+      // Class teacher
+      doc.text('Классный руководитель __________________ / __________________', 120, sigY);
 
       // Save PDF
       doc.save(`${fileName}.pdf`);
@@ -1071,14 +1225,14 @@ const EducationalReports: React.FC = () => {
                         {subjects.slice(0, 6).map(subject => {
                           const subjectGrades = student.grades[subject] || [];
                           const latestGrade = subjectGrades[0];
-                          
+
                           return (
                             <button
                               key={subject}
                               onClick={() => handleGradeClick(student, subject)}
                               className="flex flex-col items-center p-2 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow min-h-[48px] touch-manipulation"
                             >
-                              <div className="text-xs text-gray-600 truncate w-full text-center mb-1" style={{fontSize: '10px'}}>
+                              <div className="text-xs text-gray-600 truncate w-full text-center mb-1" style={{ fontSize: '10px' }}>
                                 {subject.length > 8 ? `${subject.substring(0, 8)}...` : subject}
                               </div>
                               {latestGrade ? (
@@ -1091,7 +1245,7 @@ const EducationalReports: React.FC = () => {
                             </button>
                           );
                         })}
-                        
+
                         {subjects.length > 6 && (
                           <div className="flex items-center justify-center p-2 bg-gray-50 border border-gray-200 rounded-lg min-h-[48px]">
                             <span className="text-xs text-gray-500">+{subjects.length - 6}</span>
@@ -1267,7 +1421,7 @@ const EducationalReports: React.FC = () => {
           <div className="text-center sm:text-left">
             <span className="text-sm sm:text-base text-gray-600 font-medium">Скачать отчет:</span>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 lg:gap-4">
             <button
               onClick={() => handleFilteredExport('xlsx')}
@@ -1276,7 +1430,7 @@ const EducationalReports: React.FC = () => {
               <FileDown className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
               <span>Excel (XLSX)</span>
             </button>
-            
+
             <button
               onClick={() => handleFilteredExport('pdf')}
               className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm sm:text-base font-medium transition-colors min-h-[48px] touch-manipulation shadow-sm hover:shadow-md"
@@ -1285,7 +1439,7 @@ const EducationalReports: React.FC = () => {
               <span>PDF</span>
             </button>
           </div>
-          
+
           <div className="text-center sm:text-left pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200">
             <div className="text-xs sm:text-sm text-gray-500 leading-relaxed">
               <span className="font-medium">{filteredStudents.length}</span> учащихся

@@ -144,3 +144,91 @@ export interface ReviewsResponse {
   limit: number;
   totalPages: number;
 }
+
+// Метрики лояльности, агрегированные из ответов на feedback-формы
+export interface FeedbackBasedLoyalty {
+  period: string;
+  totalResponses: number;
+  averageSatisfaction: number; // 0-10
+  recommendationScore: number; // 0-100
+  teacherRatings: Array<{
+    teacherId: number;
+    rating: number;
+    comment?: string;
+  }>;
+  courseRatings: Array<{
+    courseId?: number;
+    rating?: number;
+    comment?: string;
+  }>;
+}
+
+export interface EmotionalLoyalty {
+  totalStudents: number;
+  averages: {
+    mood: number; // 0-100
+    motivation: number; // 0-100
+    satisfaction: number; // 0-100
+  };
+  groupStats: Array<{
+    group: string;
+    students: number;
+    averageMood: number;
+    averageMotivation: number;
+    loyaltyScore: number;
+  }>;
+  emotionalStates: Array<{ mood: number; motivation: number }>;
+}
+
+export interface RepeatPurchaseAnalytics {
+  rate: number; // percent 0-100
+  totalStudents: number;
+  studentsWithRepeatPurchases: number;
+  averageDaysBetween: number;
+}
+
+export interface FeedbackResponseItem {
+  id: number;
+  submittedAt: string;
+  period: string;
+  user: {
+    id: number;
+    name: string;
+    surname: string;
+    role: string;
+    student?: {
+      id: number;
+      group?: { id: number; name: string } | null;
+    } | null;
+  };
+  template: { id: number; name: string; title?: string };
+  answers: Record<string, unknown>;
+  displayData: {
+    overallSatisfaction: number | null;
+    teacherRating: number | null;
+    teacherComment: string | null;
+    recommendCourse: boolean | null;
+    mood: number | null;
+    motivation: number | null;
+    concentration: number | null;
+  };
+}
+
+export interface FeedbackResponsesResponse {
+  data: FeedbackResponseItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+  limit: number;
+}
+
+export interface FeedbackResponsesStats {
+  totalResponses: number;
+  responsesByTemplate: Array<{ templateId: number; _count: { id: number } }>;
+  responsesByPeriod: Array<{ period: string; _count: { id: number } }>;
+  averageRatings: {
+    averageSatisfaction: number;
+    averageTeacherRating: number;
+    recommendationRate: number;
+  };
+}

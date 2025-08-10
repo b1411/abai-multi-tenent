@@ -24,7 +24,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
             <Menu className="h-6 w-6" />
           </button>
 
-          <div className="relative max-w-lg w-full">
+          {/* <div className="relative max-w-lg w-full">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
             </div>
@@ -33,7 +33,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
               placeholder="Поиск..."
               className="block w-full pl-10 pr-3 py-3 text-base min-h-[48px] border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:py-2 sm:text-sm sm:min-h-[40px]"
             />
-          </div>
+          </div> */}
         </div>
 
         <div className="flex items-center space-x-2 lg:space-x-4 ml-2 lg:ml-4">

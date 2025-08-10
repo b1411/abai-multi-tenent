@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { loyaltyService } from '../services/loyaltyService';
 import {
   StudentReview,
@@ -9,7 +9,8 @@ import {
   TeacherAnalytics,
   GroupAnalytics,
   LoyaltySummary,
-  ReviewsResponse
+  ReviewsResponse,
+  FeedbackBasedLoyalty
 } from '../types/loyalty';
 
 export function useLoyalty() {
@@ -100,7 +101,7 @@ export function useReviews(initialFilter?: LoyaltyFilter) {
     initialFilter || loyaltyService.getDefaultFilter()
   );
 
-  const loadReviews = async (newFilter?: LoyaltyFilter) => {
+  const loadReviews = useCallback(async (newFilter?: LoyaltyFilter) => {
     try {
       setLoading(true);
       setError(null);
@@ -116,11 +117,11 @@ export function useReviews(initialFilter?: LoyaltyFilter) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     loadReviews();
-  }, []);
+  }, [loadReviews]);
 
   const refetch = () => loadReviews();
   const updateFilter = (newFilter: LoyaltyFilter) => loadReviews(newFilter);
@@ -141,27 +142,33 @@ export function useLoyaltyAnalytics(initialFilter?: LoyaltyFilter) {
   const [analytics, setAnalytics] = useState<LoyaltyAnalytics | null>(null);
   const [trends, setTrends] = useState<LoyaltyTrends[] | null>(null);
   const [summary, setSummary] = useState<LoyaltySummary | null>(null);
+  const [feedbackBased, setFeedbackBased] = useState<FeedbackBasedLoyalty | null>(null);
+  const [emotional, setEmotional] = useState<unknown | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<LoyaltyFilter>(
     initialFilter || { period: 'month' }
   );
 
-  const loadAnalytics = async (newFilter?: LoyaltyFilter) => {
+  const loadAnalytics = useCallback(async (newFilter?: LoyaltyFilter) => {
     try {
       setLoading(true);
       setError(null);
       const filterToUse = newFilter || filter;
 
-      const [analyticsData, trendsData, summaryData] = await Promise.all([
+      const [analyticsData, trendsData, summaryData, feedbackBasedData, emotionalData] = await Promise.all([
         loyaltyService.getAnalytics(filterToUse),
         loyaltyService.getTrends(filterToUse),
         loyaltyService.getSummary(filterToUse),
+        loyaltyService.getFeedbackBasedLoyalty(filterToUse),
+        loyaltyService.getEmotionalLoyalty(filterToUse),
       ]);
 
       setAnalytics(analyticsData);
       setTrends(trendsData);
       setSummary(summaryData);
+  setFeedbackBased(feedbackBasedData);
+  setEmotional(emotionalData);
 
       if (newFilter) {
         setFilter(newFilter);
@@ -172,11 +179,11 @@ export function useLoyaltyAnalytics(initialFilter?: LoyaltyFilter) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     loadAnalytics();
-  }, []);
+  }, [loadAnalytics]);
 
   const refetch = () => loadAnalytics();
   const updateFilter = (newFilter: LoyaltyFilter) => loadAnalytics(newFilter);
@@ -185,6 +192,8 @@ export function useLoyaltyAnalytics(initialFilter?: LoyaltyFilter) {
     analytics,
     trends,
     summary,
+  feedbackBased,
+  emotional,
     loading,
     error,
     filter,
@@ -203,7 +212,7 @@ export function useTeacherLoyalty(teacherId: number, initialFilter?: LoyaltyFilt
     initialFilter || { period: 'month' }
   );
 
-  const loadAnalytics = async (newFilter?: LoyaltyFilter) => {
+  const loadAnalytics = useCallback(async (newFilter?: LoyaltyFilter) => {
     try {
       setLoading(true);
       setError(null);
@@ -219,13 +228,13 @@ export function useTeacherLoyalty(teacherId: number, initialFilter?: LoyaltyFilt
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, teacherId]);
 
   useEffect(() => {
     if (teacherId) {
       loadAnalytics();
     }
-  }, [teacherId]);
+  }, [teacherId, loadAnalytics]);
 
   const refetch = () => loadAnalytics();
   const updateFilter = (newFilter: LoyaltyFilter) => loadAnalytics(newFilter);
@@ -250,7 +259,7 @@ export function useGroupLoyalty(groupId: number, initialFilter?: LoyaltyFilter) 
     initialFilter || { period: 'month' }
   );
 
-  const loadAnalytics = async (newFilter?: LoyaltyFilter) => {
+  const loadAnalytics = useCallback(async (newFilter?: LoyaltyFilter) => {
     try {
       setLoading(true);
       setError(null);
@@ -266,13 +275,13 @@ export function useGroupLoyalty(groupId: number, initialFilter?: LoyaltyFilter) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, groupId]);
 
   useEffect(() => {
     if (groupId) {
       loadAnalytics();
     }
-  }, [groupId]);
+  }, [groupId, loadAnalytics]);
 
   const refetch = () => loadAnalytics();
   const updateFilter = (newFilter: LoyaltyFilter) => loadAnalytics(newFilter);

@@ -7,8 +7,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#ca181f',
-        secondary: '#f5f5f5',
+        primary: {
+          DEFAULT: 'var(--primary-500)',
+          50: 'var(--primary-50)',
+          100: 'var(--primary-100)',
+          500: 'var(--primary-500)',
+          600: 'var(--primary-600)',
+          700: 'var(--primary-700)',
+        },
+        secondary: {
+          DEFAULT: 'var(--secondary-color)'
+        },
+        accent: {
+          DEFAULT: 'var(--accent-color)'
+        },
       },
       screens: {
         'xs': '475px',

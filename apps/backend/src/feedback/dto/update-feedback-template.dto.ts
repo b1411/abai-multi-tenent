@@ -32,4 +32,13 @@ export class UpdateFeedbackTemplateDto {
   @IsOptional()
   @IsInt()
   priority?: number;
+
+  // Новые поля для KPI на уровне шаблона
+  @IsOptional()
+  @IsBoolean()
+  hasKpiQuestions?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  kpiMetrics?: string[];
 }

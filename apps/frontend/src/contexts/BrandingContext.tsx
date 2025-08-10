@@ -5,6 +5,8 @@ interface BrandingContextType {
   branding: BrandingSettings | null;
   loading: boolean;
   updateBranding: (settings: Partial<BrandingSettings>) => Promise<void>;
+  uploadLogo: (file: File) => Promise<string>;
+  uploadFavicon: (file: File) => Promise<string>;
 }
 
 export const BrandingContext = createContext<BrandingContextType | undefined>(undefined);

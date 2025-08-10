@@ -17,6 +17,26 @@ export const useChat = () => {
   
   const socketRef = useRef<Socket | null>(null);
 
+  // Загрузка списка чатов (вверху, чтобы использовать в эффектах ниже)
+  const loadChats = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const chatsData = await chatService.getRecentChats();
+      console.log('📊 Loaded chats with unreadCount:', chatsData.map(chat => ({
+        id: chat.id,
+        name: chat.name || 'No name',
+        unreadCount: chat.unreadCount
+      })));
+      setChats(chatsData);
+    } catch (err) {
+      setError('Ошибка загрузки чатов');
+      console.error('Error loading chats:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Подключение к Socket.IO
   useEffect(() => {
     if (!user) return;
@@ -51,7 +71,7 @@ export const useChat = () => {
       setIsSocketConnected(false);
     });
 
-    socket.on('error', (error: any) => {
+  socket.on('error', (error: unknown) => {
       console.error('❌ Socket.IO error:', error);
       setError('Ошибка подключения');
     });
@@ -194,27 +214,9 @@ export const useChat = () => {
       socketRef.current = null;
       setIsSocketConnected(false);
     };
-  }, [user, currentChat]);
+  }, [user, currentChat, loadChats]);
 
-  // Загрузка списка чатов
-  const loadChats = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const chatsData = await chatService.getRecentChats();
-      console.log('📊 Loaded chats with unreadCount:', chatsData.map(chat => ({
-        id: chat.id,
-        name: chat.name || 'No name',
-        unreadCount: chat.unreadCount
-      })));
-      setChats(chatsData);
-    } catch (err) {
-      setError('Ошибка загрузки чатов');
-      console.error('Error loading chats:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // --- конец блока loadChats ---
 
   // Загрузка сообщений чата
   const loadMessages = useCallback(async (chatId: number, page: number = 1) => {
@@ -224,7 +226,12 @@ export const useChat = () => {
       const response = await chatService.getChatMessages(chatId, page);
       
       // Проверяем структуру ответа - может быть { messages: [...] } или { data: [...] }
-      const messages = (response as any)?.data || (response as any)?.messages || [];
+      const maybe = response as unknown as { data?: ChatMessage[]; messages?: ChatMessage[] };
+      const messages = Array.isArray(maybe?.data)
+        ? maybe.data
+        : Array.isArray(maybe?.messages)
+        ? maybe.messages
+        : [];
       if (!Array.isArray(messages)) {
         console.warn('Messages data is not an array:', response);
         setMessages([]);
@@ -416,6 +423,16 @@ export const useChat = () => {
     }
   }, [isSocketConnected]);
 
+  // Закрыть текущий чат (для мобильной кнопки Назад)
+  const closeChat = useCallback(() => {
+    if (currentChat) {
+      leaveChat(currentChat.id);
+    }
+    setCurrentChat(null);
+    setMessages([]);
+    setTypingUsers(new Set());
+  }, [currentChat, leaveChat]);
+
   // Создание или открытие личного чата
   const openDirectChat = useCallback(async (userId: number) => {
     try {
@@ -537,6 +554,9 @@ export const useChat = () => {
     isMyMessage,
     
     // Socket.IO статус
-    isWebSocketConnected: () => isSocketConnected,
+  isWebSocketConnected: () => isSocketConnected,
+
+  // Управление текущим чатом
+  closeChat,
   };
 };

@@ -19,12 +19,15 @@ class ApiClient {
     // Load token from localStorage on init
     this.loadTokenFromStorage();
 
-    // Request interceptor to add token
+    // Request interceptor to add token and enforce fresh data for specific endpoints
     this.client.interceptors.request.use(
       (config) => {
         if (this.token) {
           config.headers.Authorization = `Bearer ${this.token}`;
         }
+
+  // No cache-busting: rely on server-side freshness and client state updates
+
         return config;
       },
       (error) => Promise.reject(error)

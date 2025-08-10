@@ -187,7 +187,7 @@ class InventoryService {
     return response as InventoryItem;
   }
 
-  async exportData(filters?: InventoryFilters, format: string = 'xlsx'): Promise<any> {
+  async exportData(filters?: InventoryFilters, format: string = 'xlsx'): Promise<Blob> {
     const params = new URLSearchParams();
     if (filters?.search) params.append('search', filters.search);
     if (filters?.category) params.append('category', filters.category);
@@ -196,8 +196,7 @@ class InventoryService {
     if (filters?.responsible) params.append('responsible', filters.responsible);
     params.append('format', format);
 
-    const response = await apiClient.get(`/inventory/export?${params.toString()}`);
-    return response as any;
+  return await apiClient.getBlob(`/inventory/export?${params.toString()}`);
   }
 
   async getAnalytics(): Promise<AnalyticsData> {

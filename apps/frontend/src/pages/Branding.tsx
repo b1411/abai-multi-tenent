@@ -6,7 +6,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 
 const BrandingPage: React.FC = () => {
-  const { branding: settings, loading, updateBranding: updateSettings } = useBrandingContext();
+  const { branding: settings, loading, updateBranding: updateSettings, uploadLogo, uploadFavicon } = useBrandingContext();
   const [formData, setFormData] = useState<Partial<BrandingSettings>>({});
   const [previewLogo, setPreviewLogo] = useState<string | null>(null);
   const [previewFavicon, setPreviewFavicon] = useState<string | null>(null);
@@ -28,26 +28,29 @@ const BrandingPage: React.FC = () => {
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const url = reader.result as string;
+      try {
+        // Upload to backend and get URL
+        const url = await uploadLogo(file);
         setPreviewLogo(url);
         setFormData(prev => ({ ...prev, logo: url }));
-      };
-      reader.readAsDataURL(file);
+      } catch (e) {
+        setSaveMessage('Ошибка загрузки логотипа');
+        setTimeout(() => setSaveMessage(null), 3000);
+      }
     }
   };
 
   const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const url = reader.result as string;
+      try {
+        const url = await uploadFavicon(file);
         setPreviewFavicon(url);
         setFormData(prev => ({ ...prev, favicon: url }));
-      };
-      reader.readAsDataURL(file);
+      } catch (e) {
+        setSaveMessage('Ошибка загрузки favicon');
+        setTimeout(() => setSaveMessage(null), 3000);
+      }
     }
   };
 

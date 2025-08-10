@@ -3,10 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateFeedbackTemplateDto } from './dto/create-feedback-template.dto';
 import { UpdateFeedbackTemplateDto } from './dto/update-feedback-template.dto';
 import { CreateFeedbackResponseDto } from './dto/create-feedback-response.dto';
+import { KpiService } from 'src/kpi/kpi.service';
 
 @Injectable()
 export class FeedbackService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService, private readonly kpiService: KpiService) { }
 
   // Шаблоны форм обратной связи
   async createTemplate(createTemplateDto: CreateFeedbackTemplateDto) {
@@ -109,14 +110,25 @@ export class FeedbackService {
             }
             break;
           case 'TEACHER_RATING':
-            if (typeof answer !== 'object' || answer === null) {
-              throw new Error(`Неверный формат оценки преподавателей для вопроса "${question.question}"`);
-            }
-            // Проверяем, что все оценки в диапазоне 1-5
-            for (const [teacherId, rating] of Object.entries(answer)) {
-              if (typeof rating !== 'number' || rating < 1 || rating > 5) {
-                throw new Error(`Неверная оценка преподавателя ${teacherId} для вопроса "${question.question}"`);
+            // Допускаем два формата:
+            // 1) Map { teacherId: rating } для массовой оценки
+            // 2) Число (1-5) при наличии aboutTeacherId в DTO для оценки одного преподавателя
+            if (typeof answers[question.id] === 'number') {
+              const rating = answers[question.id];
+              if (!responseDto.aboutTeacherId) {
+                throw new Error(`Отсутствует aboutTeacherId для оценки преподавателя по вопросу "${question.question}"`);
               }
+              if (rating < 1 || rating > 5) {
+                throw new Error(`Неверная оценка (ожидается 1-5) для вопроса "${question.question}"`);
+              }
+            } else if (typeof answer === 'object' && answer !== null) {
+              for (const [teacherId, rating] of Object.entries(answer as Record<string, unknown>)) {
+                if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+                  throw new Error(`Неверная оценка преподавателя ${teacherId} для вопроса "${question.question}"`);
+                }
+              }
+            } else {
+              throw new Error(`Неверный формат ответа для TEACHER_RATING в вопросе "${question.question}"`);
             }
             break;
         }
@@ -265,8 +277,8 @@ export class FeedbackService {
         await this.updateEmotionalState(userId, answers);
       }
 
-      // Интеграция с KPI
-      await this.updateKPIMetrics(response);
+  // Интеграция с KPI
+  await this.updateKPIMetrics({ aboutTeacherId: response.aboutTeacherId as number | undefined });
     } catch (error) {
       console.error('Error integrating with other modules:', error);
     }
@@ -379,9 +391,16 @@ export class FeedbackService {
     return 'neutral';
   }
 
-  private async updateKPIMetrics(_response: any) { // eslint-disable-line @typescript-eslint/no-unused-vars
-    // Здесь можно добавить логику обновления KPI на основе ответов
-    // Например, агрегировать удовлетворенность студентов для расчета KPI
+  private async updateKPIMetrics(response: { aboutTeacherId?: number }) {
+    try {
+      // Обновляем KPI только если ответ касается конкретного преподавателя
+      if (response.aboutTeacherId) {
+        await this.kpiService.calculatePeriodicKpiScore(response.aboutTeacherId);
+        // Также можно инициировать обновление обзорных KPI, если потребуется
+      }
+    } catch (error) {
+      console.error('Не удалось обновить KPI после фидбека:', error);
+    }
   }
 
   private async updateUserFeedbackStatus(userId: number) {
@@ -779,7 +798,7 @@ export class FeedbackService {
     const emotional: any = {};
 
     // Ищем эмоциональные вопросы в ответах
-    for (const [key, value] of Object.entries(answers)) {
+  for (const [key, value] of Object.entries(answers as Record<string, unknown>)) {
       if (key.includes('mood') || key.includes('настроение')) {
         emotional.mood = this.normalizeToScale(value, 100);
       }
@@ -797,7 +816,7 @@ export class FeedbackService {
       }
     }
 
-    return Object.keys(emotional).length > 0 ? emotional : null;
+  return Object.keys(emotional as Record<string, unknown>).length > 0 ? emotional : null;
   }
 
   // Нормализация значений к шкале 0-100
@@ -897,7 +916,7 @@ export class FeedbackService {
     const teacherRatings: any[] = [];
 
     responses.forEach(response => {
-      Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
+  Object.entries((response.answers || {}) as Record<string, unknown>).forEach(([questionId, answer]) => {
         // Если это вопрос с оценкой преподавателей
         if (typeof answer === 'object' && answer !== null && !Array.isArray(answer)) {
           Object.entries(answer).forEach(([teacherId, rating]) => {

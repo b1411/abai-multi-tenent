@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { feedbackService, FeedbackTemplate } from '../services/feedbackService';
+import { feedbackService, FeedbackTemplate, Question } from '../services/feedbackService';
 import { Alert } from '../components/ui/Alert';
 import { Spinner } from '../components/ui/Spinner';
 import { useToastContext } from '../hooks/useToastContext';
@@ -12,7 +12,8 @@ const FeedbackAdmin: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<FeedbackTemplate | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<FeedbackTemplate | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [statistics, setStatistics] = useState<any>(null);
+  type Statistics = { totalResponses: number; completionRate?: number; byRole?: Record<string, number>; period?: string } | null;
+  const [statistics, setStatistics] = useState<Statistics>(null);
   const [activeTab, setActiveTab] = useState<'templates' | 'responses'>('templates');
   const toast = useToastContext();
 
@@ -29,8 +30,8 @@ const FeedbackAdmin: React.FC = () => {
       ]);
       setTemplates(templatesData);
       setStatistics(statsData);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки данных');
     } finally {
       setLoading(false);
     }
@@ -41,8 +42,8 @@ const FeedbackAdmin: React.FC = () => {
       await feedbackService.toggleTemplateActive(id);
       await loadData();
       toast.success('Статус шаблона изменен');
-    } catch (err: any) {
-      toast.error(err.message || 'Ошибка при изменении статуса шаблона');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка при изменении статуса шаблона');
     }
   };
 
@@ -53,8 +54,8 @@ const FeedbackAdmin: React.FC = () => {
       await feedbackService.deleteTemplate(id);
       await loadData();
       toast.success('Шаблон успешно удален');
-    } catch (err: any) {
-      toast.error(err.message || 'Ошибка при удалении шаблона');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка при удалении шаблона');
     }
   };
 
@@ -63,8 +64,8 @@ const FeedbackAdmin: React.FC = () => {
       const result = await feedbackService.createDefaultTemplates();
       await loadData();
       toast.success(result.message || 'Шаблоны KPI успешно созданы');
-    } catch (err: any) {
-      toast.error(err.message || 'Ошибка при создании стандартных шаблонов');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка при создании стандартных шаблонов');
     }
   };
 
@@ -73,8 +74,8 @@ const FeedbackAdmin: React.FC = () => {
       const result = await feedbackService.createDynamicTeacherEvaluations();
       await loadData();
       toast.success(result.message || 'Динамические формы оценки преподавателей созданы для всех студентов');
-    } catch (err: any) {
-      toast.error(err.message || 'Ошибка при создании форм оценки преподавателей');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка при создании форм оценки преподавателей');
     }
   };
 
@@ -523,13 +524,15 @@ const CreateTemplateModal: React.FC<{
     frequency: 'MONTHLY',
     priority: 1,
     isActive: true,
+    hasKpiQuestions: false as boolean,
+    kpiMetrics: [] as string[],
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       // Создаем простой шаблон с базовыми вопросами
-      const templateData = {
+  const templateData = {
         ...formData,
         questions: [
           {
@@ -537,7 +540,10 @@ const CreateTemplateModal: React.FC<{
             question: 'Насколько вы удовлетворены?',
             type: 'RATING_1_5' as const,
             category: 'general',
-            required: true
+    required: true,
+    isKpiRelevant: formData.hasKpiQuestions,
+    kpiMetric: formData.hasKpiQuestions ? 'OVERALL_EXPERIENCE' : undefined,
+    kpiWeight: formData.hasKpiQuestions ? 1 : undefined,
           }
         ]
       };
@@ -545,8 +551,8 @@ const CreateTemplateModal: React.FC<{
       await feedbackService.createTemplate(templateData);
       onSuccess();
       toast.success('Шаблон успешно создан');
-    } catch (error: any) {
-      toast.error(error.message || 'Ошибка при создании шаблона');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Ошибка при создании шаблона');
     }
   };
 
@@ -665,6 +671,31 @@ const CreateTemplateModal: React.FC<{
             </label>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.hasKpiQuestions}
+                onChange={(e) => setFormData({ ...formData, hasKpiQuestions: e.target.checked })}
+                className="h-4 w-4 text-blue-600"
+              />
+              <label className="ml-2 block text-sm text-gray-900">
+                Вопросы влияют на KPI
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">KPI метрики (через запятую)</label>
+              <input
+                type="text"
+                value={formData.kpiMetrics.join(',')}
+                onChange={(e) => setFormData({ ...formData, kpiMetrics: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                placeholder="TEACHING_QUALITY, LESSON_EFFECTIVENESS"
+                disabled={!formData.hasKpiQuestions}
+              />
+            </div>
+          </div>
+
           <div className="flex justify-end space-x-3 pt-4">
             <button
               type="button"
@@ -701,13 +732,15 @@ const EditTemplateModal: React.FC<{
     frequency: template.frequency,
     priority: template.priority,
     isActive: template.isActive,
+    hasKpiQuestions: template.hasKpiQuestions || false,
+    kpiMetrics: (template.kpiMetrics as string[]) || [],
   });
-  const [questions, setQuestions] = useState(template.questions);
+  const [questions, setQuestions] = useState<Question[]>(template.questions);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const templateData = {
+  const templateData = {
         ...formData,
         questions,
       };
@@ -715,14 +748,16 @@ const EditTemplateModal: React.FC<{
       await feedbackService.updateTemplate(template.id, templateData);
       onSuccess();
       toast.success('Шаблон успешно обновлен');
-    } catch (error: any) {
-      toast.error(error.message || 'Ошибка при обновлении шаблона');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Ошибка при обновлении шаблона');
     }
   };
 
-  const handleQuestionChange = (index: number, field: string, value: any) => {
+  const handleQuestionChange = (index: number, field: keyof Question | string, value: unknown) => {
     const updatedQuestions = [...questions];
-    updatedQuestions[index] = { ...updatedQuestions[index], [field]: value };
+    const q: Record<string, unknown> = { ...updatedQuestions[index] } as unknown as Record<string, unknown>;
+    q[field as string] = value;
+    updatedQuestions[index] = q as unknown as Question;
     setQuestions(updatedQuestions);
   };
 
@@ -733,6 +768,9 @@ const EditTemplateModal: React.FC<{
       type: 'RATING_1_5' as const,
       category: 'general',
       required: true,
+      isKpiRelevant: false,
+      kpiMetric: '',
+      kpiWeight: 1,
     };
     setQuestions([...questions, newQuestion]);
   };
@@ -969,6 +1007,45 @@ const EditTemplateModal: React.FC<{
                       <label className="ml-2 block text-sm text-gray-900">
                         Обязательный
                       </label>
+                    </div>
+                  </div>
+
+                  {/* KPI настройки вопроса */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={question.isKpiRelevant || false}
+                        onChange={(e) => handleQuestionChange(index, 'isKpiRelevant', e.target.checked)}
+                        className="h-4 w-4 text-blue-600"
+                      />
+                      <label className="ml-2 block text-sm text-gray-900">
+                        Влияет на KPI
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">KPI метрика</label>
+                      <input
+                        type="text"
+                        value={question.kpiMetric || ''}
+                        onChange={(e) => handleQuestionChange(index, 'kpiMetric', e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                        placeholder="TEACHING_QUALITY"
+                        disabled={!question.isKpiRelevant}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Вес</label>
+                      <input
+                        type="number"
+                        value={question.kpiWeight ?? 1}
+                        min={0}
+                        max={5}
+                        step="0.1"
+                        onChange={(e) => handleQuestionChange(index, 'kpiWeight', parseFloat(e.target.value))}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                        disabled={!question.isKpiRelevant}
+                      />
                     </div>
                   </div>
                 </div>

@@ -14,13 +14,17 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { SystemService } from './system.service';
+import { FilesService } from '../files/files.service';
 import { UpdateSystemSettingsDto } from './dto/system-settings.dto';
 import { CreateSystemUserDto, UpdateSystemUserDto, UserFilterDto } from "./dto/user.dto";
 import { CreateRoleDto, UpdateRoleDto } from './dto/role.dto';
 
 @Controller('system')
 export class SystemController {
-  constructor(private readonly systemService: SystemService) { }
+  constructor(
+    private readonly systemService: SystemService,
+    private readonly filesService: FilesService,
+  ) { }
 
   // System Settings
   @Get('settings')
@@ -128,18 +132,60 @@ export class SystemController {
 
   @Post('branding/logo')
   @UseInterceptors(FileInterceptor('logo'))
-  uploadLogo(@UploadedFile() file: Express.Multer.File) {
-    // В реальном приложении файл будет сохраняться в хранилище
-    const url = `/uploads/logos/${Date.now()}-${file.originalname}`;
-    return { data: { url } };
+  async uploadLogo(@UploadedFile() file: Express.Multer.File) {
+    const saved = await this.filesService.uploadFile(file, 'logos');
+
+    let faviconUrl: string | undefined;
+    try {
+      // Пытаемся сгенерировать favicon из загруженного логотипа (64x64 PNG)
+      // Используем eval('require') чтобы избежать ошибок резолва типов при отсутствии sharp
+      let sharp: any = null;
+      try {
+        const req = eval('require') as (m: string) => any;
+        sharp = req('sharp');
+      } catch {
+        // sharp не установлен — используем фолбек ниже
+      }
+
+      if (sharp && file?.buffer) {
+        const resized = await sharp(file.buffer)
+          .resize(64, 64, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+          .png()
+          .toBuffer();
+
+        const faviconFile = {
+          originalname: 'favicon.png',
+          mimetype: 'image/png',
+          size: resized.length,
+          buffer: resized,
+        } as unknown as Express.Multer.File;
+
+        const favSaved = await this.filesService.uploadFile(faviconFile, 'favicons');
+        faviconUrl = favSaved.url;
+      } else if (file?.buffer) {
+        // Фолбек: если sharp недоступен, сохраняем оригинал как favicon
+        const faviconFile = {
+          originalname: 'favicon-fallback.png',
+          mimetype: file.mimetype || 'image/png',
+          size: file.size,
+          buffer: file.buffer,
+        } as unknown as Express.Multer.File;
+        const favSaved = await this.filesService.uploadFile(faviconFile, 'favicons');
+        faviconUrl = favSaved.url;
+      }
+    } catch {
+      // Безопасно игнорируем ошибки генерации фавиконки, логотип уже загружен
+      // console.error('Favicon generation failed:', e);
+    }
+
+    return { data: { url: saved.url, faviconUrl, id: (saved as any).id ?? undefined, name: saved.name } };
   }
 
   @Post('branding/favicon')
   @UseInterceptors(FileInterceptor('favicon'))
-  uploadFavicon(@UploadedFile() file: Express.Multer.File) {
-    // В реальном приложении файл будет сохраняться в хранилище
-    const url = `/uploads/favicons/${Date.now()}-${file.originalname}`;
-    return { data: { url } };
+  async uploadFavicon(@UploadedFile() file: Express.Multer.File) {
+    const saved = await this.filesService.uploadFile(file, 'favicons');
+    return { data: { url: saved.url, id: (saved as any).id ?? undefined, name: saved.name } };
   }
 
   // Integrations

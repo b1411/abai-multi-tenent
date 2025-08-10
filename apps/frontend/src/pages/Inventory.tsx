@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Filter, Download, QrCode, Package, Move, Wrench } from 'lucide-react';
-import { inventoryService, InventoryItem, InventoryFilters, InventoryStatus } from '../services/inventoryService';
+import { inventoryService, InventoryItem, InventoryFilters, InventoryStatus, CreateInventoryItem, CreateMovement, CreateMaintenance } from '../services/inventoryService';
 import { Loading } from '../components/ui';
 import InventoryModals, { InventoryItem as InventoryModalItem } from '../components/inventory/InventoryModals';
 
@@ -13,11 +13,7 @@ const Inventory: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'createItem' | 'editItem' | 'viewItem' | 'moveItem' | 'maintenance'>('viewItem');
 
-  useEffect(() => {
-    loadItems();
-  }, [filters]);
-
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     try {
       setLoading(true);
       const response = await inventoryService.getItems(filters);
@@ -27,7 +23,11 @@ const Inventory: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, search: e.target.value });
@@ -67,21 +67,23 @@ const Inventory: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleSave = async (data: any) => {
+  const handleSave = async (
+    data: CreateInventoryItem | Partial<CreateInventoryItem> | CreateMovement | CreateMaintenance
+  ) => {
     try {
       if (modalType === 'createItem') {
-        await inventoryService.createItem(data);
+        await inventoryService.createItem(data as CreateInventoryItem);
       } else if (modalType === 'editItem') {
         if (selectedItem?.id) {
-          await inventoryService.updateItem(selectedItem.id.toString(), data);
+          await inventoryService.updateItem(selectedItem.id.toString(), data as Partial<CreateInventoryItem>);
         }
       } else if (modalType === 'moveItem') {
         if (selectedItem?.id) {
-          await inventoryService.createMovement(selectedItem.id.toString(), data);
+          await inventoryService.createMovement(selectedItem.id.toString(), data as CreateMovement);
         }
       } else if (modalType === 'maintenance') {
         if (selectedItem?.id) {
-          await inventoryService.createMaintenance(selectedItem.id.toString(), data);
+          await inventoryService.createMaintenance(selectedItem.id.toString(), data as CreateMaintenance);
         }
       }
       await loadItems();
@@ -93,11 +95,18 @@ const Inventory: React.FC = () => {
 
   const handleExport = async () => {
     try {
-      await inventoryService.exportData(filters);
-      // В реальном проекте здесь будет скачивание файла
-      alert('Экспорт запущен');
+      const blob = await inventoryService.exportData(filters, 'xlsx');
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `inventory-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Ошибка экспорта:', error);
+      alert('Не удалось экспортировать инвентарь');
     }
   };
 

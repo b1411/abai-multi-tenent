@@ -187,7 +187,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       key: 'settings',
       children: [
         { name: 'Пользователи', href: '/settings/users', icon: Users },
-        { name: 'Права доступа', href: '/settings/permissions', icon: Lock },
         { name: 'Интеграции', href: '/settings/integrations', icon: Cog },
         { name: 'Брендинг', href: '/settings/branding', icon: Palette },
         { name: 'Система', href: '/settings/system', icon: Settings },

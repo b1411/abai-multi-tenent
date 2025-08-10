@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { LoyaltyService } from './loyalty.service';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -16,6 +7,7 @@ import { ReviewReactionDto } from './dto/review-reaction.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Request as ExpressRequest } from 'express';
 
 @Controller('loyalty')
 @UseGuards(AuthGuard, RolesGuard)
@@ -25,7 +17,7 @@ export class LoyaltyController {
 
   @Post('reviews')
   @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
-  async createReview(@Request() req, @Body() createReviewDto: CreateReviewDto) {
+  async createReview(req: ExpressRequest & { user: { id: number } }, @Body() createReviewDto: CreateReviewDto) {
     return this.loyaltyService.createReview(req.user.id, createReviewDto);
   }
 
@@ -46,7 +38,7 @@ export class LoyaltyController {
   async addReaction(
     @Param('id') reviewId: string,
     @Body() reactionDto: ReviewReactionDto,
-    @Request() req,
+    req: ExpressRequest & { user: { id: number } },
   ) {
     return this.loyaltyService.addReaction(+reviewId, req.user.id, reactionDto);
   }
@@ -54,7 +46,8 @@ export class LoyaltyController {
   @Get('analytics')
   @Roles('ADMIN', 'FINANCIST')
   async getAnalytics(@Query() filter: LoyaltyFilterDto) {
-    return this.loyaltyService.getAnalytics(filter);
+    // Возвращаем аналитику в формате LoyaltyAnalytics, рассчитанную из feedback
+    return this.loyaltyService.getAnalyticsFromFeedback(filter);
   }
 
   @Get('analytics/trends')

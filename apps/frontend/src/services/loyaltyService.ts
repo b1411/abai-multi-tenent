@@ -9,7 +9,13 @@ import {
   GroupAnalytics,
   LoyaltySummary,
   ReviewsResponse,
-  ReviewReaction
+  ReviewReaction,
+  FeedbackBasedLoyalty,
+  EmotionalLoyalty,
+  RepeatPurchaseAnalytics,
+  FeedbackResponsesResponse,
+  FeedbackResponseItem,
+  FeedbackResponsesStats
 } from '../types/loyalty';
 
 class LoyaltyService {
@@ -142,7 +148,7 @@ class LoyaltyService {
   }
 
   // Получение аналитики повторных покупок
-  async getRepeatPurchaseAnalytics(filter: LoyaltyFilter = {}): Promise<any> {
+  async getRepeatPurchaseAnalytics(filter: LoyaltyFilter = {}): Promise<RepeatPurchaseAnalytics> {
     const params = new URLSearchParams();
     
     Object.entries(filter).forEach(([key, value]) => {
@@ -151,7 +157,7 @@ class LoyaltyService {
       }
     });
 
-    return await apiClient.get<any>(`/loyalty/analytics/repeat-purchases?${params.toString()}`);
+  return await apiClient.get<RepeatPurchaseAnalytics>(`/loyalty/analytics/repeat-purchases?${params.toString()}`);
   }
 
   // Обновление записей повторных покупок
@@ -169,7 +175,7 @@ class LoyaltyService {
   }
 
   // Получение feedback ответов
-  async getFeedbackResponses(filter: LoyaltyFilter = {}): Promise<any> {
+  async getFeedbackResponses(filter: LoyaltyFilter = {}): Promise<FeedbackResponsesResponse> {
     const params = new URLSearchParams();
     
     Object.entries(filter).forEach(([key, value]) => {
@@ -178,16 +184,16 @@ class LoyaltyService {
       }
     });
 
-    return await apiClient.get<any>(`/loyalty/feedback-responses?${params.toString()}`);
+  return await apiClient.get<FeedbackResponsesResponse>(`/loyalty/feedback-responses?${params.toString()}`);
   }
 
   // Получение конкретного feedback ответа
-  async getFeedbackResponse(id: number): Promise<any> {
-    return await apiClient.get<any>(`/loyalty/feedback-responses/${id}`);
+  async getFeedbackResponse(id: number): Promise<FeedbackResponseItem> {
+    return await apiClient.get<FeedbackResponseItem>(`/loyalty/feedback-responses/${id}`);
   }
 
   // Получение статистики по feedback ответам
-  async getFeedbackResponsesStats(filter: LoyaltyFilter = {}): Promise<any> {
+  async getFeedbackResponsesStats(filter: LoyaltyFilter = {}): Promise<FeedbackResponsesStats> {
     const params = new URLSearchParams();
     
     Object.entries(filter).forEach(([key, value]) => {
@@ -196,11 +202,11 @@ class LoyaltyService {
       }
     });
 
-    return await apiClient.get<any>(`/loyalty/feedback-responses/stats?${params.toString()}`);
+  return await apiClient.get<FeedbackResponsesStats>(`/loyalty/feedback-responses/stats?${params.toString()}`);
   }
 
   // Получение аналитики на основе feedback
-  async getFeedbackBasedLoyalty(filter: LoyaltyFilter = {}): Promise<any> {
+  async getFeedbackBasedLoyalty(filter: LoyaltyFilter = {}): Promise<FeedbackBasedLoyalty> {
     const params = new URLSearchParams();
     
     Object.entries(filter).forEach(([key, value]) => {
@@ -209,11 +215,11 @@ class LoyaltyService {
       }
     });
 
-    return await apiClient.get<any>(`/loyalty/analytics/feedback-based?${params.toString()}`);
+  return await apiClient.get<FeedbackBasedLoyalty>(`/loyalty/analytics/feedback-based?${params.toString()}`);
   }
 
   // Получение эмоциональной аналитики
-  async getEmotionalLoyalty(filter: LoyaltyFilter = {}): Promise<any> {
+  async getEmotionalLoyalty(filter: LoyaltyFilter = {}): Promise<EmotionalLoyalty> {
     const params = new URLSearchParams();
     
     Object.entries(filter).forEach(([key, value]) => {
@@ -222,7 +228,7 @@ class LoyaltyService {
       }
     });
 
-    return await apiClient.get<any>(`/loyalty/analytics/emotional?${params.toString()}`);
+  return await apiClient.get<EmotionalLoyalty>(`/loyalty/analytics/emotional?${params.toString()}`);
   }
 }
 

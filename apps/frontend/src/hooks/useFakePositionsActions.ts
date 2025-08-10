@@ -76,25 +76,34 @@ export const useFakePositionsActions = () => {
     setError(null);
 
     try {
-      // Имитация генерации отчета
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Имитация скачивания файла
-      const fileName = `attendance_report_${new Date().toISOString().split('T')[0]}.${format}`;
-      console.log('Отчет экспортирован:', fileName);
-      
-      // Здесь будет реальный API вызов:
-      // const response = await fetch(`/api/fake-positions/export?format=${format}`);
-      // const blob = await response.blob();
-      // const url = window.URL.createObjectURL(blob);
-      // const a = document.createElement('a');
-      // a.href = url;
-      // a.download = fileName;
-      // a.click();
-      
-      // Для демо показываем уведомление
-      alert(`Отчет "${fileName}" готов к скачиванию`);
-      
+      const date = new Date().toISOString().split('T')[0];
+      const baseName = `attendance_report_${date}`;
+      if (format === 'xlsx') {
+        const XLSX = (await import('xlsx')).default || (await import('xlsx'));
+        const ws = XLSX.utils.aoa_to_sheet([
+          ['Отчет посещаемости (демо)'],
+          ['Дата', date],
+          [],
+          ['Преподаватель', 'Группа', 'Дата', 'Статус'],
+          // Демо-строки; в реальном API сюда подставляем реальные данные
+          ['—', '—', date, '—']
+        ]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Отчет');
+        XLSX.writeFile(wb, `${baseName}.xlsx`);
+      } else if (format === 'pdf') {
+        // Простая CSV-выгрузка вместо PDF как временное решение
+        const csv = ['Преподаватель,Группа,Дата,Статус', `—,—,${date},—`].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${baseName}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
       setLoading(false);
       return true;
     } catch (err) {

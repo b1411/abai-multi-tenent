@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { parentService } from '../services/parentService';
 import NewChatModal from '../components/NewChatModal';
 import { Link } from 'react-router-dom';
+import type { ChatRoom, User } from '../services/chatService';
 
 const Chat: React.FC = () => {
   const { user } = useAuth();
@@ -25,7 +26,8 @@ const Chat: React.FC = () => {
     formatMessageTime,
     isMyMessage,
     isWebSocketConnected,
-    loadChats,
+  loadChats,
+  closeChat,
   } = useChat();
 
   // Отладка состояния typingUsers
@@ -46,6 +48,7 @@ const Chat: React.FC = () => {
   const [chatSetupError, setChatSetupError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     scrollToBottom();
@@ -53,6 +56,17 @@ const Chat: React.FC = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Автоматическое изменение высоты текстового поля
+  const autoResizeTextarea = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const maxHeight = 160; // ограничение ~6-7 строк
+    const newHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${newHeight}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
   };
 
   const handleSendMessage = async () => {
@@ -83,6 +97,7 @@ const Chat: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setNewMessage(value);
+  autoResizeTextarea();
 
     // Отправляем индикатор "печатает"
     if (value.trim() && !isTyping) {
@@ -127,8 +142,9 @@ const Chat: React.FC = () => {
       } else {
         setChatSetupError('Новые чаты не были созданы');
       }
-    } catch (err: any) {
-      setChatSetupError(err.response?.data?.message || 'Ошибка при настройке чатов');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Ошибка при настройке чатов';
+      setChatSetupError(message);
     } finally {
       setSetupChatsLoading(false);
     }
@@ -143,6 +159,12 @@ const Chat: React.FC = () => {
     };
   }, []);
 
+  // Пересчитать высоту при смене чата/новых сообщениях
+  useEffect(() => {
+    const t = setTimeout(autoResizeTextarea, 0);
+    return () => clearTimeout(t);
+  }, [currentChat, messages.length]);
+
   const filteredChats = chats.filter(chat =>
     getChatDisplayName(chat).toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -154,17 +176,19 @@ const Chat: React.FC = () => {
       : name.charAt(0).toUpperCase();
   };
 
-  const getOnlineStatus = (chat: any) => {
+  const getOnlineStatus = (chat: ChatRoom) => {
     if (chat.isGroup) return null;
 
     // Для личного чата находим собеседника
-    const otherParticipant = chat.participants?.find((p: any) => p.userId !== chat.createdById);
-    return otherParticipant?.user?.isOnline || false;
+    type MaybeOnlineUser = User & { isOnline?: boolean };
+    const otherParticipant = chat.participants?.find(p => p.userId !== chat.createdById);
+    const maybeUser = otherParticipant?.user as MaybeOnlineUser | undefined;
+    return Boolean(maybeUser?.isOnline);
   };
 
   if (loading && chats.length === 0) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-full min-h-0 flex items-center justify-center">
         <div className="flex items-center space-x-2">
           <Loader className="w-6 h-6 animate-spin text-blue-600" />
           <span className="text-gray-600">Загрузка чатов...</span>
@@ -174,7 +198,7 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex bg-gray-50 overflow-hidden">
+    <div className="h-full min-h-0 flex bg-gray-50 overflow-hidden">
       {/* Sidebar with chats */}
       <div className={`${currentChat ? 'hidden lg:flex' : 'flex'} w-full lg:w-1/3 xl:w-1/4 bg-white border-r border-gray-200 flex-col h-full`}>
         {/* Header */}
@@ -333,9 +357,7 @@ const Chat: React.FC = () => {
                       <div className="flex justify-between items-center">
                         {chat.lastMessage && (
                           <p className="text-xs sm:text-sm text-gray-600 truncate pr-1 sm:pr-2">
-                            {chat.lastMessage.content.length > (window.innerWidth < 640 ? 25 : 40) 
-                              ? `${chat.lastMessage.content.substring(0, window.innerWidth < 640 ? 25 : 40)}...` 
-                              : chat.lastMessage.content}
+                            {chat.lastMessage.content}
                           </p>
                         )}
                         {(chat.unreadCount ?? 0) > 0 && (
@@ -363,7 +385,7 @@ const Chat: React.FC = () => {
                 <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-1 min-w-0">
                   {/* Back button for mobile */}
                   <button
-                    onClick={() => openChat(undefined as any)}
+                    onClick={closeChat}
                     className="lg:hidden p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,8 +415,10 @@ const Chat: React.FC = () => {
                         {getChatDisplayName(currentChat)}
                       </h2>
                       {/* Connection status */}
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 hidden sm:block flex-shrink-0"
-                        title="Подключено" />
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full hidden sm:block flex-shrink-0 ${isWebSocketConnected() ? 'bg-green-500' : 'bg-gray-300'}`}
+                        title={isWebSocketConnected() ? 'Подключено' : 'Отключено'}
+                      />
                     </div>
                     <p className="text-xs text-gray-500 truncate">
                       {typingUsers.size > 0 ? (
@@ -506,18 +530,19 @@ const Chat: React.FC = () => {
             </div>
 
             {/* Message input */}
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white p-2 sm:p-3 lg:p-4">
+      <div className="flex-shrink-0 border-t border-gray-200 bg-white p-2 sm:p-3 lg:p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
               <div className="flex items-end space-x-1 sm:space-x-2 w-full">
                 <button className="hidden md:block p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0">
                   <Paperclip className="w-4 h-4" />
                 </button>
                 <div className="flex-1 min-w-0">
                   <textarea
-                    value={newMessage}
-                    onChange={handleInputChange}
-                    onKeyPress={handleKeyPress}
+        ref={textareaRef}
+        value={newMessage}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyPress}
                     placeholder="Введите сообщение..."
-                    className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-colors min-h-[36px] sm:min-h-[40px]"
+        className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-colors min-h-[36px] sm:min-h-[40px] max-h-40 overflow-hidden"
                     rows={1}
                     disabled={sendingMessage}
                   />

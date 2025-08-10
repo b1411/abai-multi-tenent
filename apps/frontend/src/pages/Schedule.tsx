@@ -40,6 +40,7 @@ import {
   ScheduleItem,
   Schedule,
   CreateScheduleDto,
+  UpdateScheduleDto,
   GroupOption,
   TeacherOption,
   StudyPlanOption,
@@ -401,7 +402,7 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
           )}
 
           {/* Кнопки */}
-          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4 sm:pt-6 border-t border-gray-200 sticky bottom-0 bg-white pb-4 sm:pb-0 sm:static sm:border-0 -mx-4 sm:-mx-6 px-4 sm:px-6 sm:mx-0 sm:px-0">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4 sm:pt-6 border-t border-gray-200 sticky bottom-0 bg-white pb-4 sm:pb-0 sm:static sm:border-0 -mx-4 px-4 sm:mx-0 sm:px-0">
             <button
               type="button"
               onClick={onClose}
@@ -853,14 +854,12 @@ const SchedulePage: React.FC = () => {
         console.log('Редактирование занятия:', id, scheduleItem);
 
         // Создаем DTO для обновления
-        const updateData: any = {};
+  const updateData: UpdateScheduleDto = {};
         
         if (scheduleItem.day) {
           updateData.dayOfWeek = getDayNumber(scheduleItem.day);
         }
-        if (scheduleItem.date) {
-          updateData.date = scheduleItem.date;
-        }
+  // Примечание: поле date не входит в UpdateScheduleDto; перенос даты делается отдельным методом rescheduleLesson
         if (scheduleItem.startTime) {
           updateData.startTime = scheduleItem.startTime;
         }
@@ -1044,7 +1043,34 @@ const SchedulePage: React.FC = () => {
     }
   };
 
-  const handleAIGenerate = async (result: any) => {
+  // Типы для AI-генерации
+  type AIItem = {
+    day?: string;
+    dayOfWeek?: string | number;
+    startTime?: string;
+    time?: string;
+    endTime?: string;
+    groupName?: string;
+    group?: string;
+    groupId?: string;
+    teacherName?: string;
+    teacher?: string;
+    teacherId?: string;
+    roomId?: string;
+    room?: string;
+    classroom?: string;
+    classroomId?: string;
+    subject?: string;
+    studyPlan?: string;
+    studyPlanId?: string;
+    [key: string]: unknown;
+  };
+  interface AIGenerateResult {
+    generatedSchedule?: AIItem[];
+    [key: string]: unknown;
+  }
+
+  const handleAIGenerate = async (result: AIGenerateResult) => {
     console.log('AI generated schedule FULL result:', JSON.stringify(result, null, 2));
 
     if (result.generatedSchedule && Array.isArray(result.generatedSchedule)) {
@@ -1155,12 +1181,22 @@ const SchedulePage: React.FC = () => {
             }
 
             // Создаем DTO для API
+            const dayString = (() => {
+              if (typeof aiItem.dayOfWeek === 'number') {
+                const names = ['', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+                return names[aiItem.dayOfWeek] || 'monday';
+              }
+              if (typeof aiItem.dayOfWeek === 'string' && aiItem.dayOfWeek) return aiItem.dayOfWeek;
+              if (typeof aiItem.day === 'string' && aiItem.day) return aiItem.day;
+              return 'monday';
+            })();
+
             const createDto: CreateScheduleDto = {
               studyPlanId: selectedStudyPlan.id,
               groupId: selectedGroup.id,
               teacherId: selectedTeacher.id,
               classroomId: selectedClassroom?.id,
-              dayOfWeek: getDayNumber(aiItem.day || aiItem.dayOfWeek || 'monday'),
+              dayOfWeek: getDayNumber(dayString),
               startTime: aiItem.startTime || aiItem.time || '09:00',
               endTime: aiItem.endTime || getEndTime(aiItem.startTime || aiItem.time || '09:00')
             };
@@ -1237,7 +1273,20 @@ const SchedulePage: React.FC = () => {
     }
   };
 
-  const handleAIGenerateFromStudyPlans = async (params: any) => {
+  interface AIStudyPlanGenerateParams {
+    studyPlanIds: number[];
+    groupIds: number[];
+    teacherIds: number[];
+    startDate: string;
+    endDate: string;
+    constraints: {
+      workingHours: { start: string; end: string };
+      maxConsecutiveHours: number;
+      lessonsPerDayLimit: number;
+    };
+  }
+
+  const handleAIGenerateFromStudyPlans = async (params: AIStudyPlanGenerateParams) => {
     try {
       setIsLoading(true);
       setIsAILessonModalOpen(false); // Закрываем модальное окно сразу
@@ -1264,6 +1313,17 @@ const SchedulePage: React.FC = () => {
   };
 
   const sensors = useSensors(useSensor(PointerSensor));
+  const [selectedGridDay, setSelectedGridDay] = useState<ScheduleItem['day']>('monday');
+
+  // Константы для сетки расписания (используются и на десктопе, и на мобильных)
+  const gridDays: Array<{ key: ScheduleItem['day']; label: string }> = [
+    { key: 'monday', label: 'Понедельник' },
+    { key: 'tuesday', label: 'Вторник' },
+    { key: 'wednesday', label: 'Среда' },
+    { key: 'thursday', label: 'Четверг' },
+    { key: 'friday', label: 'Пятница' },
+  ];
+  const gridTimes: string[] = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00'];
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -1917,44 +1977,102 @@ const SchedulePage: React.FC = () => {
         {/* Сетка расписания */}
         {viewMode === 'grid' && (
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div className="bg-white rounded-lg shadow overflow-hidden p-4">
-              <div className="grid grid-cols-6 gap-4">
-                <div className="col-span-1"></div>
-                <div className="text-center font-medium py-2 bg-gray-100">Понедельник</div>
-                <div className="text-center font-medium py-2 bg-gray-100">Вторник</div>
-                <div className="text-center font-medium py-2 bg-gray-100">Среда</div>
-                <div className="text-center font-medium py-2 bg-gray-100">Четверг</div>
-                <div className="text-center font-medium py-2 bg-gray-100">Пятница</div>
+            {/* Desktop grid */}
+            <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+              <div className="p-4 overflow-auto">
+                <div className="grid grid-cols-6 gap-4 min-w-[900px]">
+                  <div className="col-span-1" />
+                  {gridDays.map(d => (
+                    <div key={d.key} className="text-center font-medium py-2 bg-gray-100 rounded">
+                      {d.label}
+                    </div>
+                  ))}
 
-                {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'].map((time) => (
-                  <React.Fragment key={time}>
-                    <div className="text-center font-medium py-2 bg-gray-50">{time}</div>
-                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map((day) => {
-                      const itemsInCell = getFilteredSchedule().filter(
-                        (item) => item.day === day && item.startTime === time
-                      );
-                      const droppableId = `${day}-${time}`;
+                  {gridTimes.map((time) => (
+                    <React.Fragment key={time}>
+                      <div className="text-center font-medium py-2 bg-gray-50 rounded">
+                        {time}
+                      </div>
+                      {gridDays.map(({ key: day }) => {
+                        const itemsInCell = getFilteredSchedule().filter(
+                          (item) => item.day === day && item.startTime === time
+                        );
+                        const droppableId = `${day}-${time}`;
 
-                      return (
-                        <DroppableCell
-                          key={droppableId}
-                          id={droppableId}
-                          onAddClick={() => canEditSchedule() && handleAddClick(day as ScheduleItem['day'], time)}
-                        >
-                          {itemsInCell.map((item) => (
-                            <DraggableScheduleItem
-                              key={item.id}
-                              item={item}
-                              canEdit={canEditSchedule()}
-                              onEdit={handleEditClick}
-                              onDelete={handleDeleteClick}
-                            />
-                          ))}
-                        </DroppableCell>
-                      );
-                    })}
-                  </React.Fragment>
-                ))}
+                        return (
+                          <DroppableCell
+                            key={droppableId}
+                            id={droppableId}
+                            onAddClick={() => canEditSchedule() && handleAddClick(day as ScheduleItem['day'], time)}
+                          >
+                            {itemsInCell.map((item) => (
+                              <DraggableScheduleItem
+                                key={item.id}
+                                item={item}
+                                canEdit={canEditSchedule()}
+                                onEdit={handleEditClick}
+                                onDelete={handleDeleteClick}
+                              />
+                            ))}
+                          </DroppableCell>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile grid (day tabs + vertical times) */}
+            <div className="lg:hidden bg-white rounded-lg shadow overflow-hidden">
+              <div className="p-3">
+                {/* Day selector */}
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                  {gridDays.map(d => (
+                    <button
+                      key={d.key}
+                      onClick={() => setSelectedGridDay(d.key)}
+                      className={`px-3 py-2 rounded-md text-sm whitespace-nowrap min-h-[36px] transition-colors ${
+                        selectedGridDay === d.key ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Times list for selected day */}
+                <div className="mt-2 space-y-2">
+                  {gridTimes.map((time) => {
+                    const itemsInCell = getFilteredSchedule().filter(
+                      (item) => item.day === selectedGridDay && item.startTime === time
+                    );
+                    const droppableId = `${selectedGridDay}-${time}`;
+                    return (
+                      <div key={time} className="flex items-stretch gap-2">
+                        <div className="w-14 flex items-start justify-center pt-1 text-xs text-gray-500">
+                          {time}
+                        </div>
+                        <div className="flex-1">
+                          <DroppableCell
+                            id={droppableId}
+                            onAddClick={() => canEditSchedule() && handleAddClick(selectedGridDay, time)}
+                          >
+                            {itemsInCell.map((item) => (
+                              <DraggableScheduleItem
+                                key={item.id}
+                                item={item}
+                                canEdit={canEditSchedule()}
+                                onEdit={handleEditClick}
+                                onDelete={handleDeleteClick}
+                              />
+                            ))}
+                          </DroppableCell>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </DndContext>

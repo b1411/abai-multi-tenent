@@ -672,15 +672,19 @@ export class KtpService {
   }
 
   private transformKtpData(ktp: any) {
-    const plannedLessons = ktp.plannedLessons as any[] || [];
-    
+    const plannedLessons = (ktp.plannedLessons as any[]) || [];
+    // Фильтруем пустые разделы (без уроков) из ответа API
+    const filteredSections = plannedLessons.filter((section: any) =>
+      Array.isArray(section?.lessons) && section.lessons.length > 0
+    );
+
     return {
       id: ktp.id,
       studyPlanId: ktp.studyPlanId,
-      totalHours: plannedLessons.reduce((sum, section) => sum + (section.totalHours || 0), 0),
+      totalHours: filteredSections.reduce((sum, section) => sum + (section.totalHours || 0), 0),
       totalLessons: ktp.totalLessons,
       completionRate: ktp.completionRate,
-      sections: plannedLessons.map((section: any) => ({
+      sections: filteredSections.map((section: any) => ({
         id: section.sectionId,
         title: section.sectionTitle,
         description: section.sectionDescription,

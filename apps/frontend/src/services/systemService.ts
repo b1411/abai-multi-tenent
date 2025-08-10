@@ -16,9 +16,15 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 class SystemService {
+  private buildUrl(endpoint: string): string {
+    const base = API_URL.replace(/\/+$/, ''); // remove trailing slashes
+    const path = endpoint.replace(/^\/+/, ''); // remove leading slashes
+    return `${base}/${path}`;
+  }
+
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const token = localStorage.getItem('token');
-    const url = `${API_URL}${endpoint.startsWith('/') ? endpoint.slice(1) : endpoint}`;
+    const url = this.buildUrl(endpoint);
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -48,7 +54,7 @@ class SystemService {
 
   async downloadBackup(): Promise<Blob> {
     const token = localStorage.getItem('token');
-    const url = `${API_URL}system/backup`;
+  const url = this.buildUrl('system/backup');
     const response = await fetch(url, {
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -152,7 +158,7 @@ class SystemService {
     formData.append('logo', file);
 
     const token = localStorage.getItem('token');
-    const url = `${API_URL}/system/branding/logo`;
+  const url = this.buildUrl('/system/branding/logo');
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -173,7 +179,7 @@ class SystemService {
     formData.append('favicon', file);
 
     const token = localStorage.getItem('token');
-    const url = `${API_URL}/system/branding/favicon`;
+  const url = this.buildUrl('/system/branding/favicon');
     const response = await fetch(url, {
       method: 'POST',
       headers: {

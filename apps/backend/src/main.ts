@@ -158,6 +158,8 @@ Authorization: Bearer <your-jwt-token>
 
   await app.listen(process.env.BACKEND_PORT ?? 3000, '::');
 
+  console.log(process.env)
+
   console.log(`🚀 Application is running on: http://localhost:${process.env.BACKEND_PORT ?? 3000}`);
   console.log(`📚 Swagger documentation available at: http://localhost:${process.env.BACKEND_PORT ?? 3000}/api`);
   console.log(`📄 Swagger JSON available at: http://localhost:${process.env.BACKEND_PORT ?? 3000}/api-json`);

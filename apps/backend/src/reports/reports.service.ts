@@ -760,7 +760,7 @@ export class ReportsService {
       return acc;
     }, {} as any);
 
-    const workloadDistribution = Object.values(teacherWorkloads) as { teacherId: string; teacherName: string; totalHours: number; weeklyHours: number; subjects: string[]; efficiency: number; }[];
+    const workloadDistribution = Object.values(teacherWorkloads);
 
     return {
       period: this.formatPeriod(startDate, endDate),

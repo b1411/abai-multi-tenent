@@ -55,8 +55,13 @@ export class KpiService {
       return sum + totalHours;
     }, 0) / totalTeachers || 0;
 
-    // Процент выполнения нагрузки
-    const workloadCompliance = totalTeachers > 0 ? (teachersWithWorkload.length / totalTeachers) * 100 : 0;
+    // Средний процент выполнения нагрузки (факт/план)
+    const workloadCompliance = teachers.reduce((sum, teacher) => {
+      const totalHours = teacher.workloads.reduce((h, w) => h + w.standardHours, 0);
+      const actualHours = teacher.workloads.reduce((h, w) => h + w.actualHours, 0);
+      const compliance = totalHours > 0 ? (actualHours / totalHours) * 100 : 0;
+      return sum + compliance;
+    }, 0) / (totalTeachers || 1);
 
     // Рассчитываем изменения на основе сравнения с целевыми показателями
     const workloadChange = workloadCompliance > 0 ? Math.round(workloadCompliance - 85) : 0;
@@ -90,7 +95,7 @@ export class KpiService {
       },
     ];
 
-    const overallKpi = totalTeachers > 0 ? Math.round(metrics.reduce((sum, m) => {
+  const overallKpi = totalTeachers > 0 ? Math.round(metrics.reduce((sum, m) => {
       const percentage = m.target > 0 ? (m.value / m.target * 100) : 0;
       return sum + Math.min(percentage, 100);
     }, 0) / metrics.length) : 0;
@@ -105,8 +110,8 @@ export class KpiService {
   }
 
   async getTeacherKpi(filter?: KpiFilterDto): Promise<TeacherKpiResponseDto> {
-    // Получаем настройки KPI
-    const settings = await this.getSettings();
+  // Получаем настройки KPI
+  const settings = await this.getSettings();
 
     const teachers = await this.prisma.teacher.findMany({
       include: {
@@ -125,53 +130,8 @@ export class KpiService {
     // Рассчитываем реальные KPI на основе данных и настроек
     const teacherKpis: TeacherKpiDto[] = await Promise.all(
       teachers.map(async (teacher, index) => {
-        // Рассчитываем каждую метрику по отдельности
-        const controlWorksProgress = await this.calculateStudentControlWorksProgress(teacher.id);
-        const journalFilling = await this.calculateJournalFilling(teacher.id);
-        const workPlanFilling = await this.calculateWorkPlanFilling(teacher.id);
-        const lessonMaterials = await this.calculateLessonMaterials(teacher.id);
-        const studentRetention = await this.calculateStudentRetention(teacher.id);
-        const parentFeedback = await this.calculateParentFeedback(teacher.id);
-
-        // Рассчитываем общий балл на основе весов (только активные метрики)
-        const weights = {
-          controlWorks: 20,
-          journal: 15,
-          workPlan: 15,
-          materials: 15,
-          parentFeedback: 10,
-          retention: 10
-        };
-
-        let totalScore = 0;
-        let totalWeight = 0;
-
-        if (controlWorksProgress >= 0) {
-          totalScore += controlWorksProgress * (weights.controlWorks / 100);
-          totalWeight += weights.controlWorks;
-        }
-        if (journalFilling >= 0) {
-          totalScore += journalFilling * (weights.journal / 100);
-          totalWeight += weights.journal;
-        }
-        if (workPlanFilling >= 0) {
-          totalScore += workPlanFilling * (weights.workPlan / 100);
-          totalWeight += weights.workPlan;
-        }
-        if (lessonMaterials >= 0) {
-          totalScore += lessonMaterials * (weights.materials / 100);
-          totalWeight += weights.materials;
-        }
-        if (studentRetention >= 0) {
-          totalScore += studentRetention * (weights.retention / 100);
-          totalWeight += weights.retention;
-        }
-        if (parentFeedback >= 0) {
-          totalScore += parentFeedback * (weights.parentFeedback / 100);
-          totalWeight += weights.parentFeedback;
-        }
-
-        const overallScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
+        const metrics = await this.calculateTeacherMetrics(teacher, settings.settings);
+        const overallScore = this.calculateOverallScore(metrics, settings.settings);
 
         // Тренд - базируется на соотношении плановой и фактической нагрузки
         const totalWorkloadHours = teacher.workloads.reduce((sum, w) => sum + w.standardHours, 0);
@@ -182,12 +142,13 @@ export class KpiService {
           id: teacher.id,
           name: `${teacher.user.name} ${teacher.user.surname}`,
           overallScore: Math.round(overallScore),
-          teachingQuality: controlWorksProgress, // Прогресс по контрольным работам
-          studentSatisfaction: studentRetention, // Удержание учеников
-          classAttendance: journalFilling, // Заполнение журнала
-          workloadCompliance: workPlanFilling, // Выполнение КТП
-          professionalDevelopment: lessonMaterials, // Материалы к урокам
-          parentFeedback: parentFeedback, // Отзывы от родителей
+          // Совместимость со старым API полей DTO
+          teachingQuality: metrics.teachingQuality,
+          studentSatisfaction: metrics.studentSatisfaction,
+          classAttendance: metrics.classAttendance,
+          workloadCompliance: metrics.workloadCompliance,
+          professionalDevelopment: metrics.professionalDevelopment,
+          parentFeedback: metrics.parentFeedback,
           trend: Math.max(-10, Math.min(10, trend)),
           rank: index + 1,
         };
@@ -1137,11 +1098,19 @@ export class KpiService {
    */
   private getMetricKey(metricName: string): string {
     const keyMap: Record<string, string> = {
-      'Качество преподавания': 'teachingQuality',
-      'Удовлетворенность студентов': 'studentSatisfaction',
-      'Посещаемость занятий': 'classAttendance',
-      'Выполнение нагрузки': 'workloadCompliance',
-      'Профессиональное развитие': 'professionalDevelopment',
+  'Качество преподавания': 'teachingQuality',
+  'Удовлетворенность студентов': 'studentSatisfaction',
+  'Посещаемость занятий': 'classAttendance',
+  'Выполнение нагрузки': 'workloadCompliance',
+  'Профессиональное развитие': 'professionalDevelopment',
+  // Новые названия метрик в настройках
+  'Прогресс ученика по контрольным работам': 'controlWorksProgress',
+  'Заполнение журнала': 'journalFilling',
+  'Заполнение плана работ': 'workPlanFilling',
+  'Заполнение уроков дополнительным материалом': 'lessonMaterials',
+  'Обратная связь родителю': 'parentResponse',
+  'Отзывы от родителей': 'parentFeedback',
+  'Процент удержания учеников': 'studentRetention',
     };
     return keyMap[metricName] || 'unknown';
   }
@@ -1658,9 +1627,9 @@ export class KpiService {
               sender: true,
             },
             orderBy: {
-              createdAt: 'desc',
+              createdAt: 'asc',
             },
-            take: 50, // Последние 50 сообщений в каждом чате
+            take: 200, // Больше сообщений для корректной оценки
           },
         },
       });
@@ -1682,7 +1651,6 @@ export class KpiService {
 
           // Если текущее сообщение от родителя, а следующее от преподавателя
           if (parentUserIds.includes(currentMsg.sender.id) &&
-            currentMsg.sender.id !== teacherUser.user.id &&
             nextMsg.sender.id === teacherUser.user.id) {
 
             const responseTime = nextMsg.createdAt.getTime() - currentMsg.createdAt.getTime();
@@ -1794,7 +1762,7 @@ export class KpiService {
     let ratingCount = 0;
 
     feedbacks.forEach(feedback => {
-      const answers = feedback.answers as any;
+      const answers = feedback.answers;
       if (answers && typeof answers === 'object') {
         Object.entries(answers).forEach(([questionKey, answer]: [string, any]) => {
           // Обрабатываем разные типы ответов
@@ -1864,7 +1832,7 @@ export class KpiService {
     let totalResponses = 0;
 
     feedbacks.forEach(feedback => {
-      const answers = feedback.answers as any;
+      const answers = feedback.answers;
       if (answers && typeof answers === 'object') {
         // Ищем вопросы об удержании (continue_learning, recommend_teacher)
         Object.entries(answers).forEach(([questionKey, answer]: [string, any]) => {

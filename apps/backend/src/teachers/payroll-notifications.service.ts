@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface NotificationTemplate {
   subject: string;
@@ -9,7 +10,10 @@ export interface NotificationTemplate {
 
 @Injectable()
 export class PayrollNotificationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService
+  ) {}
 
   async notifyPayrollCalculated(teacherId: number, month: number, year: number) {
     const teacher = await this.prisma.teacher.findUnique({
@@ -34,7 +38,11 @@ export class PayrollNotificationsService {
       type: 'system',
     };
 
-    await this.createNotification(teacher.user.id, notification);
+    await this.notificationsService.create({
+      userId: teacher.user.id,
+      type: notification.type,
+      message: notification.message,
+    });
   }
 
   async notifyPayrollApproved(teacherId: number, month: number, year: number) {
@@ -60,7 +68,11 @@ export class PayrollNotificationsService {
       type: 'system',
     };
 
-    await this.createNotification(teacher.user.id, notification);
+    await this.notificationsService.create({
+      userId: teacher.user.id,
+      type: notification.type,
+      message: notification.message,
+    });
   }
 
   async notifyPayrollPaid(teacherId: number, month: number, year: number) {
@@ -86,7 +98,11 @@ export class PayrollNotificationsService {
       type: 'system',
     };
 
-    await this.createNotification(teacher.user.id, notification);
+    await this.notificationsService.create({
+      userId: teacher.user.id,
+      type: notification.type,
+      message: notification.message,
+    });
   }
 
   async notifyPayrollRejected(teacherId: number, month: number, year: number, reason: string) {
@@ -112,7 +128,11 @@ export class PayrollNotificationsService {
       type: 'system',
     };
 
-    await this.createNotification(teacher.user.id, notification);
+    await this.notificationsService.create({
+      userId: teacher.user.id,
+      type: notification.type,
+      message: notification.message,
+    });
   }
 
   async notifySubstitutionAssigned(originalTeacherId: number, substituteTeacherId: number, scheduleDetails: any) {
@@ -143,9 +163,9 @@ export class PayrollNotificationsService {
       type: 'system',
     };
 
-    await Promise.all([
-      this.createNotification(substitute.user.id, substituteNotification),
-      this.createNotification(originalTeacher.user.id, originalNotification),
+    await this.notificationsService.addNotificationsBulk([
+      { userId: substitute.user.id, type: substituteNotification.type, message: substituteNotification.message },
+      { userId: originalTeacher.user.id, type: originalNotification.type, message: originalNotification.message },
     ]);
   }
 
@@ -172,11 +192,9 @@ export class PayrollNotificationsService {
       type: 'system',
     };
 
-    const notificationPromises = financists.map(financist =>
-      this.createNotification(financist.id, notification)
+    await this.notificationsService.addNotificationsBulk(
+      financists.map((f) => ({ userId: f.id, type: notification.type, message: notification.message }))
     );
-
-    await Promise.all(notificationPromises);
   }
 
   async notifyBulkPayrollCalculated(month: number, year: number, stats: { successful: number; failed: number }) {
@@ -193,27 +211,12 @@ export class PayrollNotificationsService {
       type: 'system',
     };
 
-    const notificationPromises = admins.map(admin =>
-      this.createNotification(admin.id, notification)
+    await this.notificationsService.addNotificationsBulk(
+      admins.map((a) => ({ userId: a.id, type: notification.type, message: notification.message }))
     );
-
-    await Promise.all(notificationPromises);
   }
 
-  private async createNotification(userId: number, template: NotificationTemplate) {
-    try {
-      await this.prisma.notification.create({
-        data: {
-          userId,
-          type: template.type,
-          message: template.message,
-          read: false,
-        },
-      });
-    } catch (error) {
-      console.error('Failed to create notification:', error);
-    }
-  }
+  // Удалён собственный метод createNotification — используем NotificationsService
 
   async getPayrollNotificationSettings(userId: number) {
     // Здесь можно реализовать пользовательские настройки уведомлений
@@ -275,11 +278,9 @@ export class PayrollNotificationsService {
         type: 'system',
       };
 
-      const notificationPromises = financists.map(financist =>
-        this.createNotification(financist.id, notification)
+      await this.notificationsService.addNotificationsBulk(
+        financists.map((f) => ({ userId: f.id, type: notification.type, message: notification.message }))
       );
-
-      await Promise.all(notificationPromises);
     }
   }
 }

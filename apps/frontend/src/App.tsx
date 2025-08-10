@@ -67,6 +67,7 @@ import QuizAttemptResultPage from './pages/QuizAttemptResultPage';
 import Teachers from './pages/Teachers';
 import TeacherProfile from './pages/TeacherProfile';
 import AdminChats from './pages/AdminChats';
+import NotificationsPage from './pages/Notifications';
 
 const App: React.FC = () => {
   return (
@@ -208,6 +209,9 @@ const App: React.FC = () => {
                       <Route path="system" element={<SystemSettings />} />
                       <Route path="activity-monitoring" element={<ActivityMonitoring />} />
                     </Route>
+
+                    {/* Notifications route */}
+                    <Route path="notifications" element={<NotificationsPage />} />
                   </Route>
                 </Routes>
               </BrandingProvider>

@@ -1,16 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { feedbackService, FeedbackTemplate } from '../services/feedbackService';
-
-interface AnonymizedResponse {
-  id: number;
-  anonymousId: string;
-  role: string;
-  template: string;
-  answers: any;
-  period: string;
-  submittedAt: string;
-  templateQuestions: any[];
-}
+import React, { useState, useEffect, useCallback } from 'react';
+import { feedbackService, FeedbackTemplate, AnonymizedResponse, Question } from '../services/feedbackService';
 
 interface Pagination {
   page: number;
@@ -35,12 +24,29 @@ const FeedbackResponsesViewer: React.FC = () => {
 
   useEffect(() => {
     loadTemplates();
-    loadResponses();
   }, []);
+
+  const loadResponses = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await feedbackService.getAnonymizedResponses({
+        templateId: selectedTemplate,
+        period: selectedPeriod || undefined,
+        page: pagination.page,
+        limit: pagination.limit,
+      });
+      setResponses(data.data);
+      setPagination(data.pagination);
+    } catch (error) {
+      console.error('Ошибка загрузки ответов:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.page, pagination.limit, selectedTemplate, selectedPeriod]);
 
   useEffect(() => {
     loadResponses();
-  }, [pagination.page, selectedTemplate, selectedPeriod]);
+  }, [loadResponses]);
 
   const loadTemplates = async () => {
     try {
@@ -51,44 +57,25 @@ const FeedbackResponsesViewer: React.FC = () => {
     }
   };
 
-  const loadResponses = async () => {
-    setLoading(true);
-    try {
-      const data = await feedbackService.getAnonymizedResponses({
-        templateId: selectedTemplate,
-        period: selectedPeriod || undefined,
-        page: pagination.page,
-        limit: pagination.limit,
-      });
-      
-      setResponses(data.data);
-      setPagination(data.pagination);
-    } catch (error) {
-      console.error('Ошибка загрузки ответов:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatAnswer = (question: any, answer: any) => {
+  const formatAnswer = (question: Question, answer: unknown) => {
     if (answer === null || answer === undefined) {
       return '—';
     }
 
     switch (question.type) {
       case 'RATING_1_5':
-        return `${answer}/5`;
+        return `${answer as number}/5`;
       case 'RATING_1_10':
-        return `${answer}/10`;
+        return `${answer as number}/10`;
       case 'EMOTIONAL_SCALE':
-        return `${answer}%`;
+        return `${answer as number}%`;
       case 'YES_NO':
         return answer ? 'Да' : 'Нет';
       case 'TEXT':
-        return answer || '—';
+        return (answer as string) || '—';
       case 'TEACHER_RATING':
-        if (typeof answer === 'object') {
-          return Object.entries(answer)
+        if (typeof answer === 'object' && answer !== null) {
+          return Object.entries(answer as Record<string, unknown>)
             .map(([teacherId, rating]) => `Преподаватель ${teacherId}: ${rating}/5`)
             .join(', ');
         }
@@ -98,15 +85,16 @@ const FeedbackResponsesViewer: React.FC = () => {
     }
   };
 
-  const getRatingColor = (question: any, answer: any) => {
+  const getRatingColor = (question: Question, answer: unknown) => {
+    const numeric = typeof answer === 'number' ? answer : Number(answer);
     if (question.type === 'RATING_1_5') {
-      if (answer >= 4) return 'text-green-600';
-      if (answer >= 3) return 'text-yellow-600';
+      if (numeric >= 4) return 'text-green-600';
+      if (numeric >= 3) return 'text-yellow-600';
       return 'text-red-600';
     }
     if (question.type === 'EMOTIONAL_SCALE') {
-      if (answer >= 70) return 'text-green-600';
-      if (answer >= 40) return 'text-yellow-600';
+      if (numeric >= 70) return 'text-green-600';
+      if (numeric >= 40) return 'text-yellow-600';
       return 'text-red-600';
     }
     return 'text-gray-700';
@@ -134,7 +122,7 @@ const FeedbackResponsesViewer: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
     const periods = [];
-    
+
     for (let year = currentYear; year >= currentYear - 1; year--) {
       const maxMonth = year === currentYear ? currentMonth : 12;
       for (let month = maxMonth; month >= 1; month--) {
@@ -145,7 +133,7 @@ const FeedbackResponsesViewer: React.FC = () => {
         });
       }
     }
-    
+
     return periods;
   };
 
@@ -163,7 +151,7 @@ const FeedbackResponsesViewer: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
           Анонимизированные ответы студентов
         </h2>
-        
+
         {/* Фильтры */}
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="flex-1">
@@ -183,7 +171,7 @@ const FeedbackResponsesViewer: React.FC = () => {
               ))}
             </select>
           </div>
-          
+
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Период
@@ -232,7 +220,7 @@ const FeedbackResponsesViewer: React.FC = () => {
                           {response.template} • {response.role} • {response.period}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {new Date(response.submittedAt).toLocaleString('ru-RU')}
+                          {response.submittedAt ? new Date(response.submittedAt).toLocaleString('ru-RU') : '—'}
                         </p>
                       </div>
                       <button
@@ -243,14 +231,14 @@ const FeedbackResponsesViewer: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  
+
                   {expandedResponse === response.id && (
                     <div className="p-4">
                       <div className="grid gap-4">
                         {response.templateQuestions.map((question, index) => {
                           const answer = response.answers[question.id];
                           if (answer === undefined || answer === null) return null;
-                          
+
                           return (
                             <div key={question.id} className="border-b border-gray-100 pb-3 last:border-b-0">
                               <div className="flex justify-between items-start mb-2">
@@ -281,7 +269,7 @@ const FeedbackResponsesViewer: React.FC = () => {
               <div className="text-sm text-gray-700">
                 Показано {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} из {pagination.total} ответов
               </div>
-              
+
               <div className="flex space-x-2">
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
@@ -290,24 +278,23 @@ const FeedbackResponsesViewer: React.FC = () => {
                 >
                   Назад
                 </button>
-                
+
                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                   const page = i + 1;
                   return (
                     <button
                       key={page}
                       onClick={() => handlePageChange(page)}
-                      className={`px-3 py-1 border rounded text-sm ${
-                        pagination.page === page
+                      className={`px-3 py-1 border rounded text-sm ${pagination.page === page
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'border-gray-300 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       {page}
                     </button>
                   );
                 })}
-                
+
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}

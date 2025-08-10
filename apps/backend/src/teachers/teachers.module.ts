@@ -11,6 +11,7 @@ import { PayrollNotificationsService } from './payroll-notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ScheduleService } from 'src/schedule/schedule.service';
 import { SystemService } from '../system/system.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Module({
   controllers: [TeachersController, PayrollController, SubstitutionController],
@@ -23,7 +24,8 @@ import { SystemService } from '../system/system.service';
     PayrollNotificationsService,
     PrismaService,
     ScheduleService,
-    SystemService
+  SystemService,
+  NotificationsService
   ],
   exports: [
     TeachersService,

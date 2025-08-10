@@ -615,16 +615,17 @@ export class LessonResultsService {
         }
       }
 
-      // Создаем все уведомления
+      // Создаем все уведомления (индивидуально для каждого получателя)
       if (notifications.length > 0) {
-        const userIds = notifications.map(n => n.userId);
-        await this.notificationsService.addNotification({
-          userIds,
-          type: notifications[0].type,
-          message: notifications[0].message,
-          url: notifications[0].url,
-          createdBy: notifications[0].createdBy,
-        });
+        await this.notificationsService.addNotificationsBulk(
+          notifications.map(n => ({
+            userId: n.userId,
+            type: n.type,
+            message: n.message,
+            url: n.url,
+            createdBy: n.createdBy,
+          }))
+        );
       }
     } catch (error) {
       console.error('Error creating grade notifications:', error);

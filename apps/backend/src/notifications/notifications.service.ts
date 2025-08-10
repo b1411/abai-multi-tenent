@@ -64,6 +64,43 @@ export class NotificationsService {
     return notifications;
   }
 
+  /**
+   * Пакетное создание уведомлений с индивидуальными сообщениями/ссылками для каждого получателя
+   */
+  async addNotificationsBulk(notifications: Array<{
+    userId: number;
+    type: string;
+    message: string;
+    url?: string;
+    createdBy?: number;
+  }>) {
+    const created: any[] = [];
+    for (const n of notifications) {
+      try {
+        const notification = await this.prisma.notification.create({
+          data: {
+            userId: n.userId,
+            type: n.type,
+            message: n.message,
+            url: n.url,
+            createdBy: n.createdBy,
+          },
+          include: {
+            user: {
+              select: { id: true, name: true, surname: true, role: true }
+            }
+          }
+        });
+
+        this.publishNotification(n.userId, notification);
+        created.push(notification);
+      } catch (error) {
+        this.logger.error('Error creating notification (bulk item):', error);
+      }
+    }
+    return created;
+  }
+
   private publishNotification(userId: number, notification: any) {
     try {
       const event: NotificationEvent = {

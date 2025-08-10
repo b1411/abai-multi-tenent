@@ -634,13 +634,11 @@ export class VacationsService {
       completed: 'Ваш отпуск завершен'
     };
 
-    await this.prisma.notification.create({
-      data: {
-        userId: vacation.teacher.userId,
-        type: 'vacation_status_update',
-        message: statusMessages[status] || 'Статус вашей заявки на отпуск изменен',
-        url: `/vacations/${vacation.id}`
-      }
+    await this.notificationsService.create({
+      userId: vacation.teacher.userId,
+      type: 'vacation_status_update',
+      message: statusMessages[status] || 'Статус вашей заявки на отпуск изменен',
+      url: `/vacations/${vacation.id}`
     });
   }
 

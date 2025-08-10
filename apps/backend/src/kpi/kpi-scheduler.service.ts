@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { KpiService } from './kpi.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class KpiSchedulerService {
@@ -9,7 +10,8 @@ export class KpiSchedulerService {
 
   constructor(
     private readonly kpiService: KpiService,
-    private readonly prisma: PrismaService,
+  private readonly prisma: PrismaService,
+  private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -188,22 +190,17 @@ export class KpiSchedulerService {
   private async sendLowKpiNotification(teacher: any, currentScore: number, threshold: number) {
     this.logger.warn(`Низкий KPI у преподавателя ${teacher.user.name} ${teacher.user.surname}: ${currentScore} (порог: ${threshold})`);
 
-    // Здесь должна быть интеграция с системой уведомлений
-    // Например, отправка email, push-уведомлений или создание задач в системе
-
-    // Пример создания уведомления:
-    /*
-    await this.prisma.notification.create({
-      data: {
+    // Создаем системное уведомление через NotificationsService (опционально включаем ссылку на KPI-отчёт)
+    try {
+      await this.notificationsService.create({
         userId: teacher.userId,
         type: 'LOW_KPI_WARNING',
-        title: 'Низкий показатель KPI',
-        message: `Ваш KPI (${currentScore}) ниже установленного порога (${threshold}). Рекомендуется принять меры для улучшения показателей.`,
-        isRead: false,
-        createdAt: new Date(),
-      },
-    });
-    */
+        message: `Ваш KPI (${currentScore}) ниже порога (${threshold}). Проверьте рекомендации по улучшению показателей.`,
+        url: '/kpi',
+      });
+    } catch (e) {
+      this.logger.error('Не удалось создать уведомление LOW_KPI_WARNING', e);
+    }
   }
 
   /**

@@ -37,6 +37,18 @@ export interface FeedbackResponse {
   period?: string;
 }
 
+// Shape of anonymized response returned by /feedback/responses
+export interface AnonymizedResponse {
+  id: number;
+  anonymousId: string;
+  role: string;
+  template: string;
+  answers: Record<string, unknown>;
+  period?: string;
+  submittedAt?: string;
+  templateQuestions: Question[];
+}
+
 export interface MandatoryFeedbackStatus {
   hasCompletedMandatory: boolean;
   pendingTemplates: FeedbackTemplate[];
@@ -418,7 +430,7 @@ class FeedbackService {
     page?: number;
     limit?: number;
   } = {}): Promise<{
-    data: FeedbackResponse[];
+  data: AnonymizedResponse[];
     pagination: {
       page: number;
       limit: number;
@@ -432,7 +444,7 @@ class FeedbackService {
     params.append('page', (options.page || 1).toString());
     params.append('limit', (options.limit || 20).toString());
 
-  return await apiClient.get<{ data: FeedbackResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/feedback/responses?${params.toString()}`);
+  return await apiClient.get<{ data: AnonymizedResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/feedback/responses?${params.toString()}`);
   }
 
   // Создание предустановленных шаблонов через новый API

@@ -8,6 +8,7 @@ import { ScheduleAiController } from './schedule-ai.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '../jwt/jwt.service';
 import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Module({
   controllers: [ScheduleController, ScheduleAiController],
@@ -18,7 +19,8 @@ import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
     ScheduleManagementService,
     PrismaService,
     JwtService,
-    AiAssistantService
+  AiAssistantService,
+  NotificationsService
   ],
   exports: [
     ScheduleService,

@@ -3,9 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ScheduleAiService } from './schedule-ai.service';
 import { 
   ScheduleStatus, 
-  ScheduleType,
-  Schedule
+  ScheduleType
 } from '../../generated/prisma';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface RescheduleRequest {
   scheduleId: string;
@@ -52,7 +52,8 @@ export class ScheduleManagementService {
 
   constructor(
     private prisma: PrismaService,
-    private scheduleAiService: ScheduleAiService
+    private scheduleAiService: ScheduleAiService,
+    private notificationsService: NotificationsService
   ) {}
 
   /**
@@ -279,7 +280,7 @@ export class ScheduleManagementService {
             case 'RESCHEDULE':
               result = await this.rescheduleLesson({
                 scheduleId,
-                ...operation.data,
+                ...(operation.data as Omit<RescheduleRequest, 'scheduleId' | 'reason'>),
                 reason: operation.reason
               });
               break;
@@ -295,7 +296,7 @@ export class ScheduleManagementService {
             case 'SUBSTITUTE':
               result = await this.assignSubstitute({
                 scheduleId,
-                ...operation.data,
+                ...(operation.data as Omit<SubstituteRequest, 'scheduleId' | 'reason'>),
                 reason: operation.reason
               });
               break;
@@ -466,72 +467,56 @@ export class ScheduleManagementService {
     newSchedule: any,
     reason: string
   ) {
-    // Здесь была бы логика отправки уведомлений
-    // Можно интегрировать с существующей системой уведомлений
     this.logger.log(`Sending reschedule notifications for schedule ${originalSchedule.id}`);
-    
-    // Создаем уведомления в базе данных
-    const notifications = [];
 
-    // Уведомление группе студентов
     const students = await this.prisma.student.findMany({
       where: { groupId: originalSchedule.groupId },
       include: { user: true }
     });
 
-    for (const student of students) {
-      notifications.push({
+    const notifications = [
+      ...students.map((student) => ({
         userId: student.userId,
         type: 'SCHEDULE_RESCHEDULE',
         message: `Занятие "${originalSchedule.lesson?.name}" перенесено с ${originalSchedule.date.toISOString().split('T')[0]} ${originalSchedule.startTime} на ${newSchedule.date.toISOString().split('T')[0]} ${newSchedule.startTime}. Причина: ${reason}`,
         url: `/schedule/${newSchedule.id}`
-      });
-    }
+      })),
+      {
+        userId: originalSchedule.teacher.userId,
+        type: 'SCHEDULE_RESCHEDULE',
+        message: `Ваше занятие "${originalSchedule.lesson?.name}" перенесено с ${originalSchedule.date.toISOString().split('T')[0]} ${originalSchedule.startTime} на ${newSchedule.date.toISOString().split('T')[0]} ${newSchedule.startTime}`,
+        url: `/schedule/${newSchedule.id}`
+      }
+    ];
 
-    // Уведомление преподавателю
-    notifications.push({
-      userId: originalSchedule.teacher.userId,
-      type: 'SCHEDULE_RESCHEDULE',
-      message: `Ваше занятие "${originalSchedule.lesson?.name}" перенесено с ${originalSchedule.date.toISOString().split('T')[0]} ${originalSchedule.startTime} на ${newSchedule.date.toISOString().split('T')[0]} ${newSchedule.startTime}`,
-      url: `/schedule/${newSchedule.id}`
-    });
-
-    await this.prisma.notification.createMany({
-      data: notifications
-    });
+  // Используем NotificationsService для записи и SSE
+    await this.notificationsService.addNotificationsBulk(notifications);
   }
 
   private async sendCancellationNotifications(schedule: any, reason: string) {
     this.logger.log(`Sending cancellation notifications for schedule ${schedule.id}`);
 
-    const notifications = [];
-
-    // Уведомление группе студентов
     const students = await this.prisma.student.findMany({
       where: { groupId: schedule.groupId },
       include: { user: true }
     });
 
-    for (const student of students) {
-      notifications.push({
+    const notifications = [
+      ...students.map((student) => ({
         userId: student.userId,
         type: 'SCHEDULE_CANCEL',
         message: `Занятие "${schedule.lesson?.name}" ${schedule.date.toISOString().split('T')[0]} ${schedule.startTime} отменено. Причина: ${reason}`,
         url: `/schedule`
-      });
-    }
+      })),
+      {
+        userId: schedule.teacher.userId,
+        type: 'SCHEDULE_CANCEL',
+        message: `Ваше занятие "${schedule.lesson?.name}" ${schedule.date.toISOString().split('T')[0]} ${schedule.startTime} отменено`,
+        url: `/schedule`
+      }
+    ];
 
-    // Уведомление преподавателю
-    notifications.push({
-      userId: schedule.teacher.userId,
-      type: 'SCHEDULE_CANCEL',
-      message: `Ваше занятие "${schedule.lesson?.name}" ${schedule.date.toISOString().split('T')[0]} ${schedule.startTime} отменено`,
-      url: `/schedule`
-    });
-
-    await this.prisma.notification.createMany({
-      data: notifications
-    });
+    await this.notificationsService.addNotificationsBulk(notifications);
   }
 
   private async sendSubstituteNotifications(
@@ -546,43 +531,33 @@ export class ScheduleManagementService {
       include: { user: true }
     });
 
-    const notifications = [];
-
     // Уведомление группе студентов
     const students = await this.prisma.student.findMany({
       where: { groupId: schedule.groupId },
       include: { user: true }
     });
 
-    for (const student of students) {
-      notifications.push({
+    const notifications = [
+      ...students.map((student) => ({
         userId: student.userId,
         type: 'SCHEDULE_SUBSTITUTE',
         message: `В занятии "${schedule.lesson?.name}" ${schedule.date.toISOString().split('T')[0]} ${schedule.startTime} произошла замена преподавателя. Вместо ${schedule.teacher.user.name} будет вести ${substitute?.user.name}. Причина: ${reason}`,
         url: `/schedule/${schedule.id}`
-      });
-    }
-
-    // Уведомление оригинальному преподавателю
-    notifications.push({
-      userId: schedule.teacher.userId,
-      type: 'SCHEDULE_SUBSTITUTE',
-      message: `Для вашего занятия "${schedule.lesson?.name}" ${schedule.date.toISOString().split('T')[0]} ${schedule.startTime} назначен замещающий преподаватель: ${substitute?.user.name}`,
-      url: `/schedule/${schedule.id}`
-    });
-
-    // Уведомление замещающему преподавателю
-    if (substitute) {
-      notifications.push({
+      })),
+      {
+        userId: schedule.teacher.userId,
+        type: 'SCHEDULE_SUBSTITUTE',
+        message: `Для вашего занятия "${schedule.lesson?.name}" ${schedule.date.toISOString().split('T')[0]} ${schedule.startTime} назначен замещающий преподаватель: ${substitute?.user.name}`,
+        url: `/schedule/${schedule.id}`
+      },
+      ...(substitute ? [{
         userId: substitute.userId,
         type: 'SCHEDULE_SUBSTITUTE',
         message: `Вы назначены замещающим преподавателем для занятия "${schedule.lesson?.name}" ${schedule.date.toISOString().split('T')[0]} ${schedule.startTime}. Группа: ${schedule.group.name}`,
         url: `/schedule/${schedule.id}`
-      });
-    }
+      }] : [])
+    ];
 
-    await this.prisma.notification.createMany({
-      data: notifications
-    });
+    await this.notificationsService.addNotificationsBulk(notifications);
   }
 }

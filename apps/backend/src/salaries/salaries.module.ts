@@ -4,10 +4,11 @@ import { SalariesService } from './salaries.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from 'src/jwt/jwt.service';
 import { PayrollNotificationsService } from '../teachers/payroll-notifications.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
     controllers: [SalariesController],
-    providers: [SalariesService, PrismaService, JwtService, PayrollNotificationsService],
+    providers: [SalariesService, PrismaService, JwtService, PayrollNotificationsService, NotificationsService],
     exports: [SalariesService],
 })
 export class SalariesModule { }

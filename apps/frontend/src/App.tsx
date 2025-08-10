@@ -68,6 +68,8 @@ import Teachers from './pages/Teachers';
 import TeacherProfile from './pages/TeacherProfile';
 import AdminChats from './pages/AdminChats';
 import NotificationsPage from './pages/Notifications';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const App: React.FC = () => {
   return (
@@ -79,6 +81,8 @@ const App: React.FC = () => {
               <BrandingProvider>
                 <Routes>
                   <Route path="/login" element={<Login />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route
                     path="/"
                     element={

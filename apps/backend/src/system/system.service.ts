@@ -332,10 +332,11 @@ export class SystemService {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    // Генерируем новый пароль
-    const newPassword = crypto.randomBytes(8).toString('hex');
-    // В реальном приложении нужно хешировать пароль
-    const hashedPassword = newPassword; // Временно без хеширования
+  // Генерируем новый пароль
+  const newPassword = crypto.randomBytes(8).toString('hex');
+  // Хешируем пароль
+  const { hash } = await import('bcryptjs');
+  const hashedPassword = await hash(newPassword, 10);
 
     await this.prisma.user.update({
       where: { id: userId },

@@ -4,9 +4,10 @@ import { AuthController } from './auth.controller';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from 'src/jwt/jwt.service';
 import { ActivityMonitoringModule } from '../activity-monitoring/activity-monitoring.module';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
-  imports: [ActivityMonitoringModule],
+  imports: [ActivityMonitoringModule, MailModule],
   controllers: [AuthController],
   providers: [AuthService, PrismaService, JwtService],
 })

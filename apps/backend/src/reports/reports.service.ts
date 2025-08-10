@@ -737,8 +737,9 @@ export class ReportsService {
     const totalHours = workloads.reduce((sum, w) => sum + (w.actualHours || 0), 0);
     const averageWorkload = totalTeachers > 0 ? totalHours / totalTeachers : 0;
 
+    type WorkloadItem = WorkloadAnalysisData['workloadDistribution'][number];
     const teacherWorkloads = workloads.reduce((acc, workload) => {
-      const teacherId = workload.teacherId;
+      const teacherId = String(workload.teacherId);
       const teacherName = workload.teacher?.user?.name && workload.teacher?.user?.surname
         ? `${workload.teacher.user.name} ${workload.teacher.user.surname}`
         : 'Неизвестный преподаватель';
@@ -751,16 +752,16 @@ export class ReportsService {
           weeklyHours: 0,
           subjects: [],
           efficiency: 0,
-        };
+        } as WorkloadItem;
       }
 
       acc[teacherId].totalHours += workload.actualHours || 0;
       acc[teacherId].weeklyHours += (workload.actualHours || 0) / 4;
 
       return acc;
-    }, {} as any);
+    }, {} as Record<string, WorkloadItem>);
 
-    const workloadDistribution = Object.values(teacherWorkloads);
+    const workloadDistribution: WorkloadItem[] = Object.values(teacherWorkloads);
 
     return {
       period: this.formatPeriod(startDate, endDate),

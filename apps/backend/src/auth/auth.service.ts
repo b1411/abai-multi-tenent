@@ -1,17 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LoginDto } from './dto/login-dto';
 import { JwtService } from 'src/jwt/jwt.service';
 import { ActivityMonitoringService } from '../activity-monitoring/activity-monitoring.service';
 import { compare } from "bcryptjs"
 import { Request } from 'express';
+import { randomBytes, createHash } from 'crypto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
     constructor(
         private prisma: PrismaService, 
         private readonly jwt: JwtService,
-        private activityMonitoringService: ActivityMonitoringService
+        private activityMonitoringService: ActivityMonitoringService,
+        private readonly mailService: MailService,
     ) { }
 
     async login(loginDto: LoginDto, request?: Request) {
@@ -57,5 +60,63 @@ export class AuthService {
         } catch (error) {
             console.error('Error terminating session:', error);
         }
+    }
+
+    // Forgot password: create token and send email
+    async requestPasswordReset(email: string, req?: Request) {
+        const user = await this.prisma.user.findUnique({ where: { email } });
+        // Do not reveal user existence
+        if (!user) return;
+
+        // Generate token and store hash
+        const rawToken = randomBytes(32).toString('hex');
+        const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 60 minutes
+
+        await this.prisma.passwordResetToken.create({
+            data: {
+                userId: user.id,
+                tokenHash,
+                expiresAt,
+                ipAddress: req?.ip,
+                userAgent: req?.headers['user-agent'] || undefined,
+            }
+        });
+
+    const frontendUrl = process.env.FRONTEND_URL || process.env.VITE_PORT ? `http://localhost:${process.env.VITE_PORT}` : 'http://localhost:5173';
+        const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+
+    // Send email via MailService
+    await this.mailService.sendPasswordResetEmail(email, resetUrl);
+    }
+
+    // Reset password by token
+    async resetPasswordByToken(token: string, newPassword: string) {
+        if (!token || !newPassword || newPassword.length < 8) {
+            throw new BadRequestException('Некорректные данные');
+        }
+
+        const tokenHash = createHash('sha256').update(token).digest('hex');
+        const record = await (this.prisma as any).passwordResetToken.findFirst({
+            where: {
+                tokenHash,
+                usedAt: null,
+                expiresAt: { gt: new Date() },
+            }
+        });
+
+        if (!record) {
+            throw new BadRequestException('Неверный или просроченный токен');
+        }
+
+        const { hash } = await import('bcryptjs');
+        const hashedPassword = await hash(newPassword, 10);
+
+        await this.prisma.$transaction([
+            this.prisma.user.update({ where: { id: record.userId }, data: { hashedPassword } }),
+            (this.prisma as any).passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+            // Invalidate active sessions
+            (this.prisma as any).userSession.updateMany({ where: { userId: record.userId, status: 'ACTIVE' }, data: { status: 'TERMINATED', logoutAt: new Date() } })
+        ]);
     }
 }

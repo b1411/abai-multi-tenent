@@ -63,8 +63,13 @@ const Login: React.FC = () => {
     try {
       await login(formData);
       handleSuccessfulLogin();
-    } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при входе');
+    } catch (err: unknown) {
+      let message = 'Произошла ошибка при входе';
+      if (err && typeof err === 'object') {
+        const e = err as { message?: string };
+        if (e.message) message = e.message;
+      }
+      setError(message);
       setIsLoading(false);
     }
   };
@@ -247,7 +252,7 @@ const Login: React.FC = () => {
               <motion.a
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                href="#"
+                href="/forgot-password"
                 className="text-sm font-medium text-[#ca181f] hover:text-[#ca181f]/80"
               >
                 Забыли пароль?

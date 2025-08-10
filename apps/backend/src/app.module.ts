@@ -42,6 +42,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ActivityMonitoringModule } from './activity-monitoring/activity-monitoring.module';
 import { EducationalReportsModule } from './educational-reports/educational-reports.module';
 import { EdoModule } from './edo/edo.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -87,6 +89,8 @@ import { EdoModule } from './edo/edo.module';
     FilesModule,
     LessonResultsModule,
     AiAssistantModule,
+    MailModule,
+
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, JwtService],

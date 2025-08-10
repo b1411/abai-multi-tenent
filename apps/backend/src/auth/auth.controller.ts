@@ -16,12 +16,6 @@ export class AuthController {
 Аутентификация пользователя в системе.
 
 **Доступные роли:**
-- ADMIN - администратор системы
-- TEACHER - преподаватель  
-- STUDENT - студент
-- PARENT - родитель
-- HR - HR менеджер
-- FINANCIST - финансист
 
 **Пример использования:**
 \`\`\`json
@@ -119,5 +113,22 @@ export class AuthController {
   })
   login(@Body() loginDto: LoginDto, @Req() request: Request) {
     return this.authService.login(loginDto, request);
+  }
+  
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Запрос на восстановление пароля' })
+  @ApiBody({ schema: { properties: { email: { type: 'string', format: 'email' } } } })
+  async forgotPassword(@Body('email') email: string, @Req() req: Request) {
+    await this.authService.requestPasswordReset(email, req);
+    // Не раскрываем, существует ли email
+    return { message: 'Если такой аккаунт существует, мы отправили инструкции на почту.' };
+  }
+  
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Сброс пароля по токену' })
+  @ApiBody({ schema: { properties: { token: { type: 'string' }, password: { type: 'string', minLength: 8 } } } })
+  async resetPassword(@Body() body: { token: string; password: string }) {
+    await this.authService.resetPasswordByToken(body.token, body.password);
+    return { message: 'Пароль обновлен. Войдите с новым паролем.' };
   }
 }

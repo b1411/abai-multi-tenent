@@ -119,6 +119,7 @@ model User {
   sessions     UserSession[]
   activityLogs ActivityLog[]
   onlineStatus UserOnlineStatus?
+  passwordResetTokens PasswordResetToken[]
 
   // EDO relations
   createdDocuments     Document[]         @relation("CreatedDocuments")
@@ -1598,14 +1599,30 @@ model ActivityLog {
   // Результат
   success      Boolean @default(true)
   errorMessage String? @db.Text
-
-  createdAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([type, createdAt])
   @@index([sessionId])
   @@index([createdAt])
   @@index([userId, type])
+}
+
+// --- Password Recovery ---
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?  @db.Text
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // Статистика активности по дням

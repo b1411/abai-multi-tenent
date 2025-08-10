@@ -11,7 +11,7 @@ import { MailService } from '../mail/mail.service';
 @Injectable()
 export class AuthService {
     constructor(
-        private prisma: PrismaService, 
+        private prisma: PrismaService,
         private readonly jwt: JwtService,
         private activityMonitoringService: ActivityMonitoringService,
         private readonly mailService: MailService,
@@ -83,11 +83,11 @@ export class AuthService {
             }
         });
 
-    const frontendUrl = process.env.FRONTEND_URL || process.env.VITE_PORT ? `http://localhost:${process.env.VITE_PORT}` : 'http://localhost:5173';
+        const frontendUrl = "https://fizmat-academy.abai.live"; // TODO: сделать динамическим
         const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
 
-    // Send email via MailService
-    await this.mailService.sendPasswordResetEmail(email, resetUrl);
+        // Send email via MailService
+        await this.mailService.sendPasswordResetEmail(email, resetUrl);
     }
 
     // Reset password by token

@@ -69,38 +69,13 @@ export class AiAssistantService {
       const systemPrompt = this.buildSystemPrompt();
       const userPrompt = this.buildUserPrompt(params, contextData);
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-2024-08-06',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          response_format: {
-            type: 'json_schema',
-            json_schema: {
-              name: 'schedule_generation',
-              schema: scheduleGenerationSchema,
-              strict: true
-            }
-          },
-          temperature: 0.3, // Низкая температура для более предсказуемых результатов
-        }),
+      const aiResponse = await this.postOpenAIResponseWithSchema<AIScheduleResponseDto>({
+        instructions: systemPrompt,
+        input: userPrompt,
+        schemaName: 'schedule_generation',
+        schema: scheduleGenerationSchema,
+        temperature: 0.3,
       });
-
-      if (!response.ok) {
-        const error = await response.text();
-        this.logger.error(`OpenAI API error: ${response.status} - ${error}`);
-        throw new Error(`Failed to generate schedule: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const aiResponse = JSON.parse(data.choices[0].message.content);
 
       // Добавляем метаданные
       aiResponse.generatedAt = new Date().toISOString();
@@ -136,38 +111,13 @@ export class AiAssistantService {
       const systemPrompt = this.buildScheduleFromLessonsSystemPrompt();
       const userPrompt = this.buildScheduleFromLessonsUserPrompt(params, existingLessons, classrooms);
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          response_format: {
-            type: 'json_schema',
-            json_schema: {
-              name: 'lesson_generation',
-              schema: lessonGenerationSchema,
-              strict: true
-            }
-          },
-          temperature: 0.3,
-        }),
+      const aiResponse = await this.postOpenAIResponseWithSchema<AILessonsResponseDto>({
+        instructions: systemPrompt,
+        input: userPrompt,
+        schemaName: 'lesson_generation',
+        schema: lessonGenerationSchema,
+        temperature: 0.3,
       });
-
-      if (!response.ok) {
-        const error = await response.text();
-        this.logger.error(`OpenAI API error: ${response.status} - ${error}`);
-        throw new Error(`Failed to generate lessons: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const aiResponse = JSON.parse(data.choices[0].message.content);
 
       // Добавляем метаданные
       aiResponse.generatedAt = new Date().toISOString();
@@ -192,38 +142,14 @@ export class AiAssistantService {
       const systemPrompt = this.buildAnalysisSystemPrompt();
       const userPrompt = this.buildAnalysisUserPrompt(scheduleItems);
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-2024-08-06',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          response_format: {
-            type: 'json_schema',
-            json_schema: {
-              name: 'schedule_analysis',
-              schema: scheduleAnalysisSchema,
-              strict: true
-            }
-          },
-          temperature: 0.2,
-        }),
+      const aiResponse = await this.postOpenAIResponseWithSchema<any>({
+        instructions: systemPrompt,
+        input: userPrompt,
+        schemaName: 'schedule_analysis',
+        schema: scheduleAnalysisSchema,
+        temperature: 0.2,
       });
-
-      if (!response.ok) {
-        const error = await response.text();
-        this.logger.error(`OpenAI API error: ${response.status} - ${error}`);
-        throw new Error(`Failed to analyze schedule: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return JSON.parse(data.choices[0].message.content);
+      return aiResponse;
     } catch (error) {
       this.logger.error('Error analyzing schedule conflicts:', error);
       throw error;
@@ -461,38 +387,19 @@ ${scheduleItems.map((item, index) =>
         }
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-2024-08-06',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 3000
-        }),
+      const aiResponseText = await this.postOpenAIResponseText({
+        instructions: systemPrompt,
+        input: userPrompt,
+        temperature: 0.7,
+        model: 'gpt-4o-2024-08-06',
       });
 
-      if (!response.ok) {
-        const error = await response.text();
-        this.logger.error(`OpenAI API error: ${response.status} - ${error}`);
-        throw new Error(`Failed to process request: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const aiResponse = data.choices[0]?.message?.content;
-
-      if (!aiResponse) {
+      if (!aiResponseText) {
         throw new Error('No response from AI');
       }
 
       this.logger.log('Neuro Abai request processed successfully');
-      return aiResponse;
+      return aiResponseText;
 
     } catch (error) {
       this.logger.error('Error processing Neuro Abai request:', error);
@@ -734,7 +641,11 @@ ${scheduleItems.map((item, index) =>
     // Вычисляем рабочие дни в периоде
     const startDate = new Date(params.startDate);
     const endDate = new Date(params.endDate);
-    const workingDaysCount = this.calculateWorkingDays(startDate, endDate, excludeDates);
+    const workingDaysCount = this.calculateWorkingDays(
+      startDate,
+      endDate,
+      Array.isArray(excludeDates) ? excludeDates.map((d: any) => String(d)) : []
+    );
 
     return `Сгенерируй календарно-тематическое планирование уроков со следующими параметрами:
 
@@ -921,31 +832,7 @@ ${classrooms.map(room => `
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-2024-08-06',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.3,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      this.logger.error(`OpenAI API error: ${response.status} - ${error}`);
-      throw new Error(`Failed to get completion: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
+  return this.postOpenAIResponseJsonObject(systemPrompt, userPrompt, 0.3);
   }
 
   generateStudyPlanPrompt(studyPlans: any[], classrooms: any[], existingSchedules: any[], startDate: string, endDate: string, constraints: any) {
@@ -997,5 +884,152 @@ ${existingSchedules.map(s => `- Дата: ${s.date?.toISOString().split('T')[0]}
 Распредели годовые часы по учебным планам на указанный период, создав конкретные занятия в расписании.`;
 
     return { system: systemPrompt, user: userPrompt };
+  }
+
+  // --- OpenAI Responses API helpers ---
+  private async postOpenAIResponseWithSchema<T>(params: {
+    instructions: string;
+    input: string;
+    schemaName: string;
+    schema: any;
+    temperature?: number;
+    model?: string;
+  }): Promise<T> {
+    const {
+      instructions,
+      input,
+      schemaName,
+      schema,
+      temperature = 0.3,
+      model = 'gpt-4o-2024-08-06',
+    } = params;
+
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        instructions,
+        input,
+        temperature,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: schemaName,
+            schema,
+            strict: true,
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+      this.logger.error(`OpenAI Responses API error: ${res.status} - ${error}`);
+      throw new Error(`Failed OpenAI responses request: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = this.extractResponsesText(data);
+    try {
+      const clean = this.sanitizeJsonText(text);
+      return JSON.parse(clean) as T;
+    } catch (e) {
+      this.logger.error('Failed to parse JSON from OpenAI Responses output', e);
+      this.logger.debug('Raw output:', text);
+      throw e;
+    }
+  }
+
+  private async postOpenAIResponseJsonObject(instructions: string, input: string, temperature = 0.3, model = 'gpt-4o-2024-08-06') {
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        instructions,
+        input,
+        temperature,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+      this.logger.error(`OpenAI Responses API error: ${res.status} - ${error}`);
+      throw new Error(`Failed OpenAI responses request: ${res.status}`);
+    }
+
+  const data = await res.json();
+  const text = this.extractResponsesText(data);
+  const clean = this.sanitizeJsonText(text);
+  return JSON.parse(clean);
+  }
+
+  private extractResponsesText(data: any): string {
+    // Try several shapes as the Responses API evolves
+    // 1) SDK-like field
+    if (typeof data?.output_text === 'string') return data.output_text;
+    // 2) HTTP shape: output[0].content[0].text
+    const text2 = data?.output?.[0]?.content?.find((c: any) => c?.type?.includes('text'))?.text;
+    if (typeof text2 === 'string') return text2;
+    // 3) message-like shape: content[0].text
+    const text3 = data?.content?.[0]?.text;
+    if (typeof text3 === 'string') return text3;
+    // 4) Fallback to choices for backward compatibility
+    const text4 = data?.choices?.[0]?.message?.content;
+    if (typeof text4 === 'string') return text4;
+    // 5) Last resort: stringify
+    this.logger.warn('Unknown OpenAI Responses payload shape, falling back to JSON string');
+    return JSON.stringify(data);
+  }
+
+  private sanitizeJsonText(text: string): string {
+    let t = text.trim();
+    if (t.startsWith('```')) {
+      // remove leading ```json or ```
+      t = t.replace(/^```[a-zA-Z]*\n?/, '');
+      // remove trailing ```
+      t = t.replace(/```\s*$/, '');
+    }
+    // Occasionally models wrap JSON in stray backticks or whitespace
+    t = t.trim();
+    return t;
+  }
+
+  private async postOpenAIResponseText(params: {
+    instructions: string;
+    input: string;
+    temperature?: number;
+    model?: string;
+  }): Promise<string> {
+    const { instructions, input, temperature = 0.7, model = 'gpt-4o-2024-08-06' } = params;
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        instructions,
+        input,
+        temperature,
+        // no response_format -> plain text completion
+      }),
+    });
+    if (!res.ok) {
+      const error = await res.text();
+      this.logger.error(`OpenAI Responses API error: ${res.status} - ${error}`);
+      throw new Error(`Failed OpenAI responses request: ${res.status}`);
+    }
+    const data = await res.json();
+    return this.extractResponsesText(data);
   }
 }

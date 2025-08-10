@@ -366,37 +366,8 @@ ${existingSchedules.map(schedule => `
   "recommendations": ["рекомендации по улучшению"]
 }`;
 
-    // Вызываем AI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-2024-08-06',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`AI service error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
-    let aiResultContent = data.choices[0].message.content;
-    
-    // Удаляем markdown форматирование если есть
-    if (aiResultContent.startsWith('```json')) {
-      aiResultContent = aiResultContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    }
-    
-    const aiResult = JSON.parse(aiResultContent);
+  // Вызываем AI централизованно через сервис (Responses API)
+  const aiResult = await this.aiAssistantService.getCompletion(systemPrompt, userPrompt);
 
     // Формируем предварительное расписание из уроков и AI предложений
     const proposedSchedules = [];
@@ -489,7 +460,7 @@ ${existingSchedules.map(schedule => `
           date: lesson.date,
           startTime: lesson.startTime,
           endTime: lesson.endTime,
-          dayOfWeek: new Date(lesson.date).getDay(),
+          dayOfWeek: new Date(String(lesson.date)).getDay(),
           type: 'REGULAR',
           status: 'SCHEDULED'
         };

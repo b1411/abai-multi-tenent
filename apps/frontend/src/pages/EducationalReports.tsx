@@ -683,6 +683,140 @@ const EducationalReports: React.FC = () => {
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
 
+      // Ensure Cyrillic-capable font is embedded (fallback to helvetica if not available)
+  const FONT_NAME = 'UnicodeFont';
+  const ensureUnicodeFont = async () => {
+        // Helpers
+        const toBase64 = (buf: ArrayBuffer) => {
+          let binary = '';
+          const bytes = new Uint8Array(buf);
+          const len = bytes.byteLength;
+          for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+          // btoa may choke on large strings in some browsers; slice in chunks if needed
+          // but in modern browsers it should be okay for typical TTF sizes (< 1MB)
+          return btoa(binary);
+        };
+        const isLikelyTTF = (buf: ArrayBuffer) => {
+          try {
+            const v = new DataView(buf);
+            const tag = v.getUint32(0, false); // big-endian
+            // 0x00010000 or 'OTTO' or 'true' or 'ttcf'
+            return (
+              tag === 0x00010000 ||
+              tag === 0x4f54544f || // 'OTTO'
+              tag === 0x74727565 || // 'true'
+              tag === 0x74746366    // 'ttcf'
+            );
+          } catch {
+            return false;
+          }
+        };
+        const fetchFont = async (url: string) => {
+          const res = await fetch(url, { cache: 'no-cache' });
+          if (!res.ok) {
+            console.warn(`[PDF] Font fetch failed`, url, res.status);
+            return undefined;
+          }
+          const buf = await res.arrayBuffer();
+          const ct = res.headers.get('content-type') || '';
+          if (!isLikelyTTF(buf) || ct.includes('text/html')) {
+            console.warn(`[PDF] Fetched file is not a valid TTF`, url, ct, buf.byteLength);
+            return undefined;
+          }
+          return toBase64(buf);
+        };
+
+        // Candidate sources: prefer local public assets, then remote mirrors
+        // Prefer DejaVuSans (известно стабильно работает с jsPDF), затем Noto/Roboto
+        const localRegular = [
+          '/fonts/DejaVuSans.ttf',
+          '/fonts/NotoSans-Regular.ttf',
+          '/fonts/Roboto-Regular.ttf'
+        ];
+        const localBold = [
+          '/fonts/DejaVuSans-Bold.ttf',
+          '/fonts/NotoSans-Bold.ttf',
+          '/fonts/Roboto-Bold.ttf'
+        ];
+        const remoteRegular = [
+          'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/version_2_37/ttf/DejaVuSans.ttf',
+          'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf',
+          'https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf'
+        ];
+        const remoteBold = [
+          'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/version_2_37/ttf/DejaVuSans-Bold.ttf',
+          'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf',
+          'https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Bold.ttf'
+        ];
+
+        let loaded = false;
+        let loadedBold = false;
+        // Small validator to ensure font actually works with Cyrillic
+        const validateFont = () => {
+          try {
+            doc.setFont(FONT_NAME, 'normal');
+            const w = doc.getTextWidth('Проверка шрифта');
+            return typeof w === 'number' && isFinite(w) && w > 0;
+          } catch {
+            return false;
+          }
+        };
+
+        // Try locals
+    for (const url of localRegular) {
+          try {
+      const b64 = await fetchFont(url);
+      if (!b64) continue;
+            doc.addFileToVFS('UnicodeFont-Regular.ttf', b64);
+            doc.addFont('UnicodeFont-Regular.ttf', FONT_NAME, 'normal');
+            if (validateFont()) { loaded = true; break; }
+          } catch { /* try next */ }
+        }
+    for (const url of localBold) {
+          if (loadedBold) break;
+          try {
+      const b64 = await fetchFont(url);
+      if (!b64) continue;
+            doc.addFileToVFS('UnicodeFont-Bold.ttf', b64);
+            doc.addFont('UnicodeFont-Bold.ttf', FONT_NAME, 'bold');
+            loadedBold = true;
+          } catch { /* try next */ }
+        }
+        // Try remotes
+        if (!loaded) {
+      for (const url of remoteRegular) {
+            try {
+        const b64 = await fetchFont(url);
+        if (!b64) continue;
+              doc.addFileToVFS('UnicodeFont-Regular.ttf', b64);
+              doc.addFont('UnicodeFont-Regular.ttf', FONT_NAME, 'normal');
+              if (validateFont()) { loaded = true; break; }
+            } catch { /* try next */ }
+          }
+        }
+        if (!loadedBold) {
+      for (const url of remoteBold) {
+            try {
+        const b64 = await fetchFont(url);
+        if (!b64) continue;
+              doc.addFileToVFS('UnicodeFont-Bold.ttf', b64);
+              doc.addFont('UnicodeFont-Bold.ttf', FONT_NAME, 'bold');
+              loadedBold = true;
+              break;
+            } catch { /* try next */ }
+          }
+        }
+
+        if (loaded) {
+          doc.setFont(FONT_NAME, 'normal');
+        } else {
+          // fallback to core font (may break Cyrillic, but avoids crash)
+          doc.setFont('helvetica', 'normal');
+          console.warn('Unicode TTF font was not loaded, falling back to core font. Cyrillic may render incorrectly.');
+        }
+        return { loaded, loadedBold };
+      };
+
       // Set document metadata
       doc.setProperties({
         title: 'Отчёт по успеваемости',
@@ -691,11 +825,11 @@ const EducationalReports: React.FC = () => {
         creator: 'abai-multi-tenant'
       });
 
-      // Set font
-      doc.setFont('helvetica');
+  // Load and set Unicode font
+  const { loaded: fontOk, loadedBold: fontBoldOk } = await ensureUnicodeFont();
 
-      // Header helper
-      const drawHeader = (logoDataUrl?: string) => {
+  // Header helper
+  const drawHeader = (logoDataUrl?: string) => {
         const margin = 15;
         let x = margin;
         const y = 12;
@@ -707,6 +841,7 @@ const EducationalReports: React.FC = () => {
             x += 24;
           } catch (e) { /* ignore image draw errors */ }
         }
+  doc.setFont(fontOk ? FONT_NAME : 'helvetica', 'normal');
         doc.setFontSize(12);
         doc.text(brandingSettings?.schoolName || 'Образовательная организация', x, y);
         doc.setFontSize(10);
@@ -722,7 +857,8 @@ const EducationalReports: React.FC = () => {
       const drawFooter = (page: number, total: number) => {
         const margin = 15;
         const y = doc.internal.pageSize.height - 12;
-        doc.setFontSize(8);
+  doc.setFont(fontOk ? FONT_NAME : 'helvetica', 'normal');
+  doc.setFontSize(8);
         doc.setTextColor(100);
         doc.text(`Система учета успеваемости • ${new Date().toLocaleString('ru-RU')}`, margin, y);
         const pageStr = `Стр. ${page} / ${total}`;
@@ -796,19 +932,21 @@ const EducationalReports: React.FC = () => {
         'Пропуски'
       ];
 
-      autoTable(doc, {
+    autoTable(doc, {
         head: [tableHeaders],
         body: tableData,
         startY: 38,
         margin: { top: 38, bottom: 30, left: 15, right: 15 },
         styles: {
-          fontSize: 8,
+      font: fontOk ? FONT_NAME : 'helvetica',
+      fontSize: 8,
           cellPadding: 2,
         },
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: 255,
-          fontStyle: 'bold'
+      font: fontOk ? FONT_NAME : 'helvetica',
+      fontStyle: fontBoldOk && fontOk ? 'bold' : 'normal'
         },
         columnStyles: {
           0: { cellWidth: 8 },   // №
@@ -830,7 +968,8 @@ const EducationalReports: React.FC = () => {
       const totalPages = getPageCount(doc);
       doc.setPage(totalPages);
       const sigY = doc.internal.pageSize.height - 22;
-      doc.setFontSize(9);
+  doc.setFont(FONT_NAME, 'normal');
+  doc.setFontSize(9);
       doc.setTextColor(50);
       doc.text('Подписи:', 15, sigY - 6);
       // Director

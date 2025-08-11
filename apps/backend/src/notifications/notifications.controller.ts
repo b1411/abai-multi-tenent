@@ -22,11 +22,10 @@ import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Paginate } from '../common/decorators/paginate.decorator';
 import { PaginateQueryDto } from '../common/dtos/paginate.dto';
-import { JwtPayload } from 'src/common/types/jwt-payload';
-import { Request } from 'express';
 
 @ApiTags('Notifications')
 @Controller('notifications')
+@Roles('STUDENT', 'TEACHER', 'PARENT', 'ADMIN', "FINANCIST", "HR")
 @ApiBearerAuth()
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) { }
@@ -35,7 +34,6 @@ export class NotificationsController {
   @UseGuards(AuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Создать уведомление' })
   @ApiResponse({ status: 201, description: 'Уведомление создано' })
-  @Roles('ADMIN', 'TEACHER')
   create(@Body() createNotificationDto: CreateNotificationDto) {
     return this.notificationsService.create(createNotificationDto);
   }
@@ -44,7 +42,6 @@ export class NotificationsController {
   @UseGuards(AuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Добавить уведомления для пользователей' })
   @ApiResponse({ status: 201, description: 'Уведомления добавлены' })
-  @Roles('ADMIN', 'TEACHER')
   addNotifications(@Body() addNotificationDto: AddNotificationDto) {
     return this.notificationsService.addNotification(addNotificationDto);
   }
@@ -53,7 +50,6 @@ export class NotificationsController {
   @UseGuards(AuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Получить все уведомления с пагинацией' })
   @ApiResponse({ status: 200, description: 'Список уведомлений' })
-  @Roles('ADMIN', 'TEACHER')
   findAll(@Paginate() paginateQuery: PaginateQueryDto) {
     return this.notificationsService.findAll(paginateQuery);
   }
@@ -62,7 +58,7 @@ export class NotificationsController {
   @UseGuards(AuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Получить мои уведомления' })
   @ApiResponse({ status: 200, description: 'Уведомления пользователя' })
-  @Roles('STUDENT', 'TEACHER', 'PARENT', 'ADMIN')
+
   getMyNotifications(
     @Req() req: any,
     @Paginate() paginateQuery: PaginateQueryDto
@@ -75,7 +71,6 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Получить количество непрочитанных уведомлений' })
   @ApiResponse({ status: 200, description: 'Количество непрочитанных уведомлений' })
   @ApiParam({ name: 'userId', description: 'ID пользователя' })
-  @Roles('STUDENT', 'TEACHER', 'PARENT', 'ADMIN')
   getUnreadCount(@Param('userId') userId: string) {
     return this.notificationsService.getUnreadCount(+userId);
   }
@@ -123,22 +118,18 @@ export class NotificationsController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Получить уведомление по ID' })
   @ApiResponse({ status: 200, description: 'Информация об уведомлении' })
   @ApiResponse({ status: 404, description: 'Уведомление не найдено' })
   @ApiParam({ name: 'id', description: 'ID уведомления' })
-  @Roles('STUDENT', 'TEACHER', 'PARENT', 'ADMIN')
   findOne(@Param('id') id: string) {
     return this.notificationsService.findOne(+id);
   }
 
   @Patch(':id/read')
-  @UseGuards(AuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Отметить уведомление как прочитанное' })
   @ApiResponse({ status: 200, description: 'Уведомление отмечено как прочитанное' })
   @ApiParam({ name: 'id', description: 'ID уведомления' })
-  @Roles('STUDENT', 'TEACHER', 'PARENT', 'ADMIN')
   markAsRead(@Param('id') id: string) {
     return this.notificationsService.markAsRead(+id);
   }
@@ -148,7 +139,6 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Отметить все уведомления как прочитанные' })
   @ApiResponse({ status: 200, description: 'Все уведомления отмечены как прочитанные' })
   @ApiParam({ name: 'userId', description: 'ID пользователя' })
-  @Roles('STUDENT', 'TEACHER', 'PARENT', 'ADMIN')
   markAllAsRead(@Param('userId') userId: string) {
     return this.notificationsService.markAllAsRead(+userId);
   }
@@ -159,7 +149,6 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Уведомление обновлено' })
   @ApiResponse({ status: 404, description: 'Уведомление не найдено' })
   @ApiParam({ name: 'id', description: 'ID уведомления' })
-  @Roles('ADMIN', 'TEACHER')
   update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto) {
     return this.notificationsService.update(+id, updateNotificationDto);
   }
@@ -170,7 +159,6 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Уведомление удалено' })
   @ApiResponse({ status: 404, description: 'Уведомление не найдено' })
   @ApiParam({ name: 'id', description: 'ID уведомления' })
-  @Roles('ADMIN', 'TEACHER')
   remove(@Param('id') id: string) {
     return this.notificationsService.remove(+id);
   }

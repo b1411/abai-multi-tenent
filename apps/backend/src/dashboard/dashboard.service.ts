@@ -1113,8 +1113,8 @@ export class DashboardService {
     }
 
     if (!studentId) {
-      return { 
-        averageGrade: 0, 
+      return {
+        averageGrade: 0,
         lastGrades: [],
         gradeDistribution: { 5: 0, 4: 0, 3: 0, 2: 0 },
         trend: 'stable'
@@ -1161,7 +1161,7 @@ export class DashboardService {
     const previousGrades = grades.slice(5, 10);
     const recentAvg = recentGrades.length > 0 ? recentGrades.reduce((sum, grade) => sum + grade, 0) / recentGrades.length : 0;
     const previousAvg = previousGrades.length > 0 ? previousGrades.reduce((sum, grade) => sum + grade, 0) / previousGrades.length : 0;
-    
+
     let trend = 'stable';
     if (recentAvg > previousAvg) trend = 'up';
     else if (recentAvg < previousAvg) trend = 'down';
@@ -2350,7 +2350,7 @@ export class DashboardService {
       'grades': ['STUDENT', 'PARENT', 'TEACHER', 'ADMIN'],
       'assignments': ['STUDENT', 'PARENT', 'TEACHER', 'ADMIN'],
       'attendance': ['STUDENT', 'PARENT', 'TEACHER', 'ADMIN'],
-      'tasks': ['STUDENT', 'TEACHER', 'ADMIN'],
+      'tasks': ['STUDENT', 'TEACHER', 'ADMIN', "FINANCIST"],
       'news': ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'HR', 'FINANCIST'],
       'weather': ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'HR', 'FINANCIST'],
       'child-schedule': ['PARENT', 'ADMIN'],

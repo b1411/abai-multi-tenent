@@ -89,7 +89,7 @@ export class AiAssistantController {
       description: 'Ответ от AI ассистента'
     }
   })
-  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT', "FINANCIST")
   async sendMessage(
     @Body() body: { message: string; scenario: string },
     @UploadedFiles() files?: Express.Multer.File[]

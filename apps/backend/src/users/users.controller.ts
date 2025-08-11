@@ -27,7 +27,7 @@ export class UsersController {
   @Get()
   @ApiOperation({ summary: 'Получить всех пользователей' })
   @ApiResponse({ status: 200, description: 'Список всех пользователей' })
-  @Roles('ADMIN', 'HR')
+  @Roles('ADMIN', 'HR', "FINANCIST")
   findAll() {
     return this.usersService.findAll();
   }
@@ -40,7 +40,7 @@ export class UsersController {
     description: 'Роль пользователя',
     enum: ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'FINANCIST', 'HR']
   })
-  @Roles('ADMIN', 'HR', 'TEACHER', "PARENT", "STUDENT")
+  @Roles('ADMIN', 'HR', 'TEACHER', "PARENT", "STUDENT", "FINANCIST", "HR")
   findByRole(@Param('role') role: string) {
     return this.usersService.findByRole(role);
   }
@@ -49,7 +49,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Поиск пользователей' })
   @ApiResponse({ status: 200, description: 'Результаты поиска пользователей' })
   @ApiQuery({ name: 'q', description: 'Поисковый запрос (имя, фамилия, email, телефон)' })
-  @Roles('ADMIN', 'HR', 'TEACHER')
+  @Roles('ADMIN', 'HR', 'TEACHER', "FINANCIST")
   searchUsers(@Query('q') query: string) {
     return this.usersService.searchUsers(query);
   }

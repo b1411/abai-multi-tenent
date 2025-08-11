@@ -17,7 +17,7 @@ export class ScheduleController {
   constructor(
     private readonly scheduleService: ScheduleService,
     private readonly aiAssistantService: AiAssistantService
-  ) {}
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Создать новое расписание' })
@@ -31,7 +31,7 @@ export class ScheduleController {
   @Get()
   @ApiOperation({ summary: 'Получить все расписания' })
   @ApiResponse({ status: 200, description: 'Список всех расписаний' })
-  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT', "FINANCIST", "HR")
   findAll() {
     return this.scheduleService.findAll();
   }
@@ -66,8 +66,8 @@ export class ScheduleController {
   @Get('day/:dayOfWeek')
   @ApiOperation({ summary: 'Получить расписание на день недели' })
   @ApiResponse({ status: 200, description: 'Расписание на день' })
-  @ApiParam({ 
-    name: 'dayOfWeek', 
+  @ApiParam({
+    name: 'dayOfWeek',
     description: 'День недели (1-7: понедельник-воскресенье)',
     example: 1
   })
@@ -106,7 +106,7 @@ export class ScheduleController {
   }
 
   @Post('update-statuses')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Принудительно обновить статусы прошедших занятий',
     description: 'Обновляет статусы занятий на COMPLETED если их время окончания уже прошло'
   })
@@ -121,7 +121,7 @@ export class ScheduleController {
   // ================================
 
   @Post('ai-analyze')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Анализировать существующее расписание с помощью ИИ',
     description: 'Использует ChatGPT для анализа расписания на предмет конфликтов и возможностей оптимизации'
   })
@@ -134,7 +134,7 @@ export class ScheduleController {
   }
 
   @Post('ai-validate')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Валидировать сгенерированное расписание',
     description: 'Проверяет сгенерированное ИИ расписание на наличие конфликтов и соответствие ограничениям'
   })
@@ -145,7 +145,7 @@ export class ScheduleController {
     // Здесь будет логика валидации сгенерированного расписания
     // Можно добавить дополнительные проверки помимо ИИ анализа
     const analysis = await this.aiAssistantService.analyzeScheduleConflicts(scheduleItems);
-    
+
     // Проверяем наличие критических конфликтов
     const criticalIssues = analysis.detectedIssues?.filter(
       (issue: any) => issue.severity === 'critical' || issue.severity === 'high'
@@ -155,7 +155,7 @@ export class ScheduleController {
       isValid: criticalIssues.length === 0,
       criticalIssues,
       analysis,
-      recommendation: criticalIssues.length > 0 
+      recommendation: criticalIssues.length > 0
         ? 'Необходимо устранить критические конфликты перед применением расписания'
         : 'Расписание готово к применению'
     };
@@ -213,7 +213,7 @@ export class ScheduleController {
   }
 
   @Post('lessons/from-ai')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Создать расписание из существующих уроков с помощью AI',
     description: 'Берет существующие уроки из базы данных и использует AI для их оптимального расставления по времени и аудиториям'
   })
@@ -235,7 +235,7 @@ export class ScheduleController {
   }) {
     // Получаем уроки из базы данных
     let lessons;
-    
+
     if (params.lessonIds && params.lessonIds.length > 0) {
       // Если указаны конкретные уроки
       lessons = await this.scheduleService['prisma'].lesson.findMany({
@@ -255,7 +255,7 @@ export class ScheduleController {
     } else {
       // Если указаны группы/преподаватели
       const whereClause: any = { deletedAt: null };
-      
+
       if (params.groupIds && params.groupIds.length > 0) {
         whereClause.studyPlan = {
           group: {
@@ -265,14 +265,14 @@ export class ScheduleController {
           }
         };
       }
-      
+
       if (params.teacherIds && params.teacherIds.length > 0) {
         whereClause.studyPlan = {
           ...whereClause.studyPlan,
           teacherId: { in: params.teacherIds }
         };
       }
-      
+
       lessons = await this.scheduleService['prisma'].lesson.findMany({
         where: whereClause,
         include: {
@@ -366,8 +366,8 @@ ${existingSchedules.map(schedule => `
   "recommendations": ["рекомендации по улучшению"]
 }`;
 
-  // Вызываем AI централизованно через сервис (Responses API)
-  const aiResult = await this.aiAssistantService.getCompletion(systemPrompt, userPrompt);
+    // Вызываем AI централизованно через сервис (Responses API)
+    const aiResult = await this.aiAssistantService.getCompletion(systemPrompt, userPrompt);
 
     // Формируем предварительное расписание из уроков и AI предложений
     const proposedSchedules = [];
@@ -433,22 +433,22 @@ ${existingSchedules.map(schedule => `
   }
 
   @Post('lessons/apply')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Применить предварительное расписание уроков',
     description: 'Сохраняет подтвержденное пользователем расписание в базу данных'
   })
   @ApiResponse({ status: 201, description: 'Расписание успешно применено' })
   @ApiResponse({ status: 400, description: 'Ошибка при создании расписания' })
   @Roles('ADMIN')
-  async applyLessonSchedule(@Body() applyData: { 
-    generatedLessons: any[]; 
-    replaceExisting?: boolean 
+  async applyLessonSchedule(@Body() applyData: {
+    generatedLessons: any[];
+    replaceExisting?: boolean
   }) {
     const { generatedLessons } = applyData;
-    
+
     const results = [];
     const errors = [];
-    
+
     for (const lesson of generatedLessons) {
       try {
         const createDto: CreateScheduleDto = {
@@ -490,7 +490,7 @@ ${existingSchedules.map(schedule => `
   }
 
   @Patch(':id/reschedule')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Перенести занятие на другую дату и время',
     description: 'Позволяет изменить дату и время конкретного занятия'
   })
@@ -506,22 +506,22 @@ ${existingSchedules.map(schedule => `
     reason?: string;
   }) {
     const updateData: UpdateScheduleDto = {};
-    
+
     if (rescheduleData.date) {
       const newDate = new Date(rescheduleData.date);
       const dayOfWeek = newDate.getDay() === 0 ? 7 : newDate.getDay();
       updateData.date = rescheduleData.date;
       updateData.dayOfWeek = dayOfWeek;
     }
-    
+
     if (rescheduleData.startTime) {
       updateData.startTime = rescheduleData.startTime;
     }
-    
+
     if (rescheduleData.endTime) {
       updateData.endTime = rescheduleData.endTime;
     }
-    
+
     if (rescheduleData.classroomId !== undefined) {
       updateData.classroomId = rescheduleData.classroomId;
     }

@@ -83,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     {
       name: 'Приложение',
       icon: ClipboardList,
-      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', "FINANCIST"],
+      roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', "FINANCIST", "HR"],
       key: 'app',
       children: [
         { name: 'Чат', href: '/app/chat', icon: MessageSquare },
@@ -118,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Списки учащихся', href: '/students', icon: GraduationCap, roles: ['ADMIN', 'TEACHER', 'HR'] },
         { name: 'Мои дети', href: '/my-children', icon: Heart, roles: ['PARENT'] },
         { name: 'Группы', href: '/groups', icon: Users, roles: ['ADMIN', 'TEACHER', 'HR', 'PARENT'] },
-        { name: 'Успеваемость', href: '/performance', icon: TrendingUp },
+        { name: 'Успеваемость', href: '/performance', icon: TrendingUp, roles: ["ADMIN", "TEACHER", "PARENT", "STUDENT"] },
       ]
     },
     {

@@ -2350,7 +2350,7 @@ export class DashboardService {
       'grades': ['STUDENT', 'PARENT', 'TEACHER', 'ADMIN'],
       'assignments': ['STUDENT', 'PARENT', 'TEACHER', 'ADMIN'],
       'attendance': ['STUDENT', 'PARENT', 'TEACHER', 'ADMIN'],
-      'tasks': ['STUDENT', 'TEACHER', 'ADMIN', "FINANCIST"],
+      'tasks': ['STUDENT', 'TEACHER', 'ADMIN', "FINANCIST", "HR"],
       'news': ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'HR', 'FINANCIST'],
       'weather': ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'HR', 'FINANCIST'],
       'child-schedule': ['PARENT', 'ADMIN'],

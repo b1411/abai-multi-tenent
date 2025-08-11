@@ -5,6 +5,7 @@ import { NotificationProvider } from './providers/NotificationProvider';
 import { ActivityProvider } from './providers/ActivityProvider';
 import { BrandingProvider } from './providers/BrandingProvider';
 import ProtectedRoute from './components/ProtectedRoute';
+import RouteRoleGuard from './components/RouteRoleGuard';
 import DashboardLayout from './components/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -71,6 +72,7 @@ import AdminChats from './pages/AdminChats';
 import NotificationsPage from './pages/Notifications';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import NotFound from './pages/NotFound';
 
 const App: React.FC = () => {
   return (
@@ -94,9 +96,10 @@ const App: React.FC = () => {
                       </ProtectedRoute>
                     }
                   >
-                    <Route index element={<Dashboard />} />
+                    <Route element={<RouteRoleGuard />}>
+                      <Route index element={<Dashboard />} />
 
-                    {/* News route */}
+                      {/* News route */}
                     <Route path="news" element={<News />} />
 
                     {/* Study Plans routes */}
@@ -217,6 +220,8 @@ const App: React.FC = () => {
 
                     {/* Notifications route */}
                     <Route path="notifications" element={<NotificationsPage />} />
+                    <Route path="*" element={<NotFound />} />
+                    </Route>
                   </Route>
                 </Routes>
               </BrandingProvider>

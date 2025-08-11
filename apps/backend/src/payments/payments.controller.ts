@@ -114,4 +114,12 @@ export class PaymentsController {
       res.send(invoice.content);
     }
   }
+
+  @Get('student/:studentId/history')
+  @Roles('ADMIN', 'FINANCIST', 'PARENT')
+  @ApiOperation({ summary: 'История платежей студента' })
+  @ApiResponse({ status: 200, description: 'Список платежей студента' })
+  getStudentHistory(@Param('studentId') studentId: string, @Request() req) {
+    return this.paymentsService.getStudentHistory(+studentId, req.user);
+  }
 }

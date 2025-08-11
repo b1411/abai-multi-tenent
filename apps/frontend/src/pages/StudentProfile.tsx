@@ -10,7 +10,6 @@ import {
   FaCreditCard,
   FaUsers,
   FaBook,
-  FaSmile,
   FaBrain,
   FaComments,
   FaCalendarCheck,
@@ -26,8 +25,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useCurrentStudent } from '../hooks/useCurrentStudent';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
-import { studentService, AttendanceData, FinanceData, EmotionalData, StudentRemarksResponse } from '../services/studentService';
-import { feedbackService } from '../services/feedbackService';
+import { studentService, AttendanceData, StudentRemarksResponse } from '../services/studentService';
 import {
   LineChart,
   Line,
@@ -55,9 +53,8 @@ const StudentProfile: React.FC = () => {
   const { student: studentData, loading, error } = useCurrentStudent();
   const [grades, setGrades] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null);
-  const [emotionalData, setEmotionalData] = useState<EmotionalData | null>(null);
   const [remarksData, setRemarksData] = useState<StudentRemarksResponse | null>(null);
   const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
 
@@ -101,55 +98,6 @@ const StudentProfile: React.FC = () => {
     setLoadingData(prev => ({ ...prev, remarks: false }));
   }, [studentData?.id]);
 
-  // Функция для загрузки эмоциональных данных
-  const fetchEmotionalData = useCallback(async () => {
-    if (!studentData?.id) return;
-
-    setLoadingData(prev => ({ ...prev, emotional: true }));
-    try {
-      let feedbackEmotionalData = null;
-      try {
-        feedbackEmotionalData = await feedbackService.getStudentEmotionalStateFromFeedbacks(studentData.id);
-      } catch (feedbackError) {
-        console.warn('Не удалось загрузить данные из фидбеков:', feedbackError);
-      }
-
-      let legacyEmotionalData = null;
-      try {
-        legacyEmotionalData = await studentService.getStudentEmotionalState(studentData.id);
-      } catch (legacyError) {
-        console.warn('Не удалось загрузить данные из старой системы:', legacyError);
-      }
-
-      const combinedData = combineEmotionalData(feedbackEmotionalData, legacyEmotionalData);
-      setEmotionalData(combinedData);
-    } catch (error) {
-      console.error('Ошибка загрузки эмоциональных данных:', error);
-    }
-    setLoadingData(prev => ({ ...prev, emotional: false }));
-  }, [studentData?.id]);
-
-  // Функция для объединения данных из разных источников
-  const combineEmotionalData = (feedbackData: any, legacyData: any) => {
-    if (feedbackData && feedbackData.currentState) {
-      return {
-        currentState: feedbackData.currentState,
-        lastUpdated: feedbackData.lastUpdated,
-        trends: feedbackData.trends,
-        recommendations: feedbackData.recommendations,
-        source: 'feedback',
-        feedbackHistory: feedbackData.trends || [],
-      };
-    } else if (legacyData && legacyData.currentState) {
-      return {
-        ...legacyData,
-        source: 'legacy',
-      };
-    } else {
-      return null;
-    }
-  };
-
   useEffect(() => {
     if (studentData && activeTab === 'grades') {
       fetchGrades();
@@ -157,10 +105,8 @@ const StudentProfile: React.FC = () => {
       fetchAttendanceData();
     } else if (studentData && activeTab === 'remarks') {
       fetchRemarksData();
-    } else if (studentData && activeTab === 'emotional') {
-      fetchEmotionalData();
     }
-  }, [studentData?.id, activeTab, fetchGrades, fetchAttendanceData, fetchRemarksData, fetchEmotionalData]);
+  }, [studentData?.id, activeTab, fetchGrades, fetchAttendanceData, fetchRemarksData]);
 
   if (loading) {
     return (
@@ -211,8 +157,7 @@ const StudentProfile: React.FC = () => {
     { id: 'overview', label: 'Обзор', icon: FaUserGraduate },
     { id: 'grades', label: 'Мои оценки', icon: FaChartLine },
     { id: 'attendance', label: 'Посещаемость', icon: FaClipboardList },
-    { id: 'remarks', label: 'Замечания', icon: FaExclamationTriangle },
-    { id: 'emotional', label: 'Мое состояние', icon: FaSmile }
+    { id: 'remarks', label: 'Замечания', icon: FaExclamationTriangle }
   ];
 
   return (
@@ -252,14 +197,14 @@ const StudentProfile: React.FC = () => {
 
               <div className="flex gap-3 mt-4 lg:mt-0">
                 <button
-                  onClick={() => {/* TODO: Открыть настройки профиля */}}
+                  onClick={() => {/* TODO: Открыть настройки профиля */ }}
                   className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 transition-colors flex items-center gap-2 text-sm lg:text-base"
                 >
                   <FaEdit className="w-4 h-4" />
                   <span className="hidden sm:inline">Настройки</span>
                 </button>
                 <button
-                  onClick={() => {/* TODO: Открыть уведомления */}}
+                  onClick={() => {/* TODO: Открыть уведомления */ }}
                   className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 transition-colors flex items-center gap-2 text-sm lg:text-base"
                 >
                   <FaBell className="w-4 h-4" />
@@ -277,11 +222,10 @@ const StudentProfile: React.FC = () => {
             return (
               <button
                 key={tab.id}
-                className={`flex items-center gap-2 px-3 lg:px-4 py-2 text-sm lg:text-base font-medium rounded-lg transition-colors ${
-                  activeTab === tab.id
+                className={`flex items-center gap-2 px-3 lg:px-4 py-2 text-sm lg:text-base font-medium rounded-lg transition-colors ${activeTab === tab.id
                     ? 'bg-white bg-opacity-20 text-white'
                     : 'text-blue-200 hover:text-white hover:bg-white hover:bg-opacity-10'
-                }`}
+                  }`}
                 onClick={() => setActiveTab(tab.id)}
               >
                 <Icon className="w-4 h-4" />
@@ -342,20 +286,18 @@ const StudentProfile: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         {result.attendance !== null && (
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            result.attendance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${result.attendance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {result.attendance ? 'Присутствовал' : 'Отсутствовал'}
                           </span>
                         )}
                         {result.lessonScore !== null && result.lessonScore !== undefined && (
-                          <span className={`px-3 py-1 rounded-lg text-sm font-semibold text-white ${
-                            result.lessonScore >= 4
+                          <span className={`px-3 py-1 rounded-lg text-sm font-semibold text-white ${result.lessonScore >= 4
                               ? 'bg-green-500'
                               : result.lessonScore >= 3
                                 ? 'bg-yellow-500'
                                 : 'bg-red-500'
-                          }`}>
+                            }`}>
                             {result.lessonScore}
                           </span>
                         )}
@@ -376,8 +318,8 @@ const StudentProfile: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Средний балл</span>
                   <span className="text-xl font-bold text-blue-600">
-                    {grades ? 
-                      Object.values(grades).reduce((acc: number, subject: any) => 
+                    {grades ?
+                      Object.values(grades).reduce((acc: number, subject: any) =>
                         acc + subject.statistics.averageLessonScore, 0
                       ) / Object.keys(grades).length || 0 : '—'}
                   </span>
@@ -397,39 +339,6 @@ const StudentProfile: React.FC = () => {
               </div>
             </div>
 
-            {/* Эмоциональное состояние */}
-            {studentData.EmotionalState && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-lg font-semibold mb-4">Мое состояние</h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-gray-600">Настроение</span>
-                      <span className="text-sm font-medium">{studentData.EmotionalState.mood}/100</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${studentData.EmotionalState.mood}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-gray-600">Концентрация</span>
-                      <span className="text-sm font-medium">{studentData.EmotionalState.concentration}/100</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-purple-600 h-2 rounded-full"
-                        style={{ width: `${studentData.EmotionalState.concentration}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -481,15 +390,14 @@ const StudentProfile: React.FC = () => {
                       {subjectData.grades.slice(0, 10).map((grade: any, index: number) => (
                         <div
                           key={index}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
-                            grade.lessonScore && grade.lessonScore >= 4
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${grade.lessonScore && grade.lessonScore >= 4
                               ? 'bg-green-500'
                               : grade.lessonScore && grade.lessonScore >= 3
                                 ? 'bg-yellow-500'
                                 : grade.lessonScore
                                   ? 'bg-red-500'
                                   : 'bg-gray-400'
-                          }`}
+                            }`}
                           title={`${grade.Lesson.name} - ${new Date(grade.Lesson.date).toLocaleDateString('ru-RU')}`}
                         >
                           {grade.lessonScore || '–'}
@@ -583,11 +491,10 @@ const StudentProfile: React.FC = () => {
                         <p className="text-sm text-gray-600">{new Date(record.date).toLocaleDateString('ru-RU')}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          record.attendance
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${record.attendance
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
-                        }`}>
+                          }`}>
                           {record.attendance ? 'Присутствовал' : 'Отсутствовал'}
                         </span>
                         {record.absentReason && (
@@ -620,7 +527,7 @@ const StudentProfile: React.FC = () => {
           ) : remarksData && remarksData.remarks.length > 0 ? (
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-semibold mb-6">Мои замечания</h2>
-              
+
               {/* Статистика замечаний */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="bg-red-50 rounded-lg p-4 text-center">
@@ -659,16 +566,15 @@ const StudentProfile: React.FC = () => {
                   <div key={remark.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          remark.type === 'ACADEMIC' ? 'bg-orange-100 text-orange-800' :
-                          remark.type === 'BEHAVIOR' ? 'bg-purple-100 text-purple-800' :
-                          remark.type === 'ATTENDANCE' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${remark.type === 'ACADEMIC' ? 'bg-orange-100 text-orange-800' :
+                            remark.type === 'BEHAVIOR' ? 'bg-purple-100 text-purple-800' :
+                              remark.type === 'ATTENDANCE' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
                           {remark.type === 'ACADEMIC' ? 'Учебное' :
-                           remark.type === 'BEHAVIOR' ? 'Поведение' :
-                           remark.type === 'ATTENDANCE' ? 'Посещаемость' :
-                           'Общее'}
+                            remark.type === 'BEHAVIOR' ? 'Поведение' :
+                              remark.type === 'ATTENDANCE' ? 'Посещаемость' :
+                                'Общее'}
                         </span>
                         {remark.isPrivate && (
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -708,7 +614,6 @@ const StudentProfile: React.FC = () => {
         </div>
       )}
 
-      {/* Здесь можно добавить остальные вкладки emotional аналогично */}
     </div>
   );
 };

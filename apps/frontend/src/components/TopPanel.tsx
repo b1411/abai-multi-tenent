@@ -11,6 +11,7 @@ interface TopPanelProps {
 
 const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
   const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
@@ -44,7 +45,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onToggleSidebar }) => {
             <StudentProfileWidget variant="header" className="hidden lg:flex" />
           )}
 
-          <div className="flex items-center space-x-2 lg:space-x-3">
+            <div className={`flex items-center space-x-2 lg:space-x-3 ${isStudent ? 'lg:hidden' : ''}`}>
             <div className="text-right hidden md:block">
               <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">
                 {user?.name} {user?.surname}

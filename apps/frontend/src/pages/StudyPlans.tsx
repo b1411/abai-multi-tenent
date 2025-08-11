@@ -155,11 +155,13 @@ const StudyPlansPage: React.FC = () => {
               <span className="sm:hidden">Создать план</span>
             </button>
           )}
-          <button className="w-full sm:w-auto px-3 md:px-4 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 flex items-center justify-center button-hover text-sm md:text-base">
-            <FaDownload className="mr-2 text-xs md:text-sm" />
-            <span className="hidden sm:inline">Скачать в Excel</span>
-            <span className="sm:hidden">Excel</span>
-          </button>
+          {(hasRole('ADMIN') || hasRole('TEACHER')) && (
+            <button className="w-full sm:w-auto px-3 md:px-4 py-2 bg-corporate-primary text-white rounded-md hover:bg-purple-700 flex items-center justify-center button-hover text-sm md:text-base">
+              <FaDownload className="mr-2 text-xs md:text-sm" />
+              <span className="hidden sm:inline">Скачать в Excel</span>
+              <span className="sm:hidden">Excel</span>
+            </button>
+          )}
         </div>
       </div>
 

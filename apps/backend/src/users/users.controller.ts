@@ -40,7 +40,7 @@ export class UsersController {
     description: 'Роль пользователя',
     enum: ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'FINANCIST', 'HR']
   })
-  @Roles('ADMIN', 'HR', 'TEACHER')
+  @Roles('ADMIN', 'HR', 'TEACHER', "PARENT", "STUDENT")
   findByRole(@Param('role') role: string) {
     return this.usersService.findByRole(role);
   }

@@ -7,6 +7,7 @@ import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentFilterDto } from './dto/payment-filter.dto';
 import { GenerateInvoiceDto, GenerateSummaryInvoiceDto } from './dto/invoice-generation.dto';
 import { InvoiceGeneratorService } from './invoice-generator.service';
+import { Payment as PaymentDto } from './dto/payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -358,6 +359,52 @@ export class PaymentsService {
         },
       },
     });
+  }
+
+  async getStudentHistory(studentId: number, user?: any): Promise<PaymentDto[]> {
+    // Родитель может видеть только своих детей
+    if (user && user.role === 'PARENT') {
+      const parent = await this.prisma.parent.findUnique({
+        where: { userId: user.id },
+        include: {
+          students: { select: { id: true } }
+        }
+      });
+      const studentIds = parent?.students.map(s => s.id) || [];
+      if (!studentIds.includes(studentId)) {
+        return [];
+      }
+    }
+
+    const payments = await this.prisma.payment.findMany({
+      where: { studentId },
+      include: {
+        student: {
+          include: {
+            user: true,
+            group: true,
+          },
+        },
+      },
+      orderBy: { dueDate: 'desc' },
+    });
+
+    return payments.map((payment) => ({
+      id: payment.id.toString(),
+      studentId: payment.studentId.toString(),
+      studentName: `${payment.student.user.name} ${payment.student.user.surname}`,
+      grade: payment.student.group.name,
+      serviceType: payment.serviceType.toLowerCase(),
+      serviceName: payment.serviceName,
+      amount: payment.amount,
+      currency: 'KZT',
+      dueDate: payment.dueDate.toISOString(),
+      status: this.mapStatus(payment.status),
+      paymentDate: payment.paymentDate?.toISOString(),
+      paidAmount: payment.paidAmount || 0,
+      createdAt: payment.createdAt.toISOString(),
+      updatedAt: payment.updatedAt.toISOString(),
+    }));
   }
 
   async update(id: number, updatePaymentDto: UpdatePaymentDto) {

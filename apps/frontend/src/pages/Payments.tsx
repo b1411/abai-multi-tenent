@@ -480,11 +480,11 @@ const PaymentsPage: React.FC = () => {
           <div className="text-lg sm:text-2xl font-bold">{stats?.totalDue?.toLocaleString() || '0'} KZT</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Собрано оплат</div>
+          <div className="text-xs sm:text-sm text-gray-600 mb-1">{isParent ? 'Оплачено' : 'Собрано оплат'}</div>
           <div className="text-lg sm:text-2xl font-bold">{stats?.totalPaid?.toLocaleString() || '0'} KZT</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Процент сбора</div>
+          <div className="text-xs sm:text-sm text-gray-600 mb-1">{isParent ? 'Процент оплаты' : 'Процент сбора'}</div>
           <div className="text-lg sm:text-2xl font-bold">{stats?.collectionRate || 0}%</div>
           <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5 mt-2">
             <div 

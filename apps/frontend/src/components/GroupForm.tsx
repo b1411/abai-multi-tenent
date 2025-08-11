@@ -27,8 +27,8 @@ export const GroupForm: React.FC<GroupFormProps> = ({
       newErrors.name = 'Название группы должно содержать минимум 2 символа';
     }
 
-    if (formData.courseNumber < 1 || formData.courseNumber > 6) {
-      newErrors.courseNumber = 'Номер курса должен быть от 1 до 6';
+    if (formData.courseNumber < 1) {
+      newErrors.courseNumber = 'Класс должен быть не меньше 1';
     }
 
     setErrors(newErrors);
@@ -89,7 +89,7 @@ export const GroupForm: React.FC<GroupFormProps> = ({
 
         <div>
           <label htmlFor="courseNumber" className="block text-sm font-medium text-gray-700 mb-1">
-            Номер курса *
+            Класс *
           </label>
           <input
             type="number"
@@ -100,7 +100,7 @@ export const GroupForm: React.FC<GroupFormProps> = ({
             className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.courseNumber ? 'border-red-500' : 'border-gray-300'
             }`}
-            placeholder="Введите номер курса (1-6)"
+            placeholder="Введите номер класса"
             disabled={loading}
           />
           {errors.courseNumber && (

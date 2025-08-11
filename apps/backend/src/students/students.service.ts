@@ -573,6 +573,91 @@ export class StudentsService {
     };
   }
 
+  async findStudentsForTeacher(userId: number) {
+    // Находим преподавателя по userId и его группы
+    const teacher = await this.prisma.teacher.findFirst({
+      where: { userId, deletedAt: null },
+      include: {
+        studyPlans: {
+          where: { deletedAt: null },
+          select: {
+            group: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!teacher) {
+      throw new NotFoundException('Teacher not found');
+    }
+
+    const groupIds = Array.from(
+      new Set(
+        teacher.studyPlans.flatMap(sp => sp.group.map(g => g.id))
+      )
+    );
+
+    if (groupIds.length === 0) {
+      return [];
+    }
+
+    return this.prisma.student.findMany({
+      where: {
+        groupId: { in: groupIds },
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            surname: true,
+            middlename: true,
+            phone: true,
+            avatar: true,
+            role: true,
+          },
+        },
+        group: true,
+        Parents: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                surname: true,
+                middlename: true,
+                phone: true,
+                role: true,
+              },
+            },
+          },
+        },
+        lessonsResults: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            Lesson: {
+              include: {
+                studyPlan: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { group: { courseNumber: 'asc' } },
+        { group: { name: 'asc' } },
+        { user: { surname: 'asc' } },
+        { user: { name: 'asc' } },
+      ],
+    });
+  }
+
   async getActiveStudentsCount() {
     const count = await this.prisma.student.count({
       where: { deletedAt: null },

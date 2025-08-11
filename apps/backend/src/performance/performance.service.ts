@@ -1,14 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  PerformanceFilterDto,
-  PerformancePeriod,
-  PerformanceMetric,
-} from './dto/performance-filter.dto';
+import { PerformanceFilterDto } from './dto/performance-filter.dto';
 import {
   PerformanceOverviewDto,
-  SubjectPerformanceDto,
-  StudentPerformanceDto,
   ClassDataDto,
   MonthlyDataDto,
   GradeDistributionDto,
@@ -23,8 +17,6 @@ import {
   TrendAnalysisDto,
   StudentWithSubjectsDto,
   StudentWithImprovementsDto,
-  SubjectWithRecommendationsDto,
-  SubjectImprovementDto,
 } from './dto/performance-response.dto';
 
 @Injectable()
@@ -182,7 +174,8 @@ export class PerformanceService {
     };
   }
 
-  async getClasses(filter?: PerformanceFilterDto): Promise<ClassesResponseDto> {
+  async getClasses(_filter?: PerformanceFilterDto): Promise<ClassesResponseDto> {
+    void _filter;
     // Получаем реальные группы из базы данных с результатами студентов
     const groups = await this.prisma.group.findMany({
       include: {
@@ -447,7 +440,8 @@ export class PerformanceService {
     return { students: highProgressStudents };
   }
 
-  async getTrends(filter: PerformanceFilterDto): Promise<TrendsResponseDto> {
+  async getTrends(_filter: PerformanceFilterDto): Promise<TrendsResponseDto> {
+    void _filter;
     // Получаем реальные данные за последние 6 месяцев
     const endDate = new Date();
     const startDate = new Date();
@@ -518,7 +512,8 @@ export class PerformanceService {
     return { trends, analysis };
   }
 
-  async getMonthlyData(filter: PerformanceFilterDto): Promise<MonthlyDataDto[]> {
+  async getMonthlyData(_filter: PerformanceFilterDto): Promise<MonthlyDataDto[]> {
+    void _filter;
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 6);
@@ -584,12 +579,12 @@ export class PerformanceService {
       },
     });
 
-    const gradeCounts = { 5: 0, 4: 0, 3: 0, 2: 0 };
+    const gradeCounts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0 };
 
     lessonResults.forEach(result => {
       const grade = Math.round(result.lessonScore);
       if (grade >= 2 && grade <= 5) {
-        gradeCounts[grade as keyof typeof gradeCounts]++;
+        gradeCounts[grade]++;
       }
     });
 
@@ -706,7 +701,7 @@ export class PerformanceService {
       },
     });
 
-    const quizScores = quizResults.map(r => r.score).filter(s => s !== null);
+    const quizScores = quizResults.flatMap(r => (typeof r.score === 'number' ? [r.score] : []));
     const avgQuizScore = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length : 0;
     
     // Получаем максимальный балл из настроек тестов или используем средний максимальный балл
@@ -723,7 +718,8 @@ export class PerformanceService {
     ];
   }
 
-  async getParentStatistics(userId: number, filter: PerformanceFilterDto): Promise<StatisticsResponseDto> {
+  async getParentStatistics(userId: number, _filter: PerformanceFilterDto): Promise<StatisticsResponseDto> {
+    void _filter;
     // Находим родителя и его детей
     const parent = await this.prisma.parent.findUnique({
       where: { userId },
@@ -832,7 +828,8 @@ export class PerformanceService {
     return { overview };
   }
 
-  async getParentSubjects(userId: number, filter: PerformanceFilterDto): Promise<SubjectsResponseDto> {
+  async getParentSubjects(userId: number, _filter: PerformanceFilterDto): Promise<SubjectsResponseDto> {
+    void _filter;
     // Находим родителя и его детей
     const parent = await this.prisma.parent.findUnique({
       where: { userId },
@@ -1008,7 +1005,8 @@ export class PerformanceService {
     };
   }
 
-  async getStudentStatistics(userId: number, filter: PerformanceFilterDto): Promise<StatisticsResponseDto> {
+  async getStudentStatistics(userId: number, _filter: PerformanceFilterDto): Promise<StatisticsResponseDto> {
+    void _filter;
     // Находим студента
     const student = await this.prisma.student.findUnique({
       where: { userId },
@@ -1112,7 +1110,8 @@ export class PerformanceService {
     return { overview };
   }
 
-  async getStudentSubjects(userId: number, filter: PerformanceFilterDto): Promise<SubjectsResponseDto> {
+  async getStudentSubjects(userId: number, _filter: PerformanceFilterDto): Promise<SubjectsResponseDto> {
+    void _filter;
     // Находим студента
     const student = await this.prisma.student.findUnique({
       where: { userId },
@@ -1245,5 +1244,635 @@ export class PerformanceService {
         totalStudents: 1,
       },
     };
+  }
+
+  // === TEACHER-SCOPED HELPERS AND METHODS ===
+
+  private async getTeacherGroupIds(userId: number, filter?: PerformanceFilterDto): Promise<number[]> {
+    // Найти преподавателя
+    const teacher = await this.prisma.teacher.findFirst({
+      where: { userId, deletedAt: null },
+    });
+
+    if (!teacher) {
+      throw new NotFoundException('Teacher not found');
+    }
+
+    // Найти группы, в которых у преподавателя есть учебные планы
+    const groups = await this.prisma.group.findMany({
+      where: {
+        deletedAt: null,
+        ...(filter?.groupId
+          ? { id: parseInt(filter.groupId) }
+          : {
+              studyPlans: {
+                some: {
+                  teacherId: teacher.id,
+                  deletedAt: null,
+                },
+              },
+            }),
+      },
+      select: { id: true },
+    });
+
+    return groups.map((g) => g.id);
+  }
+
+  async getTeacherStatistics(userId: number, filter: PerformanceFilterDto): Promise<StatisticsResponseDto> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) {
+      return {
+        overview: {
+          averageGrade: 0,
+          performanceRate: 0,
+          attendanceRate: 0,
+          assignmentCompletionRate: 0,
+          trends: {
+            grade: 0,
+            performance: 0,
+            attendance: 0,
+            assignments: 0,
+          },
+        },
+      };
+    }
+
+    // Получаем студентов только из групп преподавателя
+    const students = await this.prisma.student.findMany({
+      where: { groupId: { in: groupIds } },
+      include: {
+        lessonsResults: {
+          where: { deletedAt: null },
+        },
+      },
+    });
+
+    const allResults = students.flatMap((s) => s.lessonsResults);
+
+    const lessonScores = allResults.filter((r) => r.lessonScore !== null).map((r) => r.lessonScore);
+    const averageGrade = lessonScores.length ? lessonScores.reduce((a, b) => a + b, 0) / lessonScores.length : 0;
+
+    const attendanceRecords = allResults.filter((r) => r.attendance !== null);
+    const attendanceRate = attendanceRecords.length
+      ? (attendanceRecords.filter((r) => r.attendance === true).length / attendanceRecords.length) * 100
+      : 0;
+
+    const homeworkRecords = allResults.filter((r) => r.homeworkScore !== null);
+    const assignmentCompletionRate = homeworkRecords.length
+      ? (homeworkRecords.filter((r) => r.homeworkScore >= 3).length / homeworkRecords.length) * 100
+      : 0;
+
+    const performanceRate = lessonScores.length
+      ? (lessonScores.filter((score) => score >= 3).length / lessonScores.length) * 100
+      : 0;
+
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const recentResults = allResults.filter((r) => new Date(r.createdAt) >= oneMonthAgo);
+    const olderResults = allResults.filter((r) => new Date(r.createdAt) < oneMonthAgo);
+
+    const recentGrades = recentResults.filter((r) => r.lessonScore !== null).map((r) => r.lessonScore);
+    const olderGrades = olderResults.filter((r) => r.lessonScore !== null).map((r) => r.lessonScore);
+    const recentAvgGrade = recentGrades.length ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
+    const olderAvgGrade = olderGrades.length ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+    const gradeTrend = olderAvgGrade > 0 ? Number((recentAvgGrade - olderAvgGrade).toFixed(1)) : 0;
+
+    const recentPerformance = recentGrades.length ? (recentGrades.filter((g) => g >= 3).length / recentGrades.length) * 100 : 0;
+    const olderPerformance = olderGrades.length ? (olderGrades.filter((g) => g >= 3).length / olderGrades.length) * 100 : 0;
+    const performanceTrend = Math.round(recentPerformance - olderPerformance);
+
+    const recentAttendance = recentResults.filter((r) => r.attendance !== null);
+    const olderAttendance = olderResults.filter((r) => r.attendance !== null);
+    const recentAttendanceRate = recentAttendance.length
+      ? (recentAttendance.filter((r) => r.attendance).length / recentAttendance.length) * 100
+      : 0;
+    const olderAttendanceRate = olderAttendance.length
+      ? (olderAttendance.filter((r) => r.attendance).length / olderAttendance.length) * 100
+      : 0;
+    const attendanceTrend = Math.round(recentAttendanceRate - olderAttendanceRate);
+
+    const recentHomework = recentResults.filter((r) => r.homeworkScore !== null);
+    const olderHomework = olderResults.filter((r) => r.homeworkScore !== null);
+    const recentHomeworkRate = recentHomework.length
+      ? (recentHomework.filter((r) => r.homeworkScore >= 3).length / recentHomework.length) * 100
+      : 0;
+    const olderHomeworkRate = olderHomework.length
+      ? (olderHomework.filter((r) => r.homeworkScore >= 3).length / olderHomework.length) * 100
+      : 0;
+    const assignmentsTrend = Math.round(recentHomeworkRate - olderHomeworkRate);
+
+    return {
+      overview: {
+        averageGrade: Number(averageGrade.toFixed(1)),
+        performanceRate: Math.round(performanceRate),
+        attendanceRate: Math.round(attendanceRate),
+        assignmentCompletionRate: Math.round(assignmentCompletionRate),
+        trends: {
+          grade: gradeTrend,
+          performance: performanceTrend,
+          attendance: attendanceTrend,
+          assignments: assignmentsTrend,
+        },
+      },
+    };
+  }
+
+  async getTeacherSubjects(userId: number, filter: PerformanceFilterDto): Promise<SubjectsResponseDto> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) {
+      return {
+        subjects: [],
+        summary: {
+          bestPerforming: [],
+          needsImprovement: [],
+        },
+      };
+    }
+
+    // Собираем результаты уроков только по группам преподавателя
+    const results = await this.prisma.lessonResult.findMany({
+      where: {
+        deletedAt: null,
+        Student: { groupId: { in: groupIds } },
+      },
+      include: {
+        Lesson: {
+          include: {
+            studyPlan: true,
+          },
+        },
+      },
+    });
+
+    const bySubject = new Map<string, { grades: number[]; attendance: number[]; assignments: number[] }>();
+
+    results.forEach((r) => {
+      const subjectName = r.Lesson?.studyPlan?.name || 'Неизвестный предмет';
+      let entry = bySubject.get(subjectName);
+      if (!entry) {
+        entry = { grades: [], attendance: [], assignments: [] };
+        bySubject.set(subjectName, entry);
+      }
+      if (r.lessonScore !== null) entry.grades.push(r.lessonScore);
+      if (r.attendance !== null) entry.attendance.push(r.attendance ? 1 : 0);
+      if (r.homeworkScore !== null) entry.assignments.push(r.homeworkScore);
+    });
+
+    const subjects = Array.from(bySubject.entries()).map(([name, data]) => {
+      const grade = data.grades.length ? Number((data.grades.reduce((a, b) => a + b, 0) / data.grades.length).toFixed(1)) : 0;
+      const attendance = data.attendance.length
+        ? Math.round((data.attendance.reduce((a, b) => a + b, 0) / data.attendance.length) * 100)
+        : 0;
+      const assignments = data.assignments.length
+        ? Math.round((data.assignments.filter((v) => v >= 3).length / data.assignments.length) * 100)
+        : 0;
+
+      return { name, grade, attendance, assignments, participation: 0 };
+    });
+
+    const sorted = [...subjects].sort((a, b) => b.grade - a.grade);
+    const bestPerforming = sorted.slice(0, 2).map((s) => s.name);
+    const needsImprovement = sorted.slice(-2).map((s) => s.name);
+
+    return {
+      subjects,
+      summary: {
+        bestPerforming,
+        needsImprovement,
+      },
+    };
+  }
+
+  async getTeacherClasses(userId: number, filter: PerformanceFilterDto): Promise<ClassesResponseDto> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) {
+      return {
+        classes: [],
+        statistics: {
+          averagePerformance: 0,
+          topClasses: [],
+          totalStudents: 0,
+        },
+      };
+    }
+
+    const groups = await this.prisma.group.findMany({
+      where: { id: { in: groupIds } },
+      include: {
+        students: {
+          include: {
+            lessonsResults: {
+              where: { deletedAt: null },
+            },
+          },
+        },
+      },
+    });
+
+    const classes = groups.map((group) => {
+      const allResults = group.students.flatMap((s) => s.lessonsResults);
+
+      const grades = allResults.filter((r) => r.lessonScore !== null).map((r) => r.lessonScore);
+      const attendanceRecords = allResults.filter((r) => r.attendance !== null);
+      const homeworkRecords = allResults.filter((r) => r.homeworkScore !== null);
+
+      const averageGrade = grades.length ? Number((grades.reduce((a, b) => a + b, 0) / grades.length).toFixed(1)) : 0;
+      const attendance = attendanceRecords.length
+        ? Math.round((attendanceRecords.filter((r) => r.attendance).length / attendanceRecords.length) * 100)
+        : 0;
+      const assignments = homeworkRecords.length
+        ? Math.round((homeworkRecords.filter((r) => r.homeworkScore >= 3).length / homeworkRecords.length) * 100)
+        : 0;
+
+      return {
+        id: group.id.toString(),
+        name: group.name,
+        averageGrade,
+        attendance,
+        assignments,
+        studentsCount: group.students.length,
+      };
+    });
+
+    const totalStudents = classes.reduce((sum, c) => sum + c.studentsCount, 0);
+    const averagePerformance = classes.length
+      ? Number((classes.reduce((sum, c) => sum + c.averageGrade, 0) / classes.length).toFixed(1))
+      : 0;
+    const topClasses = [...classes].sort((a, b) => b.averageGrade - a.averageGrade).slice(0, 2).map((c) => c.name);
+
+    return {
+      classes,
+      statistics: {
+        averagePerformance,
+        topClasses,
+        totalStudents,
+      },
+    };
+  }
+
+  async getLowPerformingStudentsForTeacher(
+    userId: number,
+    filter: PerformanceFilterDto,
+  ): Promise<LowPerformingStudentsResponseDto> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) {
+      return { students: [] };
+    }
+
+    const students = await this.prisma.student.findMany({
+      where: { groupId: { in: groupIds } },
+      include: {
+        user: true,
+        lessonsResults: {
+          where: { deletedAt: null, lessonScore: { not: null } },
+          include: {
+            Lesson: {
+              include: { studyPlan: true },
+            },
+          },
+        },
+      },
+    });
+
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const studentsWithGrades = students.map((student) => {
+      const grades = student.lessonsResults.map((r) => r.lessonScore).filter((g) => g !== null);
+      const averageGrade = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+
+      const recentGrades = student.lessonsResults
+        .filter((r) => new Date(r.createdAt) >= oneMonthAgo)
+        .map((r) => r.lessonScore)
+        .filter((g) => g !== null);
+      const olderGrades = student.lessonsResults
+        .filter((r) => new Date(r.createdAt) < oneMonthAgo)
+        .map((r) => r.lessonScore)
+        .filter((g) => g !== null);
+
+      const recentAvg = recentGrades.length ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
+      const olderAvg = olderGrades.length ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+      const trend = olderAvg > 0 ? Number((recentAvg - olderAvg).toFixed(1)) : 0;
+
+      const subjectResults = new Map<string, number[]>();
+      student.lessonsResults.forEach((result) => {
+        const subjectName = result.Lesson?.studyPlan?.name || 'Неизвестный предмет';
+        if (!subjectResults.has(subjectName)) subjectResults.set(subjectName, []);
+        subjectResults.get(subjectName)?.push(result.lessonScore);
+      });
+
+      const subjects = Array.from(subjectResults.entries()).map(([subjectName, subjectGrades]) => {
+        const subjectAvg = subjectGrades.length
+          ? Number((subjectGrades.reduce((a, b) => a + b, 0) / subjectGrades.length).toFixed(1))
+          : 0;
+
+        const recommendations: string[] = [];
+        if (subjectAvg < 3) {
+          recommendations.push('Дополнительные консультации', 'Повторение базового материала', 'Индивидуальная работа');
+        } else if (subjectAvg < 3.5) {
+          recommendations.push('Больше практических заданий', 'Регулярные проверки знаний');
+        }
+
+        return { name: subjectName, grade: subjectAvg, recommendations };
+      });
+
+      return {
+        student: { name: `${student.user.name} ${student.user.surname}`, grade: Number(averageGrade.toFixed(1)), trend },
+        subjects: subjects.slice(0, 3),
+        averageGrade,
+      };
+    });
+
+    const lowPerformingStudents = studentsWithGrades
+      .filter((s) => s.averageGrade < 3.5 && s.averageGrade > 0)
+      .sort((a, b) => a.averageGrade - b.averageGrade)
+      .slice(0, 5)
+      .map(({ student, subjects }) => ({ student, subjects }));
+
+    return { students: lowPerformingStudents };
+  }
+
+  async getHighProgressStudentsForTeacher(
+    userId: number,
+    filter: PerformanceFilterDto,
+  ): Promise<HighProgressStudentsResponseDto> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) {
+      return { students: [] };
+    }
+
+    const students = await this.prisma.student.findMany({
+      where: { groupId: { in: groupIds } },
+      include: {
+        user: true,
+        lessonsResults: {
+          where: { deletedAt: null, lessonScore: { not: null } },
+          include: {
+            Lesson: { include: { studyPlan: true } },
+          },
+        },
+      },
+    });
+
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const studentsWithProgress = students.map((student) => {
+      const grades = student.lessonsResults.map((r) => r.lessonScore).filter((g) => g !== null);
+      const averageGrade = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+
+      const recentGrades = student.lessonsResults
+        .filter((r) => new Date(r.createdAt) >= oneMonthAgo)
+        .map((r) => r.lessonScore)
+        .filter((g) => g !== null);
+
+      const olderGrades = student.lessonsResults
+        .filter((r) => new Date(r.createdAt) < oneMonthAgo)
+        .map((r) => r.lessonScore)
+        .filter((g) => g !== null);
+
+      const recentAvg = recentGrades.length ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
+      const olderAvg = olderGrades.length ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+      const trend = olderAvg > 0 ? Number((recentAvg - olderAvg).toFixed(1)) : 0;
+
+      const subjectResults = new Map<string, { recent: number[]; older: number[] }>();
+      student.lessonsResults.forEach((result) => {
+        const subjectName = result.Lesson?.studyPlan?.name || 'Неизвестный предмет';
+        if (!subjectResults.has(subjectName)) subjectResults.set(subjectName, { recent: [], older: [] });
+        const subject = subjectResults.get(subjectName);
+        if (!subject) return;
+        if (new Date(result.createdAt) >= oneMonthAgo) subject.recent.push(result.lessonScore);
+        else subject.older.push(result.lessonScore);
+      });
+
+      const improvements = Array.from(subjectResults.entries())
+        .map(([subjectName, data]) => {
+          const recentSubjectAvg = data.recent.length ? data.recent.reduce((a, b) => a + b, 0) / data.recent.length : 0;
+          const olderSubjectAvg = data.older.length ? data.older.reduce((a, b) => a + b, 0) / data.older.length : 0;
+          const improvement = olderSubjectAvg > 0 ? Number((recentSubjectAvg - olderSubjectAvg).toFixed(1)) : 0;
+          return { subject: subjectName, improvement };
+        })
+        .filter((imp) => imp.improvement > 0)
+        .slice(0, 3);
+
+      return {
+        student: { name: `${student.user.name} ${student.user.surname}`, grade: Number(averageGrade.toFixed(1)), trend },
+        improvements,
+        averageGrade,
+        hasPositiveTrend: trend > 0,
+      };
+    });
+
+    const highProgressStudents = studentsWithProgress
+      .filter((s) => s.hasPositiveTrend && s.averageGrade >= 3.5)
+      .sort((a, b) => b.student.trend - a.student.trend)
+      .slice(0, 5)
+      .map(({ student, improvements }) => ({ student, improvements }));
+
+    return { students: highProgressStudents };
+  }
+
+  async getMonthlyDataForTeacher(userId: number, filter: PerformanceFilterDto): Promise<MonthlyDataDto[]> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) return [];
+
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 6);
+
+    const lessonResults = await this.prisma.lessonResult.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        deletedAt: null,
+        Student: { groupId: { in: groupIds } },
+      },
+      include: { Lesson: true },
+    });
+
+    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const monthlyStats: { [key: string]: { grades: number[]; attendance: number[]; assignments: number[] } } = {};
+
+    lessonResults.forEach((result) => {
+      const month = monthNames[result.createdAt.getMonth()];
+      if (!monthlyStats[month]) monthlyStats[month] = { grades: [], attendance: [], assignments: [] };
+      if (result.lessonScore !== null) monthlyStats[month].grades.push(result.lessonScore);
+      if (result.attendance !== null) monthlyStats[month].attendance.push(result.attendance ? 1 : 0);
+      if (result.homeworkScore !== null) monthlyStats[month].assignments.push(result.homeworkScore);
+    });
+
+    return Object.keys(monthlyStats).map((month) => ({
+      month,
+      value: monthlyStats[month].grades.length
+        ? Number((monthlyStats[month].grades.reduce((a, b) => a + b, 0) / monthlyStats[month].grades.length).toFixed(1))
+        : 0,
+      attendance: monthlyStats[month].attendance.length
+        ? Math.round((monthlyStats[month].attendance.reduce((a, b) => a + b, 0) / monthlyStats[month].attendance.length) * 100)
+        : 0,
+      assignments: monthlyStats[month].assignments.length
+        ? Math.round(
+            (monthlyStats[month].assignments.filter((score) => score >= 3).length / monthlyStats[month].assignments.length) * 100,
+          )
+        : 0,
+    }));
+  }
+
+  async getGradeDistributionForTeacher(userId: number, filter: PerformanceFilterDto): Promise<GradeDistributionDto[]> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) {
+      return [
+        { name: '5', value: 0, color: '#10B981' },
+        { name: '4', value: 0, color: '#3B82F6' },
+        { name: '3', value: 0, color: '#F59E0B' },
+        { name: '2', value: 0, color: '#EF4444' },
+      ];
+    }
+
+    const lessonResults = await this.prisma.lessonResult.findMany({
+      where: {
+        deletedAt: null,
+        lessonScore: { not: null },
+        Student: { groupId: { in: groupIds } },
+      },
+    });
+
+    const gradeCounts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0 };
+
+    lessonResults.forEach((result) => {
+      const grade = Math.round(result.lessonScore);
+      if (grade >= 2 && grade <= 5) gradeCounts[grade]++;
+    });
+
+    const total = Object.values(gradeCounts).reduce((a, b) => a + b, 0);
+
+    if (total === 0) {
+      return [
+        { name: '5', value: 0, color: '#10B981' },
+        { name: '4', value: 0, color: '#3B82F6' },
+        { name: '3', value: 0, color: '#F59E0B' },
+        { name: '2', value: 0, color: '#EF4444' },
+      ];
+    }
+
+    return [
+      { name: '5', value: Math.round((gradeCounts[5] / total) * 100), color: '#10B981' },
+      { name: '4', value: Math.round((gradeCounts[4] / total) * 100), color: '#3B82F6' },
+      { name: '3', value: Math.round((gradeCounts[3] / total) * 100), color: '#F59E0B' },
+      { name: '2', value: Math.round((gradeCounts[2] / total) * 100), color: '#EF4444' },
+    ];
+  }
+
+  async getPerformanceMetricsForTeacher(userId: number, filter: PerformanceFilterDto): Promise<PerformanceMetricDto[]> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) {
+      return [
+        { subject: 'Оценки', value: 0 },
+        { subject: 'Посещаемость', value: 0 },
+        { subject: 'Домашние задания', value: 0 },
+        { subject: 'Тесты', value: 0 },
+        { subject: 'Общая успеваемость', value: 0 },
+      ];
+    }
+
+    const lessonResults = await this.prisma.lessonResult.findMany({
+      where: {
+        deletedAt: null,
+        Student: { groupId: { in: groupIds } },
+      },
+    });
+
+    const grades = lessonResults.filter((r) => r.lessonScore !== null).map((r) => r.lessonScore);
+    const attendance = lessonResults.filter((r) => r.attendance !== null);
+    const assignments = lessonResults.filter((r) => r.homeworkScore !== null);
+
+    const avgGrade = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+    const attendanceRate = attendance.length ? (attendance.filter((r) => r.attendance).length / attendance.length) * 100 : 0;
+    const assignmentRate = assignments.length
+      ? (assignments.filter((r) => r.homeworkScore >= 3).length / assignments.length) * 100
+      : 0;
+
+    // Ограничим тесты только студентами групп преподавателя
+    const quizResults = await this.prisma.quizAttempt.findMany({
+      where: {
+        deletedAt: null,
+        score: { not: null },
+        status: 'COMPLETED',
+        student: {
+          groupId: { in: groupIds },
+        },
+      },
+      include: {
+        quiz: { select: { maxScore: true } },
+      },
+    });
+
+    const quizScores = quizResults.map((r) => r.score).filter((s) => s !== null);
+    const avgQuizScore = quizScores.length ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length : 0;
+    const maxScores = quizResults.map((r) => r.quiz?.maxScore || 100).filter((s) => s > 0);
+    const avgMaxScore = maxScores.length ? maxScores.reduce((a, b) => a + b, 0) / maxScores.length : 100;
+    const quizRate = avgMaxScore > 0 ? Math.round((avgQuizScore / avgMaxScore) * 100) : 0;
+
+    return [
+      { subject: 'Оценки', value: Math.round((avgGrade / 5) * 100) },
+      { subject: 'Посещаемость', value: Math.round(attendanceRate) },
+      { subject: 'Домашние задания', value: Math.round(assignmentRate) },
+      { subject: 'Тесты', value: quizRate },
+      { subject: 'Общая успеваемость', value: Math.round(((avgGrade / 5) * 100 + attendanceRate + assignmentRate + quizRate) / 4) },
+    ];
+  }
+
+  async getAllStudentsPerformanceForTeacher(
+    userId: number,
+    filter: PerformanceFilterDto,
+  ): Promise<{ id: number; name: string; surname: string; group: string; averageGrade: number; attendanceRate: number; assignmentRate: number }[]> {
+    const groupIds = await this.getTeacherGroupIds(userId, filter);
+
+    if (groupIds.length === 0) return [];
+
+    const students = await this.prisma.student.findMany({
+      where: { groupId: { in: groupIds } },
+      include: {
+        user: true,
+        group: true,
+        lessonsResults: { where: { deletedAt: null } },
+      },
+    });
+
+    const studentsWithPerformance = students.map((student) => {
+      const allResults = student.lessonsResults;
+
+      const grades = allResults.filter((r) => r.lessonScore !== null).map((r) => r.lessonScore);
+      const averageGrade = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+
+      const attendanceRecords = allResults.filter((r) => r.attendance !== null);
+      const attendanceRate = attendanceRecords.length
+        ? (attendanceRecords.filter((r) => r.attendance).length / attendanceRecords.length) * 100
+        : 0;
+
+      const assignmentRecords = allResults.filter((r) => r.homeworkScore !== null);
+      const assignmentRate = assignmentRecords.length
+        ? (assignmentRecords.filter((r) => r.homeworkScore >= 3).length / assignmentRecords.length) * 100
+        : 0;
+
+      return {
+        id: student.id,
+        name: student.user.name,
+        surname: student.user.surname,
+        group: student.group?.name || 'Без группы',
+        averageGrade: Number(averageGrade.toFixed(1)),
+        attendanceRate: Math.round(attendanceRate),
+        assignmentRate: Math.round(assignmentRate),
+      };
+    });
+
+    return studentsWithPerformance.sort((a, b) => b.averageGrade - a.averageGrade);
   }
 }

@@ -51,9 +51,17 @@ export const teacherService = {
   // Получить преподавателя по пользователю
   async getTeacherByUser(userId: number): Promise<Teacher | null> {
     try {
+      // Предпочитаемый эндпоинт, если он реализован на бэкенде
       return await apiClient.get<Teacher>(`/teachers/by-user/${userId}`);
     } catch (error) {
-      return null;
+      // Фолбэк: получаем всех преподавателей и фильтруем по user.id
+      try {
+        const list = await apiClient.get<any[]>('/teachers');
+        const found = list.find(t => t?.user?.id === userId) || null;
+        return found;
+      } catch {
+        return null;
+      }
     }
   },
 

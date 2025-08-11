@@ -65,7 +65,10 @@ export class StudentsController {
   @ApiOperation({ summary: 'Получить всех студентов' })
   @ApiResponse({ status: 200, description: 'Список всех студентов с информацией о пользователях и группах' })
   @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
-  findAll() {
+  findAll(@Request() req) {
+    if (req.user?.role === 'TEACHER') {
+      return this.studentsService.findStudentsForTeacher(req.user.id);
+    }
     return this.studentsService.findAll();
   }
 

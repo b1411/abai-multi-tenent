@@ -117,7 +117,7 @@ export class KtpService {
   }
 
   async create(createKtpDto: CreateKtpDto) {
-    const { studyPlanId, sections, totalHours, totalLessons } = createKtpDto;
+    const { studyPlanId, sections, totalLessons } = createKtpDto;
 
     // Проверяем существование учебного плана
     const studyPlan = await this.prisma.studyPlan.findUnique({
@@ -329,7 +329,9 @@ export class KtpService {
   }
 
   async getCompletionKpi(filter: KtpFilterDto): Promise<KtpCompletionKpiResponseDto> {
+    const where: any = filter?.teacherId ? { id: filter.teacherId } : undefined;
     const teachers = await this.prisma.teacher.findMany({
+      where,
       include: {
         user: true,
         studyPlans: {
@@ -546,8 +548,11 @@ export class KtpService {
       return [];
     }
 
+    // Глобальный инкремент для уникальных ID уроков в рамках КТП
+    const nextIdRef = { value: 1 };
+
     // Пытаемся найти тематические группы
-    const thematicSections = this.findThematicGroups(lessons);
+    const thematicSections = this.findThematicGroups(lessons, nextIdRef);
     
     if (thematicSections.length > 0) {
       return thematicSections.map((section, index) => ({
@@ -560,13 +565,13 @@ export class KtpService {
     }
 
     // Если тематическое разделение не удалось, используем временное
-    return this.createTimeBasedSections(lessons, studyPlanName);
+    return this.createTimeBasedSections(lessons, studyPlanName, nextIdRef);
   }
 
   /**
    * Поиск тематических групп по ключевым словам в названиях уроков
    */
-  private findThematicGroups(lessons: any[]) {
+  private findThematicGroups(lessons: any[], nextIdRef: { value: number }) {
     const commonThemes = [
       { keywords: ['введение', 'основы', 'начало'], title: 'Введение и основы' },
       { keywords: ['теория', 'теоретический', 'принципы'], title: 'Теоретические основы' },
@@ -594,7 +599,7 @@ export class KtpService {
         );
         
         if (hasKeyword) {
-          matchingLessons.push(this.createLessonFromStudyPlan(lesson, matchingLessons.length + 1));
+          matchingLessons.push(this.createLessonFromStudyPlan(lesson, nextIdRef.value++));
           usedLessons.add(index);
         }
       });
@@ -611,7 +616,7 @@ export class KtpService {
     // Добавляем оставшиеся уроки в общий раздел
     const unusedLessons = lessons
       .filter((_, index) => !usedLessons.has(index))
-      .map((lesson, index) => this.createLessonFromStudyPlan(lesson, index + 1));
+      .map((lesson) => this.createLessonFromStudyPlan(lesson, nextIdRef.value++));
 
     if (unusedLessons.length > 0) {
       sections.push({
@@ -627,7 +632,7 @@ export class KtpService {
   /**
    * Создание разделов на основе времени (4-6 уроков в раздел)
    */
-  private createTimeBasedSections(lessons: any[], studyPlanName: string) {
+  private createTimeBasedSections(lessons: any[], studyPlanName: string, nextIdRef: { value: number }) {
     const sections = [];
     const lessonsPerSection = Math.ceil(lessons.length / Math.ceil(lessons.length / 5)); // Оптимальное количество уроков в разделе
     let sectionNumber = 1;
@@ -635,7 +640,7 @@ export class KtpService {
     for (let i = 0; i < lessons.length; i += lessonsPerSection) {
       const sectionLessons = lessons
         .slice(i, i + lessonsPerSection)
-        .map((lesson, index) => this.createLessonFromStudyPlan(lesson, index + 1));
+        .map((lesson) => this.createLessonFromStudyPlan(lesson, nextIdRef.value++));
 
       sections.push({
         sectionId: sectionNumber,

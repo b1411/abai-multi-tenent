@@ -508,7 +508,7 @@ const SchedulePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const roomFilter = searchParams.get('room');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'calendar'>('table');
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [filters, setFilters] = useState({
     day: '',
@@ -650,6 +650,12 @@ const SchedulePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, page, pageSize]);
 
+  // При смене режима (особенно на календарь) перезапрашиваем больше данных
+  useEffect(() => {
+    loadScheduleData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
+
   // Загрузка данных для фильтров
   const loadFilterData = async () => {
     try {
@@ -691,6 +697,9 @@ const SchedulePage: React.FC = () => {
     try {
       setIsLoading(true);
 
+      // В календарном виде загружаем больше данных, чтобы показать все регулярные занятия
+      const effectivePageSize = viewMode === 'calendar' ? 1000 : pageSize;
+
       const requestFilters = {
         ...(filters.groupId && { groupId: parseInt(filters.groupId) }),
         ...(filters.teacherId && { teacherId: parseInt(filters.teacherId) }),
@@ -698,12 +707,13 @@ const SchedulePage: React.FC = () => {
         ...(filters.studyPlanId && { studyPlanId: parseInt(filters.studyPlanId) }),
         ...(filters.day && { dayOfWeek: getDayNumber(filters.day) }),
         page,
-        pageSize
+        pageSize: effectivePageSize
       };
 
       // Логирование для отладки
       console.log('Запрос расписания с фильтрами:', requestFilters);
       console.log('Текущий фильтр учебного плана:', filters.studyPlanId);
+      console.log('Текущий режим просмотра:', viewMode, 'pageSize:', effectivePageSize);
 
       // Получаем расписание с учетом роли пользователя
       const response = await scheduleService.getScheduleForUser(
@@ -711,9 +721,9 @@ const SchedulePage: React.FC = () => {
         user?.id,
         requestFilters
       );
-      // Если backend возвращает total, используем его, иначе считаем вручную
+      // Если backend возвращает массив — вручную ограничим размер при необходимости
       if (Array.isArray(response)) {
-        setSchedule(response.slice(0, pageSize));
+        setSchedule(response.slice(0, effectivePageSize));
         setTotal(response.length);
       } else {
         setSchedule(response.items || []);
@@ -1314,6 +1324,7 @@ const SchedulePage: React.FC = () => {
 
   const sensors = useSensors(useSensor(PointerSensor));
   const [selectedGridDay, setSelectedGridDay] = useState<ScheduleItem['day']>('monday');
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
   // Константы для сетки расписания (используются и на десктопе, и на мобильных)
   const gridDays: Array<{ key: ScheduleItem['day']; label: string }> = [
@@ -1419,6 +1430,16 @@ const SchedulePage: React.FC = () => {
                 <Calendar className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Сетка</span>
                 <span className="sm:hidden">Сетка</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${
+                  viewMode === 'calendar' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Calendar className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">Календарь</span>
+                <span className="sm:hidden">Кален.</span>
               </button>
             </div>
           </div>
@@ -1533,7 +1554,7 @@ const SchedulePage: React.FC = () => {
                     <option value="">Все группы</option>
                     {groups.map(group => (
                       <option key={group.id} value={group.id.toString()}>
-                        {group.name} (курс {group.courseNumber})
+                        {group.name} (класс {group.courseNumber})
                       </option>
                     ))}
                   </select>
@@ -1659,10 +1680,10 @@ const SchedulePage: React.FC = () => {
 
         {/* Таблица расписания */}
         {viewMode === 'table' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
             {/* Desktop Table View */}
             <div className="hidden lg:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full table-fixed divide-y divide-gray-200 [&_td]:!whitespace-normal [&_td]:break-words [&_td]:align-top">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1702,7 +1723,7 @@ const SchedulePage: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {getFilteredSchedule().map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       <div>
                         {item.date ? (
                           <div>
@@ -1728,25 +1749,25 @@ const SchedulePage: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2 text-gray-400" />
                         {item.startTime} - {item.endTime}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       {item.classId}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       {item.subject}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-2 text-gray-400" />
                         {item.teacherName}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       <button
                         onClick={() => handleRoomClick(item.roomId)}
                         className="flex items-center text-blue-600 hover:text-blue-800 hover:underline transition-colors"
@@ -1755,7 +1776,7 @@ const SchedulePage: React.FC = () => {
                         {item.roomId}
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.type === 'lesson' ? 'bg-blue-100 text-blue-800' :
                         item.type === 'consultation' ? 'bg-green-100 text-green-800' :
                           'bg-purple-100 text-purple-800'
@@ -1764,11 +1785,11 @@ const SchedulePage: React.FC = () => {
                           item.type === 'consultation' ? 'Консультация' : 'Доп. занятие'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
                       {item.repeat === 'weekly' ? 'Еженедельно' :
                         item.repeat === 'biweekly' ? 'Раз в 2 недели' : 'Единожды'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status === 'upcoming' ? 'bg-green-100 text-green-800' :
                         item.status === 'completed' ? 'bg-gray-100 text-gray-800' :
                           'bg-red-100 text-red-800'
@@ -1778,7 +1799,7 @@ const SchedulePage: React.FC = () => {
                       </span>
                     </td>
                     {canEditSchedule() && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-right">
                         <div className="flex space-x-2 justify-end">
                           <button
                             onClick={() => handleEditClick(item)}
@@ -1978,7 +1999,7 @@ const SchedulePage: React.FC = () => {
         {viewMode === 'grid' && (
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             {/* Desktop grid */}
-            <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+            <div className="hidden lg:block bg-white rounded-lg shadow overflow-auto">
               <div className="p-4 overflow-auto">
                 <div className="grid grid-cols-6 gap-4 min-w-[900px]">
                   <div className="col-span-1" />
@@ -2076,6 +2097,121 @@ const SchedulePage: React.FC = () => {
               </div>
             </div>
           </DndContext>
+        )}
+
+        {/* Календарный вид (месяц) */}
+        {viewMode === 'calendar' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
+              <button
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                className="px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-sm"
+              >
+                ‹
+              </button>
+              <div className="text-sm sm:text-base font-semibold text-gray-900">
+                {currentMonth.toLocaleString('ru-RU', { month: 'long', year: 'numeric' })}
+              </div>
+              <button
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                className="px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-sm"
+              >
+                ›
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-px bg-gray-200">
+              {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d) => (
+                <div key={d} className="bg-gray-50 text-center py-2 text-xs sm:text-sm font-medium text-gray-600">
+                  {d}
+                </div>
+              ))}
+              {(() => {
+                const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+                const startWeekday = (firstDay.getDay() + 6) % 7; // 0=Mon
+                const totalDays = lastDay.getDate();
+                const cells: React.ReactNode[] = [];
+                for (let i = 0; i < startWeekday; i++) {
+                  cells.push(<div key={`empty-${i}`} className="bg-white h-24 sm:h-32" />);
+                }
+                for (let day = 1; day <= totalDays; day++) {
+                  const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                  const itemsInDay = getFilteredSchedule().filter((item) => {
+                    // Отображаем регулярные занятия (weekly/biweekly) и одноразовые (once)
+                    const dayMap: Record<number, ScheduleItem['day']> = {
+                      0: 'sunday',
+                      1: 'monday',
+                      2: 'tuesday',
+                      3: 'wednesday',
+                      4: 'thursday',
+                      5: 'friday',
+                      6: 'saturday',
+                    };
+                    const dayName = dayMap[dateObj.getDay()];
+                    const sameDate = (d1: Date, d2: Date) =>
+                      d1.getFullYear() === d2.getFullYear() &&
+                      d1.getMonth() === d2.getMonth() &&
+                      d1.getDate() === d2.getDate();
+                    const hasDate = !!item.date;
+                    const startDate = hasDate ? new Date(item.date as string) : undefined;
+
+                    // Одноразовые занятия показываем только в день даты
+                    if (item.repeat === 'once') {
+                      return hasDate ? sameDate(new Date(item.date as string), dateObj) : false;
+                    }
+
+                    // День недели должен совпадать (если указан)
+                    if (item.day && item.day !== dayName) return false;
+
+                    // Biweekly: используем дату как якорь; если её нет — показываем каждую подходящую неделю (фолбэк)
+                    if (item.repeat === 'biweekly') {
+                      if (!startDate) return true;
+                      const d1 = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                      const d2 = Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+                      const diffDays = Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+                      if (diffDays < 0) return false;
+                      const weeks = Math.floor(diffDays / 7);
+                      return weeks % 2 === 0;
+                    }
+
+                    // Weekly или не указан repeat: показываем каждую неделю в соответствующий день
+                    if (startDate) {
+                      const before =
+                        Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()) <
+                        Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                      if (before) return false;
+                    }
+                    return true;
+                  });
+                  cells.push(
+                    <div key={`day-${day}`} className="bg-white h-24 sm:h-32 p-1 sm:p-2">
+                      <div className="text-xs text-gray-500 mb-1">{day}</div>
+                      <div className="space-y-1 overflow-y-auto max-h-[5.5rem] sm:max-h-[7rem] pr-1">
+                        {itemsInDay.map((item) => (
+                          <div
+                            key={item.id}
+                            className="text-[10px] sm:text-xs p-1 rounded border-l-4 bg-blue-50 border-blue-400 cursor-pointer hover:bg-blue-100"
+                            onClick={() => canEditSchedule() ? handleEditClick(item) : undefined}
+                            title={`${item.startTime} ${item.subject} (${item.classId})`}
+                          >
+                            <div className="font-medium truncate">{item.subject}</div>
+                            <div className="text-gray-600">{item.startTime} • {item.classId}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                const totalCells = startWeekday + totalDays;
+                const trailing = (7 - (totalCells % 7)) % 7;
+                for (let i = 0; i < trailing; i++) {
+                  cells.push(<div key={`trail-${i}`} className="bg-white h-24 sm:h-32" />);
+                }
+                return cells;
+              })()}
+            </div>
+          </div>
         )}
 
         {/* Модальные окна показываются только если есть права на редактирование */}

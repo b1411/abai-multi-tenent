@@ -1,4 +1,4 @@
-import { IsString, IsInt, Min, Max, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsInt, Min, IsNotEmpty, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateGroupDto {
@@ -13,13 +13,11 @@ export class CreateGroupDto {
   name: string;
 
   @ApiProperty({
-    description: 'Номер курса',
+    description: 'Номер группы',
     example: 1,
     minimum: 1,
-    maximum: 6,
   })
   @IsInt()
-  @Min(1, { message: 'Номер курса должен быть от 1 до 6' })
-  @Max(6, { message: 'Номер курса должен быть от 1 до 6' })
+  @Min(1, { message: 'Номер группы должен быть не меньше 1' })
   courseNumber: number;
 }

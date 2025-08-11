@@ -35,7 +35,8 @@ import SalariesPage from './pages/Salaries';
 import LoyaltyPage from './pages/Loyalty';
 import FeedbackAdmin from './pages/FeedbackAdmin';
 import MandatoryFeedbackWrapper from './components/MandatoryFeedbackWrapper';
-import { ToastProvider } from './providers/ToastProvider';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Inventory from './pages/Inventory';
 import InventoryAnalytics from './pages/InventoryAnalytics';
 import Supply from './pages/Supply';
@@ -74,7 +75,7 @@ import ResetPassword from './pages/ResetPassword';
 const App: React.FC = () => {
   return (
     <Router>
-      <ToastProvider>
+      
         <AuthProvider>
           <ActivityProvider>
             <NotificationProvider>
@@ -222,7 +223,7 @@ const App: React.FC = () => {
             </NotificationProvider>
           </ActivityProvider>
         </AuthProvider>
-      </ToastProvider>
+      <ToastContainer position="top-right" autoClose={5000} pauseOnHover theme="colored" />
     </Router>
   );
 };

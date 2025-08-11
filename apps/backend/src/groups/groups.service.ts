@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
-import { GroupStatisticsDto } from './dto/group-statistics.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -388,6 +387,109 @@ export class GroupsService {
       totalStudents,
       groupsByCourse: groupsByCourseData,
       averageStudentsPerGroup: totalStudents / totalGroups || 0,
+    };
+  }
+
+  async findTeacherGroups(userId: number) {
+    const teacher = await this.prisma.teacher.findFirst({
+      where: { userId, deletedAt: null },
+    });
+
+    if (!teacher) {
+      throw new NotFoundException('Teacher not found');
+    }
+
+    return this.prisma.group.findMany({
+      where: {
+        deletedAt: null,
+        studyPlans: {
+          some: {
+            teacherId: teacher.id,
+            deletedAt: null,
+          },
+        },
+      },
+      include: {
+        students: {
+          where: { deletedAt: null },
+          include: {
+            user: true,
+          },
+        },
+        _count: {
+          select: {
+            students: {
+              where: { deletedAt: null },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { courseNumber: 'asc' },
+        { name: 'asc' },
+      ],
+    });
+  }
+
+  async getTeacherGroupStatistics(userId: number) {
+    const teacher = await this.prisma.teacher.findFirst({
+      where: { userId, deletedAt: null },
+    });
+
+    if (!teacher) {
+      throw new NotFoundException('Teacher not found');
+    }
+
+    const teacherGroups = await this.prisma.group.findMany({
+      where: {
+        deletedAt: null,
+        studyPlans: {
+          some: {
+            teacherId: teacher.id,
+            deletedAt: null,
+          },
+        },
+      },
+      select: {
+        id: true,
+        courseNumber: true,
+      },
+    });
+
+    if (teacherGroups.length === 0) {
+      return {
+        totalGroups: 0,
+        totalStudents: 0,
+        groupsByCourse: [],
+        averageStudentsPerGroup: 0,
+      };
+    }
+
+    const groupIds = teacherGroups.map(g => g.id);
+    const totalGroups = teacherGroups.length;
+
+    const totalStudents = await this.prisma.student.count({
+      where: {
+        groupId: { in: groupIds },
+        deletedAt: null,
+      },
+    });
+
+    const groupsByCourseData = teacherGroups.reduce((acc, group) => {
+      const existing = acc.find(item => item.courseNumber === group.courseNumber);
+      if (existing) {
+        existing.count++;
+      } else {
+        acc.push({ courseNumber: group.courseNumber, count: 1 });
+      }
+      return acc;
+    }, [] as { courseNumber: number; count: number }[]);
+
+    return {
+      totalGroups,
+      totalStudents,
+      groupsByCourse: groupsByCourseData,
+      averageStudentsPerGroup: totalGroups ? totalStudents / totalGroups : 0,
     };
   }
 }

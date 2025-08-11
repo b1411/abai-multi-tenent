@@ -16,7 +16,9 @@ import { Select } from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { Alert } from '../components/ui/Alert';
 import { Spinner } from '../components/ui/Spinner';
-import { PaginateResponseDto } from '../types/api';
+import type { StudyPlanResponse } from '../types/studyPlan';
+import { studyPlanService } from '../services/studyPlanService';
+import { teacherService } from '../services/teacherService';
 
 interface GradeModalProps {
     isOpen: boolean;
@@ -354,7 +356,8 @@ const AcademicJournal: React.FC = () => {
     
     const [filters, setFilters] = useState<JournalFilters>(getDefaultDateRange());
     const [groups, setGroups] = useState<Array<{ id: number; name: string; courseNumber: number }>>([]);
-    const [studyPlans, setStudyPlans] = useState<PaginateResponseDto<{ id: number; name: string; description?: string }> | null>(null);
+    const [studyPlans, setStudyPlans] = useState<StudyPlanResponse | null>(null);
+const [teacherId, setTeacherId] = useState<number | null>(null);
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
     const [results, setResults] = useState<LessonResult[]>([]);
@@ -384,6 +387,27 @@ const AcademicJournal: React.FC = () => {
         loadInitialData();
     }, []);
 
+    // Для преподавателя — подгружаем учебные планы по выбранной группе
+    useEffect(() => {
+        const updatePlansForTeacher = async () => {
+            if (user?.role !== 'TEACHER' || !teacherId) return;
+            try {
+                setLoading(true);
+                const spRes = await studyPlanService.getStudyPlans({
+                    teacherId,
+                    ...(filters.groupId ? { groupId: filters.groupId } : {}),
+                    limit: 1000
+                });
+                setStudyPlans(spRes);
+            } catch (e) {
+                console.error('Ошибка загрузки учебных планов преподавателя', e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        updatePlansForTeacher();
+    }, [user?.role, teacherId, filters.groupId]);
+
     // Загрузка журнала при изменении фильтров
     useEffect(() => {
         if (canViewAll) {
@@ -400,12 +424,47 @@ const AcademicJournal: React.FC = () => {
     const loadInitialData = async () => {
         try {
             setLoading(true);
-            const [groupsData, studyPlansData] = await Promise.all([
-                journalService.getGroups(),
-                journalService.getStudyPlans(),
-            ]);
-            setGroups(groupsData);
-            setStudyPlans(studyPlansData);
+            setError(null);
+
+            if (user?.role === 'TEACHER') {
+                // Получаем преподавателя по пользователю
+                const teacher = await teacherService.getTeacherByUser(user.id);
+                if (teacher?.id) {
+                    setTeacherId(teacher.id);
+
+                    // Загружаем планы этого преподавателя
+                    const spRes = await studyPlanService.getStudyPlans({ teacherId: teacher.id, limit: 1000 });
+                    setStudyPlans(spRes);
+
+                    // Формируем список групп из его планов
+                    const uniqueGroups = new Map<number, { id: number; name: string; courseNumber: number }>();
+                    spRes.data.forEach(sp => {
+                        (sp.group || []).forEach(g => {
+                            if (g && !uniqueGroups.has(g.id)) {
+                                uniqueGroups.set(g.id, { id: g.id, name: g.name, courseNumber: g.courseNumber || 0 });
+                            }
+                        });
+                    });
+                    setGroups(Array.from(uniqueGroups.values()));
+                } else {
+                    // Нет записи преподавателя — оставим пустые списки
+                    const emptySp: StudyPlanResponse = {
+                        data: [],
+                        meta: { totalItems: 0, itemCount: 0, itemsPerPage: 0, totalPages: 0, currentPage: 1 }
+                    };
+                    setStudyPlans(emptySp);
+                    setGroups([]);
+                }
+            } else {
+                // ADMIN (и прочие, кому доступно) — все группы и все учебные планы
+                const [groupsData, studyPlansData] = await Promise.all([
+                    studyPlanService.getGroups(),
+                    studyPlanService.getStudyPlans({ limit: 1000 })
+                ]);
+
+                setGroups(groupsData.map(g => ({ id: g.id, name: g.name, courseNumber: g.courseNumber || 0 })));
+                setStudyPlans(studyPlansData);
+            }
         } catch (err) {
             setError('Ошибка загрузки данных');
             console.error(err);

@@ -680,7 +680,7 @@ const HomeworkPage: React.FC = () => {
             <HomeworkDetailModal
               homework={viewingHomework}
               onClose={() => setViewingHomework(null)}
-              onSubmit={async (files: File[], comment?: string) => {
+              onSubmit={hasRole('STUDENT') ? async (files: File[], comment?: string) => {
                 try {
                   setLoading(true);
                   
@@ -713,7 +713,7 @@ const HomeworkPage: React.FC = () => {
                 } finally {
                   setLoading(false);
                 }
-              }}
+              } : undefined}
               onViewSubmissions={() => {
                 navigate(`/homework/${viewingHomework.id}/submissions`);
                 setViewingHomework(null);

@@ -13,6 +13,7 @@ export class LessonService {
     
     if (filters.studyPlanId) params.append('studyPlanId', filters.studyPlanId.toString());
     if (filters.search) params.append('search', filters.search);
+    if (filters.type) params.append('type', filters.type);
     if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) params.append('dateTo', filters.dateTo);
     if (filters.page) params.append('page', filters.page.toString());
@@ -39,6 +40,7 @@ export class LessonService {
     
     if (filters.studyPlanId) params.append('studyPlanId', filters.studyPlanId.toString());
     if (filters.search) params.append('search', filters.search);
+    if (filters.type) params.append('type', filters.type);
     if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) params.append('dateTo', filters.dateTo);
     if (filters.page) params.append('page', filters.page.toString());

@@ -44,6 +44,10 @@ export class PerformanceController {
     if (req.user.role === 'STUDENT') {
       return this.performanceService.getStudentStatistics(req.user.id, filter);
     }
+    // Для учителей — только их студенты
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getTeacherStatistics(req.user.id, filter);
+    }
     return this.performanceService.getStatistics(filter);
   }
 
@@ -66,6 +70,10 @@ export class PerformanceController {
     // Для студентов возвращаем только их предметы
     if (req.user.role === 'STUDENT') {
       return this.performanceService.getStudentSubjects(req.user.id, filter);
+    }
+    // Для учителей — только их студенты
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getTeacherSubjects(req.user.id, filter);
     }
     return this.performanceService.getSubjects(filter);
   }
@@ -90,6 +98,10 @@ export class PerformanceController {
     if (req.user.role === 'STUDENT') {
       return this.performanceService.getStudentClasses(req.user.id);
     }
+    // Для учителей — только группы, где преподает учитель
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getTeacherClasses(req.user.id, filter);
+    }
     return this.performanceService.getClasses(filter);
   }
 
@@ -103,7 +115,10 @@ export class PerformanceController {
     description: 'Список отстающих студентов успешно получен',
     type: LowPerformingStudentsResponseDto,
   })
-  async getLowPerformingStudents(@Query() filter: PerformanceFilterDto) {
+  async getLowPerformingStudents(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getLowPerformingStudentsForTeacher(req.user.id, filter);
+    }
     return this.performanceService.getLowPerformingStudents(filter);
   }
 
@@ -117,7 +132,10 @@ export class PerformanceController {
     description: 'Список прогрессирующих студентов успешно получен',
     type: HighProgressStudentsResponseDto,
   })
-  async getHighProgressStudents(@Query() filter: PerformanceFilterDto) {
+  async getHighProgressStudents(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getHighProgressStudentsForTeacher(req.user.id, filter);
+    }
     return this.performanceService.getHighProgressStudents(filter);
   }
 
@@ -146,7 +164,10 @@ export class PerformanceController {
     type: [MonthlyDataDto],
   })
   @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
-  async getMonthlyData(@Query() filter: PerformanceFilterDto) {
+  async getMonthlyData(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getMonthlyDataForTeacher(req.user.id, filter);
+    }
     return this.performanceService.getMonthlyData(filter);
   }
 
@@ -161,7 +182,10 @@ export class PerformanceController {
     type: [GradeDistributionDto],
   })
   @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
-  async getGradeDistribution(@Query() filter: PerformanceFilterDto) {
+  async getGradeDistribution(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getGradeDistributionForTeacher(req.user.id, filter);
+    }
     return this.performanceService.getGradeDistribution(filter);
   }
 
@@ -176,7 +200,10 @@ export class PerformanceController {
     type: [PerformanceMetricDto],
   })
   @Roles('ADMIN', 'TEACHER', 'HR', 'PARENT', 'STUDENT')
-  async getPerformanceMetrics(@Query() filter: PerformanceFilterDto) {
+  async getPerformanceMetrics(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getPerformanceMetricsForTeacher(req.user.id, filter);
+    }
     return this.performanceService.getPerformanceMetrics(filter);
   }
 
@@ -190,7 +217,10 @@ export class PerformanceController {
     description: 'Список студентов успешно получен',
   })
   @Roles('ADMIN', 'TEACHER')
-  async getAllStudentsPerformance(@Query() filter: PerformanceFilterDto) {
+  async getAllStudentsPerformance(@Query() filter: PerformanceFilterDto, @Req() req: any) {
+    if (req.user.role === 'TEACHER') {
+      return this.performanceService.getAllStudentsPerformanceForTeacher(req.user.id, filter);
+    }
     return this.performanceService.getAllStudentsPerformance(filter);
   }
 }

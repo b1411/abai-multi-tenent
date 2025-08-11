@@ -139,8 +139,10 @@ const LessonCard: React.FC<LessonCardProps> = ({ lesson, lessonIndex, onLessonCl
 const SectionCard: React.FC<SectionCardProps> = ({ section, isExpanded, onToggle }) => {
   const completedLessons = section.lessons.filter(lesson => lesson.status === 'completed').length;
   const inProgressLessons = section.lessons.filter(lesson => lesson.status === 'in_progress').length;
-  const totalLessons = section.lessons.length;
-  const progress = (completedLessons / totalLessons) * 100;
+  const totalLessons = section.lessons.length || 0;
+  const rawProgress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+  const progress = Math.max(0, Math.min(100, rawProgress));
+  const sectionHours = Number(section.totalHours) || 0;
 
   return (
     <div className="mb-6">
@@ -169,7 +171,7 @@ const SectionCard: React.FC<SectionCardProps> = ({ section, isExpanded, onToggle
                 
                 <div className="flex items-center">
                   <FaClock className="w-4 h-4 mr-1" />
-                  <span>{section.totalHours} часов</span>
+                  <span>{sectionHours} часов</span>
                 </div>
                 
                 <div className="flex items-center">
@@ -286,6 +288,21 @@ const KtpTreeView: React.FC<KtpTreeViewProps> = ({ ktpId, ktpData: initialKtpDat
       console.error('Error loading KTP data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateFromStudyPlan = async () => {
+    if (!ktpData?.studyPlan?.id) return;
+    try {
+      setSaving(true);
+      const res = await ktpService.generateFromStudyPlan(ktpData.studyPlan.id);
+      setKtpData(res.ktp);
+      setExpandedSections(new Set(res.ktp.sections.filter(section => section.expanded).map(section => section.id)));
+    } catch (err) {
+      console.error('Error generating KTP:', err);
+      alert('Ошибка при генерации КТП');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -672,21 +689,39 @@ const KtpTreeView: React.FC<KtpTreeViewProps> = ({ ktpId, ktpData: initialKtpDat
   const completedLessons = ktpData.sections.reduce((acc, section) => 
     acc + section.lessons.filter(lesson => lesson.status === 'completed').length, 0
   );
-  const totalProgress = (completedLessons / ktpData.totalLessons) * 100;
+  const totalLessonsAll = Number(ktpData.totalLessons) || 0;
+  const totalProgress = totalLessonsAll > 0 ? (completedLessons / totalLessonsAll) * 100 : 0;
+  const clampedTotalProgress = Math.max(0, Math.min(100, totalProgress));
 
   return (
     <div className="w-full">
       {/* Заголовок с информацией о КТП */}
       {ktpData.studyPlan && (
         <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            {ktpData.studyPlan.name}
-          </h2>
-          {ktpData.studyPlan.teacher && (
-            <p className="text-gray-600">
-              Преподаватель: {ktpData.studyPlan.teacher.name}
-            </p>
-          )}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                {ktpData.studyPlan.name}
+              </h2>
+              {ktpData.studyPlan.teacher && (
+                <p className="text-gray-600">
+                  Преподаватель: {ktpData.studyPlan.teacher.name}
+                </p>
+              )}
+            </div>
+
+            {canEdit && (
+              <button
+                onClick={handleGenerateFromStudyPlan}
+                className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                disabled={saving || loading}
+                title="Сгенерировать КТП из учебного плана"
+              >
+                <FaPlus className="w-4 h-4 mr-2" />
+                Сгенерировать КТП
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -694,7 +729,7 @@ const KtpTreeView: React.FC<KtpTreeViewProps> = ({ ktpId, ktpData: initialKtpDat
       <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-gray-800">Общий прогресс курса</h3>
-          <div className="text-2xl font-bold text-indigo-600">{Math.round(totalProgress)}%</div>
+          <div className="text-2xl font-bold text-indigo-600">{Math.round(clampedTotalProgress)}%</div>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -711,7 +746,7 @@ const KtpTreeView: React.FC<KtpTreeViewProps> = ({ ktpId, ktpData: initialKtpDat
             <div className="text-sm text-gray-600">Завершено</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">{ktpData.totalLessons - completedLessons}</div>
+            <div className="text-2xl font-bold text-orange-600">{totalLessonsAll - completedLessons}</div>
             <div className="text-sm text-gray-600">Осталось</div>
           </div>
         </div>
@@ -719,7 +754,7 @@ const KtpTreeView: React.FC<KtpTreeViewProps> = ({ ktpId, ktpData: initialKtpDat
         <div className="w-full h-3 bg-white rounded-full overflow-hidden">
           <div 
             className="h-full bg-gradient-to-r from-green-400 via-blue-500 to-indigo-600 transition-all duration-500"
-            style={{ width: `${totalProgress}%` }}
+            style={{ width: `${clampedTotalProgress}%` }}
           />
         </div>
       </div>

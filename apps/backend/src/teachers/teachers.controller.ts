@@ -33,6 +33,11 @@ export class TeachersController {
     return this.workedHoursService.getAllTeachersWorkedHours(+month, +year);
   }
 
+  @Get('by-user/:userId')
+  findByUser(@Param('userId') userId: string) {
+    return this.teachersService.findByUser(+userId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.teachersService.findOne(+id);

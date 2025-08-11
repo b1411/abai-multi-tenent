@@ -24,6 +24,7 @@ import { AuthGuard } from '../common/guards/auth.guard';
 
 @ApiTags('Groups')
 @Controller('groups')
+@ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) { }
@@ -67,6 +68,10 @@ export class GroupsController {
     if (req.user.role === 'PARENT') {
       return this.groupsService.findParentGroups(req.user.id);
     }
+    // Для учителей возвращаем только их группы
+    if (req.user.role === 'TEACHER') {
+      return this.groupsService.findTeacherGroups(req.user.id);
+    }
     // Для всех остальных возвращаем все группы
     return this.groupsService.findAll();
   }
@@ -84,6 +89,10 @@ export class GroupsController {
     // Для родителей возвращаем статистику только по группам их детей
     if (req.user.role === 'PARENT') {
       return this.groupsService.getParentGroupStatistics(req.user.id);
+    }
+    // Для учителей возвращаем статистику только по их группам
+    if (req.user.role === 'TEACHER') {
+      return this.groupsService.getTeacherGroupStatistics(req.user.id);
     }
     // Для всех остальных возвращаем общую статистику
     return this.groupsService.getGroupStatistics();

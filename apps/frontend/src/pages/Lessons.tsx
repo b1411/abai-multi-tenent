@@ -19,6 +19,17 @@ import { studyPlanService } from '../services/studyPlanService';
 import { getLessonTypeLabel, getLessonTypeColor, getLessonTypeOptions } from '../utils/lessonTypeUtils';
 
 const LessonsPage: React.FC = () => {
+  // Prevent page-wide horizontal scroll while Lessons page is mounted
+  React.useEffect(() => {
+    const prevHtml = document.documentElement.style.overflowX;
+    const prevBody = document.body.style.overflowX;
+    document.documentElement.style.overflowX = 'hidden';
+    document.body.style.overflowX = 'hidden';
+    return () => {
+      document.documentElement.style.overflowX = prevHtml;
+      document.body.style.overflowX = prevBody;
+    };
+  }, []);
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const [searchParams] = useSearchParams();
@@ -164,7 +175,7 @@ const LessonsPage: React.FC = () => {
             <div className="font-medium text-gray-900">
               <button
                 onClick={() => navigate(`/lessons/${record.id}`)}
-                className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                className="text-blue-600 hover:text-blue-800 hover:underline text-left break-words break-all"
               >
                 {value}
               </button>
@@ -236,7 +247,7 @@ const LessonsPage: React.FC = () => {
       title: 'Материалы',
       render: (materials: any) => (
         <div className="text-sm">
-          {materials ? (
+          {(Array.isArray(materials) ? materials.length > 0 : Boolean(materials)) ? (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
               Есть
             </span>
@@ -254,7 +265,7 @@ const LessonsPage: React.FC = () => {
       render: (homework: any) => (
         <div className="text-sm">
           {homework ? (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 max-w-[200px] truncate">
               {homework.name}
             </span>
           ) : (
@@ -316,7 +327,7 @@ const LessonsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 min-h-screen bg-gray-50" style={{fontSize: '16px'}}>
+    <div className="p-3 sm:p-4 lg:p-6 min-h-screen bg-gray-50 w-full overflow-x-hidden" style={{fontSize: '16px'}}>
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
@@ -450,17 +461,19 @@ const LessonsPage: React.FC = () => {
       </div>
 
       {/* Table/Cards */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto overflow-y-hidden">
         {/* Desktop Table View - Only show on very large screens */}
-        <div className="hidden xl:block">
-          <Table
-            columns={columns}
-            data={lessons}
-            loading={lessonsLoading}
-            sortBy={filters.sortBy}
-            sortDirection={filters.order}
-            onSort={(key, direction) => updateFilters({ sortBy: key as any, order: direction })}
-          />
+        <div className="hidden xl:block overflow-x-auto">
+          <div className="[&_table]:table-fixed [&_table]:w-full [&_table]:min-w-[960px] [&_th]:!whitespace-normal [&_td]:!whitespace-normal [&_th]:break-all [&_td]:break-all [&_*]:min-w-0 [&_th]:align-top [&_td]:align-top">
+            <Table
+              columns={columns}
+              data={lessons}
+              loading={lessonsLoading}
+              sortBy={filters.sortBy}
+              sortDirection={filters.order}
+              onSort={(key, direction) => updateFilters({ sortBy: key as any, order: direction })}
+            />
+          </div>
         </div>
 
         {/* Mobile Card View - Show on all screens up to xl */}
@@ -846,7 +859,7 @@ const LessonForm: React.FC<{
         />
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-3 sm:pt-4 lg:pt-6 border-t border-gray-200 sticky bottom-0 bg-white pb-3 sm:pb-0 sm:static sm:border-0 -mx-4 sm:-mx-6 px-4 sm:px-6 sm:mx-0 sm:px-0">
+      <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-3 sm:pt-4 lg:pt-6 border-t border-gray-200 sticky bottom-0 bg-white pb-3 sm:pb-0 sm:static sm:border-0 mx-0 px-4 sm:px-6">
         <button
           type="button"
           onClick={onClose}

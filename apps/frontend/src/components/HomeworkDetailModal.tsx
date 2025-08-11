@@ -239,7 +239,7 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
             </div>
           )}
 
-          {/* Student Submission Status */}
+          {/* Student Submission Status (only for STUDENT) */}
           {hasRole('STUDENT') && userSubmission && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-medium text-blue-900 mb-2">Ваша отправка</h3>
@@ -264,7 +264,7 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
             </div>
           )}
 
-          {/* Submit Work Form (for students) */}
+          {/* Submit Work Form (only for STUDENT) */}
           {hasRole('STUDENT') && status !== 'overdue' && (!userSubmission || (userSubmission && (userSubmission.lessonResult?.homeworkScore === null || userSubmission.lessonResult?.homeworkScore === undefined))) && (
             <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-medium text-gray-900 mb-3">
@@ -384,18 +384,11 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
                   </button>
                 )}
               </div>
-              <button
-                onClick={() => setIsProctoringVisible(true)}
-                className="w-full bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 flex items-center justify-center"
-              >
-                <Bot className="h-4 w-4 mr-2" />
-                Сдать работу
-              </button>
             </div>
           )}
         </div>
       </div>
-      {isProctoringVisible && (
+      {isProctoringVisible && hasRole('STUDENT') && (
         <ProctoringView
           lessonTopic={homework.lesson?.name || 'Общая тема'}
           onClose={() => setIsProctoringVisible(false)}

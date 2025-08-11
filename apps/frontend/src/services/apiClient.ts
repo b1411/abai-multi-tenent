@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import { toast } from 'react-toastify';
 import { LoginDto, LoginResponse } from '../types/api';
 
 class ApiClient {
@@ -37,6 +38,43 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
+        // Extract backend error message and show toast
+        let message = 'Произошла ошибка. Повторите попытку.';
+
+        try {
+          if (error?.response) {
+            const { data, status, statusText } = error.response;
+            if (typeof data === 'string') {
+              message = data;
+            } else if (data?.message) {
+              message = Array.isArray(data.message) ? data.message.join('\n') : String(data.message);
+            } else if (data?.error) {
+              message = String(data.error);
+            } else if (data?.errors && typeof data.errors === 'object') {
+              const parts = Object.values(data.errors as Record<string, unknown>)
+                .flat()
+                .map((v) => String(v));
+              const joined = parts.join('\n').trim();
+              message = joined || message;
+            } else {
+              message = `Ошибка ${status}${statusText ? `: ${statusText}` : ''}`;
+            }
+          } else if (error?.request && !error?.response) {
+            message = 'Сервер не отвечает. Проверьте подключение.';
+          } else if (error?.message) {
+            message = error.message;
+          }
+        } catch (_) {
+          // no-op
+        }
+
+        // Show toast with react-toastify
+        try {
+          toast.error(message, { autoClose: 5000, pauseOnHover: true, theme: 'colored' });
+        } catch (_) {
+          // no-op
+        }
+
         if (error.response?.status === 401) {
           // Handle 401 unauthorized errors
           this.handleUnauthorized();

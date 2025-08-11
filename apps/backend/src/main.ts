@@ -7,7 +7,6 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Request, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -157,8 +156,6 @@ Authorization: Bearer <your-jwt-token>
   }
 
   await app.listen(process.env.BACKEND_PORT ?? 3000, '::');
-
-  console.log(process.env)
 
   console.log(`🚀 Application is running on: http://localhost:${process.env.BACKEND_PORT ?? 3000}`);
   console.log(`📚 Swagger documentation available at: http://localhost:${process.env.BACKEND_PORT ?? 3000}/api`);

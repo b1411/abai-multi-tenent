@@ -728,8 +728,8 @@ const Reports: React.FC = () => {
         </div>
         
         {/* Desktop Table View */}
-        <div className="hidden lg:block">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="w-full table-fixed divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -759,27 +759,27 @@ const Reports: React.FC = () => {
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => handleRowClick(report)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <div className="flex items-center">
                       <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                      <div className="text-sm font-medium text-gray-900">{report.title}</div>
+                      <div className="text-sm font-medium text-gray-900 break-words">{report.title}</div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">{reportTypeLabels[report.type]}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">{report.period}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[report.status]}`}>
                       {statusLabels[report.status]}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">{new Date(report.generatedAt).toLocaleDateString('ru-RU')}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-6 py-4 text-right text-sm font-medium">
                     <button 
                       className="text-blue-600 hover:text-blue-900 mr-3"
                       onClick={(e) => {

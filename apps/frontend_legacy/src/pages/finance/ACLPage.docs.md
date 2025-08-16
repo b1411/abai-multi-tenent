@@ -39,7 +39,7 @@ interface Review {
 
 #### 1.1. Получение метрик
 ```
-GET /api/loyalty/metrics
+GET /api/loyalty/insights
 ```
 **Query параметры:**
 - `type` ('group' | 'direction' | 'teacher' | 'academy') - тип метрик
@@ -62,7 +62,7 @@ GET /api/loyalty/metrics
 
 #### 1.2. Получение детальной статистики
 ```
-GET /api/loyalty/metrics/detailed
+GET /api/loyalty/insights/detailed
 ```
 **Query параметры:**
 - Те же, что и для получения метрик
@@ -180,7 +180,7 @@ GET /api/loyalty/export
 
 ### Получение метрик по группам
 ```bash
-curl -X GET "http://api.example.com/api/loyalty/metrics?type=group&period=month" \
+curl -X GET "http://api.example.com/api/loyalty/insights?type=group&period=month" \
   -H "Authorization: Bearer {token}"
 ```
 

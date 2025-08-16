@@ -145,7 +145,7 @@ POST /api/kpi/categories
 
 #### 2.2. Создание метрики KPI
 ```
-POST /api/kpi/metrics
+POST /api/kpi/insights
 ```
 **Тело запроса:**
 ```typescript

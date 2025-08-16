@@ -80,8 +80,8 @@ export const performanceService = {
   // Получить общие метрики производительности
   async getPerformanceMetrics(filter?: PerformanceFilter): Promise<PerformanceMetric[]> {
     const url = filter 
-      ? `/performance/metrics?${new URLSearchParams(filter as any).toString()}`
-      : '/performance/metrics';
+      ? `/performance/insights?${new URLSearchParams(filter as any).toString()}`
+      : '/performance/insights';
     return await apiClient.get<PerformanceMetric[]>(url);
   },
 

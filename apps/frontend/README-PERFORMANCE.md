@@ -42,7 +42,7 @@ GET /performance/students/high-progress   - Прогрессирующие ст�
 GET /performance/trends           - Тренды успеваемости
 GET /performance/monthly-data     - Помесячные данные
 GET /performance/grade-distribution - Распределение оценок
-GET /performance/metrics          - Общие метрики
+GET /performance/insights          - Общие метрики
 ```
 
 #### Сервис (`PerformanceService`)

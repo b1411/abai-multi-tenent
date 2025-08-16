@@ -189,7 +189,7 @@ export class PerformanceController {
     return this.performanceService.getGradeDistribution(filter);
   }
 
-  @Get('metrics')
+  @Get('insights')
   @ApiOperation({
     summary: 'Получить общие метрики производительности',
     description: 'Возвращает основные показатели для радарной диаграммы',

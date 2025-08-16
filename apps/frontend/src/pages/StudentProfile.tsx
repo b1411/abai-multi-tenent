@@ -108,6 +108,16 @@ const StudentProfile: React.FC = () => {
     }
   }, [studentData?.id, activeTab, fetchGrades, fetchAttendanceData, fetchRemarksData]);
 
+  // Перенесено выше любых return, чтобы не нарушать порядок хуков
+  const averageLessonScore = React.useMemo(() => {
+    if (!grades) return null;
+    const subjects = grades as Record<string, SubjectDataLite>;
+    const list = Object.values(subjects);
+    if (!list.length) return 0;
+    const total = list.reduce((sum, s) => sum + (s.statistics?.averageLessonScore ?? 0), 0);
+    return total / list.length;
+  }, [grades]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -160,37 +170,57 @@ const StudentProfile: React.FC = () => {
     { id: 'remarks', label: 'Замечания', icon: FaExclamationTriangle }
   ];
 
+  // --- Lightweight type helpers (UI only) ---
+  interface LessonResultLite {
+    Lesson: { name: string; date: string; studyPlan: { name: string } };
+    attendance?: boolean | null;
+    lessonScore?: number | null;
+  }
+  interface SubjectStatisticsLite {
+    averageLessonScore: number;
+    averageHomeworkScore: number;
+    totalLessons: number;
+    attendanceRate: number;
+  }
+  interface SubjectDataLite {
+    subject: { teacher: { user: { surname: string; name: string } } };
+    statistics: SubjectStatisticsLite;
+    grades: LessonResultLite[];
+  }
+  interface AttendanceSubjectLite { attended: number; missed: number }
+  interface AttendanceRecordLite { subject: string; date: string; attendance: boolean; absentReason?: string | null }
+
   return (
     <div className="p-4 lg:p-6 space-y-6">
       {/* Заголовок профиля */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 lg:p-8 text-white">
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-          <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white font-semibold text-2xl lg:text-3xl">
+          <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white/25 backdrop-blur rounded-full flex items-center justify-center text-white font-semibold text-2xl lg:text-3xl ring-2 ring-white/30">
             {studentData.user.name.charAt(0)}{studentData.user.surname.charAt(0)}
           </div>
 
           <div className="flex-1">
             <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start">
               <div>
-                <h1 className="text-2xl lg:text-3xl font-bold mb-2">
+                <h1 className="text-2xl lg:text-3xl font-bold mb-1 tracking-tight">
                   Мой профиль
                 </h1>
-                <p className="text-xl lg:text-2xl text-blue-100 mb-3">
+                <p className="text-lg lg:text-xl text-white/90 mb-3 font-medium">
                   {studentData.user.surname} {studentData.user.name}
                   {studentData.user.middlename && ` ${studentData.user.middlename}`}
                 </p>
-                <div className="flex flex-wrap gap-4 text-blue-100">
+                <div className="flex flex-wrap gap-4 text-white/70 text-sm">
                   <div className="flex items-center gap-2">
-                    <FaUsers className="w-4 h-4" />
-                    <span>{studentData.group.name}</span>
+                    <FaUsers className="w-4 h-4 text-white/60" />
+                    <span className="font-medium text-white">{studentData.group.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FaGraduationCap className="w-4 h-4" />
-                    <span>{studentData.group.courseNumber} курс</span>
+                    <FaGraduationCap className="w-4 h-4 text-yellow-200/80" />
+                    <span className="font-medium text-yellow-50">{studentData.group.courseNumber} курс</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FaCalendarAlt className="w-4 h-4" />
-                    <span>С {new Date(studentData.createdAt).toLocaleDateString('ru-RU')}</span>
+                    <FaCalendarAlt className="w-4 h-4 text-emerald-200/80" />
+                    <span className="font-medium text-emerald-50">С {new Date(studentData.createdAt).toLocaleDateString('ru-RU')}</span>
                   </div>
                 </div>
               </div>
@@ -198,17 +228,19 @@ const StudentProfile: React.FC = () => {
               <div className="flex gap-3 mt-4 lg:mt-0">
                 <button
                   onClick={() => {/* TODO: Открыть настройки профиля */ }}
-                  className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 transition-colors flex items-center gap-2 text-sm lg:text-base"
+                  className="px-4 py-2 bg-white/15 hover:bg-white/25 text-white rounded-lg backdrop-blur transition-colors flex items-center gap-2 text-sm lg:text-base border border-white/20"
                 >
                   <FaEdit className="w-4 h-4" />
                   <span className="hidden sm:inline">Настройки</span>
                 </button>
                 <button
                   onClick={() => {/* TODO: Открыть уведомления */ }}
-                  className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 transition-colors flex items-center gap-2 text-sm lg:text-base"
+                  className="px-4 py-2 bg-white/15 hover:bg-white/25 text-white rounded-lg backdrop-blur transition-colors flex items-center gap-2 text-sm lg:text-base border border-white/20 relative"
                 >
                   <FaBell className="w-4 h-4" />
                   <span className="hidden sm:inline">Уведомления</span>
+                  {/* Индикатор */}
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full ring-2 ring-purple-600"></span>
                 </button>
               </div>
             </div>
@@ -216,20 +248,22 @@ const StudentProfile: React.FC = () => {
         </div>
 
         {/* Вкладки */}
-        <div className="flex flex-wrap gap-2 lg:gap-6 mt-6 pt-6 border-t border-blue-400">
+        <div className="flex flex-wrap gap-2 lg:gap-6 mt-6 pt-6 border-t border-white/20">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                className={`flex items-center gap-2 px-3 lg:px-4 py-2 text-sm lg:text-base font-medium rounded-lg transition-colors ${activeTab === tab.id
-                    ? 'bg-white bg-opacity-20 text-white'
-                    : 'text-blue-200 hover:text-white hover:bg-white hover:bg-opacity-10'
-                  }`}
+                className={`flex items-center gap-2 px-3 lg:px-4 py-2 text-sm lg:text-base font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/40 ${active
+                  ? 'bg-white/25 text-white shadow-sm backdrop-blur border border-white/30'
+                  : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'}
+                `}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className={`w-4 h-4 ${active ? 'opacity-100' : 'opacity-80'}`} />
                 <span className="hidden sm:inline">{tab.label}</span>
+                {active && <span className="h-1 w-1 rounded-full bg-white/80" />}
               </button>
             );
           })}
@@ -276,7 +310,7 @@ const StudentProfile: React.FC = () => {
               <div className="bg-white rounded-xl shadow-md p-6 mt-6">
                 <h2 className="text-xl font-semibold mb-4">Последние результаты</h2>
                 <div className="space-y-3">
-                  {studentData.lessonsResults.slice(0, 5).map((result: any, index: number) => (
+                  {studentData.lessonsResults.slice(0, 5).map((result: LessonResultLite, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium">{result.Lesson.name}</p>
@@ -293,10 +327,10 @@ const StudentProfile: React.FC = () => {
                         )}
                         {result.lessonScore !== null && result.lessonScore !== undefined && (
                           <span className={`px-3 py-1 rounded-lg text-sm font-semibold text-white ${result.lessonScore >= 4
-                              ? 'bg-green-500'
-                              : result.lessonScore >= 3
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
+                            ? 'bg-green-500'
+                            : result.lessonScore >= 3
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
                             }`}>
                             {result.lessonScore}
                           </span>
@@ -318,10 +352,7 @@ const StudentProfile: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Средний балл</span>
                   <span className="text-xl font-bold text-blue-600">
-                    {grades ?
-                      Object.values(grades).reduce((acc: number, subject: any) =>
-                        acc + subject.statistics.averageLessonScore, 0
-                      ) / Object.keys(grades).length || 0 : '—'}
+                    {averageLessonScore !== null ? averageLessonScore.toFixed(1) : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -348,7 +379,7 @@ const StudentProfile: React.FC = () => {
           <h2 className="text-xl font-semibold mb-6">Мои оценки</h2>
           {grades ? (
             <div className="space-y-6">
-              {Object.entries(grades).map(([subjectName, subjectData]: [string, any]) => (
+              {Object.entries(grades as Record<string, SubjectDataLite>).map(([subjectName, subjectData]) => (
                 <div key={subjectName} className="border rounded-lg p-4">
                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4">
                     <div>
@@ -387,16 +418,16 @@ const StudentProfile: React.FC = () => {
                   <div className="space-y-2">
                     <h4 className="font-medium text-gray-700">Последние оценки:</h4>
                     <div className="flex gap-2 flex-wrap">
-                      {subjectData.grades.slice(0, 10).map((grade: any, index: number) => (
+                      {subjectData.grades.slice(0, 10).map((grade: LessonResultLite, index: number) => (
                         <div
                           key={index}
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${grade.lessonScore && grade.lessonScore >= 4
-                              ? 'bg-green-500'
-                              : grade.lessonScore && grade.lessonScore >= 3
-                                ? 'bg-yellow-500'
-                                : grade.lessonScore
-                                  ? 'bg-red-500'
-                                  : 'bg-gray-400'
+                            ? 'bg-green-500'
+                            : grade.lessonScore && grade.lessonScore >= 3
+                              ? 'bg-yellow-500'
+                              : grade.lessonScore
+                                ? 'bg-red-500'
+                                : 'bg-gray-400'
                             }`}
                           title={`${grade.Lesson.name} - ${new Date(grade.Lesson.date).toLocaleDateString('ru-RU')}`}
                         >
@@ -464,9 +495,9 @@ const StudentProfile: React.FC = () => {
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-4">Посещаемость по предметам</h3>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={Object.entries(attendanceData.subjectAttendance).map(([subject, data]: [string, any]) => ({
+                    <BarChart data={Object.entries(attendanceData.subjectAttendance as Record<string, AttendanceSubjectLite>).map(([subject, data]) => ({
                       subject,
-                      ...data
+                      ...(data as AttendanceSubjectLite)
                     }))}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="subject" />
@@ -484,7 +515,7 @@ const StudentProfile: React.FC = () => {
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold mb-4">История посещений</h3>
                 <div className="space-y-3">
-                  {attendanceData.details.slice(0, 10).map((record: any, index: number) => (
+                  {attendanceData.details.slice(0, 10).map((record: AttendanceRecordLite, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{record.subject}</p>
@@ -492,8 +523,8 @@ const StudentProfile: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${record.attendance
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
                           }`}>
                           {record.attendance ? 'Присутствовал' : 'Отсутствовал'}
                         </span>
@@ -567,9 +598,9 @@ const StudentProfile: React.FC = () => {
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${remark.type === 'ACADEMIC' ? 'bg-orange-100 text-orange-800' :
-                            remark.type === 'BEHAVIOR' ? 'bg-purple-100 text-purple-800' :
-                              remark.type === 'ATTENDANCE' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
+                          remark.type === 'BEHAVIOR' ? 'bg-purple-100 text-purple-800' :
+                            remark.type === 'ATTENDANCE' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
                           }`}>
                           {remark.type === 'ACADEMIC' ? 'Учебное' :
                             remark.type === 'BEHAVIOR' ? 'Поведение' :

@@ -2,9 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { CheckCircle, XCircle, Clock, Calendar, TrendingUp, User } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface RecentAttendanceRecord {
+  date: string;
+  status: 'present' | 'absent' | 'late' | string;
+  note?: string;
+  lessons?: number;
+}
+
+interface AttendanceApiData {
+  percentage: number;
+  totalClasses: number;
+  attended: number;
+}
 
 interface AttendanceWidgetProps {
-  data: any;
+  data: AttendanceApiData | null;
   widget: Widget;
 }
 
@@ -145,15 +159,21 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
           </div>
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="text-center">
-              <div className="font-bold text-green-700">{currentMonth.presentDays}</div>
+              <div className="font-bold text-green-700" title={currentMonth.presentDays.toLocaleString('ru-RU')}>
+                {formatNumberShort(currentMonth.presentDays)}
+              </div>
               <div className="text-green-600">Присутствие</div>
             </div>
             <div className="text-center">
-              <div className="font-bold text-red-700">{currentMonth.absentDays}</div>
+              <div className="font-bold text-red-700" title={currentMonth.absentDays.toLocaleString('ru-RU')}>
+                {formatNumberShort(currentMonth.absentDays)}
+              </div>
               <div className="text-red-600">Отсутствие</div>
             </div>
             <div className="text-center">
-              <div className="font-bold text-yellow-700">{currentMonth.lateDays}</div>
+              <div className="font-bold text-yellow-700" title={currentMonth.lateDays.toLocaleString('ru-RU')}>
+                {formatNumberShort(currentMonth.lateDays)}
+              </div>
               <div className="text-yellow-600">Опоздания</div>
             </div>
           </div>
@@ -183,7 +203,7 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
         <div className="flex-1 overflow-auto">
           <div className="text-xs font-medium text-gray-600 mb-2">Последние дни</div>
           <div className="space-y-2">
-            {recentAttendance?.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((record: any, index: number) => (
+            {recentAttendance?.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((record: RecentAttendanceRecord, index: number) => (
               <div
                 key={index}
                 className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 min-w-0 gap-2"

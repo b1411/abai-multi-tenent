@@ -2,9 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Clock, User, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface TeacherInfo {
+  name: string;
+  hours: number;
+  subjects: string[];
+  groups: number;
+  status: 'overloaded' | 'optimal' | 'underloaded' | string;
+}
+
+interface WorkloadDistribution {
+  overloaded: number;
+  optimal: number;
+  underloaded: number;
+}
+
+interface TeacherWorkloadData {
+  averageHours: number;
+  totalTeachers?: number;
+  teachers: TeacherInfo[];
+  distribution: WorkloadDistribution;
+}
 
 interface TeacherWorkloadWidgetProps {
-  data: any;
+  data: TeacherWorkloadData | null;
   widget: Widget;
 }
 
@@ -63,7 +85,11 @@ const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, wid
     );
   }
 
-  const workload = widgetData || {};
+  const workload: TeacherWorkloadData = widgetData || {
+    averageHours: 0,
+    teachers: [],
+    distribution: { overloaded: 0, optimal: 0, underloaded: 0 }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -120,17 +146,23 @@ const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, wid
         <div className="mb-3 grid grid-cols-3 gap-2">
           <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
             <AlertCircle className="h-4 w-4 text-red-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-red-700">{workload.distribution.overloaded}</div>
+            <div className="text-sm font-bold text-red-700" title={workload.distribution.overloaded?.toLocaleString('ru-RU')}>
+              {formatNumberShort(workload.distribution.overloaded)}
+            </div>
             <div className="text-xs text-red-600">Перегружены</div>
           </div>
           <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center">
             <TrendingUp className="h-4 w-4 text-green-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-green-700">{workload.distribution.optimal}</div>
+            <div className="text-sm font-bold text-green-700" title={workload.distribution.optimal?.toLocaleString('ru-RU')}>
+              {formatNumberShort(workload.distribution.optimal)}
+            </div>
             <div className="text-xs text-green-600">Оптимально</div>
           </div>
           <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
             <User className="h-4 w-4 text-yellow-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-yellow-700">{workload.distribution.underloaded}</div>
+            <div className="text-sm font-bold text-yellow-700" title={workload.distribution.underloaded?.toLocaleString('ru-RU')}>
+              {formatNumberShort(workload.distribution.underloaded)}
+            </div>
             <div className="text-xs text-yellow-600">Недогружены</div>
           </div>
         </div>
@@ -139,7 +171,7 @@ const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, wid
         <div className="flex-1 overflow-auto">
           <div className="text-xs font-medium text-gray-600 mb-2">Учителя</div>
           <div className="space-y-2">
-            {workload.teachers.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((teacher: any, index: number) => (
+            {workload.teachers.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((teacher: TeacherInfo, index: number) => (
               <div key={index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
@@ -166,7 +198,9 @@ const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, wid
                     </span>
                   </div>
                   <div>
-                    {teacher.groups} групп
+                    <span title={teacher.groups?.toLocaleString('ru-RU')}>
+                      {formatNumberShort(teacher.groups)} групп
+                    </span>
                   </div>
                 </div>
 

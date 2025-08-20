@@ -2,9 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { TrendingUp, PieChart, Award, BarChart3, Users } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface GradeDistributionItem { grade: string; count: number; percentage: number; }
+interface SubjectStat { subject: string; average: number; count: number; }
+interface ClassPerformance { class: string; average: number; students: number; }
+interface GradeAnalyticsData {
+  averageGrade: number;
+  totalGrades: number;
+  trend: string;
+  trendDirection: 'up' | 'down';
+  gradeDistribution: GradeDistributionItem[];
+  topSubjects: SubjectStat[];
+  classesPerformance: ClassPerformance[];
+}
 
 interface GradeAnalyticsWidgetProps {
-  data: any;
+  data: GradeAnalyticsData | null;
   widget: Widget;
 }
 
@@ -64,7 +78,15 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
     );
   }
 
-  const analytics = widgetData || {};
+  const analytics: GradeAnalyticsData = widgetData || {
+    averageGrade: 0,
+    totalGrades: 0,
+    trend: '0',
+    trendDirection: 'up',
+    gradeDistribution: [],
+    topSubjects: [],
+    classesPerformance: []
+  };
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
@@ -113,7 +135,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
             </div>
           </div>
           <div className="text-xs text-blue-600">
-            Средний балл по школе ({analytics.totalGrades} оценок)
+              Средний балл по школе ({formatNumberShort(analytics.totalGrades)} оценок)
           </div>
         </div>
 
@@ -121,12 +143,14 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
         <div className="mb-3">
           <div className="text-xs font-medium text-gray-600 mb-2">Распределение оценок</div>
           <div className="grid grid-cols-4 gap-2">
-            {(analytics.gradeDistribution || []).map((item: any, index: number) => (
+            {(analytics.gradeDistribution || []).map((item: GradeDistributionItem, index: number) => (
               <div key={index} className="text-center">
                 <div className={`w-full h-6 ${getGradeColor(item.grade)} rounded-t-lg flex items-center justify-center text-white font-bold text-sm`}>
                   {item.grade}
                 </div>
-                <div className="text-xs font-bold text-gray-900 mt-1">{item.count}</div>
+                <div className="text-xs font-bold text-gray-900 mt-1" title={item.count.toLocaleString('ru-RU')}>
+                  {formatNumberShort(item.count)}
+                </div>
                 <div className="text-xs text-gray-500">{item.percentage}%</div>
               </div>
             ))}
@@ -139,7 +163,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
             {widget.size === 'small' ? 'Лучшие предметы' : 'Средний балл по предметам'}
           </div>
           <div className="space-y-2">
-            {(analytics.topSubjects || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((subject: any, index: number) => (
+            {(analytics.topSubjects || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((subject: SubjectStat, index: number) => (
               <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -151,8 +175,8 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
                         {subject.subject}
                       </div>
                       {widget.size !== 'small' && (
-                        <div className="text-xs text-gray-500">
-                          {subject.count} оценок
+                        <div className="text-xs text-gray-500" title={subject.count.toLocaleString('ru-RU')}>
+                          {formatNumberShort(subject.count)} оценок
                         </div>
                       )}
                     </div>
@@ -183,7 +207,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div className="text-xs font-medium text-gray-600 mb-2">Лучшие классы</div>
             <div className="grid grid-cols-2 gap-2">
-              {(analytics.classesPerformance || []).slice(0, 4).map((classItem: any, index: number) => (
+              {(analytics.classesPerformance || []).slice(0, 4).map((classItem: ClassPerformance, index: number) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-1">
                     <Users className="h-3 w-3 text-gray-500" />

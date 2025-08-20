@@ -2,9 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { CheckSquare, Square, Plus, Clock, Flag } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface TaskItem {
+  id: string | number;
+  title: string;
+  completed: boolean;
+  priority: 'high' | 'medium' | 'low' | string;
+  category?: string;
+  dueDate?: string;
+}
+
+interface TasksData {
+  tasks: TaskItem[];
+  completedCount?: number;
+  totalCount?: number;
+}
 
 interface TasksWidgetProps {
-  data: any;
+  data: TasksData | null;
   widget: Widget;
 }
 
@@ -43,9 +59,9 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
     );
   }
 
-  const tasks = widgetData?.tasks || [];
-  const completedCount = widgetData?.completedCount || tasks.filter((t: any) => t.completed).length;
-  const totalCount = widgetData?.totalCount || tasks.length;
+  const tasks: TaskItem[] = widgetData?.tasks || [];
+  const completedCount = widgetData?.completedCount ?? tasks.filter(t => t.completed).length;
+  const totalCount = widgetData?.totalCount ?? tasks.length;
 
   if (tasks.length === 0) {
     return (
@@ -118,7 +134,9 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
               Прогресс задач
             </div>
             <div className="text-sm font-bold text-blue-700">
-              {completedCount}/{totalCount}
+              <span title={`${completedCount.toLocaleString('ru-RU')}/${totalCount.toLocaleString('ru-RU')}`}>
+                {formatNumberShort(completedCount)}/{formatNumberShort(totalCount)}
+              </span>
             </div>
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
@@ -134,7 +152,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
 
         {/* Tasks list */}
         <div className="flex-1 overflow-auto space-y-2">
-          {tasks.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((task: any) => (
+          {tasks.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((task: TaskItem) => (
             <div
               key={task.id}
               className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200"
@@ -157,7 +175,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
                     <div className="flex items-center space-x-2 min-w-0">
                       <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getPriorityBg(task.priority)}`}>
                         <Flag className={`h-3 w-3 inline mr-1 flex-shrink-0 ${getPriorityColor(task.priority)}`} />
-                        <span className="truncate">{getCategoryName(task.category)}</span>
+                        <span className="truncate">{getCategoryName(task.category || 'task')}</span>
                       </span>
                     </div>
                     

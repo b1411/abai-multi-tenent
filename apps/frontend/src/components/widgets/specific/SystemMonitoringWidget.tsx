@@ -2,9 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Monitor, Cpu, HardDrive, Wifi, Database, Server, AlertTriangle, CheckCircle } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface MonitoringService {
+  name: string;
+  status: 'running' | 'warning' | 'error' | string;
+  uptime: string;
+  load: number;
+}
+
+interface PerformanceMetrics {
+  requestsPerSecond: number;
+  responseTime: number; // ms
+  errorRate: number; // %
+  throughput: number; // generic numeric (maybe MB/s)
+}
+
+interface MonitoringAlert { message: string; time: string; }
+
+interface SystemMonitoringData {
+  serverStatus: string;
+  cpuUsage: number;
+  memoryUsage: number;
+  services: MonitoringService[];
+  performance?: PerformanceMetrics;
+  alerts?: MonitoringAlert[];
+}
 
 interface SystemMonitoringWidgetProps {
-  data: any;
+  data: SystemMonitoringData | null;
   widget: Widget;
 }
 
@@ -47,7 +73,14 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
     );
   }
 
-  const monitoring = widgetData || {};
+  const monitoring: SystemMonitoringData = widgetData || {
+    serverStatus: 'unknown',
+    cpuUsage: 0,
+    memoryUsage: 0,
+    services: [],
+    performance: { requestsPerSecond: 0, responseTime: 0, errorRate: 0, throughput: 0 },
+    alerts: []
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -138,7 +171,7 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
         <div className="flex-1 overflow-auto">
           <div className="text-xs font-medium text-gray-600 mb-2">Сервисы</div>
           <div className="space-y-2">
-            {monitoring.services.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((service: any, index: number) => (
+            {monitoring.services.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((service: MonitoringService, index: number) => (
               <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center space-x-2">
@@ -178,19 +211,23 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-700">Запросов/сек</span>
-                <span className="text-xs font-medium text-blue-600">{monitoring.performance.requestsPerSecond}</span>
+                <span className="text-xs font-medium text-blue-600" title={monitoring.performance?.requestsPerSecond?.toLocaleString('ru-RU')}>
+                  {formatNumberShort(monitoring.performance?.requestsPerSecond || 0)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-700">Время ответа</span>
-                <span className="text-xs font-medium text-green-600">{monitoring.performance.responseTime}мс</span>
+                <span className="text-xs font-medium text-green-600">{monitoring.performance?.responseTime}мс</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-700">Ошибки</span>
-                <span className="text-xs font-medium text-yellow-600">{monitoring.performance.errorRate}%</span>
+                <span className="text-xs font-medium text-yellow-600">{monitoring.performance?.errorRate}%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-700">Трафик</span>
-                <span className="text-xs font-medium text-purple-600">{monitoring.performance.throughput}</span>
+                <span className="text-xs font-medium text-purple-600" title={monitoring.performance?.throughput?.toLocaleString('ru-RU')}>
+                  {formatNumberShort(monitoring.performance?.throughput || 0)}
+                </span>
               </div>
             </div>
           </div>
@@ -201,7 +238,7 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div className="text-xs font-medium text-gray-600 mb-2">Последние события</div>
             <div className="space-y-1">
-              {monitoring.alerts.slice(0, 2).map((alert: any, index: number) => (
+              {monitoring.alerts.slice(0, 2).map((alert: MonitoringAlert, index: number) => (
                 <div key={index} className="flex items-center justify-between">
                   <span className="text-xs text-gray-700 truncate">{alert.message}</span>
                   <span className="text-xs text-gray-500 ml-2">{alert.time}</span>

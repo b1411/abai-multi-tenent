@@ -2,14 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Activity, Users, Clock, Eye, MapPin, Smartphone } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface TopActivity { name: string; users: number; percentage: number; }
+interface RecentActivity { user: string; action: string; time: string; type: string; }
+interface ActivityMonitoringData {
+  activeUsers: number;
+  onlineStudents: number;
+  onlineTeachers: number;
+  averageSessionTime: string;
+  topActivities: TopActivity[];
+  recentActivity: RecentActivity[];
+}
 
 interface ActivityMonitoringWidgetProps {
-  data: any;
+  data: ActivityMonitoringData | null;
   widget: Widget;
 }
 
 const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
+  const [widgetData, setWidgetData] = useState<ActivityMonitoringData | null>(data);
   const [loading, setLoading] = useState(!data);
 
   useEffect(() => {
@@ -56,7 +68,14 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
     );
   }
 
-  const data_to_use = widgetData || {};
+  const data_to_use: ActivityMonitoringData = widgetData || {
+    activeUsers: 0,
+    onlineStudents: 0,
+    onlineTeachers: 0,
+    averageSessionTime: '0m',
+    topActivities: [],
+    recentActivity: []
+  };
 
   return (
     <div className="h-full relative overflow-hidden">
@@ -78,7 +97,9 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
             <div className="flex items-center justify-between mb-2">
               <Users className="h-4 w-4 text-blue-600" />
               <div className="text-lg font-bold text-blue-700">
-                {data_to_use.activeUsers?.toLocaleString() || '0'}
+                <span title={(data_to_use.activeUsers ?? 0).toLocaleString('ru-RU')}>
+                  {formatNumberShort(data_to_use.activeUsers ?? 0)}
+                </span>
               </div>
             </div>
             <div className="text-xs font-medium text-blue-600 truncate">
@@ -103,11 +124,15 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div className="p-2 rounded-lg bg-green-50 border border-green-200">
             <div className="text-xs font-medium text-gray-600">Студенты</div>
-            <div className="text-sm font-bold text-green-700">{data_to_use.onlineStudents}</div>
+            <div className="text-sm font-bold text-green-700" title={(data_to_use.onlineStudents ?? 0).toLocaleString('ru-RU')}>
+              {formatNumberShort(data_to_use.onlineStudents ?? 0)}
+            </div>
           </div>
           <div className="p-2 rounded-lg bg-blue-50 border border-blue-200">
             <div className="text-xs font-medium text-gray-600">Учителя</div>
-            <div className="text-sm font-bold text-blue-700">{data_to_use.onlineTeachers}</div>
+            <div className="text-sm font-bold text-blue-700" title={(data_to_use.onlineTeachers ?? 0).toLocaleString('ru-RU')}>
+              {formatNumberShort(data_to_use.onlineTeachers ?? 0)}
+            </div>
           </div>
         </div>
 
@@ -118,7 +143,7 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
               <div className="text-xs font-medium text-gray-600 mb-2">
                 Популярные активности
               </div>
-              {data_to_use.topActivities?.slice(0, 2).map((activity: any, index: number) => (
+              {data_to_use.topActivities?.slice(0, 2).map((activity: TopActivity, index: number) => (
                 <div key={index} className="p-2 rounded-lg bg-white border border-gray-200">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-gray-800 truncate">{activity.name}</span>
@@ -138,7 +163,7 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
               <div className="text-xs font-medium text-gray-600 mb-2">
                 Последняя активность
               </div>
-              {data_to_use.recentActivity?.slice(0, widget.size === 'small' ? 2 : 3).map((activity: any, index: number) => (
+              {data_to_use.recentActivity?.slice(0, widget.size === 'small' ? 2 : 3).map((activity: RecentActivity, index: number) => (
                 <div key={index} className="flex items-center space-x-2 p-2 rounded-lg bg-white border border-gray-200 min-w-0">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     activity.type === 'login' ? 'bg-green-400' :

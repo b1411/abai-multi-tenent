@@ -2,9 +2,37 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Users, TrendingUp, TrendingDown, Calendar, CheckCircle } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface TodayAttendance {
+  present: number;
+  absent: number;
+  late: number;
+  total?: number;
+}
+
+interface GradeAttendanceItem {
+  grade: string;
+  attendance: number; // percentage
+  students: number;
+}
+
+interface WeeklyTrendItem {
+  day: string;
+  percentage: number;
+}
+
+interface SchoolAttendanceData {
+  overall: number;
+  trend: string;
+  trendDirection: 'up' | 'down';
+  byGrade: GradeAttendanceItem[];
+  today: TodayAttendance;
+  weeklyTrend: WeeklyTrendItem[];
+}
 
 interface SchoolAttendanceWidgetProps {
-  data: any;
+  data: SchoolAttendanceData | null;
   widget: Widget;
 }
 
@@ -57,7 +85,14 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
     );
   }
 
-  const attendance = widgetData || {};
+  const attendance: SchoolAttendanceData = widgetData || {
+    overall: 0,
+    trend: '0%',
+    trendDirection: 'up',
+    byGrade: [],
+    today: { present: 0, absent: 0, late: 0 },
+    weeklyTrend: []
+  };
 
   const getPercentageColor = (percentage: number) => {
     if (percentage >= 95) return 'text-green-600';
@@ -105,17 +140,23 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
         <div className="mb-3 grid grid-cols-3 gap-2">
           <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center">
             <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-green-700">{attendance.today?.present || 0}</div>
+            <div className="text-sm font-bold text-green-700" title={(attendance.today?.present || 0).toLocaleString('ru-RU')}>
+              {formatNumberShort(attendance.today?.present || 0)}
+            </div>
             <div className="text-xs text-green-600">Присутствуют</div>
           </div>
           <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
             <Calendar className="h-4 w-4 text-red-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-red-700">{attendance.today?.absent || 0}</div>
+            <div className="text-sm font-bold text-red-700" title={(attendance.today?.absent || 0).toLocaleString('ru-RU')}>
+              {formatNumberShort(attendance.today?.absent || 0)}
+            </div>
             <div className="text-xs text-red-600">Отсутствуют</div>
           </div>
           <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
             <div className="w-4 h-4 rounded-full bg-yellow-500 mx-auto mb-1"></div>
-            <div className="text-sm font-bold text-yellow-700">{attendance.today?.late || 0}</div>
+            <div className="text-sm font-bold text-yellow-700" title={(attendance.today?.late || 0).toLocaleString('ru-RU')}>
+              {formatNumberShort(attendance.today?.late || 0)}
+            </div>
             <div className="text-xs text-yellow-600">Опоздали</div>
           </div>
         </div>
@@ -124,7 +165,7 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
         <div className="flex-1 overflow-auto">
           <div className="text-xs font-medium text-gray-600 mb-2">По классам</div>
           <div className="space-y-2">
-            {(attendance.byGrade || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((grade: any, index: number) => (
+            {(attendance.byGrade || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((grade: GradeAttendanceItem, index: number) => (
               <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -132,7 +173,9 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
                       {grade.grade}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {grade.students} учеников
+                      <span title={grade.students.toLocaleString('ru-RU')}>
+                        {formatNumberShort(grade.students)} учеников
+                      </span>
                     </div>
                   </div>
                   <div className="text-right ml-2">
@@ -157,7 +200,7 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div className="text-xs font-medium text-gray-600 mb-2">Тренд недели</div>
             <div className="grid grid-cols-5 gap-1">
-              {(attendance.weeklyTrend || []).map((day: any, index: number) => (
+              {(attendance.weeklyTrend || []).map((day: WeeklyTrendItem, index: number) => (
                 <div key={index} className="text-center">
                   <div className="text-xs text-gray-600 mb-1">{day.day}</div>
                   <div className={`text-xs font-bold ${getPercentageColor(day.percentage)}`}>

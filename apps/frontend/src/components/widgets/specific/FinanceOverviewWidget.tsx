@@ -1,15 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, PieChart } from 'lucide-react';
+import { formatNumberShort } from '../base/numberFormat';
 import widgetService from '../../../services/widgetService';
 
+interface FinanceOverviewData {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  unpaidFees: number;
+  monthlyGrowth: number;
+}
+
 interface FinanceOverviewWidgetProps {
-  data: any;
+  data: FinanceOverviewData | null;
   widget: Widget;
 }
 
 const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
+  const [widgetData, setWidgetData] = useState<FinanceOverviewData | null>(data);
   const [loading, setLoading] = useState(!data);
 
   useEffect(() => {
@@ -45,13 +54,11 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
     );
   }
 
-  const {
-    totalRevenue,
-    totalExpenses,
-    netProfit,
-    unpaidFees,
-    monthlyGrowth
-  } = widgetData || {};
+  const totalRevenue = widgetData?.totalRevenue ?? 0;
+  const totalExpenses = widgetData?.totalExpenses ?? 0;
+  const netProfit = widgetData?.netProfit ?? 0;
+  const unpaidFees = widgetData?.unpaidFees ?? 0;
+  const monthlyGrowth = widgetData?.monthlyGrowth ?? 0;
 
   if (!totalRevenue && totalRevenue !== 0) {
     return (
@@ -64,19 +71,24 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
     );
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'KZT',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'KZT',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount);
+
+  const formatMoneySmart = (amount: number) => {
+    if (widget.size === 'small' || Math.abs(amount) >= 1000) {
+      return formatNumberShort(amount, { currency: true });
+    }
+    return formatCurrency(amount);
   };
 
-  const metrics = [
+  const metrics: { label: string; value: number; icon: JSX.Element; color: string; border: string; textColor: string }[] = [
     {
       label: 'Доходы',
-      value: formatCurrency(totalRevenue),
+  value: totalRevenue,
       icon: <TrendingUp className="h-5 w-5 text-green-600" />,
       color: 'from-green-50 to-emerald-50',
       border: 'border-green-200/60',
@@ -84,7 +96,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
     },
     {
       label: 'Расходы',
-      value: formatCurrency(totalExpenses),
+  value: totalExpenses,
       icon: <TrendingDown className="h-5 w-5 text-red-600" />,
       color: 'from-red-50 to-rose-50',
       border: 'border-red-200/60',
@@ -92,7 +104,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
     },
     {
       label: 'Прибыль',
-      value: formatCurrency(netProfit),
+  value: netProfit,
       icon: <PieChart className="h-5 w-5 text-blue-600" />,
       color: 'from-blue-50 to-indigo-50',
       border: 'border-blue-200/60',
@@ -100,7 +112,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
     },
     {
       label: 'Задолженности',
-      value: formatCurrency(unpaidFees),
+  value: unpaidFees,
       icon: <CreditCard className="h-5 w-5 text-orange-600" />,
       color: 'from-orange-50 to-amber-50',
       border: 'border-orange-200/60',
@@ -120,9 +132,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
             <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-blue-400"></div>
             <span className="text-sm font-semibold text-gray-700">Финансовый обзор</span>
           </div>
-          <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold ${
-            monthlyGrowth >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}>
+          <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold ${monthlyGrowth >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
             {monthlyGrowth >= 0 ? (
               <TrendingUp className="h-3 w-3" />
             ) : (
@@ -144,11 +154,8 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
                   {metric.icon}
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-bold text-gray-900 truncate">
-                    {widget.size === 'small' ? 
-                      `${Math.round(parseInt(metric.value.replace(/[^\d]/g, '')) / 1000000)}M ₸` : 
-                      metric.value
-                    }
+                  <div className="text-sm font-bold text-gray-900 truncate" title={formatCurrency(metric.value)}>
+                    {formatMoneySmart(metric.value)}
                   </div>
                 </div>
               </div>
@@ -166,7 +173,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
                     'bg-orange-500'
                   }`}
                   style={{ 
-                    width: `${Math.min(100, (parseInt(metric.value.replace(/[^\d]/g, '')) / totalRevenue) * 100)}%` 
+                    width: `${Math.min(100, (metric.value / (totalRevenue || 1)) * 100)}%` 
                   }}
                 />
               </div>
@@ -184,7 +191,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
               </div>
               <div className="text-right">
                 <div className="text-xl font-bold text-indigo-700">
-                  {Math.round((netProfit / totalRevenue) * 100)}%
+                  {totalRevenue ? Math.round((netProfit / totalRevenue) * 100) : 0}%
                 </div>
               </div>
             </div>

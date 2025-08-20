@@ -2,9 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Star, TrendingUp, TrendingDown, BookOpen } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface RecentGradeItem {
+  subject: string;
+  teacher?: string;
+  date?: string;
+  grade: number;
+}
+
+interface GradesData {
+  averageGrade: number;
+  recentGrades: RecentGradeItem[];
+  trend: 'up' | 'down' | 'stable';
+  gradeDistribution?: Record<string, number>;
+}
 
 interface GradesWidgetProps {
-  data: any;
+  data: GradesData | null;
   widget: Widget;
 }
 
@@ -90,7 +105,7 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
 
         {/* Recent grades list */}
         <div className="flex-1 overflow-auto space-y-2">
-          {grades.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((gradeItem: any, index: number) => (
+          {grades.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((gradeItem: RecentGradeItem, index: number) => (
             <div key={index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -121,12 +136,14 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div className="text-xs font-medium text-gray-600 mb-2">Распределение оценок</div>
             <div className="grid grid-cols-4 gap-2">
-              {Object.entries(data.gradeDistribution).reverse().map(([grade, count]: [string, any]) => (
+              {Object.entries(data.gradeDistribution).reverse().map(([grade, count]: [string, number]) => (
                 <div key={grade} className="text-center">
                   <div className={`text-sm font-bold px-2 py-1 rounded border ${getGradeColor(parseInt(grade))}`}>
                     {grade}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">{count}</div>
+                  <div className="text-xs text-gray-500 mt-1" title={Number(count).toLocaleString('ru-RU')}>
+                    {formatNumberShort(Number(count))}
+                  </div>
                 </div>
               ))}
             </div>

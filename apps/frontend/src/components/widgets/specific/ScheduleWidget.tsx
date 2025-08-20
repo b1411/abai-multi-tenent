@@ -3,8 +3,18 @@ import { Widget } from '../../../types/widget';
 import { Clock, MapPin } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
 
+interface LessonItem {
+  id?: string | number;
+  time?: string; // format HH:MM-HH:MM
+  subject: string;
+  classroom?: string;
+  teacher?: string;
+}
+
+interface ScheduleData { lessons: LessonItem[]; }
+
 interface ScheduleWidgetProps {
-  data: any;
+  data: ScheduleData | null;
   widget: Widget;
 }
 
@@ -39,7 +49,7 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
     );
   }
 
-  const lessons = widgetData?.lessons || [];
+  const lessons: LessonItem[] = widgetData?.lessons || [];
 
   if (lessons.length === 0) {
     return (
@@ -56,7 +66,7 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
     <div className="h-full relative overflow-hidden">
       <div className="h-full flex flex-col p-1">
         <div className="flex-1 overflow-auto space-y-2">
-          {lessons.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((lesson: any, index: number) => (
+          {lessons.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((lesson: LessonItem, index: number) => (
             <div key={lesson.id || index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
               <div className="flex items-start space-x-3 min-w-0">
                 <div className="flex-shrink-0 w-12 text-center">

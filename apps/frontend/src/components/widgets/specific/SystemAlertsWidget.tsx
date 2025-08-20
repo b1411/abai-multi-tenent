@@ -2,9 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { AlertTriangle, AlertCircle, Info, Clock } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface SystemAlertItem {
+  id: string | number;
+  type: 'critical' | 'warning' | 'info' | string;
+  message: string;
+  time: string;
+}
+
+interface SystemAlertsData {
+  critical: number;
+  warnings: number;
+  info: number;
+  alerts: SystemAlertItem[];
+}
 
 interface SystemAlertsWidgetProps {
-  data: any;
+  data: SystemAlertsData | null;
   widget: Widget;
 }
 
@@ -25,7 +40,7 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
       setWidgetData(result);
     } catch (error) {
       console.error('Error loading system alerts data:', error);
-      setWidgetData({ alerts: [] });
+  setWidgetData({ critical: 0, warnings: 0, info: 0, alerts: [] });
     } finally {
       setLoading(false);
     }
@@ -39,7 +54,7 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
     );
   }
 
-  const { critical, warnings, info, alerts } = widgetData || {};
+  const { critical = 0, warnings = 0, info = 0, alerts = [] } = (widgetData || {}) as Partial<SystemAlertsData>;
 
   if (!alerts || alerts.length === 0) {
     return (
@@ -84,24 +99,30 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-1 mb-3">
           <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
-            <div className="text-lg font-bold text-red-700">{critical || 0}</div>
+            <div className="text-lg font-bold text-red-700" title={critical.toLocaleString('ru-RU')}>
+              {formatNumberShort(critical)}
+            </div>
             <div className="text-xs text-red-600">Критич.</div>
           </div>
           
           <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-            <div className="text-lg font-bold text-yellow-700">{warnings || 0}</div>
+            <div className="text-lg font-bold text-yellow-700" title={warnings.toLocaleString('ru-RU')}>
+              {formatNumberShort(warnings)}
+            </div>
             <div className="text-xs text-yellow-600">Предупр.</div>
           </div>
           
           <div className="p-2 rounded-lg bg-blue-50 border border-blue-200 text-center">
-            <div className="text-lg font-bold text-blue-700">{info || 0}</div>
+            <div className="text-lg font-bold text-blue-700" title={info.toLocaleString('ru-RU')}>
+              {formatNumberShort(info)}
+            </div>
             <div className="text-xs text-blue-600">Инфо</div>
           </div>
         </div>
 
         {/* Alerts list */}
         <div className="flex-1 space-y-2 overflow-auto">
-          {alerts.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((alert: any) => (
+          {alerts.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((alert: SystemAlertItem) => (
             <div
               key={alert.id}
               className={`p-3 rounded-lg border hover:shadow-sm transition-all duration-200 ${getAlertColor(alert.type)}`}

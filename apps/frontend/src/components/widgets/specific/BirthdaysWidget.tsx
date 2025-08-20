@@ -1,9 +1,27 @@
 import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Gift, Calendar, Users, Heart } from 'lucide-react';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface BirthdayPerson {
+  id: number | string;
+  name: string;
+  position: string;
+  date: string;
+  daysUntil: number;
+  age: number;
+}
+
+interface BirthdaysData {
+  upcomingBirthdays: BirthdayPerson[];
+  todayBirthdays: BirthdayPerson[];
+  thisWeekBirthdays: number;
+  thisMonthBirthdays: number;
+  message?: string | null;
+}
 
 interface BirthdaysWidgetProps {
-  data: any;
+  data: BirthdaysData | null;
   widget: Widget;
 }
 
@@ -101,11 +119,15 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="text-center">
-              <div className="font-bold text-pink-700">{birthdays.thisWeekBirthdays}</div>
+              <div className="font-bold text-pink-700" title={birthdays.thisWeekBirthdays.toLocaleString('ru-RU')}>
+                {formatNumberShort(birthdays.thisWeekBirthdays)}
+              </div>
               <div className="text-pink-600">На неделе</div>
             </div>
             <div className="text-center">
-              <div className="font-bold text-pink-700">{birthdays.thisMonthBirthdays}</div>
+              <div className="font-bold text-pink-700" title={birthdays.thisMonthBirthdays.toLocaleString('ru-RU')}>
+                {formatNumberShort(birthdays.thisMonthBirthdays)}
+              </div>
               <div className="text-pink-600">В месяце</div>
             </div>
           </div>
@@ -116,7 +138,7 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
           <div className="mb-3">
             <div className="text-xs font-medium text-gray-600 mb-2">Сегодня празднуют</div>
             <div className="space-y-2">
-              {birthdays.todayBirthdays.map((person: any) => (
+              {birthdays.todayBirthdays.map((person: BirthdayPerson) => (
                 <div key={person.id} className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center">
@@ -144,7 +166,7 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
         <div className="flex-1 overflow-auto">
           <div className="text-xs font-medium text-gray-600 mb-2">Предстоящие дни рождения</div>
           <div className="space-y-2">
-            {birthdays.upcomingBirthdays.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((person: any) => (
+            {birthdays.upcomingBirthdays.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((person: BirthdayPerson) => (
               <div key={person.id} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center">

@@ -2,9 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { BookOpen, Clock, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+type AssignmentStatus = 'pending' | 'in_progress' | 'submitted' | 'overdue' | string;
+
+interface AssignmentItem {
+  id: string | number;
+  subject: string;
+  title: string;
+  description?: string;
+  status: AssignmentStatus;
+  teacher?: string;
+  dueDate: string;
+}
+
+interface AssignmentStats {
+  total: number;
+  pending: number;
+  inProgress: number;
+  submitted: number;
+  overdue: number;
+}
+
+interface AssignmentsData {
+  assignments: AssignmentItem[];
+  stats?: AssignmentStats;
+}
 
 interface AssignmentsWidgetProps {
-  data: any;
+  data: AssignmentsData | null;
   widget: Widget;
 }
 
@@ -39,15 +65,15 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
     );
   }
 
-  const assignments = widgetData?.assignments || [];
+  const assignments: AssignmentItem[] = widgetData?.assignments || [];
   
   // Calculate stats from assignments if not provided
-  const stats = widgetData?.stats || {
+  const stats: AssignmentStats = widgetData?.stats || {
     total: assignments.length,
-    pending: assignments.filter((a: any) => a.status === 'pending').length,
-    inProgress: assignments.filter((a: any) => a.status === 'in_progress').length,
-    submitted: assignments.filter((a: any) => a.status === 'submitted').length,
-    overdue: assignments.filter((a: any) => a.status === 'overdue' || 
+    pending: assignments.filter(a => a.status === 'pending').length,
+    inProgress: assignments.filter(a => a.status === 'in_progress').length,
+    submitted: assignments.filter(a => a.status === 'submitted').length,
+    overdue: assignments.filter(a => a.status === 'overdue' || 
       (new Date(a.dueDate) < new Date() && a.status !== 'submitted')).length
   };
 
@@ -124,19 +150,27 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
         {widget.size !== 'small' && (
           <div className="mb-3 grid grid-cols-4 gap-1">
             <div className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-center">
-              <div className="text-sm font-bold text-gray-900">{stats.total}</div>
+              <div className="text-sm font-bold text-gray-900" title={stats.total.toLocaleString('ru-RU')}>
+                {formatNumberShort(stats.total)}
+              </div>
               <div className="text-xs text-gray-600">Всего</div>
             </div>
             <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-              <div className="text-sm font-bold text-yellow-700">{stats.pending}</div>
+              <div className="text-sm font-bold text-yellow-700" title={stats.pending.toLocaleString('ru-RU')}>
+                {formatNumberShort(stats.pending)}
+              </div>
               <div className="text-xs text-yellow-600">Новые</div>
             </div>
             <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center">
-              <div className="text-sm font-bold text-green-700">{stats.submitted}</div>
+              <div className="text-sm font-bold text-green-700" title={stats.submitted.toLocaleString('ru-RU')}>
+                {formatNumberShort(stats.submitted)}
+              </div>
               <div className="text-xs text-green-600">Сдано</div>
             </div>
             <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
-              <div className="text-sm font-bold text-red-700">{stats.overdue}</div>
+              <div className="text-sm font-bold text-red-700" title={stats.overdue.toLocaleString('ru-RU')}>
+                {formatNumberShort(stats.overdue)}
+              </div>
               <div className="text-xs text-red-600">Просроч.</div>
             </div>
           </div>
@@ -144,7 +178,7 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
 
         {/* Assignments list */}
         <div className="flex-1 overflow-auto space-y-2">
-          {assignments.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((assignment: any) => (
+          {assignments.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((assignment: AssignmentItem) => (
             <div
               key={assignment.id}
               className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200"

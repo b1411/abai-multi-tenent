@@ -2,14 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { Widget } from '../../../types/widget';
 import { Users, GraduationCap, BookOpen, Activity } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
+import { formatNumberShort } from '../base/numberFormat';
+
+interface SystemStatsData {
+  totalStudents: number;
+  totalTeachers: number;
+  totalGroups: number;
+  totalSubjects: number;
+  activeUsers: number;
+}
 
 interface SystemStatsWidgetProps {
-  data: any;
+  data: SystemStatsData | null;
   widget: Widget;
 }
 
 const SystemStatsWidget: React.FC<SystemStatsWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
+  const [widgetData, setWidgetData] = useState<SystemStatsData | null>(data);
   const [loading, setLoading] = useState(!data);
 
   useEffect(() => {
@@ -67,25 +76,29 @@ const SystemStatsWidget: React.FC<SystemStatsWidgetProps> = ({ data, widget }) =
   const stats = [
     {
       label: 'Студенты',
-      value: totalStudents?.toLocaleString() || '0',
+      value: formatNumberShort(totalStudents ?? 0),
+      numericValue: totalStudents ?? 0,
       icon: <GraduationCap className="h-5 w-5 text-blue-600" />,
       color: 'bg-blue-50 border-blue-200'
     },
     {
       label: 'Учителя',
-      value: totalTeachers?.toString() || '0',
+      value: formatNumberShort(totalTeachers ?? 0),
+      numericValue: totalTeachers ?? 0,
       icon: <Users className="h-5 w-5 text-green-600" />,
       color: 'bg-green-50 border-green-200'
     },
     {
       label: 'Группы',
-      value: totalGroups?.toString() || '0',
+      value: formatNumberShort(totalGroups ?? 0),
+      numericValue: totalGroups ?? 0,
       icon: <BookOpen className="h-5 w-5 text-purple-600" />,
       color: 'bg-purple-50 border-purple-200'
     },
     {
       label: 'Предметы',
-      value: totalSubjects?.toString() || '0',
+      value: formatNumberShort(totalSubjects ?? 0),
+      numericValue: totalSubjects ?? 0,
       icon: <Activity className="h-5 w-5 text-orange-600" />,
       color: 'bg-orange-50 border-orange-200'
     }
@@ -119,7 +132,7 @@ const SystemStatsWidget: React.FC<SystemStatsWidgetProps> = ({ data, widget }) =
               <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, (parseInt(stat.value.replace(',', '')) / 2000) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (stat.numericValue / 2000) * 100)}%` }}
                 />
               </div>
             </div>
@@ -135,8 +148,8 @@ const SystemStatsWidget: React.FC<SystemStatsWidgetProps> = ({ data, widget }) =
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                   <span className="text-sm font-medium text-gray-700 truncate">Активные пользователи</span>
                 </div>
-                <div className="text-sm font-bold text-green-700 ml-2">
-                  {activeUsers?.toLocaleString() || '0'}
+                <div className="text-sm font-bold text-green-700 ml-2" title={(activeUsers ?? 0).toLocaleString('ru-RU')}> 
+                  {formatNumberShort(activeUsers ?? 0)}
                 </div>
               </div>
             </div>

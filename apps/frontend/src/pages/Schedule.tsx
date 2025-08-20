@@ -33,6 +33,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useSearchParams } from 'react-router-dom';
 import { Button, Loading, Modal, Autocomplete, TimePicker } from '../components/ui';
 import AIStudyPlanGeneratorModal from '../components/AILessonGeneratorModal';
+import AIScheduleGeneratorModal from '../components/AIScheduleGeneratorModal';
 
 // import WeekGrid from '../components/WeekGrid';
 import scheduleService, { ScheduleService } from '../services/scheduleService';
@@ -526,6 +527,7 @@ const SchedulePage: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAILessonModalOpen, setIsAILessonModalOpen] = useState(false);
+  const [isAIScheduleFlowOpen, setIsAIScheduleFlowOpen] = useState(false);
 
   // Состояние для данных фильтров
   const [groups, setGroups] = useState<GroupOption[]>([]);
@@ -1300,15 +1302,29 @@ const SchedulePage: React.FC = () => {
     try {
       setIsLoading(true);
       setIsAILessonModalOpen(false); // Закрываем модальное окно сразу
-      const result = await scheduleService.generateFromStudyPlans(params);
+      // Приводим к GenerationParams (добавляем обязательные поля)
+      const genParams = {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        groupIds: params.groupIds,
+        constraints: {
+          workingHours: params.constraints.workingHours,
+          maxConsecutiveHours: params.constraints.maxConsecutiveHours,
+          preferredBreaks: [],
+          excludeWeekends: true,
+          minBreakDuration: 10
+        },
+        generationType: 'full' as const,
+        subjectIds: params.studyPlanIds,
+        teacherIds: params.teacherIds
+      };
+      const result = await scheduleService.generateFromStudyPlans(genParams);
       console.log('AI generated schedule from study plans:', result);
-
-      if (result.success && result.generatedSchedules) {
-        alert(`Успешно сгенерировано и сохранено ${result.generatedSchedules.length} занятий.`);
-        // Перезагружаем данные с сервера, чтобы отобразить новое расписание
-        loadScheduleData();
+      const count = result.generatedSchedule?.length || 0;
+      if (count > 0) {
+        alert(`Сгенерировано (без автосохранения) занятий: ${count}. Примените через AI Flow для сохранения.`);
       } else {
-        alert('Не удалось сгенерировать расписание. ' + (result.message || ''));
+        alert('AI не вернул подходящих занятий.');
       }
     } catch (error) {
       console.error('Error generating schedule from study plans:', error);
@@ -1448,15 +1464,26 @@ const SchedulePage: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {/* Показываем кнопку AI только администратору */}
             {role === 'ADMIN' && (
-              <button
-                onClick={() => setIsAILessonModalOpen(true)}
-                disabled={isLoading}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
-              >
-                <Bot className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="hidden sm:inline">AI Планирование</span>
-                <span className="sm:hidden">AI План</span>
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 flex-1 sm:flex-none">
+                <button
+                  onClick={() => setIsAILessonModalOpen(true)}
+                  disabled={isLoading}
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
+                >
+                  <Bot className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="hidden sm:inline">AI Планирование (планы)</span>
+                  <span className="sm:hidden">AI Планы</span>
+                </button>
+                <button
+                  onClick={() => setIsAIScheduleFlowOpen(true)}
+                  disabled={isLoading}
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
+                >
+                  <Bot className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="hidden sm:inline">AI Поток расписания</span>
+                  <span className="sm:hidden">AI Flow</span>
+                </button>
+              </div>
             )}
 
             {/* Кнопка обновления статусов */}
@@ -2242,6 +2269,18 @@ const SchedulePage: React.FC = () => {
           groups={groups}
           teachers={teachers}
           studyPlans={studyPlans}
+        />
+        <AIScheduleGeneratorModal
+          isOpen={isAIScheduleFlowOpen}
+          onClose={() => setIsAIScheduleFlowOpen(false)}
+          onGenerate={(r) => {
+            if (r.success) {
+              alert(`Сохранено занятий: ${r.count}`);
+              loadScheduleData();
+            } else {
+              alert('Не удалось применить расписание');
+            }
+          }}
         />
       </div>
     </>

@@ -11,9 +11,31 @@ import {
   ScheduleListResponse
 } from '../types/schedule';
 import apiClient from './apiClient';
+import {
+  GenerationParams,
+  DraftResponse,
+  OptimizeRequestBody,
+  OptimizedScheduleResponse,
+  ValidationResult as FlowValidationResult,
+  ApplyResponse,
+  DraftItem
+} from '../types/aiScheduleFlow';
 
 class ScheduleService {
   private baseUrl = '/schedule';
+  // Временные внутренние типы для API ответов (минимально необходимые поля)
+  private static mapGroup(raw: { id: number; name: string; courseNumber?: number | null }): GroupOption {
+    return { id: raw.id, name: raw.name, courseNumber: raw.courseNumber ?? 1 };
+  }
+
+  private static mapTeacher(raw: { id: number; user?: { name?: string; surname?: string; email?: string } }): TeacherOption {
+    return {
+      id: raw.id,
+      name: raw.user?.name || '',
+      surname: raw.user?.surname || '',
+      email: raw.user?.email || ''
+    };
+  }
 
   // Backend API methods
   async findAll(): Promise<Schedule[]> {
@@ -53,24 +75,41 @@ class ScheduleService {
   }
 
   // AI Schedule Generation methods
-  async generateFromStudyPlans(params: any): Promise<any> {
-    return apiClient.post<any>(`${this.baseUrl}/study-plans/from-ai`, params);
+  async generateFromStudyPlans(params: GenerationParams): Promise<OptimizedScheduleResponse> {
+    return apiClient.post<OptimizedScheduleResponse>(`${this.baseUrl}/study-plans/from-ai`, params);
   }
 
-  async analyzeWithAI(scheduleItems: any[]): Promise<any> {
-    return apiClient.post<any>(`${this.baseUrl}/ai-analyze`, scheduleItems);
+  async analyzeWithAI(scheduleItems: DraftItem[]): Promise<FlowValidationResult> {
+    return apiClient.post<FlowValidationResult>(`${this.baseUrl}/ai-analyze`, scheduleItems);
   }
 
-  async validateAISchedule(scheduleItems: any[]): Promise<any> {
-    return apiClient.post<any>(`${this.baseUrl}/ai-validate`, scheduleItems);
+  async validateAISchedule(scheduleItems: DraftItem[]): Promise<FlowValidationResult> {
+    return apiClient.post<FlowValidationResult>(`${this.baseUrl}/ai-validate`, scheduleItems);
   }
 
-  async applySchedule(applyData: { generatedSchedules: any[], replaceExisting?: boolean }): Promise<any> {
-    return apiClient.post<any>(`${this.baseUrl}/lessons/apply`, applyData);
+  async applySchedule(applyData: { generatedSchedules: DraftItem[]; replaceExisting?: boolean }): Promise<ApplyResponse> {
+    return apiClient.post<ApplyResponse>(`${this.baseUrl}/lessons/apply`, applyData);
   }
 
-  async generateWithAI(params: any): Promise<any> {
-    return apiClient.post<any>(`${this.baseUrl}/generate-ai`, params);
+  async generateWithAI(params: GenerationParams): Promise<OptimizedScheduleResponse> {
+    return apiClient.post<OptimizedScheduleResponse>(`${this.baseUrl}/generate-ai`, params);
+  }
+
+  // --- New AI Flow endpoints ---
+  async flowDraft(params: GenerationParams): Promise<DraftResponse> {
+    return apiClient.post<DraftResponse>(`/schedule-flow/draft`, params);
+  }
+
+  async flowOptimize(body: OptimizeRequestBody): Promise<OptimizedScheduleResponse> {
+    return apiClient.post<OptimizedScheduleResponse>(`/schedule-flow/optimize`, body);
+  }
+
+  async flowValidate(generated: OptimizedScheduleResponse): Promise<FlowValidationResult> {
+    return apiClient.post<FlowValidationResult>(`/schedule-flow/validate`, { generated });
+  }
+
+  async flowApply(generated: OptimizedScheduleResponse): Promise<ApplyResponse> {
+    return apiClient.post<ApplyResponse>(`/schedule-flow/apply`, { generated });
   }
 
   async updateStatuses(): Promise<{ updated: number }> {
@@ -110,12 +149,8 @@ class ScheduleService {
   // Методы для получения данных для выпадающих списков (из реального API)
   async getGroups(): Promise<GroupOption[]> {
     try {
-      const groups = await apiClient.get<any[]>('/groups');
-      return groups.map(group => ({
-        id: group.id,
-        name: group.name,
-        courseNumber: group.courseNumber || 1
-      }));
+  const groups = await apiClient.get<Array<{ id: number; name: string; courseNumber?: number | null }>>('/groups');
+  return groups.map(ScheduleService.mapGroup);
     } catch (error) {
       console.error('Error fetching groups:', error);
       return [];
@@ -124,13 +159,8 @@ class ScheduleService {
 
   async getTeachers(): Promise<TeacherOption[]> {
     try {
-      const teachers = await apiClient.get<any[]>('/teachers');
-      return teachers.map(teacher => ({
-        id: teacher.id,
-        name: teacher.user?.name || '',
-        surname: teacher.user?.surname || '',
-        email: teacher.user?.email || ''
-      }));
+  const teachers = await apiClient.get<Array<{ id: number; user?: { name?: string; surname?: string; email?: string } }>>('/teachers');
+  return teachers.map(ScheduleService.mapTeacher);
     } catch (error) {
       console.error('Error fetching teachers:', error);
       return [];
@@ -145,18 +175,17 @@ class ScheduleService {
       queryParams.append('page', '1');
 
       const url = `/study-plans${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      const response = await apiClient.get<{ data: any[], meta: any }>(url);
+      const response = await apiClient.get<{ data: Array<{ id: number; name: string; description?: string; teacherId: number; group?: Array<{ id: number; name: string }> }>; meta: unknown }>(url);
 
       return response.data.map(plan => {
-        // Предполагаем, что у плана есть массив group и мы берем первую группу
-        const group = plan.group && plan.group.length > 0 ? plan.group[0] : null;
+        const group = plan.group && plan.group.length > 0 ? plan.group[0] : undefined;
         return {
           id: plan.id,
-          name: plan.name,
-          description: plan.description,
-          teacherId: plan.teacherId,
-          groupId: group ? group.id : 0,
-          groupName: group ? group.name : 'N/A',
+            name: plan.name,
+            description: plan.description,
+            teacherId: plan.teacherId,
+            groupId: group ? group.id : 0,
+            groupName: group ? group.name : 'N/A'
         };
       });
     } catch (error) {
@@ -171,7 +200,7 @@ class ScheduleService {
   
   async getStudyPlanById(id: number): Promise<StudyPlanOption | null> {
     try {
-      const plan = await apiClient.get<any>(`/study-plans/${id}`);
+  const plan = await apiClient.get<{ id: number; name: string; description?: string; teacherId: number; group?: Array<{ id: number; name: string }> }>(`/study-plans/${id}`);
       if (!plan) return null;
 
       const group = plan.group && plan.group.length > 0 ? plan.group[0] : null;

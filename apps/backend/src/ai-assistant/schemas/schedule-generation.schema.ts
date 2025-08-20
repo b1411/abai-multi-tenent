@@ -73,7 +73,8 @@ export const scheduleGenerationSchema = {
             maximum: 200
           }
         },
-        required: ["day", "startTime", "endTime", "subject", "groupId", "teacherId", "teacherName", "roomId", "type", "repeat", "status", "date", "roomType", "roomCapacity", "groupSize"],
+  // Требуем как day (день недели) так и date (конкретная дата)
+  required: ["day", "startTime", "endTime", "subject", "groupId", "teacherId", "teacherName", "roomId", "type", "repeat", "status", "date", "roomType", "roomCapacity", "groupSize"],
         additionalProperties: false
       }
     },

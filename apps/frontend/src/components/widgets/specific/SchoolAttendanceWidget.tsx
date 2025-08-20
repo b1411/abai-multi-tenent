@@ -108,16 +108,16 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* Overall attendance header */}
-        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-800">Общая посещаемость</span>
+        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
+              <Users className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <span className="text-sm font-semibold text-blue-800 truncate" title="Общая посещаемость">Общая посещаемость</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className={`text-lg font-bold ${getPercentageColor(attendance.overall)}`}>
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <div className={`text-lg font-bold ${getPercentageColor(attendance.overall)} whitespace-nowrap`} title={`${attendance.overall}%`}>
                 {attendance.overall}%
               </div>
               {attendance.trendDirection === 'up' ? (
@@ -125,7 +125,7 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
               ) : (
                 <TrendingDown className="h-4 w-4 text-red-600" />
               )}
-              <span className="text-xs text-green-600 font-medium">{attendance.trend}</span>
+              <span className="text-xs text-green-600 font-medium whitespace-nowrap" title={attendance.trend}>{attendance.trend}</span>
             </div>
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
@@ -137,51 +137,39 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
         </div>
 
         {/* Today's summary */}
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center">
-            <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-green-700" title={(attendance.today?.present || 0).toLocaleString('ru-RU')}>
-              {formatNumberShort(attendance.today?.present || 0)}
-            </div>
-            <div className="text-xs text-green-600">Присутствуют</div>
+	<div className="mb-3 grid grid-cols-3 gap-2 min-w-0 overflow-hidden">
+          <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center flex flex-col items-center min-w-0 overflow-hidden">
+            <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1 flex-shrink-0" />
+	  <div className="text-sm font-bold text-green-700 whitespace-nowrap truncate max-w-full" title={(attendance.today?.present || 0).toLocaleString('ru-RU')}>{formatNumberShort(attendance.today?.present || 0)}</div>
+            <div className="text-xs text-green-600 truncate max-w-full" title="Присутствуют">Присутствуют</div>
           </div>
-          <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
-            <Calendar className="h-4 w-4 text-red-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-red-700" title={(attendance.today?.absent || 0).toLocaleString('ru-RU')}>
-              {formatNumberShort(attendance.today?.absent || 0)}
-            </div>
-            <div className="text-xs text-red-600">Отсутствуют</div>
+          <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center flex flex-col items-center min-w-0 overflow-hidden">
+            <Calendar className="h-4 w-4 text-red-600 mx-auto mb-1 flex-shrink-0" />
+	  <div className="text-sm font-bold text-red-700 whitespace-nowrap truncate max-w-full" title={(attendance.today?.absent || 0).toLocaleString('ru-RU')}>{formatNumberShort(attendance.today?.absent || 0)}</div>
+            <div className="text-xs text-red-600 truncate max-w-full" title="Отсутствуют">Отсутствуют</div>
           </div>
-          <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-            <div className="w-4 h-4 rounded-full bg-yellow-500 mx-auto mb-1"></div>
-            <div className="text-sm font-bold text-yellow-700" title={(attendance.today?.late || 0).toLocaleString('ru-RU')}>
-              {formatNumberShort(attendance.today?.late || 0)}
-            </div>
-            <div className="text-xs text-yellow-600">Опоздали</div>
+          <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center flex flex-col items-center min-w-0 overflow-hidden">
+            <div className="w-4 h-4 rounded-full bg-yellow-500 mx-auto mb-1 flex-shrink-0"></div>
+	  <div className="text-sm font-bold text-yellow-700 whitespace-nowrap truncate max-w-full" title={(attendance.today?.late || 0).toLocaleString('ru-RU')}>{formatNumberShort(attendance.today?.late || 0)}</div>
+            <div className="text-xs text-yellow-600 truncate max-w-full" title="Опоздали">Опоздали</div>
           </div>
         </div>
 
         {/* Attendance by grade */}
-        <div className="flex-1 overflow-auto">
-          <div className="text-xs font-medium text-gray-600 mb-2">По классам</div>
-          <div className="space-y-2">
+        <div className="flex-1 overflow-auto min-w-0">
+          <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="По классам">По классам</div>
+      <div className="space-y-2 min-w-0">
             {(attendance.byGrade || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((grade: GradeAttendanceItem, index: number) => (
-              <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
-                <div className="flex items-center justify-between">
+        <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden min-w-0">
+                <div className="flex items-center justify-between min-w-0 gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
-                      {grade.grade}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      <span title={grade.students.toLocaleString('ru-RU')}>
-                        {formatNumberShort(grade.students)} учеников
-                      </span>
+          <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={grade.grade}>{grade.grade}</div>
+          <div className="text-xs text-gray-500 truncate max-w-full" title={`${grade.students.toLocaleString('ru-RU')} учеников`}>
+                      {formatNumberShort(grade.students)} учеников
                     </div>
                   </div>
                   <div className="text-right ml-2">
-                    <div className={`text-sm font-bold ${getPercentageColor(grade.attendance)}`}>
-                      {grade.attendance}%
-                    </div>
+                    <div className={`text-sm font-bold ${getPercentageColor(grade.attendance)} whitespace-nowrap`} title={`${grade.attendance}%`}>{grade.attendance}%</div>
                   </div>
                 </div>
                 <div className="mt-1 w-full bg-gray-200 rounded-full h-1 overflow-hidden">
@@ -197,15 +185,13 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
 
         {/* Weekly trend for large widgets */}
         {widget.size === 'large' && (
-          <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
-            <div className="text-xs font-medium text-gray-600 mb-2">Тренд недели</div>
+          <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
+            <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Тренд недели">Тренд недели</div>
             <div className="grid grid-cols-5 gap-1">
               {(attendance.weeklyTrend || []).map((day: WeeklyTrendItem, index: number) => (
                 <div key={index} className="text-center">
                   <div className="text-xs text-gray-600 mb-1">{day.day}</div>
-                  <div className={`text-xs font-bold ${getPercentageColor(day.percentage)}`}>
-                    {day.percentage}%
-                  </div>
+                  <div className={`text-xs font-bold ${getPercentageColor(day.percentage)} whitespace-nowrap`} title={`${day.percentage}%`}>{day.percentage}%</div>
                 </div>
               ))}
             </div>

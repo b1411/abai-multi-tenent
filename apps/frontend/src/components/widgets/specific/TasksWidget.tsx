@@ -126,18 +126,12 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* Progress header */}
-        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold text-blue-800">
-              Прогресс задач
-            </div>
-            <div className="text-sm font-bold text-blue-700">
-              <span title={`${completedCount.toLocaleString('ru-RU')}/${totalCount.toLocaleString('ru-RU')}`}>
-                {formatNumberShort(completedCount)}/{formatNumberShort(totalCount)}
-              </span>
-            </div>
+        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 min-w-0">
+            <div className="text-sm font-semibold text-blue-800 truncate" title="Прогресс задач">Прогресс задач</div>
+            <div className="text-sm font-bold text-blue-700 whitespace-nowrap" title={`${completedCount.toLocaleString('ru-RU')}/${totalCount.toLocaleString('ru-RU')}`}>{formatNumberShort(completedCount)}/{formatNumberShort(totalCount)}</div>
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
             <div 
@@ -145,44 +139,28 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
               style={{ width: `${completionPercentage}%` }}
             />
           </div>
-          <div className="text-xs text-blue-600 mt-1">
-            {completionPercentage}% выполнено
-          </div>
+          <div className="text-xs text-blue-600 mt-1 truncate" title={`${completionPercentage}% выполнено`}>{completionPercentage}% выполнено</div>
         </div>
 
         {/* Tasks list */}
-        <div className="flex-1 overflow-auto space-y-2">
+        <div className="flex-1 overflow-auto space-y-2 min-w-0">
           {tasks.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((task: TaskItem) => (
-            <div
-              key={task.id}
-              className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200"
-            >
+            <div key={task.id} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
               <div className="flex items-start space-x-3 min-w-0">
                 <div className="flex-shrink-0 mt-0.5">
-                  {task.completed ? (
-                    <CheckSquare className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <Square className="h-5 w-5 text-gray-400" />
-                  )}
+                  {task.completed ? <CheckSquare className="h-5 w-5 text-green-600" /> : <Square className="h-5 w-5 text-gray-400" />}
                 </div>
-                
                 <div className="flex-1 min-w-0">
-                  <div className={`font-medium text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'} line-clamp-2`}>
-                    {task.title}
-                  </div>
-                  
+                  <div className={`font-medium text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'} line-clamp-2`} title={task.title}>{task.title}</div>
                   <div className="flex items-center justify-between mt-2 min-w-0 gap-2">
                     <div className="flex items-center space-x-2 min-w-0">
-                      <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getPriorityBg(task.priority)}`}>
+                      <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getPriorityBg(task.priority)}`} title={getCategoryName(task.category || 'task')}>
                         <Flag className={`h-3 w-3 inline mr-1 flex-shrink-0 ${getPriorityColor(task.priority)}`} />
                         <span className="truncate">{getCategoryName(task.category || 'task')}</span>
                       </span>
                     </div>
-                    
                     {task.dueDate && (
-                      <div className={`flex items-center text-xs whitespace-nowrap ${
-                        isOverdue(task.dueDate) && !task.completed ? 'text-red-600' : 'text-gray-500'
-                      }`}>
+                      <div className={`flex items-center text-xs whitespace-nowrap ${isOverdue(task.dueDate) && !task.completed ? 'text-red-600' : 'text-gray-500'}`} title={new Date(task.dueDate).toLocaleDateString('ru-RU')}>
                         <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
                         {new Date(task.dueDate).toLocaleDateString('ru-RU')}
                       </div>
@@ -206,7 +184,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
 
         {tasks.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${tasks.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} задач`}>
               и еще {tasks.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} задач
             </div>
           </div>

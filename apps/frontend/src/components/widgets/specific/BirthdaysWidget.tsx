@@ -107,27 +107,23 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* Header with stats */}
-        <div className="mb-3 p-3 rounded-lg bg-pink-50 border border-pink-200">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center space-x-2">
-              <Gift className="h-5 w-5 text-pink-600" />
-              <span className="text-sm font-semibold text-pink-800">Дни рождения</span>
+        <div className="mb-3 p-3 rounded-lg bg-pink-50 border border-pink-200 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
+              <Gift className="h-5 w-5 text-pink-600 flex-shrink-0" />
+              <span className="text-sm font-semibold text-pink-800 truncate" title="Дни рождения">Дни рождения</span>
             </div>
-            <Heart className="h-4 w-4 text-pink-600" />
+            <Heart className="h-4 w-4 text-pink-600 flex-shrink-0" />
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-xs min-w-0">
             <div className="text-center">
-              <div className="font-bold text-pink-700" title={birthdays.thisWeekBirthdays.toLocaleString('ru-RU')}>
-                {formatNumberShort(birthdays.thisWeekBirthdays)}
-              </div>
+              <div className="font-bold text-pink-700 whitespace-nowrap" title={birthdays.thisWeekBirthdays.toLocaleString('ru-RU')}>{formatNumberShort(birthdays.thisWeekBirthdays)}</div>
               <div className="text-pink-600">На неделе</div>
             </div>
             <div className="text-center">
-              <div className="font-bold text-pink-700" title={birthdays.thisMonthBirthdays.toLocaleString('ru-RU')}>
-                {formatNumberShort(birthdays.thisMonthBirthdays)}
-              </div>
+              <div className="font-bold text-pink-700 whitespace-nowrap" title={birthdays.thisMonthBirthdays.toLocaleString('ru-RU')}>{formatNumberShort(birthdays.thisMonthBirthdays)}</div>
               <div className="text-pink-600">В месяце</div>
             </div>
           </div>
@@ -135,23 +131,19 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
 
         {/* Today's birthdays */}
         {birthdays.todayBirthdays.length > 0 && (
-          <div className="mb-3">
-            <div className="text-xs font-medium text-gray-600 mb-2">Сегодня празднуют</div>
+          <div className="mb-3 min-w-0">
+            <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Сегодня празднуют">Сегодня празднуют</div>
             <div className="space-y-2">
               {birthdays.todayBirthdays.map((person: BirthdayPerson) => (
-                <div key={person.id} className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center">
+                <div key={person.id} className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 overflow-hidden">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center flex-shrink-0">
                       <Gift className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-900 truncate">
-                        {person.name}
-                      </div>
-                      <div className="text-xs text-gray-600 truncate">
-                        {person.position}
-                      </div>
-                      <div className="text-xs font-medium text-yellow-700">
+                      <div className="text-sm font-semibold text-gray-900 truncate" title={person.name}>{person.name}</div>
+                      <div className="text-xs text-gray-600 truncate" title={person.position}>{person.position}</div>
+                      <div className="text-xs font-medium text-yellow-700 whitespace-nowrap" title={getAgeText(person.age)}>
                         🎉 {getAgeText(person.age)}
                       </div>
                     </div>
@@ -163,27 +155,21 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
         )}
 
         {/* Upcoming birthdays */}
-        <div className="flex-1 overflow-auto">
-          <div className="text-xs font-medium text-gray-600 mb-2">Предстоящие дни рождения</div>
+        <div className="flex-1 overflow-auto min-w-0">
+          <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Предстоящие дни рождения">Предстоящие дни рождения</div>
           <div className="space-y-2">
             {birthdays.upcomingBirthdays.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((person: BirthdayPerson) => (
-              <div key={person.id} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center">
+              <div key={person.id} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center flex-shrink-0">
                     <Users className="h-4 w-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-gray-900 truncate">
-                      {person.name}
-                    </div>
-                    <div className="text-xs text-gray-600 truncate">
-                      {person.position}
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <div className="text-xs text-purple-600 font-medium">
-                        {getDaysText(person.daysUntil)}
-                      </div>
-                      <div className="text-xs text-gray-500">
+                    <div className="text-sm font-semibold text-gray-900 truncate" title={person.name}>{person.name}</div>
+                    <div className="text-xs text-gray-600 truncate" title={person.position}>{person.position}</div>
+                    <div className="flex items-center justify-between mt-1 min-w-0 gap-2">
+                      <div className="text-xs text-purple-600 font-medium whitespace-nowrap" title={getDaysText(person.daysUntil)}>{getDaysText(person.daysUntil)}</div>
+                      <div className="text-xs text-gray-500 whitespace-nowrap" title={new Date(person.date).toLocaleDateString('ru-RU')}>
                         {new Date(person.date).toLocaleDateString('ru-RU')}
                       </div>
                     </div>
@@ -196,7 +182,7 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
 
         {birthdays.upcomingBirthdays.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${birthdays.upcomingBirthdays.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} дней рождения`}>
               и еще {birthdays.upcomingBirthdays.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} дней рождения
             </div>
           </div>

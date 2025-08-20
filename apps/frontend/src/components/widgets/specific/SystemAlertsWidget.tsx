@@ -95,49 +95,34 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* Summary Cards */}
-        <div className="grid grid-cols-3 gap-1 mb-3">
-          <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
-            <div className="text-lg font-bold text-red-700" title={critical.toLocaleString('ru-RU')}>
-              {formatNumberShort(critical)}
-            </div>
-            <div className="text-xs text-red-600">Критич.</div>
+        <div className="grid grid-cols-3 gap-1 mb-3 min-w-0">
+          <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center overflow-hidden">
+            <div className="text-lg font-bold text-red-700 whitespace-nowrap" title={critical.toLocaleString('ru-RU')}>{formatNumberShort(critical)}</div>
+            <div className="text-xs text-red-600 truncate" title="Критич.">Критич.</div>
           </div>
-          
-          <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-            <div className="text-lg font-bold text-yellow-700" title={warnings.toLocaleString('ru-RU')}>
-              {formatNumberShort(warnings)}
-            </div>
-            <div className="text-xs text-yellow-600">Предупр.</div>
+          <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-center overflow-hidden">
+            <div className="text-lg font-bold text-yellow-700 whitespace-nowrap" title={warnings.toLocaleString('ru-RU')}>{formatNumberShort(warnings)}</div>
+            <div className="text-xs text-yellow-600 truncate" title="Предупр.">Предупр.</div>
           </div>
-          
-          <div className="p-2 rounded-lg bg-blue-50 border border-blue-200 text-center">
-            <div className="text-lg font-bold text-blue-700" title={info.toLocaleString('ru-RU')}>
-              {formatNumberShort(info)}
-            </div>
-            <div className="text-xs text-blue-600">Инфо</div>
+          <div className="p-2 rounded-lg bg-blue-50 border border-blue-200 text-center overflow-hidden">
+            <div className="text-lg font-bold text-blue-700 whitespace-nowrap" title={info.toLocaleString('ru-RU')}>{formatNumberShort(info)}</div>
+            <div className="text-xs text-blue-600 truncate" title="Инфо">Инфо</div>
           </div>
         </div>
 
         {/* Alerts list */}
-        <div className="flex-1 space-y-2 overflow-auto">
+        <div className="flex-1 space-y-2 overflow-auto min-w-0">
           {alerts.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((alert: SystemAlertItem) => (
-            <div
-              key={alert.id}
-              className={`p-3 rounded-lg border hover:shadow-sm transition-all duration-200 ${getAlertColor(alert.type)}`}
-            >
-              <div className="flex items-start space-x-2">
-                <div className="flex-shrink-0 mt-0.5">
-                  {getAlertIcon(alert.type)}
-                </div>
+            <div key={alert.id} className={`p-3 rounded-lg border hover:shadow-sm transition-all duration-200 overflow-hidden ${getAlertColor(alert.type)}`}>
+              <div className="flex items-start space-x-2 min-w-0">
+                <div className="flex-shrink-0 mt-0.5">{getAlertIcon(alert.type)}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                    {alert.message}
-                  </p>
+                  <p className="text-sm font-medium text-gray-900 line-clamp-2" title={alert.message}>{alert.message}</p>
                   {widget.size !== 'small' && (
-                    <div className="flex items-center text-xs text-gray-500 mt-1">
-                      <Clock className="h-3 w-3 mr-1" />
+                    <div className="flex items-center text-xs text-gray-500 mt-1 whitespace-nowrap" title={new Date(alert.time).toLocaleString('ru-RU')}>
+                      <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
                       {new Date(alert.time).toLocaleString('ru-RU')}
                     </div>
                   )}
@@ -149,7 +134,7 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
 
         {alerts.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
           <div className="text-center mt-2">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${alerts.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уведомлений`}>
               и еще {alerts.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уведомлений
             </div>
           </div>

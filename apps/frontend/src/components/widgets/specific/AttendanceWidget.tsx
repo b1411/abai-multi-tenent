@@ -140,14 +140,14 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* Current month stats */}
-        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold text-blue-800">
+        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 min-w-0">
+            <div className="text-sm font-semibold text-blue-800 truncate" title="Посещаемость за месяц">
               Посещаемость за месяц
             </div>
-            <div className={`text-sm font-bold ${getPercentageColor(currentMonth.percentage)}`}>
+            <div className={`text-sm font-bold ${getPercentageColor(currentMonth.percentage)} whitespace-nowrap`} title={`${currentMonth.percentage}%`}>
               {currentMonth.percentage}%
             </div>
           </div>
@@ -157,23 +157,17 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
               style={{ width: `${currentMonth.percentage}%` }}
             />
           </div>
-          <div className="grid grid-cols-3 gap-2 text-xs">
+      <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="text-center">
-              <div className="font-bold text-green-700" title={currentMonth.presentDays.toLocaleString('ru-RU')}>
-                {formatNumberShort(currentMonth.presentDays)}
-              </div>
+        <div className="font-bold text-green-700 whitespace-nowrap" title={currentMonth.presentDays.toLocaleString('ru-RU')}>{formatNumberShort(currentMonth.presentDays)}</div>
               <div className="text-green-600">Присутствие</div>
             </div>
             <div className="text-center">
-              <div className="font-bold text-red-700" title={currentMonth.absentDays.toLocaleString('ru-RU')}>
-                {formatNumberShort(currentMonth.absentDays)}
-              </div>
+        <div className="font-bold text-red-700 whitespace-nowrap" title={currentMonth.absentDays.toLocaleString('ru-RU')}>{formatNumberShort(currentMonth.absentDays)}</div>
               <div className="text-red-600">Отсутствие</div>
             </div>
             <div className="text-center">
-              <div className="font-bold text-yellow-700" title={currentMonth.lateDays.toLocaleString('ru-RU')}>
-                {formatNumberShort(currentMonth.lateDays)}
-              </div>
+        <div className="font-bold text-yellow-700 whitespace-nowrap" title={currentMonth.lateDays.toLocaleString('ru-RU')}>{formatNumberShort(currentMonth.lateDays)}</div>
               <div className="text-yellow-600">Опоздания</div>
             </div>
           </div>
@@ -201,14 +195,11 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
 
         {/* Recent attendance */}
         <div className="flex-1 overflow-auto">
-          <div className="text-xs font-medium text-gray-600 mb-2">Последние дни</div>
+          <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Последние дни">Последние дни</div>
           <div className="space-y-2">
             {recentAttendance?.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((record: RecentAttendanceRecord, index: number) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 min-w-0 gap-2"
-              >
-                <div className="flex items-center space-x-3 min-w-0 flex-1">
+              <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 min-w-0 gap-2 overflow-hidden">
+                <div className="flex items-center space-x-3 min-w-0 flex-1 overflow-hidden">
                   <div className="flex-shrink-0">
                     {getStatusIcon(record.status)}
                   </div>
@@ -223,12 +214,10 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
                     )}
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getStatusColor(record.status)}`}>
-                    {getStatusName(record.status)}
-                  </span>
+                <div className="text-right flex-shrink-0 ml-2">
+                  <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getStatusColor(record.status)}`}>{getStatusName(record.status)}</span>
                   {widget.size === 'large' && (
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-500 mt-1 whitespace-nowrap">
                       {record.lessons} уроков
                     </div>
                   )}

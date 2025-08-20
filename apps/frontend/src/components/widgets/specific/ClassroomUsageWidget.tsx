@@ -133,22 +133,20 @@ const ClassroomUsageWidget: React.FC<ClassroomUsageWidgetProps> = ({ data, widge
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* Usage overview */}
-        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center space-x-2">
-              <Building className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-800">Использование кабинетов</span>
+        <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 min-w-0">
+            <div className="flex items-center space-x-2 min-w-0">
+              <Building className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <span className="text-sm font-semibold text-blue-800 truncate" title="Использование кабинетов">Использование кабинетов</span>
             </div>
-            <div className={`text-lg font-bold ${getUtilizationColor(usage.utilizationRate)}`}>
+            <div className={`text-lg font-bold ${getUtilizationColor(usage.utilizationRate)} whitespace-nowrap`} title={`${usage.utilizationRate}%`}>
               {usage.utilizationRate}%
             </div>
           </div>
-          <div className="text-xs text-blue-600 mb-2">
-            <span title={`${usage.occupiedRooms.toLocaleString('ru-RU')} из ${usage.totalRooms.toLocaleString('ru-RU')}`}>
-              {formatNumberShort(usage.occupiedRooms)} из {formatNumberShort(usage.totalRooms)} кабинетов заняты
-            </span>
+          <div className="text-xs text-blue-600 mb-2 truncate" title={`${usage.occupiedRooms.toLocaleString('ru-RU')} из ${usage.totalRooms.toLocaleString('ru-RU')}`}> 
+            {formatNumberShort(usage.occupiedRooms)} из {formatNumberShort(usage.totalRooms)} кабинетов заняты
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
             <div 
@@ -162,73 +160,61 @@ const ClassroomUsageWidget: React.FC<ClassroomUsageWidgetProps> = ({ data, widge
         </div>
 
         {/* Status summary */}
-        <div className="mb-3 grid grid-cols-2 gap-2">
+    <div className="mb-3 grid grid-cols-2 gap-2 min-w-0">
           <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
             <Users className="h-4 w-4 text-red-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-red-700" title={usage.occupiedRooms.toLocaleString('ru-RU')}>
-              {formatNumberShort(usage.occupiedRooms)}
-            </div>
+      <div className="text-sm font-bold text-red-700 whitespace-nowrap" title={usage.occupiedRooms.toLocaleString('ru-RU')}>{formatNumberShort(usage.occupiedRooms)}</div>
             <div className="text-xs text-red-600">Заняты</div>
           </div>
           <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center">
             <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
-            <div className="text-sm font-bold text-green-700" title={usage.freeRooms.toLocaleString('ru-RU')}>
-              {formatNumberShort(usage.freeRooms)}
-            </div>
+      <div className="text-sm font-bold text-green-700 whitespace-nowrap" title={usage.freeRooms.toLocaleString('ru-RU')}>{formatNumberShort(usage.freeRooms)}</div>
             <div className="text-xs text-green-600">Свободны</div>
           </div>
         </div>
 
         {/* Rooms list */}
-        <div className="flex-1 overflow-auto">
-          <div className="text-xs font-medium text-gray-600 mb-2">Кабинеты</div>
+        <div className="flex-1 overflow-auto min-w-0">
+          <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Кабинеты">Кабинеты</div>
           <div className="space-y-2">
             {usage.rooms.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((room: ClassroomRoom, index: number) => (
-              <div key={index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="h-4 w-4 text-gray-600" />
-                    <span className="text-sm font-semibold text-gray-900">
-                      {room.number}
-                    </span>
+              <div key={index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <MapPin className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-gray-900 truncate" title={room.number}>{room.number}</span>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(room.status)}`}>
+                  <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(room.status)} whitespace-nowrap`} title={getStatusText(room.status)}>
                     {getStatusText(room.status)}
                   </span>
                 </div>
                 
                 {room.status === 'occupied' ? (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-gray-800">
-                      {room.subject} - {room.group}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      {room.teacher}
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-1 text-orange-600">
-                        <Clock className="h-3 w-3" />
-                        <span>Осталось: {room.timeLeft}</span>
+                  <div className="space-y-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-800 truncate" title={`${room.subject} - ${room.group}`}>{room.subject} - {room.group}</div>
+                    <div className="text-xs text-gray-600 truncate" title={room.teacher}>{room.teacher}</div>
+                    <div className="flex items-center justify-between text-xs min-w-0 gap-2">
+                      <div className="flex items-center space-x-1 text-orange-600 whitespace-nowrap">
+                        <Clock className="h-3 w-3 flex-shrink-0" />
+                        <span title={room.timeLeft}>Осталось: {room.timeLeft}</span>
                       </div>
                     </div>
                     {room.nextClass && (
-                      <div className="text-xs text-gray-500 truncate">
+                      <div className="text-xs text-gray-500 truncate" title={room.nextClass}>
                         Далее: {room.nextClass}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <div className="text-sm text-green-700 font-medium">
-                      Свободен
-                    </div>
+                  <div className="space-y-1 min-w-0">
+                    <div className="text-sm text-green-700 font-medium whitespace-nowrap">Свободен</div>
                     {room.nextClass && (
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-gray-600 truncate" title={room.nextClass}>
                         Далее: {room.nextClass}
                       </div>
                     )}
                     {room.teacher && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 truncate" title={`${room.teacher} - ${room.group}`}>
                         {room.teacher} - {room.group}
                       </div>
                     )}
@@ -241,17 +227,15 @@ const ClassroomUsageWidget: React.FC<ClassroomUsageWidgetProps> = ({ data, widge
 
         {/* Floor distribution for large widgets */}
         {widget.size === 'large' && (
-          <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
-            <div className="text-xs font-medium text-gray-600 mb-2">По этажам</div>
-            <div className="space-y-2">
+          <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
+            <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="По этажам">По этажам</div>
+            <div className="space-y-2 min-w-0">
               {usage.floors.map((floor: FloorUsage, index: number) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-xs text-gray-700">{floor.floor}</span>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-gray-600">{floor.occupied}/{floor.total}</span>
-                    <span className={`text-xs font-medium ${getUtilizationColor(floor.utilization)}`}>
-                      {floor.utilization}%
-                    </span>
+                <div key={index} className="flex items-center justify-between min-w-0 gap-2">
+                  <span className="text-xs text-gray-700 truncate" title={floor.floor}>{floor.floor}</span>
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <span className="text-xs text-gray-600 whitespace-nowrap" title={`${floor.occupied}/${floor.total}`}>{floor.occupied}/{floor.total}</span>
+                    <span className={`text-xs font-medium ${getUtilizationColor(floor.utilization)} whitespace-nowrap`} title={`${floor.utilization}%`}>{floor.utilization}%</span>
                   </div>
                 </div>
               ))}
@@ -261,7 +245,7 @@ const ClassroomUsageWidget: React.FC<ClassroomUsageWidgetProps> = ({ data, widge
 
         {usage.rooms.length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${usage.rooms.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6)} кабинетов`}>
               и еще {usage.rooms.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6)} кабинетов
             </div>
           </div>

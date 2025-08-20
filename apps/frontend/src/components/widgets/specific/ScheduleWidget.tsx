@@ -64,33 +64,29 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
-        <div className="flex-1 overflow-auto space-y-2">
+      <div className="h-full flex flex-col p-1 min-w-0">
+        <div className="flex-1 overflow-auto space-y-2 min-w-0">
           {lessons.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((lesson: LessonItem, index: number) => (
-            <div key={lesson.id || index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
+            <div key={lesson.id || index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
               <div className="flex items-start space-x-3 min-w-0">
                 <div className="flex-shrink-0 w-12 text-center">
-                  <div className="text-sm font-bold text-blue-600">
+                  <div className="text-sm font-bold text-blue-600 whitespace-nowrap" title={lesson.time?.split('-')[0] || ''}>
                     {lesson.time?.split('-')[0] || ''}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 whitespace-nowrap" title={lesson.time?.split('-')[1] || ''}>
                     {lesson.time?.split('-')[1] || ''}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-900 text-sm truncate">
-                    {lesson.subject}
-                  </div>
+                  <div className="font-semibold text-gray-900 text-sm truncate" title={lesson.subject}>{lesson.subject}</div>
                   {lesson.classroom && (
-                    <div className="flex items-center text-xs text-gray-600 mt-1 min-w-0">
+                    <div className="flex items-center text-xs text-gray-600 mt-1 min-w-0" title={lesson.classroom}>
                       <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                       <span className="truncate">{lesson.classroom}</span>
                     </div>
                   )}
                   {lesson.teacher && (
-                    <div className="text-xs text-gray-500 mt-1 truncate">
-                      {lesson.teacher}
-                    </div>
+                    <div className="text-xs text-gray-500 mt-1 truncate" title={lesson.teacher}>{lesson.teacher}</div>
                   )}
                 </div>
               </div>
@@ -100,7 +96,7 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
         
         {lessons.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${lessons.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уроков`}>
               и еще {lessons.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уроков
             </div>
           </div>

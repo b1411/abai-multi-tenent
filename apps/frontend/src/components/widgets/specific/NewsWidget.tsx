@@ -3,8 +3,22 @@ import { Widget } from '../../../types/widget';
 import { Bell, Calendar, Users, ExternalLink } from 'lucide-react';
 import widgetService from '../../../services/widgetService';
 
+interface NewsItem {
+  id: string | number;
+  category: string;
+  title: string;
+  summary?: string;
+  date: string;
+  author?: string;
+  priority?: 'high' | 'medium' | 'low' | string;
+}
+
+interface NewsData {
+  news: NewsItem[];
+}
+
 interface NewsWidgetProps {
-  data: any;
+  data: NewsData | null;
   widget: Widget;
 }
 
@@ -39,7 +53,7 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
     );
   }
 
-  const news = widgetData?.news || [];
+  const news: NewsItem[] = (widgetData as NewsData)?.news || [];
 
   if (news.length === 0) {
     return (
@@ -86,7 +100,7 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority?: string) => {
     switch (priority) {
       case 'high':
         return 'border-l-red-500';
@@ -118,48 +132,31 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* News list */}
-        <div className="flex-1 overflow-auto space-y-2">
-          {news.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((newsItem: any) => (
-            <div
-              key={newsItem.id}
-              className={`p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 border-l-4 ${getPriorityColor(newsItem.priority)}`}
-            >
+        <div className="flex-1 overflow-auto space-y-2 min-w-0">
+          {news.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((newsItem: NewsItem) => (
+            <div key={newsItem.id} className={`p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 border-l-4 overflow-hidden ${getPriorityColor(newsItem.priority)}`}>
               <div className="flex items-start justify-between mb-2 min-w-0 gap-2">
                 <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <div className="flex-shrink-0">
-                    {getCategoryIcon(newsItem.category)}
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getCategoryColor(newsItem.category)}`}>
-                    {getCategoryName(newsItem.category)}
-                  </span>
+                  <div className="flex-shrink-0">{getCategoryIcon(newsItem.category)}</div>
+                  <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getCategoryColor(newsItem.category)}`} title={getCategoryName(newsItem.category)}>{getCategoryName(newsItem.category)}</span>
                 </div>
-                <div className="text-xs text-gray-500 whitespace-nowrap">
+                <div className="text-xs text-gray-500 whitespace-nowrap" title={new Date(newsItem.date).toLocaleDateString('ru-RU')}>
                   {new Date(newsItem.date).toLocaleDateString('ru-RU')}
                 </div>
               </div>
-              
-              <div className="mb-2">
-                <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1">
-                  {newsItem.title}
-                </h4>
+              <div className="mb-2 min-w-0">
+                <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1" title={newsItem.title}>{newsItem.title}</h4>
                 {widget.size !== 'small' && (
-                  <p className="text-xs text-gray-600 line-clamp-2">
-                    {newsItem.summary}
-                  </p>
+                  <p className="text-xs text-gray-600 line-clamp-2" title={newsItem.summary}>{newsItem.summary}</p>
                 )}
               </div>
-              
               {newsItem.author && (
                 <div className="flex items-center justify-between min-w-0 gap-2">
-                  <div className="text-xs text-gray-500 truncate flex-1">
-                    {newsItem.author}
-                  </div>
+                  <div className="text-xs text-gray-500 truncate flex-1" title={newsItem.author}>{newsItem.author}</div>
                   {newsItem.priority === 'high' && (
-                    <div className="text-xs font-medium text-red-600 whitespace-nowrap">
-                      Важно
-                    </div>
+                    <div className="text-xs font-medium text-red-600 whitespace-nowrap" title="Важно">Важно</div>
                   )}
                 </div>
               )}
@@ -169,7 +166,7 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
 
         {news.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${news.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} новостей`}>
               и еще {news.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} новостей
             </div>
           </div>

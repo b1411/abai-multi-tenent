@@ -212,7 +212,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 
   return (
-  <div className={`fixed inset-y-0 left-0 z-40 group/sidebar ${collapsed ? 'w-20' : 'w-64 lg:w-72'} bg-white shadow-lg will-change-[width,transform] transition-[width,transform] duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-hidden`}>      
+  <div className={`fixed inset-y-0 left-0 z-40 group/sidebar ${collapsed ? 'w-24' : 'w-64 lg:w-72'} bg-white shadow-lg will-change-[width,transform] transition-[width,transform] duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-hidden`}>      
       <div className="flex h-full flex-col">
         {/* Logo and close button */}
         <div className={`flex h-16 items-center ${collapsed ? 'px-2 justify-center' : 'justify-between px-4'} border-b border-gray-200`}>          

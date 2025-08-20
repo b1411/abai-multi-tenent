@@ -105,23 +105,21 @@ const SystemStatsWidget: React.FC<SystemStatsWidgetProps> = ({ data, widget }) =
   ];
 
   return (
-    <div className="h-full relative overflow-hidden">
+  <div className="h-full relative overflow-hidden">
       <div className="h-full flex flex-col p-1">
         {/* Stats Grid with compact design */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mb-4 min-w-0">
           {stats.map((stat, index) => (
             <div
               key={index}
-              className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-md transition-all duration-200 min-w-0"
+              className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-md transition-all duration-200 min-w-0 flex flex-col overflow-hidden"
             >
               <div className="flex items-center justify-between mb-2 min-w-0">
                 <div className="p-1.5 rounded-md bg-gray-50 flex-shrink-0">
                   {stat.icon}
                 </div>
                 <div className="text-right min-w-0 flex-1 ml-2">
-                  <div className="text-xl font-bold text-gray-900 truncate">
-                    {stat.value}
-                  </div>
+                  <div className="text-xl font-bold text-gray-900 truncate" title={stat.numericValue.toLocaleString('ru-RU')}>{stat.value}</div>
                 </div>
               </div>
               <div className="text-xs font-medium text-gray-600 truncate">

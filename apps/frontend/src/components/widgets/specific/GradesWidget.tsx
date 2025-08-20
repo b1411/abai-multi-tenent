@@ -94,36 +94,32 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="h-full flex flex-col p-1">
+      <div className="h-full flex flex-col p-1 min-w-0">
         {/* Header with average grade */}
-        <div className="flex items-center justify-between mb-3">
-          <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${getTrendColor()}`}>
+        <div className="flex items-center justify-between mb-3 min-w-0">
+          <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${getTrendColor()} min-w-0`} title={`Средний балл: ${averageGrade}`}>
             {getTrendIcon()}
-            <span className="text-sm font-semibold">Средний балл: {averageGrade}</span>
+            <span className="text-sm font-semibold truncate">Средний балл: {averageGrade}</span>
           </div>
         </div>
 
         {/* Recent grades list */}
-        <div className="flex-1 overflow-auto space-y-2">
+        <div className="flex-1 overflow-auto space-y-2 min-w-0">
           {grades.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((gradeItem: RecentGradeItem, index: number) => (
-            <div key={index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200">
-              <div className="flex items-center justify-between">
+            <div key={index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
+              <div className="flex items-center justify-between min-w-0 gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-900 text-sm truncate">
-                    {gradeItem.subject}
-                  </div>
+                  <div className="font-semibold text-gray-900 text-sm truncate" title={gradeItem.subject}>{gradeItem.subject}</div>
                   {gradeItem.teacher && (
-                    <div className="text-xs text-gray-500 mt-1 truncate">
-                      {gradeItem.teacher}
-                    </div>
+                    <div className="text-xs text-gray-500 mt-1 truncate" title={gradeItem.teacher}>{gradeItem.teacher}</div>
                   )}
                   {gradeItem.date && (
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-gray-400 mt-1 whitespace-nowrap" title={new Date(gradeItem.date).toLocaleDateString('ru-RU')}>
                       {new Date(gradeItem.date).toLocaleDateString('ru-RU')}
                     </div>
                   )}
                 </div>
-                <div className={`ml-3 px-2 py-1 rounded-full text-sm font-bold border ${getGradeColor(gradeItem.grade)}`}>
+                <div className={`ml-3 px-2 py-1 rounded-full text-sm font-bold border ${getGradeColor(gradeItem.grade)} whitespace-nowrap`} title={`${gradeItem.grade}`}>
                   {gradeItem.grade}
                 </div>
               </div>
@@ -133,15 +129,13 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
 
         {/* Grade distribution for large widgets */}
         {widget.size === 'large' && data?.gradeDistribution && (
-          <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
-            <div className="text-xs font-medium text-gray-600 mb-2">Распределение оценок</div>
-            <div className="grid grid-cols-4 gap-2">
+          <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
+            <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Распределение оценок">Распределение оценок</div>
+            <div className="grid grid-cols-4 gap-2 min-w-0">
               {Object.entries(data.gradeDistribution).reverse().map(([grade, count]: [string, number]) => (
-                <div key={grade} className="text-center">
-                  <div className={`text-sm font-bold px-2 py-1 rounded border ${getGradeColor(parseInt(grade))}`}>
-                    {grade}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1" title={Number(count).toLocaleString('ru-RU')}>
+                <div key={grade} className="text-center overflow-hidden">
+                  <div className={`text-sm font-bold px-2 py-1 rounded border ${getGradeColor(parseInt(grade))} whitespace-nowrap`} title={grade}>{grade}</div>
+                  <div className="text-xs text-gray-500 mt-1 whitespace-nowrap" title={Number(count).toLocaleString('ru-RU')}>
                     {formatNumberShort(Number(count))}
                   </div>
                 </div>
@@ -152,7 +146,7 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
 
         {grades.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${grades.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} оценок`}>
               и еще {grades.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} оценок
             </div>
           </div>

@@ -1,6 +1,6 @@
-# ABAI LMS Frontend
+# Fizmat.AI Frontend
 
-Новый фронтенд для системы управления обучением ABAI LMS, построенный на React + TypeScript + Vite.
+Новый фронтенд для системы управления обучением Fizmat.AI, построенный на React + TypeScript + Vite.
 
 ## Структура проекта
 

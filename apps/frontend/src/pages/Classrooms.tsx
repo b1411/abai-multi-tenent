@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { FaSearch, FaBuilding, FaFilter, FaPlus, FaUsers, FaCog, FaEdit, FaTrash, FaMapMarkerAlt, FaChartBar } from 'react-icons/fa';
+import { FaSearch, FaBuilding, FaFilter, FaPlus, FaUsers, FaCog, FaEdit, FaTrash, FaMapMarkerAlt, FaChartBar, FaCalendarPlus } from 'react-icons/fa';
 import { useClassrooms, useBuildings, useEquipmentTypes } from '../hooks/useClassrooms';
 import { useAuth } from '../hooks/useAuth';
 import { Classroom, ClassroomType, ClassroomFilter } from '../types/classroom';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import ClassroomForm from '../components/ClassroomForm';
+import ClassroomBookingModal from '../components/ClassroomBookingModal';
 
 const CLASSROOM_TYPE_LABELS: Record<ClassroomType, string> = {
   LECTURE: 'Лекционная',
@@ -39,6 +40,7 @@ const Classrooms: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   // Фильтрация аудиторий
   const filteredClassrooms = useMemo(() => {
@@ -147,14 +149,24 @@ const Classrooms: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-md order-2 sm:order-1">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-md order-3 sm:order-1">
               <FaBuilding className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
               <span>Всего: {filteredClassrooms.length}</span>
             </div>
+            
+            <button
+              onClick={() => setShowBookingModal(true)}
+              className="w-full sm:w-auto bg-green-600 text-white px-4 py-2.5 sm:py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base min-h-[44px] touch-manipulation order-2 sm:order-2 shadow-sm"
+            >
+              <FaCalendarPlus className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Бронирование аудитории</span>
+              <span className="sm:hidden">Бронировать</span>
+            </button>
+            
             {canManageClassrooms && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2.5 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base min-h-[44px] touch-manipulation order-1 sm:order-2 shadow-sm"
+                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2.5 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base min-h-[44px] touch-manipulation order-1 sm:order-3 shadow-sm"
               >
                 <FaPlus className="w-4 h-4 flex-shrink-0" />
                 <span className="hidden sm:inline">Добавить аудиторию</span>
@@ -440,6 +452,13 @@ const Classrooms: React.FC = () => {
         isOpen={showCreateModal || selectedClassroom !== null}
         onClose={handleCloseForm}
         onSubmit={selectedClassroom ? handleUpdateClassroom : handleCreateClassroom}
+      />
+
+      {/* Модальное окно бронирования аудитории */}
+      <ClassroomBookingModal
+        isOpen={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        classrooms={classrooms}
       />
     </div>
   );

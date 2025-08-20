@@ -19,12 +19,14 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import { useToast } from '../../hooks/useToast';
+// import { useToast } from '../../hooks/useToast';
 
 const AlumniDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { success, error: showError } = useToast();
+  // const { success, error: showError } = useToast();
+  const success = (message: string) => alert(message);
+  const showError = (message: string) => alert(message);
   const alumniId = parseInt(id || '0');
   const { alumni, loading, error, updateAlumni } = useAlumniDetail(alumniId);
   
@@ -37,9 +39,11 @@ const AlumniDetail: React.FC = () => {
       setEditForm({
         email: alumni.email || '',
         phone: alumni.phone || '',
-        currentJob: alumni.currentJob || '',
-        currentCompany: alumni.currentCompany || '',
-        industry: alumni.industry || '',
+        currentUniversity: alumni.currentUniversity || '',
+        currentCountry: alumni.currentCountry || '',
+        currentCity: alumni.currentCity || '',
+        degree: alumni.degree || '',
+        major: alumni.major || '',
         linkedin: alumni.linkedin || '',
         status: alumni.status
       });
@@ -162,7 +166,7 @@ const AlumniDetail: React.FC = () => {
                 {alumni.middlename && ` ${alumni.middlename}`}
               </h1>
               <p className="text-gray-600 mt-2">
-                Выпускник группы {alumni.groupName} • {alumni.graduationYear}
+                Выпускник {alumni.graduationClass} класса • {alumni.graduationYear} • {alumni.track}
               </p>
             </div>
             
@@ -223,7 +227,7 @@ const AlumniDetail: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <GraduationCap className="h-5 w-5 text-gray-400 mr-3" />
-                      <span className="text-gray-700">Группа: {alumni.groupName}</span>
+                      <span className="text-gray-700">Класс: {alumni.graduationClass}</span>
                     </div>
                     <div className="flex items-center">
                       <Calendar className="h-5 w-5 text-gray-400 mr-3" />
@@ -231,81 +235,113 @@ const AlumniDetail: React.FC = () => {
                         Выпуск: {formatGraduationDate(alumni.graduationDate)}
                       </span>
                     </div>
-                    {alumni.gpa && (
+                    {alumni.track && (
                       <div className="flex items-center">
                         <Star className="h-5 w-5 text-gray-400 mr-3" />
-                        <span className="text-gray-700">GPA: {alumni.gpa}</span>
+                        <span className="text-gray-700">Направление: {alumni.track}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Карьерная информация */}
+                {/* Образование */}
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Карьерная информация</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">Высшее образование</h4>
                   {isEditing ? (
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Компания
+                          Университет
                         </label>
                         <input
                           type="text"
-                          value={editForm.currentCompany || ''}
-                          onChange={(e) => setEditForm({...editForm, currentCompany: e.target.value})}
+                          value={editForm.currentUniversity || ''}
+                          onChange={(e) => setEditForm({...editForm, currentUniversity: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Название компании"
+                          placeholder="Название университета"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Должность
+                          Страна
                         </label>
                         <input
                           type="text"
-                          value={editForm.currentJob || ''}
-                          onChange={(e) => setEditForm({...editForm, currentJob: e.target.value})}
+                          value={editForm.currentCountry || ''}
+                          onChange={(e) => setEditForm({...editForm, currentCountry: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Должность"
+                          placeholder="Страна обучения"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Индустрия
+                          Город
                         </label>
                         <input
                           type="text"
-                          value={editForm.industry || ''}
-                          onChange={(e) => setEditForm({...editForm, industry: e.target.value})}
+                          value={editForm.currentCity || ''}
+                          onChange={(e) => setEditForm({...editForm, currentCity: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Индустрия"
+                          placeholder="Город"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Степень
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.degree || ''}
+                          onChange={(e) => setEditForm({...editForm, degree: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Бакалавр/Магистр/Доктор"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Специальность
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.major || ''}
+                          onChange={(e) => setEditForm({...editForm, major: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Специальность"
                         />
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {alumni.currentCompany ? (
+                      {alumni.currentUniversity ? (
                         <>
                           <div className="flex items-center">
                             <Building className="h-5 w-5 text-gray-400 mr-3" />
-                            <span className="text-gray-700">{alumni.currentCompany}</span>
+                            <span className="text-gray-700">{alumni.currentUniversity}</span>
                           </div>
-                          {alumni.currentJob && (
+                          {alumni.currentCountry && (
                             <div className="flex items-center">
                               <Briefcase className="h-5 w-5 text-gray-400 mr-3" />
-                              <span className="text-gray-700">{alumni.currentJob}</span>
+                              <span className="text-gray-700">
+                                {alumni.currentCity ? `${alumni.currentCity}, ${alumni.currentCountry}` : alumni.currentCountry}
+                              </span>
                             </div>
                           )}
-                          {alumni.industry && (
+                          {alumni.degree && (
+                            <div className="flex items-center">
+                              <GraduationCap className="h-5 w-5 text-gray-400 mr-3" />
+                              <span className="text-gray-700">{alumni.degree}</span>
+                            </div>
+                          )}
+                          {alumni.major && (
                             <div className="mt-2">
                               <span className="inline-block px-2 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded">
-                                {alumni.industry}
+                                {alumni.major}
                               </span>
                             </div>
                           )}
                         </>
                       ) : (
-                        <p className="text-gray-500 italic">Информация о работе не указана</p>
+                        <p className="text-gray-500 italic">Информация об образовании не указана</p>
                       )}
                     </div>
                   )}
@@ -313,15 +349,15 @@ const AlumniDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Достижения */}
-            {alumni.achievements && alumni.achievements.length > 0 && (
+            {/* Школьные достижения */}
+            {alumni.schoolAchievements && alumni.schoolAchievements.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                   <Award className="h-6 w-6 mr-2" />
-                  Достижения
+                  Школьные достижения
                 </h2>
                 <div className="space-y-3">
-                  {alumni.achievements.map((achievement, index) => (
+                  {alumni.schoolAchievements.map((achievement, index) => (
                     <div key={index} className="flex items-start">
                       <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                       <span className="text-gray-700">{achievement}</span>

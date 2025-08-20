@@ -8,10 +8,11 @@ import {
   Phone, 
   GraduationCap, 
   Calendar,
-  Briefcase,
+  BookOpen,
   Award,
   ExternalLink,
-  Star
+  Globe,
+  Users
 } from 'lucide-react';
 
 interface AlumniCardProps {
@@ -85,8 +86,14 @@ const AlumniCard: React.FC<AlumniCardProps> = ({
               {alumni.middlename && ` ${alumni.middlename}`}
             </h3>
             <div className="flex items-center text-sm text-gray-600">
-              <GraduationCap className="h-4 w-4 mr-1" />
-              <span>{alumni.groupName}</span>
+              <Users className="h-4 w-4 mr-1" />
+              <span>{alumni.graduationClass}</span>
+              {alumni.track && (
+                <>
+                  <span className="mx-1">•</span>
+                  <span className="font-medium">{alumni.track}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -103,53 +110,54 @@ const AlumniCard: React.FC<AlumniCardProps> = ({
         <span>Выпуск: {formatGraduationDate(alumni.graduationDate)}</span>
       </div>
 
-      {/* Текущая работа */}
-      {alumni.currentCompany && (
+      {/* Текущее образование */}
+      {alumni.currentUniversity && (
         <div className="mb-3">
           <div className="flex items-center text-sm text-gray-700 mb-1">
             <Building className="h-4 w-4 mr-2" />
-            <span className="font-medium">{alumni.currentCompany}</span>
+            <span className="font-medium">{alumni.currentUniversity}</span>
           </div>
-          {alumni.currentJob && (
-            <div className="flex items-center text-sm text-gray-600 ml-6">
-              <Briefcase className="h-4 w-4 mr-2" />
-              <span>{alumni.currentJob}</span>
-            </div>
-          )}
-          {alumni.industry && (
-            <div className="ml-6 mt-1">
+          <div className="flex items-center text-sm text-gray-600 ml-6 mb-1">
+            <Globe className="h-4 w-4 mr-2" />
+            <span>{alumni.currentCountry}</span>
+            {alumni.currentCity && (
+              <>
+                <span className="mx-1">,</span>
+                <span>{alumni.currentCity}</span>
+              </>
+            )}
+          </div>
+          <div className="ml-6 flex flex-wrap gap-2 mt-2">
+            {alumni.degree && (
               <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                {alumni.industry}
+                {alumni.degree}
               </span>
-            </div>
-          )}
+            )}
+            {alumni.major && (
+              <span className="inline-block px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                {alumni.major}
+              </span>
+            )}
+          </div>
         </div>
       )}
 
-      {/* GPA */}
-      {alumni.gpa && (
-        <div className="flex items-center text-sm text-gray-600 mb-3">
-          <Star className="h-4 w-4 mr-2" />
-          <span>GPA: {alumni.gpa}</span>
-        </div>
-      )}
-
-      {/* Достижения */}
-      {alumni.achievements && alumni.achievements.length > 0 && (
+      {/* Школьные достижения */}
+      {alumni.schoolAchievements && alumni.schoolAchievements.length > 0 && (
         <div className="mb-3">
           <div className="flex items-center text-sm text-gray-600 mb-2">
             <Award className="h-4 w-4 mr-2" />
-            <span className="font-medium">Достижения:</span>
+            <span className="font-medium">Достижения в школе:</span>
           </div>
           <div className="ml-6 space-y-1">
-            {alumni.achievements.slice(0, 2).map((achievement, index) => (
+            {alumni.schoolAchievements.slice(0, 2).map((achievement, index) => (
               <div key={index} className="text-sm text-gray-600">
                 • {achievement}
               </div>
             ))}
-            {alumni.achievements.length > 2 && (
+            {alumni.schoolAchievements.length > 2 && (
               <div className="text-sm text-gray-500">
-                и еще {alumni.achievements.length - 2}...
+                и еще {alumni.schoolAchievements.length - 2}...
               </div>
             )}
           </div>

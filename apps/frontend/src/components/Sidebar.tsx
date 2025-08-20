@@ -217,7 +217,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* Logo and close button */}
         <div className={`flex h-16 items-center ${collapsed ? 'px-2 justify-center' : 'justify-between px-4'} border-b border-gray-200`}>          
           <div className="flex items-center space-x-2">
-            {!collapsed && <h1 className="text-xl font-bold text-primary">ABAI LMS</h1>}
+            {!collapsed && <h1 className="text-xl font-bold text-primary">Fizmat.AI</h1>}
             {collapsed && <h1 className="text-lg font-bold text-primary">A</h1>}
           </div>
           <div className="flex items-center space-x-1">

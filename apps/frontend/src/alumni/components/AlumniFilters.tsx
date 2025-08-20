@@ -14,7 +14,7 @@ const AlumniFiltersComponent: React.FC<AlumniFiltersProps> = ({
   onFiltersChange,
   onClearFilters
 }) => {
-  const { graduationYears, industries, loading } = useAlumniOptions();
+  const { graduationYears, countries, tracks, loading } = useAlumniOptions();
 
   const hasActiveFilters = Object.values(filters).some(value => 
     value !== undefined && value !== '' && value !== null
@@ -29,7 +29,7 @@ const AlumniFiltersComponent: React.FC<AlumniFiltersProps> = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
               type="text"
-              placeholder="Поиск по имени, группе или компании..."
+              placeholder="Поиск по имени, классу или университету..."
               value={filters.search || ''}
               onChange={(e) => onFiltersChange({ search: e.target.value })}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -69,19 +69,36 @@ const AlumniFiltersComponent: React.FC<AlumniFiltersProps> = ({
           </select>
         </div>
 
-        {/* Фильтр по индустрии */}
+        {/* Фильтр по стране */}
         <div className="w-full lg:w-48">
           <select
-            value={filters.industry || ''}
+            value={filters.country || ''}
             onChange={(e) => onFiltersChange({ 
-              industry: e.target.value || undefined 
+              country: e.target.value || undefined 
             })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={loading}
           >
-            <option value="">Все индустрии</option>
-            {industries.map(industry => (
-              <option key={industry} value={industry}>{industry}</option>
+            <option value="">Все страны</option>
+            {countries.map(country => (
+              <option key={country} value={country}>{country}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Фильтр по направлению */}
+        <div className="w-full lg:w-48">
+          <select
+            value={filters.track || ''}
+            onChange={(e) => onFiltersChange({ 
+              track: e.target.value || undefined 
+            })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={loading}
+          >
+            <option value="">Все направления</option>
+            {tracks.map(track => (
+              <option key={track} value={track}>{track}</option>
             ))}
           </select>
         </div>
@@ -103,8 +120,10 @@ const AlumniFiltersComponent: React.FC<AlumniFiltersProps> = ({
             <option value="name-desc">Имя (Я-А)</option>
             <option value="graduationDate-desc">Новые выпускники</option>
             <option value="graduationDate-asc">Старые выпускники</option>
-            <option value="company-asc">Компания (А-Я)</option>
-            <option value="company-desc">Компания (Я-А)</option>
+            <option value="university-asc">Университет (А-Я)</option>
+            <option value="university-desc">Университет (Я-А)</option>
+            <option value="country-asc">Страна (А-Я)</option>
+            <option value="country-desc">Страна (Я-А)</option>
           </select>
         </div>
 
@@ -157,12 +176,23 @@ const AlumniFiltersComponent: React.FC<AlumniFiltersProps> = ({
               </button>
             </span>
           )}
-          {filters.industry && (
+          {filters.country && (
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-              Индустрия: {filters.industry}
+              Страна: {filters.country}
               <button
-                onClick={() => onFiltersChange({ industry: undefined })}
+                onClick={() => onFiltersChange({ country: undefined })}
                 className="ml-2 text-orange-600 hover:text-orange-800"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+          {filters.track && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+              Направление: {filters.track}
+              <button
+                onClick={() => onFiltersChange({ track: undefined })}
+                className="ml-2 text-pink-600 hover:text-pink-800"
               >
                 <X className="h-3 w-3" />
               </button>

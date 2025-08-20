@@ -9,16 +9,23 @@ export interface Alumni {
   avatar?: string;
   graduationDate: string;
   graduationYear: number;
-  groupName: string;
+  graduationClass: string; // Класс выпуска (например, "11А", "11Б")
+  track?: string; // Направление обучения (например, "IB", "НИШ", "Общее")
   status: AlumniStatus;
-  // Карьерная информация
-  currentJob?: string;
-  currentCompany?: string;
-  industry?: string;
+  // Образование
+  currentUniversity?: string;
+  currentCountry?: string;
+  currentCity?: string;
+  degree?: string; // Степень обучения (Бакалавр, Магистр, и т.д.)
+  major?: string; // Специальность
   linkedin?: string;
-  // Статистика
-  gpa?: number;
-  achievements?: string[];
+  // Достижения в школе
+  schoolAchievements?: string[];
+  // Координаты для карты (если есть точные данные)
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -32,15 +39,39 @@ export interface AlumniFilters {
   search?: string;
   graduationYear?: number;
   status?: AlumniStatus;
-  industry?: string;
-  sortBy?: 'name' | 'graduationDate' | 'company';
+  country?: string;
+  track?: string;
+  sortBy?: 'name' | 'graduationDate' | 'university' | 'country';
   sortOrder?: 'asc' | 'desc';
 }
 
 export interface AlumniStats {
   totalAlumni: number;
   byYear: { year: number; count: number }[];
-  byIndustry: { industry: string; count: number }[];
-  averageGpa: number;
-  employmentRate: number;
+  byCountry: { country: string; count: number }[];
+  byTrack: { track: string; count: number }[];
+  studyingAbroad: number;
+  studyingInKazakhstan: number;
+}
+
+// Новый интерфейс для данных карты
+export interface WorldMapData {
+  countries: CountryData[];
+}
+
+export interface CountryData {
+  code: string; // ISO код страны
+  name: string;
+  count: number; // Количество студентов
+  universities: UniversityData[];
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+}
+
+export interface UniversityData {
+  name: string;
+  count: number;
+  city?: string;
 }

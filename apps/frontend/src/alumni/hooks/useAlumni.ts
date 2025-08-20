@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Alumni, AlumniFilters, AlumniStats } from '../types/alumni';
+import { Alumni, AlumniFilters, AlumniStats, WorldMapData } from '../types/alumni';
 import { alumniService } from '../services/alumniService';
 
 export const useAlumni = (initialFilters?: AlumniFilters) => {
@@ -125,18 +125,21 @@ export const useAlumniStats = () => {
 
 export const useAlumniOptions = () => {
   const [graduationYears, setGraduationYears] = useState<number[]>([]);
-  const [industries, setIndustries] = useState<string[]>([]);
+  const [countries, setCountries] = useState<string[]>([]);
+  const [tracks, setTracks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [years, industriesData] = await Promise.all([
+        const [years, countriesData, tracksData] = await Promise.all([
           alumniService.getGraduationYears(),
-          alumniService.getIndustries()
+          alumniService.getCountries(),
+          alumniService.getTracks()
         ]);
         setGraduationYears(years);
-        setIndustries(industriesData);
+        setCountries(countriesData);
+        setTracks(tracksData);
       } catch (err) {
         console.error('Error loading alumni options:', err);
       } finally {
@@ -149,7 +152,39 @@ export const useAlumniOptions = () => {
 
   return {
     graduationYears,
-    industries,
+    countries,
+    tracks,
     loading
+  };
+};
+
+export const useWorldMapData = () => {
+  const [mapData, setMapData] = useState<WorldMapData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadMapData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await alumniService.getWorldMapData();
+      setMapData(data);
+    } catch (err) {
+      setError('Ошибка при загрузке данных карты');
+      console.error('Error loading world map data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMapData();
+  }, [loadMapData]);
+
+  return {
+    mapData,
+    loading,
+    error,
+    refetch: loadMapData
   };
 };

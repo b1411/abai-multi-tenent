@@ -40,7 +40,7 @@ class BiometricService {
         publicKey: {
           challenge,
           rp: {
-            name: 'ABAI LMS',
+            name: 'Fizmat.AI',
             id: window.location.hostname,
           },
           user: {

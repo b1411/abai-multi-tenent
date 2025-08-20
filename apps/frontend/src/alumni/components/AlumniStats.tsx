@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAlumniStats } from '../hooks/useAlumni';
-import { GraduationCap, Users, Briefcase, TrendingUp, Calendar } from 'lucide-react';
+import { GraduationCap, Users, Globe, MapPin, Calendar } from 'lucide-react';
 
 const AlumniStats: React.FC = () => {
   const { stats, loading, error } = useAlumniStats();
@@ -35,22 +35,22 @@ const AlumniStats: React.FC = () => {
       textColor: 'text-blue-600'
     },
     {
-      title: 'Средний GPA',
-      value: stats.averageGpa,
-      icon: TrendingUp,
+      title: 'Учатся за рубежом',
+      value: stats.studyingAbroad,
+      icon: Globe,
       color: 'bg-green-500',
       textColor: 'text-green-600'
     },
     {
-      title: 'Трудоустройство',
-      value: `${stats.employmentRate}%`,
-      icon: Briefcase,
+      title: 'Учатся в Казахстане',
+      value: stats.studyingInKazakhstan,
+      icon: MapPin,
       color: 'bg-purple-500',
       textColor: 'text-purple-600'
     },
     {
-      title: 'Активных выпускников',
-      value: stats.totalAlumni - (stats.byYear.find(y => y.year === new Date().getFullYear())?.count || 0),
+      title: 'Стран обучения',
+      value: stats.byCountry.length,
       icon: Users,
       color: 'bg-orange-500',
       textColor: 'text-orange-600'
@@ -110,14 +110,14 @@ const AlumniStats: React.FC = () => {
           </div>
         </div>
 
-        {/* Статистика по индустриям */}
+        {/* Статистика по странам */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Briefcase className="h-5 w-5 mr-2" />
-            Популярные индустрии
+            <Globe className="h-5 w-5 mr-2" />
+            Популярные страны обучения
           </h3>
           <div className="space-y-3">
-            {stats.byIndustry.slice(0, 5).map((industryStat, index) => {
+            {stats.byCountry.slice(0, 5).map((countryStat, index) => {
               const colors = [
                 'bg-blue-500',
                 'bg-green-500',
@@ -126,21 +126,21 @@ const AlumniStats: React.FC = () => {
                 'bg-pink-500'
               ];
               return (
-                <div key={industryStat.industry} className="flex items-center justify-between">
+                <div key={countryStat.country} className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">
-                    {industryStat.industry}
+                    {countryStat.country}
                   </span>
                   <div className="flex items-center">
                     <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                       <div
                         className={`${colors[index]} h-2 rounded-full`}
                         style={{
-                          width: `${(industryStat.count / Math.max(...stats.byIndustry.map(i => i.count))) * 100}%`
+                          width: `${(countryStat.count / Math.max(...stats.byCountry.map(c => c.count))) * 100}%`
                         }}
                       ></div>
                     </div>
                     <span className="text-sm font-semibold text-gray-900 w-8">
-                      {industryStat.count}
+                      {countryStat.count}
                     </span>
                   </div>
                 </div>

@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAlumni } from '../hooks/useAlumni';
+import { useAlumni, useWorldMapData } from '../hooks/useAlumni';
 import { Alumni } from '../types/alumni';
 import AlumniStats from '../components/AlumniStats';
 import AlumniFilters from '../components/AlumniFilters';
 import AlumniCard from '../components/AlumniCard';
+import WorldMap from '../components/WorldMap';
 import { Grid, List, Download, Users, Loader2 } from 'lucide-react';
 
 const AlumniList: React.FC = () => {
   const navigate = useNavigate();
   const { alumni, loading, error, filters, updateFilters, clearFilters } = useAlumni();
+  const { mapData, loading: mapLoading, error: mapError } = useWorldMapData();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const handleAlumniClick = (alumniItem: Alumni) => {
@@ -71,10 +73,10 @@ const AlumniList: React.FC = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center">
                 <Users className="h-8 w-8 mr-3 text-blue-600" />
-                Выпускники
+                Наши выпускники
               </h1>
               <p className="text-gray-600 mt-2">
-                Управление данными выпускников и анализ их карьерного роста
+                Следите за успехами наших выпускников в лучших университетах мира
               </p>
             </div>
             
@@ -187,7 +189,7 @@ const AlumniList: React.FC = () => {
                 <p className="text-gray-600 mb-4">
                   {Object.keys(filters).length > 0 
                     ? 'Попробуйте изменить критерии фильтрации'
-                    : 'В системе пока нет данных о выпускниках'
+                    : 'В системе пока нет данных о наших выпускниках'
                   }
                 </p>
                 {Object.keys(filters).length > 0 && (
@@ -230,6 +232,32 @@ const AlumniList: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Карта мира */}
+        {mapData && !mapLoading && !mapError && (
+          <div className="mt-8">
+            <WorldMap data={mapData} />
+          </div>
+        )}
+
+        {/* Ошибка загрузки карты */}
+        {mapError && (
+          <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800">
+              Не удалось загрузить карту: {mapError}
+            </p>
+          </div>
+        )}
+
+        {/* Загрузка карты */}
+        {mapLoading && (
+          <div className="mt-8 bg-white rounded-lg shadow p-8">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mr-3" />
+              <span className="text-gray-600">Загрузка карты мира...</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

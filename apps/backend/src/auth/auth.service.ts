@@ -83,7 +83,7 @@ export class AuthService {
             }
         });
 
-        const frontendUrl = "https://fizmat-academy.abai.live"; // TODO: сделать динамическим
+        const frontendUrl = process.env.FRONTEND_URL ?? "https://fizmat-academy.abai.live"; // TODO: сделать динамическим
         const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
 
         // Send email via MailService

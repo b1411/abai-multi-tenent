@@ -49,7 +49,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Поиск пользователей' })
   @ApiResponse({ status: 200, description: 'Результаты поиска пользователей' })
   @ApiQuery({ name: 'q', description: 'Поисковый запрос (имя, фамилия, email, телефон)' })
-  @Roles('ADMIN', 'HR', 'TEACHER', "FINANCIST")
+  @Roles('ADMIN', 'HR', 'TEACHER', "FINANCIST", "STUDENT")
   searchUsers(@Query('q') query: string) {
     return this.usersService.searchUsers(query);
   }

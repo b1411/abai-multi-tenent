@@ -10,67 +10,48 @@ export const useWidgets = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load user's widgets
-  const loadWidgets = useCallback(async () => {
-    if (!user?.id) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Try to load from service first
-      const userWidgets = await widgetService.getUserWidgets();
-      
-      if (userWidgets.length > 0) {
-        setWidgets(userWidgets);
-      } else {
-        // If no widgets from service, try localStorage
-        const layout = await widgetService.getDashboardLayout(user.id.toString());
-        if (layout && layout.widgets.length > 0) {
-          setWidgets(layout.widgets);
-        } else {
-          // If no widgets at all, create demo widgets for user
-          console.log('No widgets found, creating demo widgets for user role:', user.role);
-          await createDemoWidgets();
-        }
-      }
-    } catch (err) {
-      console.error('Error loading widgets:', err);
-      setError('Не удалось загрузить виджеты');
-      // Even if there's an error, try to create demo widgets
-      try {
-        await createDemoWidgets();
-      } catch (demoErr) {
-        console.error('Error creating demo widgets:', demoErr);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, user?.role]);
-
-  // Create demo widgets based on user role
+  // Create demo widgets based on user role (defined before loadWidgets to use as dependency)
   const createDemoWidgets = useCallback(async () => {
     if (!user?.id || !user?.role) return;
 
-    const demoWidgetTypes = [];
-    
-    // Add demo widgets based on role
-    if (user.role === 'STUDENT') {
-      demoWidgetTypes.push('schedule', 'grades', 'assignments', 'weather');
-    } else if (user.role === 'TEACHER') {
-      demoWidgetTypes.push('teacher-schedule', 'grades', 'weather', 'tasks');
-    } else if (user.role === 'ADMIN') {
-      demoWidgetTypes.push('system-stats', 'school-attendance', 'finance-overview', 'system-alerts', 'weather');
-    } else {
-      // Default widgets for any role
-      demoWidgetTypes.push('weather', 'news', 'tasks');
+    const IMPLEMENTED_WIDGETS: WidgetType[] = [
+      'schedule','teacher-schedule','grades','assignments','attendance','tasks','news',
+      'system-stats','finance-overview','system-alerts','school-attendance','teacher-workload',
+      'classroom-usage','grade-analytics','system-monitoring','activity-monitoring','birthdays',
+      'child-grades','child-schedule','child-homework','child-attendance'
+    ];
+
+    let demoWidgetTypes: WidgetType[] = [];
+    switch (user.role) {
+      case 'STUDENT':
+        demoWidgetTypes = ['schedule','grades','assignments','tasks'];
+        break;
+      case 'TEACHER':
+        demoWidgetTypes = ['teacher-schedule','grades','assignments','tasks'];
+        break;
+      case 'ADMIN':
+        demoWidgetTypes = ['system-stats','school-attendance','finance-overview','system-alerts','tasks'];
+        break;
+      case 'PARENT':
+        demoWidgetTypes = ['child-schedule','child-grades','child-homework'];
+        break;
+      case 'FINANCIST':
+        demoWidgetTypes = ['finance-overview','tasks'];
+        break;
+      case 'HR':
+        demoWidgetTypes = ['activity-monitoring','teacher-workload','tasks'];
+        break;
+      default:
+        demoWidgetTypes = ['news','tasks'];
     }
 
-    const demoWidgets = [];
-    for (let i = 0; i < demoWidgetTypes.length; i++) {
-      const widgetType = demoWidgetTypes[i];
+    // Filter only implemented & unique
+    demoWidgetTypes = Array.from(new Set(demoWidgetTypes.filter(t => IMPLEMENTED_WIDGETS.includes(t))));
+
+    const demoWidgets: Widget[] = [];
+    for (const widgetType of demoWidgetTypes) {
       try {
-        const widget = await widgetService.addWidget(widgetType as any, user.id.toString());
+        const widget = await widgetService.addWidget(widgetType, user.id.toString());
         demoWidgets.push(widget);
       } catch (err) {
         console.error(`Error creating demo widget ${widgetType}:`, err);
@@ -87,6 +68,47 @@ export const useWidgets = () => {
       }
     }
   }, [user?.id, user?.role]);
+
+  // Load user's widgets
+  const loadWidgets = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Try to load from service first
+      const userWidgets = await widgetService.getUserWidgets();
+      
+      if (userWidgets.length > 0) {
+        // Filter out unsupported types (in case legacy data present)
+        const supported = userWidgets.filter(w => !!w.type);
+        setWidgets(supported);
+      } else {
+        // If no widgets from service, try localStorage
+        const layout = await widgetService.getDashboardLayout(user.id.toString());
+        if (layout && layout.widgets.length > 0) {
+          setWidgets(layout.widgets);
+        } else {
+          // If no widgets at all, create demo widgets for user
+            console.log('No widgets found, creating demo widgets for user role:', user.role);
+            await createDemoWidgets();
+        }
+      }
+    } catch (err) {
+      console.error('Error loading widgets:', err);
+      setError('Не удалось загрузить виджеты');
+      // Even if there's an error, try to create demo widgets
+      try {
+        await createDemoWidgets();
+      } catch (demoErr) {
+        console.error('Error creating demo widgets:', demoErr);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, user?.role, createDemoWidgets]);
+
 
   // Load available widgets for user role
   const loadAvailableWidgets = useCallback(async () => {

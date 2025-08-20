@@ -16,7 +16,6 @@ import {
   TrendDataPointDto,
   TrendAnalysisDto,
   StudentWithSubjectsDto,
-  StudentWithImprovementsDto,
 } from './dto/performance-response.dto';
 
 @Injectable()
@@ -243,97 +242,75 @@ export class PerformanceService {
   async getLowPerformingStudents(
     filter: PerformanceFilterDto
   ): Promise<LowPerformingStudentsResponseDto> {
-    // Получаем студентов с их результатами
-    const students = await this.prisma.student.findMany({
-      where: {
-        ...(filter.groupId && { groupId: parseInt(filter.groupId) }),
-      },
-      include: {
-        user: true,
-        lessonsResults: {
-          where: {
-            deletedAt: null,
-            lessonScore: { not: null },
-          },
-          include: {
-            Lesson: {
-              include: {
-                studyPlan: true,
-              },
-            },
-          },
-        },
-      },
+    const baseWhere = {
+      deletedAt: null,
+      lessonScore: { not: null as any },
+      ...(filter.groupId && {
+        Student: { groupId: parseInt(filter.groupId) }
+      })
+    };
+
+    // Получаем последние 2 месяца результатов (для тренда) и общий массив одним запросом для агрегации
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const results = await this.prisma.lessonResult.findMany({
+      where: baseWhere,
+      select: {
+        studentId: true,
+        lessonScore: true,
+        createdAt: true,
+        Lesson: { select: { studyPlan: { select: { name: true } } } },
+        Student: { select: { user: { select: { name: true, surname: true } } } }
+      }
     });
 
-    // Рассчитываем средние оценки для каждого студента
-    const studentsWithGrades = students.map(student => {
-      const grades = student.lessonsResults.map(r => r.lessonScore).filter(g => g !== null);
-      const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+    // Группируем по студентам
+    type LowRes = (typeof results)[number];
+    const byStudent = new Map<number, LowRes[]>();
+    for (const r of results) {
+      if (!byStudent.has(r.studentId)) byStudent.set(r.studentId, []);
+      byStudent.get(r.studentId)?.push(r);
+    }
 
-      // Расчет тренда (сравниваем последний месяц с предыдущим)
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-      const recentGrades = student.lessonsResults
-        .filter(r => new Date(r.createdAt) >= oneMonthAgo)
-        .map(r => r.lessonScore)
-        .filter(g => g !== null);
-
-      const olderGrades = student.lessonsResults
-        .filter(r => new Date(r.createdAt) < oneMonthAgo)
-        .map(r => r.lessonScore)
-        .filter(g => g !== null);
-
-      const recentAvg = recentGrades.length > 0 ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
-      const olderAvg = olderGrades.length > 0 ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+    const aggregates: { student: StudentWithSubjectsDto['student']; subjects: StudentWithSubjectsDto['subjects']; averageGrade: number }[] = [];
+    for (const arr of byStudent.values()) {
+      const grades = arr.map(r => r.lessonScore).filter((g): g is number => g != null);
+      if (!grades.length) continue;
+      const avg = grades.reduce((a, b) => a + b, 0) / grades.length;
+      const recent = arr.filter(r => r.createdAt >= oneMonthAgo).map(r => r.lessonScore).filter((g): g is number => g != null);
+      const older = arr.filter(r => r.createdAt < oneMonthAgo).map(r => r.lessonScore).filter((g): g is number => g != null);
+      const recentAvg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 0;
+      const olderAvg = older.length ? older.reduce((a, b) => a + b, 0) / older.length : 0;
       const trend = olderAvg > 0 ? Number((recentAvg - olderAvg).toFixed(1)) : 0;
 
-      // Группируем результаты по предметам
-      const subjectResults = new Map<string, number[]>();
-      student.lessonsResults.forEach(result => {
-        const subjectName = result.Lesson?.studyPlan?.name || 'Неизвестный предмет';
-        if (!subjectResults.has(subjectName)) {
-          subjectResults.set(subjectName, []);
-        }
-        subjectResults.get(subjectName)?.push(result.lessonScore);
+      const subjectMap = new Map<string, number[]>();
+      for (const r of arr) {
+        const subj = r.Lesson?.studyPlan?.name || 'Неизвестный предмет';
+        if (!subjectMap.has(subj)) subjectMap.set(subj, []);
+        if (r.lessonScore != null) subjectMap.get(subj)?.push(r.lessonScore);
+      }
+      const subjects = Array.from(subjectMap.entries()).map(([name, list]) => {
+        const subjectAvg = list.reduce((a, b) => a + b, 0) / list.length;
+        const recommendations: string[] = [];
+        if (subjectAvg < 3) recommendations.push('Дополнительные консультации', 'Повторение базового материала', 'Индивидуальная работа');
+        else if (subjectAvg < 3.5) recommendations.push('Больше практических заданий', 'Регулярные проверки знаний');
+        return { name, grade: Number(subjectAvg.toFixed(1)), recommendations };
+      }).sort((a, b) => a.grade - b.grade).slice(0, 3);
+
+      const sample = arr[0];
+      aggregates.push({
+        student: { name: `${sample.Student.user.name} ${sample.Student.user.surname}`, grade: Number(avg.toFixed(1)), trend },
+        subjects,
+        averageGrade: avg
       });
+    }
 
-      const subjects = Array.from(subjectResults.entries()).map(([subjectName, subjectGrades]) => {
-        const subjectAvg = subjectGrades.length > 0 ?
-          Number((subjectGrades.reduce((a, b) => a + b, 0) / subjectGrades.length).toFixed(1)) : 0;
-
-        const recommendations = [];
-        if (subjectAvg < 3) {
-          recommendations.push('Дополнительные консультации', 'Повторение базового материала', 'Индивидуальная работа');
-        } else if (subjectAvg < 3.5) {
-          recommendations.push('Больше практических заданий', 'Регулярные проверки знаний');
-        }
-
-        return {
-          name: subjectName,
-          grade: subjectAvg,
-          recommendations,
-        };
-      });
-
-      return {
-        student: {
-          name: `${student.user.name} ${student.user.surname}`,
-          grade: Number(averageGrade.toFixed(1)),
-          trend,
-        },
-        subjects: subjects.slice(0, 3), // Ограничиваем 3 предметами
-        averageGrade,
-      };
-    });
-
-    // Фильтруем и сортируем отстающих студентов (средняя оценка < 3.5)
-    const lowPerformingStudents: StudentWithSubjectsDto[] = studentsWithGrades
-      .filter(s => s.averageGrade < 3.5 && s.averageGrade > 0)
+    const lowPerformingStudents = aggregates
+      .filter(a => a.averageGrade < 3.5 && a.averageGrade > 0)
       .sort((a, b) => a.averageGrade - b.averageGrade)
       .slice(0, 5)
-      .map(({ student, subjects }) => ({ student, subjects }));
+      .map(a => ({ student: a.student, subjects: a.subjects }));
 
     return { students: lowPerformingStudents };
   }
@@ -341,102 +318,62 @@ export class PerformanceService {
   async getHighProgressStudents(
     filter: PerformanceFilterDto
   ): Promise<HighProgressStudentsResponseDto> {
-    // Получаем студентов с их результатами
-    const students = await this.prisma.student.findMany({
-      where: {
-        ...(filter.groupId && { groupId: parseInt(filter.groupId) }),
-      },
-      include: {
-        user: true,
-        lessonsResults: {
-          where: {
-            deletedAt: null,
-            lessonScore: { not: null },
-          },
-          include: {
-            Lesson: {
-              include: {
-                studyPlan: true,
-              },
-            },
-          },
-        },
-      },
+    const baseWhere = {
+      deletedAt: null,
+      lessonScore: { not: null as any },
+      ...(filter.groupId && { Student: { groupId: parseInt(filter.groupId) } })
+    };
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const results = await this.prisma.lessonResult.findMany({
+      where: baseWhere,
+      select: {
+        studentId: true,
+        lessonScore: true,
+        createdAt: true,
+        Lesson: { select: { studyPlan: { select: { name: true } } } },
+        Student: { select: { user: { select: { name: true, surname: true } } } }
+      }
     });
-
-    // Рассчитываем средние оценки и тренды для каждого студента
-    const studentsWithProgress = students.map(student => {
-      const grades = student.lessonsResults.map(r => r.lessonScore).filter(g => g !== null);
-      const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
-
-      // Расчет тренда (сравниваем последний месяц с предыдущим)
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-      const recentGrades = student.lessonsResults
-        .filter(r => new Date(r.createdAt) >= oneMonthAgo)
-        .map(r => r.lessonScore)
-        .filter(g => g !== null);
-
-      const olderGrades = student.lessonsResults
-        .filter(r => new Date(r.createdAt) < oneMonthAgo)
-        .map(r => r.lessonScore)
-        .filter(g => g !== null);
-
-      const recentAvg = recentGrades.length > 0 ? recentGrades.reduce((a, b) => a + b, 0) / recentGrades.length : 0;
-      const olderAvg = olderGrades.length > 0 ? olderGrades.reduce((a, b) => a + b, 0) / olderGrades.length : 0;
+    type ProgRes = (typeof results)[number];
+    const byStudent = new Map<number, ProgRes[]>();
+    for (const r of results) {
+      if (!byStudent.has(r.studentId)) byStudent.set(r.studentId, []);
+      byStudent.get(r.studentId)?.push(r);
+    }
+    const progress: { student: { name: string; grade: number; trend: number }; improvements: { subject: string; improvement: number }[]; averageGrade: number; hasPositiveTrend: boolean }[] = [];
+    for (const arr of byStudent.values()) {
+      const grades = arr.map(r => r.lessonScore).filter((g): g is number => g != null);
+      if (!grades.length) continue;
+      const avg = grades.reduce((a, b) => a + b, 0) / grades.length;
+      const recent = arr.filter(r => r.createdAt >= oneMonthAgo).map(r => r.lessonScore).filter((g): g is number => g != null);
+      const older = arr.filter(r => r.createdAt < oneMonthAgo).map(r => r.lessonScore).filter((g): g is number => g != null);
+      const recentAvg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 0;
+      const olderAvg = older.length ? older.reduce((a, b) => a + b, 0) / older.length : 0;
       const trend = olderAvg > 0 ? Number((recentAvg - olderAvg).toFixed(1)) : 0;
-
-      // Группируем результаты по предметам для анализа улучшений
-      const subjectResults = new Map<string, { recent: number[], older: number[] }>();
-      student.lessonsResults.forEach(result => {
-        const subjectName = result.Lesson?.studyPlan?.name || 'Неизвестный предмет';
-        if (!subjectResults.has(subjectName)) {
-          subjectResults.set(subjectName, { recent: [], older: [] });
-        }
-
-        const subject = subjectResults.get(subjectName);
-        if (!subject) return { subject: subjectName, improvement: 0 };
-        if (new Date(result.createdAt) >= oneMonthAgo) {
-          subject.recent.push(result.lessonScore);
+      const subjMap = new Map<string, { recent: number[], older: number[] }>();
+      for (const r of arr) {
+        const subj = r.Lesson?.studyPlan?.name || 'Неизвестный предмет';
+        if (!subjMap.has(subj)) subjMap.set(subj, { recent: [], older: [] });
+        if (r.createdAt >= oneMonthAgo) {
+          if (r.lessonScore != null) subjMap.get(subj)?.recent.push(r.lessonScore);
         } else {
-          subject.older.push(result.lessonScore);
+          if (r.lessonScore != null) subjMap.get(subj)?.older.push(r.lessonScore);
         }
-      });
-
-      const improvements = Array.from(subjectResults.entries()).map(([subjectName, data]) => {
-        const recentSubjectAvg = data.recent.length > 0 ?
-          data.recent.reduce((a, b) => a + b, 0) / data.recent.length : 0;
-        const olderSubjectAvg = data.older.length > 0 ?
-          data.older.reduce((a, b) => a + b, 0) / data.older.length : 0;
-
-        const improvement = olderSubjectAvg > 0 ? Number((recentSubjectAvg - olderSubjectAvg).toFixed(1)) : 0;
-
-        return {
-          subject: subjectName,
-          improvement,
-        };
-      }).filter(imp => imp.improvement > 0).slice(0, 3); // Только положительные улучшения
-
-      return {
-        student: {
-          name: `${student.user.name} ${student.user.surname}`,
-          grade: Number(averageGrade.toFixed(1)),
-          trend,
-        },
-        improvements,
-        averageGrade,
-        hasPositiveTrend: trend > 0,
-      };
-    });
-
-    // Фильтруем и сортируем прогрессирующих студентов (положительный тренд и хорошие оценки)
-    const highProgressStudents: StudentWithImprovementsDto[] = studentsWithProgress
-      .filter(s => s.hasPositiveTrend && s.averageGrade >= 3.5)
+      }
+      const improvements = Array.from(subjMap.entries()).map(([subj, data]) => {
+        const rAvg = data.recent.length ? data.recent.reduce((a, b) => a + b, 0) / data.recent.length : 0;
+        const oAvg = data.older.length ? data.older.reduce((a, b) => a + b, 0) / data.older.length : 0;
+        return { subject: subj, improvement: Number((rAvg - oAvg).toFixed(1)) };
+      }).filter(i => i.improvement > 0).sort((a, b) => b.improvement - a.improvement).slice(0, 3);
+      const sample = arr[0];
+      progress.push({ student: { name: `${sample.Student.user.name} ${sample.Student.user.surname}`, grade: Number(avg.toFixed(1)), trend }, improvements, averageGrade: avg, hasPositiveTrend: trend > 0 });
+    }
+    const highProgressStudents = progress
+      .filter(p => p.hasPositiveTrend && p.averageGrade >= 3.5)
       .sort((a, b) => b.student.trend - a.student.trend)
       .slice(0, 5)
-      .map(({ student, improvements }) => ({ student, improvements }));
-
+      .map(p => ({ student: p.student, improvements: p.improvements }));
     return { students: highProgressStudents };
   }
 
@@ -518,52 +455,39 @@ export class PerformanceService {
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 6);
 
-    const lessonResults = await this.prisma.lessonResult.findMany({
+    // Используем groupBy для агрегации по месяцам
+    const grouped = await this.prisma.lessonResult.groupBy({
+      by: ['studentId'], // dummy to allow aggregations first; будем повторно группировать вручную по месяцам
       where: {
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
-        },
+        createdAt: { gte: startDate, lte: endDate },
         deletedAt: null,
       },
-      include: {
-        Lesson: true,
-      },
+      _count: { _all: true },
     });
+    void grouped; // (оставлено для потенциального future расширения)
 
+    // fallback: прямой выбор только нужных полей и ручная агрегация (так как groupBy по выражению month не поддерживается напрямую RDB нейтрально)
+    const slice = await this.prisma.lessonResult.findMany({
+      where: { createdAt: { gte: startDate, lte: endDate }, deletedAt: null },
+      select: { lessonScore: true, attendance: true, homeworkScore: true, createdAt: true }
+    });
     const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-    const monthlyStats: { [key: string]: { grades: number[], attendance: number[], assignments: number[] } } = {};
-
-    lessonResults.forEach(result => {
-      const month = monthNames[result.createdAt.getMonth()];
-
-      if (!monthlyStats[month]) {
-        monthlyStats[month] = { grades: [], attendance: [], assignments: [] };
-      }
-
-      if (result.lessonScore !== null) {
-        monthlyStats[month].grades.push(result.lessonScore);
-      }
-      if (result.attendance !== null) {
-        monthlyStats[month].attendance.push(result.attendance ? 1 : 0);
-      }
-      if (result.homeworkScore !== null) {
-        monthlyStats[month].assignments.push(result.homeworkScore);
-      }
+    interface Acc { grades: number[]; attendance: number[]; assignments: number[] }
+    const acc: Record<string, Acc> = {};
+    for (const r of slice) {
+      const m = monthNames[r.createdAt.getMonth()];
+      if (!acc[m]) acc[m] = { grades: [], attendance: [], assignments: [] };
+      if (r.lessonScore != null) acc[m].grades.push(r.lessonScore);
+      if (r.attendance != null) acc[m].attendance.push(r.attendance ? 1 : 0);
+      if (r.homeworkScore != null) acc[m].assignments.push(r.homeworkScore);
+    }
+    return Object.keys(acc).map(month => {
+      const g = acc[month];
+      const grade = g.grades.length ? g.grades.reduce((a, b) => a + b, 0) / g.grades.length : 0;
+      const attendance = g.attendance.length ? g.attendance.reduce((a, b) => a + b, 0) / g.attendance.length * 100 : 0;
+      const assignments = g.assignments.length ? g.assignments.filter(s => s >= 3).length / g.assignments.length * 100 : 0;
+      return { month, value: Number(grade.toFixed(1)), attendance: Math.round(attendance), assignments: Math.round(assignments) };
     });
-
-    return Object.keys(monthlyStats).map(month => ({
-      month,
-      value: monthlyStats[month].grades.length > 0
-        ? Number((monthlyStats[month].grades.reduce((a, b) => a + b, 0) / monthlyStats[month].grades.length).toFixed(1))
-        : 0,
-      attendance: monthlyStats[month].attendance.length > 0
-        ? Math.round(monthlyStats[month].attendance.reduce((a, b) => a + b, 0) / monthlyStats[month].attendance.length * 100)
-        : 0,
-      assignments: monthlyStats[month].assignments.length > 0
-        ? Math.round(monthlyStats[month].assignments.filter(score => score >= 3).length / monthlyStats[month].assignments.length * 100)
-        : 0,
-    }));
   }
 
   async getGradeDistribution(filter: PerformanceFilterDto): Promise<GradeDistributionDto[]> {
@@ -703,7 +627,7 @@ export class PerformanceService {
 
     const quizScores = quizResults.flatMap(r => (typeof r.score === 'number' ? [r.score] : []));
     const avgQuizScore = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length : 0;
-    
+
     // Получаем максимальный балл из настроек тестов или используем средний максимальный балл
     const maxScores = quizResults.map(r => r.quiz?.maxScore || 100).filter(s => s > 0);
     const avgMaxScore = maxScores.length > 0 ? maxScores.reduce((a, b) => a + b, 0) / maxScores.length : 100;
@@ -1265,13 +1189,13 @@ export class PerformanceService {
         ...(filter?.groupId
           ? { id: parseInt(filter.groupId) }
           : {
-              studyPlans: {
-                some: {
-                  teacherId: teacher.id,
-                  deletedAt: null,
-                },
+            studyPlans: {
+              some: {
+                teacherId: teacher.id,
+                deletedAt: null,
               },
-            }),
+            },
+          }),
       },
       select: { id: true },
     });
@@ -1717,8 +1641,8 @@ export class PerformanceService {
         : 0,
       assignments: monthlyStats[month].assignments.length
         ? Math.round(
-            (monthlyStats[month].assignments.filter((score) => score >= 3).length / monthlyStats[month].assignments.length) * 100,
-          )
+          (monthlyStats[month].assignments.filter((score) => score >= 3).length / monthlyStats[month].assignments.length) * 100,
+        )
         : 0,
     }));
   }

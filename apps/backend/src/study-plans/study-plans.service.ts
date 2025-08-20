@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { StudyPlan } from './entities/study-plan.entity';
 import { PaginateResponseDto } from 'src/common/dtos/paginate.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -223,63 +223,92 @@ export class StudyPlansService {
     }
 
     async create(createStudyPlanDto: CreateStudyPlanDto): Promise<StudyPlan> {
-        const { groups, ...studyPlanData } = createStudyPlanDto;
+        const { groups, teacherId, ...rest } = createStudyPlanDto;
 
-        const createdPlan = await this.prisma.studyPlan.create({
-            data: {
-                ...studyPlanData,
-                group: {
-                    connect: groups
-                }
-            },
-            include: {
-                teacher: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                name: true,
-                                surname: true,
-                                middlename: true,
-                                email: true,
-                                phone: true,
+        // 1. Проверяем teacherId. Возможна путаница: передают userId вместо Teacher.id
+        let resolvedTeacher = await this.prisma.teacher.findUnique({ where: { id: teacherId } });
+        if (!resolvedTeacher) {
+            // Пробуем как userId
+            resolvedTeacher = await this.prisma.teacher.findUnique({ where: { userId: teacherId } });
+            if (!resolvedTeacher) {
+                throw new BadRequestException(`Teacher not found. Provided teacherId=${teacherId} (не найден ни как Teacher.id, ни как userId).`);
+            }
+        }
+
+        // 2. Проверяем группы
+        const groupIds = groups?.map(g => g.id) || [];
+        if (!groupIds.length) {
+            throw new BadRequestException('At least one group id is required');
+        }
+        const existingGroups = await this.prisma.group.findMany({ where: { id: { in: groupIds } }, select: { id: true } });
+        if (existingGroups.length !== groupIds.length) {
+            const existingSet = new Set(existingGroups.map(g => g.id));
+            const missing = groupIds.filter(id => !existingSet.has(id));
+            throw new BadRequestException(`Some group ids do not exist: [${missing.join(', ')}]`);
+        }
+
+        try {
+            const createdPlan = await this.prisma.studyPlan.create({
+                data: {
+                    ...rest,
+                    teacherId: resolvedTeacher.id, // гарантированно Teacher.id
+                    group: {
+                        connect: groupIds.map(id => ({ id }))
+                    }
+                },
+                include: {
+                    teacher: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    surname: true,
+                                    middlename: true,
+                                    email: true,
+                                    phone: true,
+                                }
+                            }
+                        }
+                    },
+                    group: {
+                        select: {
+                            id: true,
+                            name: true,
+                            courseNumber: true,
+                        }
+                    },
+                    lessons: {
+                        select: {
+                            id: true,
+                            name: true,
+                            date: true,
+                        },
+                        where: {
+                            deletedAt: null,
+                        },
+                        orderBy: {
+                            date: 'asc'
+                        }
+                    },
+                    _count: {
+                        select: {
+                            lessons: {
+                                where: {
+                                    deletedAt: null,
+                                }
                             }
                         }
                     }
                 },
-                group: {
-                    select: {
-                        id: true,
-                        name: true,
-                        courseNumber: true,
-                    }
-                },
-                lessons: {
-                    select: {
-                        id: true,
-                        name: true,
-                        date: true,
-                    },
-                    where: {
-                        deletedAt: null,
-                    },
-                    orderBy: {
-                        date: 'asc'
-                    }
-                },
-                _count: {
-                    select: {
-                        lessons: {
-                            where: {
-                                deletedAt: null,
-                            }
-                        }
-                    }
-                }
-            },
-        });
-
-        return createdPlan;
+            });
+            return createdPlan;
+        } catch (e: any) {
+            if (e.code === 'P2003') {
+                throw new BadRequestException('Foreign key constraint failed (teacherId или group id неверны)');
+            }
+            throw e;
+        }
     }
 
     async update(id: number, updateStudyPlanDto: UpdateStudyPlanDto): Promise<StudyPlan> {
@@ -290,13 +319,21 @@ export class StudyPlansService {
         if (!existingStudyPlan) {
             throw new Error(`Study Plan with ID ${id} not found`);
         }
+        const { groups, teacherId, ...rest } = updateStudyPlanDto;
 
-        const { groups, ...studyPlanData } = updateStudyPlanDto;
+        let resolvedTeacherId: number | undefined = undefined;
+        if (teacherId !== undefined) {
+            let t = await this.prisma.teacher.findUnique({ where: { id: teacherId } });
+            if (!t) t = await this.prisma.teacher.findUnique({ where: { userId: teacherId } });
+            if (!t) throw new BadRequestException(`Teacher not found for teacherId=${teacherId}`);
+            resolvedTeacherId = t.id;
+        }
 
         const updatedPlan = await this.prisma.studyPlan.update({
             where: { id },
             data: {
-                ...studyPlanData,
+                ...rest,
+                ...(resolvedTeacherId !== undefined && { teacherId: resolvedTeacherId }),
                 ...(groups && {
                     group: {
                         set: groups

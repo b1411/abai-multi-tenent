@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopPanel from './TopPanel';
@@ -7,6 +7,7 @@ import RealtimeChatWidget from './realtime-assistant-widget/RealtimeChatWidget';
 
 const DashboardLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -16,8 +17,17 @@ const DashboardLayout: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { collapsed: boolean };
+      if (typeof detail?.collapsed === 'boolean') setSidebarCollapsed(detail.collapsed);
+    };
+    window.addEventListener('sidebar:collapse', handler);
+    return () => window.removeEventListener('sidebar:collapse', handler);
+  }, []);
+
   return (
-    <div className="flex h-screen bg-gray-100 w-full ">
+    <div className="flex h-screen bg-gray-100 w-full overflow-hidden">
       {/* Mobile backdrop */}
       {isSidebarOpen && (
         <div
@@ -28,9 +38,12 @@ const DashboardLayout: React.FC = () => {
 
       <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 
-      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen w-full">
+      <div
+        className={`flex-1 flex flex-col min-h-screen w-full transition-all duration-300 ease-in-out
+        ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'}`}
+      >
         <TopPanel onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 bg-gray-50 p-0 sm:p-4 lg:p-6 overflow-x-auto">
+        <main className="flex-1 bg-gray-50 p-0 sm:p-4 lg:p-6 overflow-x-auto transition-all duration-300 ease-in-out">
           <Outlet />
           <RealtimeChatWidget />
         </main>

@@ -1,2091 +1,482 @@
-import { PrismaClient } from 'generated/prisma';
+/*
+ * Comprehensive IDEMPOTENT seed script (phase 1 baseline).
+ * Focus: core academic + finance + notifications + workloads + widgets.
+ * Safe to re-run: uses find/upsert style helpers keyed by unique fields (email, names, composites).
+ * Localized RU/KZ realistic sample data.
+ * Extendable: add more domain seeds in clearly marked sections.
+ */
+import { PrismaClient, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcryptjs';
+import { config } from "dotenv"
 
-const prisma = new PrismaClient();
+config({
+    path: "../../.env.production"
+});
 
-// Утилиты для генерации дат в августе 2025
+console.log(process.env.DATABASE_URL)
+const prisma = new PrismaClient({
+    datasources: {
+        db: {
+            url: "prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19MTVJXUUl0RlFGWTlWTnFDbTRLZHYiLCJhcGlfa2V5IjoiMDFLMzNQSDhSUEY0MEhEMFZOREIzSkRLNFQiLCJ0ZW5hbnRfaWQiOiIyYjk2MjQwYWMxNWQ3ZWQwOWIxM2U5OWU3NzdiN2ZiNWFiMDhiMDViY2I4YzVkNWNkNzNkZmRiOTg5MjliMzZkIiwiaW50ZXJuYWxfc2VjcmV0IjoiNDRmZWM0NjItM2IyNy00ZTE3LThmYTgtOTFmMzU1MjBkOGMxIn0.qowlnIXZiDDqrIvqegEIVL3B4CjCNtLQxX92OBW646k"
+        }
+    }
+});
 
-function getDateInAugust2025(day: number): Date {
-    // Все даты в августе 2025
-    return new Date(2025, 7, day); // месяц 7 = август (0-индексация)
+const PASSWORD = 'password123';
+let passwordHash: string | null = null;
+
+// ---------- Generic helpers ----------
+async function getPasswordHash() {
+    if (!passwordHash) passwordHash = await bcrypt.hash(PASSWORD, 10);
+    return passwordHash;
 }
 
-async function main() {
-    console.log('🌱 Деректер қорын толтыруды бастаймыз...');
+async function ensureUser(email: string, role: UserRole, name: string, surname: string, extra: Partial<{ middlename: string; phone: string; }> = {}) {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return existing;
+    return prisma.user.create({ data: { email, role, name, surname, middlename: extra.middlename, phone: extra.phone, hashedPassword: await getPasswordHash() } });
+}
 
-    // // Очистка существующих данных
-    // console.log('🧹 Очищаем существующие данные...');
-    // await prisma.lessonResult.deleteMany();
-    // await prisma.lesson.deleteMany();
-    // await prisma.studyPlan.deleteMany();
-    // await prisma.student.deleteMany();
-    // await prisma.teacher.deleteMany();
-    // await prisma.parent.deleteMany();
-    // await prisma.group.deleteMany();
-    // await prisma.classroom.deleteMany();
-    // await prisma.user.deleteMany();
+async function ensureTeacher(userId: number, employmentType: 'STAFF' | 'PART_TIME' = 'STAFF') {
+    const t = await prisma.teacher.findUnique({ where: { userId } });
+    return t ?? prisma.teacher.create({ data: { userId, employmentType } });
+}
 
-    console.log('📝 Пайдаланушыларды құрамыз...');
+async function ensureGroup(name: string, courseNumber: number) {
+    const g = await prisma.group.findFirst({ where: { name } });
+    return g ?? prisma.group.create({ data: { name, courseNumber } });
+}
 
-    // Хешируем пароль для всех пользователей
-    const hashedPassword = await bcrypt.hash('password123', 10);
+async function ensureStudent(userId: number, groupId: number) {
+    const s = await prisma.student.findUnique({ where: { userId } });
+    return s ?? prisma.student.create({ data: { userId, groupId } });
+}
 
-    // Создаем администратора
-    const admin = await prisma.user.create({
+async function ensureParent(userId: number, relation: string, studentIds: number[]) {
+    const p = await prisma.parent.findUnique({ where: { userId } });
+    if (p) {
+        await prisma.parent.update({ where: { id: p.id }, data: { students: { connect: studentIds.map(id => ({ id })) } } });
+        return p;
+    }
+    return prisma.parent.create({ data: { userId, relation, students: { connect: studentIds.map(id => ({ id })) } } });
+}
+
+async function ensureClassroom(name: string, data: Partial<{ building: string; floor: number; capacity: number; type: string; equipment: string[]; description: string; }>) {
+    const c = await prisma.classroom.findFirst({ where: { name } });
+    return c ?? prisma.classroom.create({ data: { name, building: data.building || 'Негізгі корпус', floor: data.floor ?? 1, capacity: data.capacity ?? 30, type: data.type || 'LECTURE', equipment: data.equipment || [], description: data.description } });
+}
+
+async function ensureStudyPlan(name: string, teacherId: number, groupIds: number[], extra: Partial<{ description: string; normativeWorkload: number; }>) {
+    let sp = await prisma.studyPlan.findFirst({ where: { name } });
+    if (!sp) {
+        sp = await prisma.studyPlan.create({ data: { name, description: extra.description, teacherId, normativeWorkload: extra.normativeWorkload, group: { connect: groupIds.map(id => ({ id })) } } });
+    } else {
+        const current = await prisma.studyPlan.findUnique({ where: { id: sp.id }, include: { group: true } });
+        const toConnect = groupIds.filter(id => !current.group.some(g => g.id === id));
+        if (toConnect.length) await prisma.studyPlan.update({ where: { id: sp.id }, data: { group: { connect: toConnect.map(id => ({ id })) } } });
+    }
+    return sp;
+}
+
+async function ensureSchedule(studyPlanId: number, groupId: number, dayOfWeek: number, start: string, end: string, teacherId: number, classroomId?: number) {
+    const s = await prisma.schedule.findFirst({ where: { studyPlanId, groupId, dayOfWeek, startTime: start } });
+    return s ?? prisma.schedule.create({ data: { studyPlanId, groupId, dayOfWeek, startTime: start, endTime: end, teacherId, classroomId } });
+}
+
+async function ensureLesson(studyPlanId: number, date: Date, name: string) {
+    const l = await prisma.lesson.findFirst({ where: { studyPlanId, date } });
+    return l ?? prisma.lesson.create({ data: { studyPlanId, date, name } });
+}
+
+async function ensureHomework(lessonId: number, title: string) {
+    const lesson = await prisma.lesson.findUnique({ where: { id: lessonId }, select: { homeworkId: true } });
+    if (lesson?.homeworkId) return lesson.homeworkId;
+    const hw = await prisma.homework.create({ data: { name: title, description: 'Домашнее задание', deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) } });
+    await prisma.lesson.update({ where: { id: lessonId }, data: { homework: { connect: { id: hw.id } } } });
+    return hw.id;
+}
+
+async function ensureLessonResult(lessonId: number, studentId: number, score: number | null) {
+    const r = await prisma.lessonResult.findFirst({ where: { lessonId, studentId } });
+    return r ?? prisma.lessonResult.create({ data: { lessonId, studentId, lessonScore: score ?? undefined, attendance: true } });
+}
+async function ensurePayment(studentId: number, serviceName: string, dueDate: Date, amount: number, status: string) {
+    const existing = await prisma.payment.findFirst({ where: { studentId, serviceName, dueDate } });
+    if (existing) return existing;
+    return prisma.payment.create({ data: { studentId, serviceType: 'tuition', serviceName, amount, currency: 'KZT', dueDate, status, paidAmount: status === 'paid' ? amount : 0, paymentDate: status === 'paid' ? new Date() : null } });
+}
+
+async function ensureBudgetItem(name: string, period: string, type: 'INCOME' | 'EXPENSE', plannedAmount: number, category: string) {
+    const b = await prisma.budgetItem.findFirst({ where: { name, period } });
+    return b ?? prisma.budgetItem.create({ data: { name, period, type, plannedAmount, category } });
+}
+
+async function ensureNotification(userId: number, type: string, message: string) {
+    const n = await prisma.notification.findFirst({ where: { userId, type, message } });
+    return n ?? prisma.notification.create({ data: { userId, type, message } });
+}
+
+async function ensureCalendarEvent(title: string, date: Date, createdById: number) {
+    const e = await prisma.calendarEvent.findFirst({ where: { title, startDate: date } });
+    if (e) return e;
+    return prisma.calendarEvent.create({
         data: {
-            email: 'admin@abai.edu.kz',
-            name: 'Әкімші',
-            surname: 'Басқарушы',
-            middlename: 'Жүйебекұлы',
-            phone: '+7 700 000 0001',
-            role: 'ADMIN',
-            hashedPassword,
-        },
+            title,
+            startDate: date,
+            endDate: new Date(date.getTime() + 60 * 60 * 1000),
+            createdById,
+            description: undefined,
+            location: undefined
+        }
     });
+}
 
-    // Создаем финансиста
-    const financist = await prisma.user.create({
-        data: {
-            email: 'financist@abai.edu.kz',
-            name: 'Гүлмира',
-            surname: 'Қасымова',
-            middlename: 'Серікжанқызы',
-            phone: '+7 700 000 0006',
-            role: 'FINANCIST',
-            hashedPassword,
-        },
-    });
-
-    // Создаем преподавателей
-    const teachers = await Promise.all([
-        prisma.user.create({
-            data: {
-                email: 'ivanova@abai.edu.kz',
-                name: 'Айгерім',
-                surname: 'Айтанова',
-                middlename: 'Петровна',
-                phone: '+7 700 000 0002',
-                role: 'TEACHER',
-                hashedPassword,
-                teacher: {
-                    create: {
-                        employmentType: 'STAFF',
-                    },
-                },
-            },
-            include: { teacher: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'aliev@abai.edu.kz',
-                name: 'Азамат',
-                surname: 'Әлиев',
-                middlename: 'Серікұлы',
-                phone: '+7 700 000 0003',
-                role: 'TEACHER',
-                hashedPassword,
-                teacher: {
-                    create: {
-                        employmentType: 'STAFF',
-                    },
-                },
-            },
-            include: { teacher: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'tulegenov@abai.edu.kz',
-                name: 'Мұрат',
-                surname: 'Төлекенов',
-                middlename: 'Асылханұлы',
-                phone: '+7 700 000 0004',
-                role: 'TEACHER',
-                hashedPassword,
-                teacher: {
-                    create: {
-                        employmentType: 'STAFF',
-                    },
-                },
-            },
-            include: { teacher: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'nazarbayeva@abai.edu.kz',
-                name: 'Айгүл',
-                surname: 'Назарбаева',
-                middlename: 'Ермекқызы',
-                phone: '+7 700 000 0005',
-                role: 'TEACHER',
-                hashedPassword,
-                teacher: {
-                    create: {
-                        employmentType: 'PART_TIME',
-                    },
-                },
-            },
-            include: { teacher: true },
-        }),
-    ]);
-
-    console.log('👥 Топтарды құрамыз...');
-
-    // Создаем группы
-    const groups = await Promise.all([
-        prisma.group.create({
-            data: {
-                name: '10А',
-                courseNumber: 10,
-            },
-        }),
-        prisma.group.create({
-            data: {
-                name: '10Б',
-                courseNumber: 10,
-            },
-        }),
-        prisma.group.create({
-            data: {
-                name: '11А',
-                courseNumber: 11,
-            },
-        }),
-        prisma.group.create({
-            data: {
-                name: '11Б',
-                courseNumber: 11,
-            },
-        }),
-        prisma.group.create({
-            data: {
-                name: '9А',
-                courseNumber: 9,
-            },
-        }),
-    ]);
-
-    console.log('🎓 Студенттерді құрамыз...');
-
-    // Создаем студентов
-    const studentUsers = await Promise.all([
-        // Студенты 10А
-        prisma.user.create({
-            data: {
-                email: 'aida.student@abai.edu.kz',
-                name: 'Айда',
-                surname: 'Казыбекова',
-                middlename: 'Нурлановна',
-                phone: '+7 700 000 0010',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[0].id, // 10А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'arman.student@abai.edu.kz',
-                name: 'Арман',
-                surname: 'Жакипов',
-                middlename: 'Бауыржанович',
-                phone: '+7 700 000 0011',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[0].id, // 10А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'temirlan.student@abai.edu.kz',
-                name: 'Темирлан',
-                surname: 'Байбеков',
-                middlename: 'Асылович',
-                phone: '+7 700 000 0030',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[0].id, // 10А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'aida2.student@abai.edu.kz',
-                name: 'Айдана',
-                surname: 'Нурланова',
-                middlename: 'Ерланқызы',
-                phone: '+7 700 000 0031',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[0].id, // 10А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        // Студенты 10Б
-        prisma.user.create({
-            data: {
-                email: 'dana.student@abai.edu.kz',
-                name: 'Дана',
-                surname: 'Сералиева',
-                middlename: 'Асылбековна',
-                phone: '+7 700 000 0012',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[1].id, // 10Б
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'amina.student@abai.edu.kz',
-                name: 'Амина',
-                surname: 'Жақсылыкова',
-                middlename: 'Бахытжанқызы',
-                phone: '+7 700 000 0032',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[1].id, // 10Б
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'askar.student@abai.edu.kz',
-                name: 'Асқар',
-                surname: 'Мұратов',
-                middlename: 'Серікұлы',
-                phone: '+7 700 000 0033',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[1].id, // 10Б
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        // Студенты 11А
-        prisma.user.create({
-            data: {
-                email: 'bekzat.student@abai.edu.kz',
-                name: 'Бекзат',
-                surname: 'Оразбаев',
-                middlename: 'Алмасович',
-                phone: '+7 700 000 0013',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[2].id, // 11А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'zarina.student@abai.edu.kz',
-                name: 'Зарина',
-                surname: 'Қасымова',
-                middlename: 'Ерболқызы',
-                phone: '+7 700 000 0034',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[2].id, // 11А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        // Студенты 11Б
-        prisma.user.create({
-            data: {
-                email: 'dias.student@abai.edu.kz',
-                name: 'Диас',
-                surname: 'Әбділдаев',
-                middlename: 'Нұрланұлы',
-                phone: '+7 700 000 0035',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[3].id, // 11Б
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        // Студенты 9А
-        prisma.user.create({
-            data: {
-                email: 'aruzhan.student@abai.edu.kz',
-                name: 'Аружан',
-                surname: 'Тілеубекова',
-                middlename: 'Мақсатқызы',
-                phone: '+7 700 000 0036',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[4].id, // 9А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'alibek.student@abai.edu.kz',
-                name: 'Әлібек',
-                surname: 'Досымов',
-                middlename: 'Болатұлы',
-                phone: '+7 700 000 0037',
-                role: 'STUDENT',
-                hashedPassword,
-                student: {
-                    create: {
-                        groupId: groups[4].id, // 9А
-                    },
-                },
-            },
-            include: { student: true },
-        }),
-    ]);
-
-    console.log('👨‍👩‍👧‍👦 Ата-аналарды құрамыз...');
-
-    // Создаем родителей для всех студентов
-    const parents = await Promise.all([
-        // Родители для Айды Казыбековой (студент 0)
-        prisma.user.create({
-            data: {
-                email: 'nazym.parent@abai.edu.kz',
-                name: 'Назым',
-                surname: 'Казыбекова',
-                middlename: 'Серикжановна',
-                phone: '+7 700 000 0020',
-                role: 'PARENT',
-                hashedPassword,
-                parent: {
-                    create: {
-                        relation: 'Мать',
-                        students: {
-                            connect: { id: studentUsers[0].student.id }, // Айда
-                        },
-                    },
-                },
-            },
-            include: { parent: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'nurlan.parent@abai.edu.kz',
-                name: 'Нурлан',
-                surname: 'Казыбеков',
-                middlename: 'Абайевич',
-                phone: '+7 700 000 0025',
-                role: 'PARENT',
-                hashedPassword,
-                parent: {
-                    create: {
-                        relation: 'Отец',
-                        students: {
-                            connect: { id: studentUsers[0].student.id }, // Айда
-                        },
-                    },
-                },
-            },
-            include: { parent: true },
-        }),
-        // Родители для Армана Жакипова (студент 1)
-        prisma.user.create({
-            data: {
-                email: 'bolat.parent@abai.edu.kz',
-                name: 'Болат',
-                surname: 'Жакипов',
-                middlename: 'Маратович',
-                phone: '+7 700 000 0021',
-                role: 'PARENT',
-                hashedPassword,
-                parent: {
-                    create: {
-                        relation: 'Отец',
-                        students: {
-                            connect: { id: studentUsers[1].student.id }, // Арман
-                        },
-                    },
-                },
-            },
-            include: { parent: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'gulnara.parent@abai.edu.kz',
-                name: 'Гульнара',
-                surname: 'Жакипова',
-                middlename: 'Ерлановна',
-                phone: '+7 700 000 0026',
-                role: 'PARENT',
-                hashedPassword,
-                parent: {
-                    create: {
-                        relation: 'Мать',
-                        students: {
-                            connect: { id: studentUsers[1].student.id }, // Арман
-                        },
-                    },
-                },
-            },
-            include: { parent: true },
-        }),
-        // Родители для Даны Сералиевой (студент 2)
-        prisma.user.create({
-            data: {
-                email: 'asylbek.parent@abai.edu.kz',
-                name: 'Асылбек',
-                surname: 'Сералиев',
-                middlename: 'Касымович',
-                phone: '+7 700 000 0027',
-                role: 'PARENT',
-                hashedPassword,
-                parent: {
-                    create: {
-                        relation: 'Отец',
-                        students: {
-                            connect: { id: studentUsers[2].student.id }, // Дана
-                        },
-                    },
-                },
-            },
-            include: { parent: true },
-        }),
-        prisma.user.create({
-            data: {
-                email: 'zhanar.parent@abai.edu.kz',
-                name: 'Жанар',
-                surname: 'Сералиева',
-                middlename: 'Амангельдиновна',
-                phone: '+7 700 000 0028',
-                role: 'PARENT',
-                hashedPassword,
-                parent: {
-                    create: {
-                        relation: 'Мать',
-                        students: {
-                            connect: { id: studentUsers[2].student.id }, // Дана
-                        },
-                    },
-                },
-            },
-            include: { parent: true },
-        }),
-        // Родитель для Бекзата Оразбаева (студент 3) - одинокий родитель
-        prisma.user.create({
-            data: {
-                email: 'almas.parent@abai.edu.kz',
-                name: 'Алмас',
-                surname: 'Оразбаев',
-                middlename: 'Ильясович',
-                phone: '+7 700 000 0029',
-                role: 'PARENT',
-                hashedPassword,
-                parent: {
-                    create: {
-                        relation: 'Отец',
-                        students: {
-                            connect: { id: studentUsers[3].student.id }, // Бекзат
-                        },
-                    },
-                },
-            },
-            include: { parent: true },
-        }),
-    ]);
-
-    console.log('🏫 Сыныптарды (аудиторияларды) құрамыз...');
-
-    // Создаем аудитории
-    const classrooms = await Promise.all([
-        prisma.classroom.create({
-            data: {
-                name: '101',
-                building: 'Негізгі корпус',
-                floor: 1,
-                capacity: 30,
-                type: 'LECTURE',
-                equipment: ['Проектор', 'Интерактивті тақта', 'Компьютер'],
-                description: 'Заманауи жабдықталған дәріс аудиториясы',
-            },
-        }),
-        prisma.classroom.create({
-            data: {
-                name: '205',
-                building: 'Негізгі корпус',
-                floor: 2,
-                capacity: 25,
-                type: 'PRACTICE',
-                equipment: ['Проектор', 'Маркерлік тақта'],
-                description: 'Тәжірибелік сабақтарға арналған аудитория',
-            },
-        }),
-        prisma.classroom.create({
-            data: {
-                name: '305',
-                building: 'Жаратылыстану корпусы',
-                floor: 3,
-                capacity: 20,
-                type: 'LABORATORY',
-                equipment: ['Зертханалық жабдық', 'Сору шкафы', 'Микроскоптар'],
-                description: 'Физика және химия зертханасы',
-            },
-        }),
-    ]);
-
-    console.log('📚 Оқу жоспарларын құрамыз...');
-
-    // Создаем учебные планы
-    const studyPlans = await Promise.all([
-        prisma.studyPlan.create({
-            data: {
-                name: 'Алгебра - 10 сынып',
-                description: '10 сыныпқа арналған алгебраны тереңдетіп оқыту (талдау элементтерімен)',
-                teacherId: teachers[0].teacher.id, // Иванова
-                normativeWorkload: 102, // часов в год
-                group: {
-                    connect: [{ id: groups[0].id }, { id: groups[1].id }], // 10А и 10Б
-                },
-            },
-        }),
-        prisma.studyPlan.create({
-            data: {
-                name: 'Биология - 10 сынып',
-                description: 'Жалпы биология және экология негіздері',
-                teacherId: teachers[1].teacher.id, // Алиев
-                normativeWorkload: 68,
-                group: {
-                    connect: [{ id: groups[1].id }], // 10Б
-                },
-            },
-        }),
-        prisma.studyPlan.create({
-            data: {
-                name: 'Физика - 11 сынып',
-                description: 'Молекулалық физика және термодинамика',
-                teacherId: teachers[2].teacher.id, // Тулегенов
-                normativeWorkload: 85,
-                group: {
-                    connect: [{ id: groups[2].id }, { id: groups[3].id }], // 11А и 11Б
-                },
-            },
-        }),
-        prisma.studyPlan.create({
-            data: {
-                name: 'Химия - 9 сынып',
-                description: 'Бейорганикалық химия негіздері',
-                teacherId: teachers[3].teacher.id, // Назарбаева
-                normativeWorkload: 68,
-                group: {
-                    connect: [{ id: groups[4].id }], // 9А
-                },
-            },
-        }),
-    ]);
-
-    console.log('📅 Сабақ кестесін құрамыз...');
-
-    // Создаем расписание
-    await Promise.all([
-        // Алгебра 10А - Понедельник 8:30-9:15
-        prisma.schedule.create({
-            data: {
-                studyPlanId: studyPlans[0].id,
-                groupId: groups[0].id,
-                teacherId: teachers[0].teacher.id,
-                classroomId: classrooms[0].id,
-                dayOfWeek: 1, // Понедельник
-                startTime: '08:30',
-                endTime: '09:15',
-            },
-        }),
-        // Алгебра 10Б - Понедельник 9:25-10:10
-        prisma.schedule.create({
-            data: {
-                studyPlanId: studyPlans[0].id,
-                groupId: groups[1].id,
-                teacherId: teachers[0].teacher.id,
-                classroomId: classrooms[0].id,
-                dayOfWeek: 1,
-                startTime: '09:25',
-                endTime: '10:10',
-            },
-        }),
-        // Биология 10Б - Вторник 10:25-11:10
-        prisma.schedule.create({
-            data: {
-                studyPlanId: studyPlans[1].id,
-                groupId: groups[1].id,
-                teacherId: teachers[1].teacher.id,
-                classroomId: classrooms[2].id,
-                dayOfWeek: 2, // Вторник
-                startTime: '10:25',
-                endTime: '11:10',
-            },
-        }),
-        // Физика 11А - Среда 11:25-12:10
-        prisma.schedule.create({
-            data: {
-                studyPlanId: studyPlans[2].id,
-                groupId: groups[2].id,
-                teacherId: teachers[2].teacher.id,
-                classroomId: classrooms[2].id,
-                dayOfWeek: 3, // Среда
-                startTime: '11:25',
-                endTime: '12:10',
-            },
-        }),
-    ]);
-
-    console.log('📖 Сабақтарды құрамыз...');
-
-    // Создаем расширенный набор уроков для августа 2025
-    const lessons = await Promise.all([
-        // Уроки алгебры (10 класс) - август 2025
-        prisma.lesson.create({
-            data: {
-                name: 'Квадрат теңдеулер',
-                description: 'Квадрат теңдеулерді әртүрлі тәсілдермен шешу',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(5),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Қысқаша көбейту формулалары',
-                description: 'Қысқаша көбейту формулаларын қолдану',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(8),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Виет теоремасы',
-                description: 'Виет теоремасын оқып-үйрену және қолдану',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(12),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Алгебра бойынша бақылау жұмысы',
-                description: 'Өтілген тақырыптар бойынша білімді тексеру',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(15),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Теңдеулер жүйелері',
-                description: 'Сызықтық және квадрат теңдеулер жүйесін шешу',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(19),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Теңсіздіктер',
-                description: 'Сызықтық және квадрат теңсіздіктерді шешу',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(22),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Функциялар және олардың графиктері',
-                description: 'Негізгі функцияларды оқу және графиктерін салу',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(26),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Функциялар бойынша практикум',
-                description: 'Функциялар бойынша есептер шешу',
-                studyPlanId: studyPlans[0].id,
-                date: getDateInAugust2025(29),
-            },
-        }),
-
-        // Уроки биологии (10 класс) - август 2025
-        prisma.lesson.create({
-            data: {
-                name: 'Жасуша құрылысы',
-                description: 'Цитология негіздері, эукариоттық жасуша құрылысы',
-                studyPlanId: studyPlans[1].id,
-                date: getDateInAugust2025(6),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Фотосинтез',
-                description: 'Өсімдіктердегі фотосинтез үрдісі',
-                studyPlanId: studyPlans[1].id,
-                date: getDateInAugust2025(9),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Өсімдіктердің тыныс алуы',
-                description: 'Өсімдіктер мен жануарлардың тыныс алу процестері',
-                studyPlanId: studyPlans[1].id,
-                date: getDateInAugust2025(13),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Генетика және тұқымқуалаушылық',
-                description: 'Генетика негіздері, Мендель заңдары',
-                studyPlanId: studyPlans[1].id,
-                date: getDateInAugust2025(16),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Генетика бойынша зертханалық жұмыс',
-                description: 'Генетикалық есептер шығару',
-                studyPlanId: studyPlans[1].id,
-                date: getDateInAugust2025(20),
-            },
-        }),
-
-        // Уроки физики (11 класс) - август 2025
-        prisma.lesson.create({
-            data: {
-                name: 'Молекулалық-кинетикалық теория',
-                description: 'МКТ негізгі қағидалары',
-                studyPlanId: studyPlans[2].id,
-                date: getDateInAugust2025(7),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Газ заңдары',
-                description: 'Идеал газ заңдарын оқу',
-                studyPlanId: studyPlans[2].id,
-                date: getDateInAugust2025(10),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Термодинамика',
-                description: 'Термодинамиканың бірінші және екінші заңдары',
-                studyPlanId: studyPlans[2].id,
-                date: getDateInAugust2025(14),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Термодинамика бойынша зертханалық жұмыс',
-                description: 'Жылулық процестерді тәжірибелік зерттеу',
-                studyPlanId: studyPlans[2].id,
-                date: getDateInAugust2025(17),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Электростатика',
-                description: 'Электр өрісі және оның сипаттамалары',
-                studyPlanId: studyPlans[2].id,
-                date: getDateInAugust2025(21),
-            },
-        }),
-
-        // Уроки химии (9 класс) - август 2025
-        prisma.lesson.create({
-            data: {
-                name: 'Периодтық жүйе',
-                description: 'Периодтық заң және элементтердің периодтық жүйесі',
-                studyPlanId: studyPlans[3].id,
-                date: getDateInAugust2025(11),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Химиялық байланыстар',
-                description: 'Коваленттік, иондық және металлдық байланыс',
-                studyPlanId: studyPlans[3].id,
-                date: getDateInAugust2025(18),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Химиялық реакциялар бойынша практикалық жұмыс',
-                description: 'Зертханада химиялық реакциялар жүргізу',
-                studyPlanId: studyPlans[3].id,
-                date: getDateInAugust2025(23),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Қышқылдар және негіздер',
-                description: 'Қышқылдар мен негіздердің қасиеттері, бейтараптану реакциялары',
-                studyPlanId: studyPlans[3].id,
-                date: getDateInAugust2025(27),
-            },
-        }),
-        prisma.lesson.create({
-            data: {
-                name: 'Тотығу-тотықсыздану реакциялары',
-                description: 'ТТР-ды оқу және теңдеулер құрастыру',
-                studyPlanId: studyPlans[3].id,
-                date: getDateInAugust2025(30),
-            },
-        }),
-    ]);
-
-    console.log('🎯 Сабақ материалдарын құрамыз...');
-
-    // Создаем материалы для некоторых уроков
-    await Promise.all([
-        prisma.materials.create({
-            data: {
-                lecture: 'Квадрат теңдеулер ax² + bx + c = 0 түрінде болады, мұнда a ≠ 0...',
-                videoUrl: 'https://www.youtube.com/watch?v=example1',
-                presentationUrl: 'https://docs.google.com/presentation/d/example1',
-                lesson: {
-                    connect: { id: lessons[0].id },
-                },
-            },
-        }),
-        prisma.materials.create({
-            data: {
-                lecture: 'Қысқаша көбейту формулалары есептеулерді жеңілдетуге көмектеседі...',
-                videoUrl: 'https://www.youtube.com/watch?v=example2',
-                lesson: {
-                    connect: { id: lessons[1].id },
-                },
-            },
-        }),
-    ]);
-
-    console.log('💰 Төлемдерді құрамыз...');
-
-    // Создаем платежи для студентов
-    await Promise.all([
-        // Платежи для Айды Казыбековой
-        prisma.payment.create({
-            data: {
-                studentId: studentUsers[0].student.id,
-                serviceType: 'tuition',
-                serviceName: '2025 жылғы тамыз айы оқу ақысы',
-                amount: 45000,
-                currency: 'KZT',
-                dueDate: new Date('2025-08-01'),
-                status: 'paid',
-                paymentDate: new Date('2025-07-28'),
-                paidAmount: 45000,
-            },
-        }),
-        prisma.payment.create({
-            data: {
-                studentId: studentUsers[0].student.id,
-                serviceType: 'meals',
-                serviceName: '2025 жылғы тамыз айы асханалық тамақтану',
-                amount: 15000,
-                currency: 'KZT',
-                dueDate: new Date('2025-08-01'),
-                status: 'paid',
-                paymentDate: new Date('2025-07-30'),
-                paidAmount: 15000,
-            },
-        }),
-        // Платежи для Армана Жакипова
-        prisma.payment.create({
-            data: {
-                studentId: studentUsers[1].student.id,
-                serviceType: 'tuition',
-                serviceName: '2025 жылғы тамыз айы оқу ақысы',
-                amount: 45000,
-                currency: 'KZT',
-                dueDate: new Date('2025-08-01'),
-                status: 'unpaid',
-            },
-        }),
-        prisma.payment.create({
-            data: {
-                studentId: studentUsers[1].student.id,
-                serviceType: 'transportation',
-                serviceName: '2025 жылғы тамыз айы көлік қызметі',
-                amount: 8000,
-                currency: 'KZT',
-                dueDate: new Date('2025-08-15'),
-                status: 'partial',
-                paymentDate: new Date('2025-08-10'),
-                paidAmount: 4000,
-            },
-        }),
-        // Платежи для Даны Сералиевой
-        prisma.payment.create({
-            data: {
-                studentId: studentUsers[2].student.id,
-                serviceType: 'tuition',
-                serviceName: '2025 жылғы тамыз айы оқу ақысы',
-                amount: 45000,
-                currency: 'KZT',
-                dueDate: new Date('2025-08-01'),
-                status: 'overdue',
-            },
-        }),
-        prisma.payment.create({
-            data: {
-                studentId: studentUsers[2].student.id,
-                serviceType: 'extra',
-                serviceName: 'Математикадан қосымша сабақтар',
-                amount: 25000,
-                currency: 'KZT',
-                dueDate: new Date('2025-08-20'),
-                status: 'unpaid',
-            },
-        }),
-        // Платежи для Бекзата Оразбаева
-        prisma.payment.create({
-            data: {
-                studentId: studentUsers[3].student.id,
-                serviceType: 'tuition',
-                serviceName: '2025 жылғы тамыз айы оқу ақысы',
-                amount: 45000,
-                currency: 'KZT',
-                dueDate: new Date('2025-08-01'),
-                status: 'paid',
-                paymentDate: new Date('2025-07-25'),
-                paidAmount: 45000,
-            },
-        }),
-    ]);
-
-    console.log('💼 Бюджет баптарын құрамыз...');
-
-    // Создаем статьи бюджета
-    await Promise.all([
-        // Доходы
-        prisma.budgetItem.create({
-            data: {
-                name: 'Оқу ақысы',
-                type: 'INCOME',
-                category: 'tuition',
-                plannedAmount: 5000000,
-                actualAmount: 4200000,
-                currency: 'KZT',
-                period: '2025 Q3',
-                responsible: 'Касымова Г.С.',
-                status: 'ACTIVE',
-                description: 'Студенттердің оқу ақысынан негізгі табыстар',
-            },
-        }),
-        prisma.budgetItem.create({
-            data: {
-                name: 'Гранттар мен субсидиялар',
-                type: 'INCOME',
-                category: 'grants',
-                plannedAmount: 1200000,
-                actualAmount: 1200000,
-                currency: 'KZT',
-                period: '2025 Q3',
-                responsible: 'Касымова Г.С.',
-                status: 'ACTIVE',
-                description: 'Білім беруге арналған мемлекеттік гранттар мен субсидиялар',
-            },
-        }),
-        prisma.budgetItem.create({
-            data: {
-                name: 'Қосымша қызметтер',
-                type: 'INCOME',
-                category: 'services',
-                plannedAmount: 300000,
-                actualAmount: 180000,
-                currency: 'KZT',
-                period: '2025 Q3',
-                responsible: 'Касымова Г.С.',
-                status: 'ACTIVE',
-                description: 'Қосымша білім беру қызметтерінен табыс',
-            },
-        }),
-        // Расходы
-        prisma.budgetItem.create({
-            data: {
-                name: 'Оқытушылар еңбекақысы',
-                type: 'EXPENSE',
-                category: 'salaries',
-                plannedAmount: 3200000,
-                actualAmount: 3150000,
-                currency: 'KZT',
-                period: '2025 Q3',
-                responsible: 'Касымова Г.С.',
-                status: 'ACTIVE',
-                description: 'Педагогикалық құрамның еңбекақысына негізгі шығындар',
-            },
-        }),
-        prisma.budgetItem.create({
-            data: {
-                name: 'Коммуналдық қызметтер',
-                type: 'EXPENSE',
-                category: 'utilities',
-                plannedAmount: 800000,
-                actualAmount: 850000,
-                currency: 'KZT',
-                period: '2025 Q3',
-                responsible: 'Касымова Г.С.',
-                status: 'ACTIVE',
-                description: 'Электр, жылыту, су жабдығына шығындар',
-            },
-        }),
-        prisma.budgetItem.create({
-            data: {
-                name: 'Оқу материалдары және жабдық',
-                type: 'EXPENSE',
-                category: 'materials',
-                plannedAmount: 500000,
-                actualAmount: 320000,
-                currency: 'KZT',
-                period: '2025 Q3',
-                responsible: 'Касымова Г.С.',
-                status: 'ACTIVE',
-                description: 'Оқулықтар, кеңсе тауарлары, зертханалық жабдық сатып алу',
-            },
-        }),
-        prisma.budgetItem.create({
-            data: {
-                name: 'Жөндеу және қызмет көрсету',
-                type: 'EXPENSE',
-                category: 'infrastructure',
-                plannedAmount: 400000,
-                actualAmount: 200000,
-                currency: 'KZT',
-                period: '2025 Q3',
-                responsible: 'Касымова Г.С.',
-                status: 'ACTIVE',
-                description: 'Ғимараттарды ағымдағы жөндеу және жабдыққа қызмет көрсету',
-            },
-        }),
-    ]);
-
-    console.log('🔔 Хабарламаларды құрамыз...');
-
-    // Создаем уведомления
-    await Promise.all([
-        prisma.notification.create({
-            data: {
-                userId: studentUsers[0].id,
-                type: 'payment',
-                message: 'Оқу ақысы сәтті төленді',
-                read: false,
-            },
-        }),
-        prisma.notification.create({
-            data: {
-                userId: studentUsers[1].id,
-                type: 'payment',
-                message: 'Ескерту: оқу ақысын төлеу мерзімі өтті',
-                read: false,
-            },
-        }),
-        prisma.notification.create({
-            data: {
-                userId: teachers[0].id,
-                type: 'lesson',
-                message: '"Квадрат теңдеулер" сабағы 30 минуттан кейін басталады',
-                read: true,
-            },
-        }),
-    ]);
-
-    console.log('🏖️ Демалыс кезеңдерін құрамыз...');
-
-    // Создаем периоды каникул для августа 2025
-    await Promise.all([
-        prisma.vacation.create({
-            data: {
-                teacherId: teachers[0].teacher.id,
-                type: 'vacation',
-                startDate: getDateInAugust2025(1),
-                endDate: getDateInAugust2025(14),
-                days: 14,
-                status: 'completed',
-                comment: 'Жазғы демалыс',
-            },
-        }),
-        prisma.vacation.create({
-            data: {
-                teacherId: teachers[1].teacher.id,
-                type: 'vacation',
-                startDate: getDateInAugust2025(15),
-                endDate: getDateInAugust2025(28),
-                days: 14,
-                status: 'approved',
-                comment: 'Жаз соңындағы демалыс',
-            },
-        }),
-    ]);
-
-    console.log('📅 Күнтізбе оқиғаларын құрамыз...');
-
-    // Создаем события календаря для августа 2025
-    await Promise.all([
-        prisma.calendarEvent.create({
-            data: {
-                title: 'Білім күні - жаңа оқу жылының басталуы',
-                description: 'Салтанатты сап түзеу және алғашқы сабақтар',
-                startDate: getDateInAugust2025(1),
-                endDate: getDateInAugust2025(1),
-                location: 'Школьный двор',
-                isAllDay: true,
-                createdById: admin.id,
-            },
-        }),
-        prisma.calendarEvent.create({
-            data: {
-                title: '10 сыныптар ата-аналар жиналысы',
-                description: 'Жаңа оқу жылына жоспарларды талқылау',
-                startDate: getDateInAugust2025(10),
-                endDate: getDateInAugust2025(10),
-                location: 'Актовый зал',
-                isAllDay: false,
-                createdById: admin.id,
-            },
-        }),
-        prisma.calendarEvent.create({
-            data: {
-                title: 'Алгебра бойынша бақылау жұмысы',
-                description: 'Алгебрадан қорытынды бақылау жұмысы',
-                startDate: getDateInAugust2025(15),
-                endDate: getDateInAugust2025(15),
-                location: 'Аудитория 101',
-                isAllDay: false,
-                createdById: teachers[0].id,
-            },
-        }),
-    ]);
-
-    console.log('📝 Сабақ нәтижелерін құрамыз...');
-
-    // Создаем результаты уроков для всех студентов по всем урокам
-    const lessonResults = [];
-
-    // Результаты для уроков алгебры (для студентов 10А и 10Б)
-    const algebraStudents = studentUsers.slice(0, 7); // Первые 7 студентов из 10А и 10Б
-    const algebraLessons = lessons.slice(0, 8); // Первые 8 уроков алгебры
-
-    for (const lesson of algebraLessons) {
-        for (let i = 0; i < algebraStudents.length; i++) {
-            const student = algebraStudents[i];
-            // Айда (0) - отличница, Арман (1) - хорошист с проблемами, остальные - средние студенты
-            let score, comment, attendance = true;
-            
-            if (i === 0) { // Айда - отличница
-                score = Math.random() > 0.1 ? 5 : 4;
-                comment = score === 5 ? 'Есептерді өте жақсы орындады' : 'Жақсы жұмыс, аздаған кемшіліктер бар';
-            } else if (i === 1) { // Арман - проблемный студент
-                score = Math.random() > 0.3 ? (Math.random() > 0.5 ? 4 : 3) : 2;
-                attendance = Math.random() > 0.2;
-                comment = !attendance ? 'Сабаққа қатысқан жоқ' : 
-                         score <= 2 ? 'Үй тапсырмасын орындамады' : 'Қанағаттанарлық';
-            } else { // Остальные студенты
-                score = Math.random() > 0.1 ? (Math.random() > 0.4 ? 4 : 3) : (Math.random() > 0.5 ? 5 : 2);
-                attendance = Math.random() > 0.05;
-                comment = !attendance ? 'Қатыспады' : 
-                         score === 5 ? 'Өте жақсы жұмыс' :
-                         score === 4 ? 'Материалды жақсы түсінеді' :
-                         score === 3 ? 'Қанағаттанарлық' : 'Білімін жетілдіру керек';
-            }
-
-            lessonResults.push(
-                prisma.lessonResult.create({
-                    data: {
-                        lessonId: lesson.id,
-                        studentId: student.student.id,
-                        lessonScore: attendance ? score : null,
-                        attendance: attendance,
-                        lessonScorecomment: comment,
-                    },
-                })
-            );
-        }
-    }
-
-    // Результаты для уроков биологии (для студентов 10Б)
-    const biologyStudents = studentUsers.slice(4, 7); // Студенты 10Б
-    const biologyLessons = lessons.slice(8, 13); // Уроки биологии
-
-    for (const lesson of biologyLessons) {
-        for (let i = 0; i < biologyStudents.length; i++) {
-            const student = biologyStudents[i];
-            // Дана (0 в этом массиве) - отличница по биологии
-            let score, comment, attendance = true;
-            
-            if (i === 0) { // Дана - отличница по биологии
-                score = Math.random() > 0.05 ? 5 : 4;
-                comment = score === 5 ? 'Материалды тамаша меңгерген' : 'Өте жақсы';
-            } else {
-                score = Math.random() > 0.1 ? (Math.random() > 0.3 ? 4 : 3) : (Math.random() > 0.7 ? 5 : 2);
-                attendance = Math.random() > 0.1;
-                comment = !attendance ? 'Қатыспады' : 
-                         score === 5 ? 'Өте жақсы жұмыс' :
-                         score === 4 ? 'Биологияны жақсы түсінеді' :
-                         score === 3 ? 'Орташа деңгей' : 'Көбірек назар қажет';
-            }
-
-            lessonResults.push(
-                prisma.lessonResult.create({
-                    data: {
-                        lessonId: lesson.id,
-                        studentId: student.student.id,
-                        lessonScore: attendance ? score : null,
-                        attendance: attendance,
-                        lessonScorecomment: comment,
-                    },
-                })
-            );
-        }
-    }
-
-    // Результаты для уроков физики (для студентов 11А и 11Б)
-    const physicsStudents = studentUsers.slice(7, 10); // Студенты 11А и 11Б
-    const physicsLessons = lessons.slice(13, 18); // Уроки физики
-
-    for (const lesson of physicsLessons) {
-        for (let i = 0; i < physicsStudents.length; i++) {
-            const student = physicsStudents[i];
-            // Бекзат (0) - хорошист, Зарина (1) - отличница, Диас (2) - средний
-            let score, comment, attendance = true;
-            
-            if (i === 0) { // Бекзат - хорошист
-                score = Math.random() > 0.2 ? 4 : (Math.random() > 0.5 ? 5 : 3);
-                comment = score === 5 ? 'Теорияны өте жақсы түсінеді' :
-                         score === 4 ? 'Теорияны жақсы түсінеді' : 'Көбірек практика керек';
-            } else if (i === 1) { // Зарина - отличница
-                score = Math.random() > 0.1 ? 5 : 4;
-                comment = score === 5 ? 'Физиканы керемет біледі' : 'Өте жақсы';
-            } else { // Диас - средний
-                score = Math.random() > 0.2 ? 3 : (Math.random() > 0.6 ? 4 : 2);
-                attendance = Math.random() > 0.15;
-                comment = !attendance ? 'Қатыспады' : 
-                         score === 4 ? 'Жақсы' :
-                         score === 3 ? 'Қанағаттанарлық' : 'Білімі әлсіз';
-            }
-
-            lessonResults.push(
-                prisma.lessonResult.create({
-                    data: {
-                        lessonId: lesson.id,
-                        studentId: student.student.id,
-                        lessonScore: attendance ? score : null,
-                        attendance: attendance,
-                        lessonScorecomment: comment,
-                    },
-                })
-            );
-        }
-    }
-
-    // Результаты для уроков химии (для студентов 9А)
-    const chemistryStudents = studentUsers.slice(10, 12); // Студенты 9А
-    const chemistryLessons = lessons.slice(18, 23); // Уроки химии
-
-    for (const lesson of chemistryLessons) {
-        for (let i = 0; i < chemistryStudents.length; i++) {
-            const student = chemistryStudents[i];
-            // Аружан (0) - хорошистка, Әлібек (1) - средний с проблемами
-            let score, comment, attendance = true;
-            
-            if (i === 0) { // Аружан - хорошистка
-                score = Math.random() > 0.2 ? (Math.random() > 0.4 ? 4 : 5) : 3;
-                comment = score === 5 ? 'Химияны өте жақсы меңгерген' :
-                         score === 4 ? 'Жақсы білім' : 'Қалыпты';
-            } else { // Әлібек - проблемный
-                score = Math.random() > 0.4 ? 3 : (Math.random() > 0.6 ? 2 : 4);
-                attendance = Math.random() > 0.25;
-                comment = !attendance ? 'Қатыспады' : 
-                         score === 4 ? 'Күтпеген жақсы нәтиже' :
-                         score === 3 ? 'Қанағаттанарлық' : 'Нашар дайындалған';
-            }
-
-            lessonResults.push(
-                prisma.lessonResult.create({
-                    data: {
-                        lessonId: lesson.id,
-                        studentId: student.student.id,
-                        lessonScore: attendance ? score : null,
-                        attendance: attendance,
-                        lessonScorecomment: comment,
-                    },
-                })
-            );
-        }
-    }
-
-    await Promise.all(lessonResults);
-
-    console.log('💬 Чаттарды құрамыз...');
-
-    // Создаем чаты между родителями и преподавателями
-    await Promise.all([
-        // Чат между родителем Айды и преподавателем алгебры
-        prisma.chatRoom.create({
-            data: {
-                name: 'Айданың үлгерімін талқылау',
-                isGroup: false,
-                createdBy: parents[0].id,
-                participants: {
-                    create: [
-                        { userId: parents[0].id },
-                        { userId: teachers[0].id },
-                    ],
-                },
-                messages: {
-                    create: [
-                        {
-                            senderId: parents[0].id,
-                            content: 'Сәлеметсіз бе! Айданың алгебра пәні қалай?',
-                            createdAt: getDateInAugust2025(15),
-                        },
-                        {
-                            senderId: teachers[0].id,
-                            content: 'Сәлем! Айда өте жақсы нәтиже көрсетіп жүр, өте тырысқақ оқушы.',
-                            createdAt: getDateInAugust2025(15),
-                        },
-                    ],
-                },
-            },
-        }),
-    ]);
-
-    console.log('📝 Ескертпелер мен пікірлерді құрамыз...');
-
-    // Создаем замечания для студентов
-    await Promise.all([
-        prisma.studentRemark.create({
-            data: {
-                studentId: studentUsers[1].student.id,
-                teacherId: teachers[0].id,
-                type: 'ACADEMIC',
-                title: 'Үй тапсырмасын орындамады',
-                content: 'Алгебра бойынша үй тапсырмасын орындамаған',
-                isPrivate: true,
-                createdAt: getDateInAugust2025(10),
-            },
-        }),
-        prisma.studentRemark.create({
-            data: {
-                studentId: studentUsers[1].student.id,
-                teacherId: admin.id,
-                type: 'BEHAVIOR',
-                title: 'Тәртіп бұзушылық',
-                content: 'Үзіліс кезінде тәртіп сақтамаған',
-                isPrivate: true,
-                createdAt: getDateInAugust2025(14),
-            },
-        }),
-    ]);
-
-    // Создаем комментарии для студентов
-    await Promise.all([
-        prisma.studentComment.create({
-            data: {
-                studentId: studentUsers[0].student.id,
-                teacherId: teachers[0].id,
-                title: 'Сабақта өте жақсы жұмыс',
-                content: 'Сабақтағы есептерді тамаша шығарды, үйде дайындалғаны көрініп тұр',
-                type: 'ACADEMIC',
-                isPrivate: true,
-                createdAt: getDateInAugust2025(5),
-            },
-        }),
-        prisma.studentComment.create({
-            data: {
-                studentId: studentUsers[2].student.id,
-                teacherId: teachers[1].id,
-                title: 'Тамаша зертханалық жұмыс',
-                content: 'Биология бойынша зертханалық жұмысты тамаша орындады!',
-                type: 'ACADEMIC',
-                isPrivate: true,
-                createdAt: getDateInAugust2025(18),
-            },
-        }),
-    ]);
-
-    console.log('📚 Қосымша материалдарды құрамыз...');
-
-    // Создаем больше материалов для уроков
-    await Promise.all([
-        prisma.materials.create({
-            data: {
-                lecture: 'Жасуша құрылысына мембрана, цитоплазма және органоидтар кіреді...',
-                videoUrl: 'https://www.youtube.com/watch?v=biology1',
-                presentationUrl: 'https://docs.google.com/presentation/d/biology1',
-                lesson: {
-                    connect: { id: lessons[8].id }, // Строение клетки
-                },
-            },
-        }),
-        prisma.materials.create({
-            data: {
-                lecture: 'Молекулалық-кинетикалық теория газдардың қасиеттерін түсіндіреді...',
-                videoUrl: 'https://www.youtube.com/watch?v=physics1',
-                lesson: {
-                    connect: { id: lessons[13].id }, // МКТ
-                },
-            },
-        }),
-    ]);
-
-    console.log('📝 KPI үшін пікір (feedback) шаблондарын құрамыз...');
-
-    // Создаем шаблоны фидбеков с KPI вопросами
-    const feedbackTemplates = await Promise.all([
-        // Шаблон для оценки преподавателей студентами (основной для KPI удержания)
-        prisma.feedbackTemplate.create({
-            data: {
-                name: 'teacher_evaluation_students',
-                role: 'STUDENT',
-                title: 'Студенттердің оқытушыны бағалауы',
-                description: 'Ай сайынғы оқыту сапасы мен студенттердің қанағаттану деңгейін бағалау',
-                questions: [
-                    {
-                        id: 'teaching_quality',
-                        question: 'Оқыту сапасын қалай бағалайсыз?',
-                        type: 'RATING_1_5',
-                        category: 'teaching',
-                        required: true,
-                        kpiMetric: 'TEACHING_QUALITY',
-                        isKpiRelevant: true,
-                        kpiWeight: 2
-                    },
-                    {
-                        id: 'lesson_effectiveness',
-                        question: 'Осы оқытушының сабақтары қаншалықты тиімді?',
-                        type: 'RATING_1_5',
-                        category: 'effectiveness',
-                        required: true,
-                        kpiMetric: 'LESSON_EFFECTIVENESS',
-                        isKpiRelevant: true,
-                        kpiWeight: 2
-                    },
-                    {
-                        id: 'student_retention',
-                        question: 'Осы оқытушыдан әрі қарай оқуды жалғастырмақсыз ба?',
-                        type: 'YES_NO',
-                        category: 'retention',
-                        required: true,
-                        kpiMetric: 'STUDENT_RETENTION',
-                        isKpiRelevant: true,
-                        kpiWeight: 3
-                    },
-                    {
-                        id: 'recommendation',
-                        question: 'Бұл оқытушыны басқа студенттерге ұсынар ма едіңіз?',
-                        type: 'YES_NO',
-                        category: 'recommendation',
-                        required: true,
-                        kpiMetric: 'RECOMMENDATION',
-                        isKpiRelevant: true,
-                        kpiWeight: 2
-                    },
-                    {
-                        id: 'overall_satisfaction',
-                        question: 'Осы оқытушыдан алған жалпы әсеріңіз (қанағат деңгейі)',
-                        type: 'RATING_1_10',
-                        category: 'satisfaction',
-                        required: true,
-                        kpiMetric: 'OVERALL_EXPERIENCE',
-                        isKpiRelevant: true,
-                        kpiWeight: 1
-                    },
-                    {
-                        id: 'improvement_suggestions',
-                        question: 'Оқытуда нені жақсартуға болады?',
-                        type: 'TEXT',
-                        category: 'feedback',
-                        required: false,
-                        isKpiRelevant: false
-                    }
-                ],
-                isActive: true,
-                frequency: 'MONTHLY',
-                priority: 1,
-                hasKpiQuestions: true,
-                kpiMetrics: ['STUDENT_RETENTION', 'TEACHING_QUALITY', 'LESSON_EFFECTIVENESS', 'RECOMMENDATION', 'OVERALL_EXPERIENCE']
-            },
-        }),
-        // Дополнительный шаблон для общей оценки студентами
-        prisma.feedbackTemplate.create({
-            data: {
-                name: 'student_general_satisfaction',
-                role: 'STUDENT',
-                title: 'Оқумен жалпы қанағаттану',
-                description: 'Студенттердің жалпы қанағаттану деңгейін тоқсан сайын бағалау',
-                questions: [
-                    {
-                        id: 'school_satisfaction',
-                        question: 'Біздің білім орнындағы оқуға қаншалықты қанағаттанасыз?',
-                        type: 'RATING_1_10',
-                        category: 'general',
-                        required: true,
-                        kpiMetric: 'OVERALL_EXPERIENCE',
-                        isKpiRelevant: true,
-                        kpiWeight: 1
-                    },
-                    {
-                        id: 'motivation_level',
-                        question: 'Оқуға деген мотивация деңгейіңіз қалай өзгерді?',
-                        type: 'RATING_1_5',
-                        category: 'motivation',
-                        required: true
-                    }
-                ],
-                isActive: true,
-                frequency: 'QUARTERLY',
-                priority: 2,
-                hasKpiQuestions: true,
-                kpiMetrics: ['OVERALL_EXPERIENCE']
-            },
-        })
-    ]);
-
-    console.log('💬 Студенттердің оқытушылар жайлы пікір жауаптарын құрамыз...');
-
-    // Функция для создания реалистичных оценок
-    const createFeedbackAnswer = (teacherRating: number) => {
-        // teacherRating: 1-худший, 5-лучший преподаватель
-        const baseScore = teacherRating;
-        const variation = 0.5; // небольшая вариация в ответах
-        
-        return {
-            teaching_quality: Math.min(5, Math.max(1, Math.round(baseScore + (Math.random() - 0.5) * variation))),
-            lesson_effectiveness: Math.min(5, Math.max(1, Math.round(baseScore + (Math.random() - 0.5) * variation))),
-            student_retention: baseScore >= 3, // если оценка 3 и выше, то планирует продолжить
-            recommendation: baseScore >= 4, // если оценка 4 и выше, то порекомендует
-            overall_satisfaction: Math.min(10, Math.max(1, Math.round((baseScore * 2) + (Math.random() - 0.5) * variation))),
-            improvement_suggestions: baseScore < 3 ? 'Көбірек тәжірибелік тапсырмалар қажет' : 'Барлығы тамаша!'
-        };
+async function ensureDashboardWidgets(userId: number, role: UserRole) {
+    const existing = await prisma.dashboardWidget.findMany({ where: { userId } });
+    if (existing.length) return;
+    const byRole: Record<UserRole, string[]> = {
+        ADMIN: ['system-stats', 'finance-overview', 'school-attendance', 'news'],
+        TEACHER: ['teacher-schedule', 'grades', 'assignments', 'news'],
+        STUDENT: ['schedule', 'assignments', 'grades', 'attendance'],
+        PARENT: ['child-schedule', 'child-grades', 'child-homework', 'news'],
+        FINANCIST: ['finance-overview', 'news'],
+        HR: ['activity-monitoring', 'teacher-workload', 'news']
     };
+    let pos = 0;
+    for (const type of byRole[role] || []) {
+        await prisma.dashboardWidget.create({ data: { userId, type, title: type, size: 'medium', position: { x: 0, y: pos }, order: pos, config: {} } });
+        pos++;
+    }
+}
 
-    // Создаем фидбек ответы от каждого студента о каждом преподавателе
-    const feedbackResponses = [];
-    
-    // Рейтинги преподавателей (1-5, где 5 - лучший)
-    const teacherRatings = [
-        { teacher: teachers[0], rating: 5 }, // Иванова - отличный преподаватель
-        { teacher: teachers[1], rating: 4 }, // Алиев - хороший преподаватель  
-        { teacher: teachers[2], rating: 3 }, // Тулегенов - средний преподаватель
-        { teacher: teachers[3], rating: 2 }, // Назарбаева - слабый преподаватель
+function weekdaysInMonth(year: number, month0: number, weekday: number, limit = 4) {
+    const dates: Date[] = [];
+    const d = new Date(year, month0, 1);
+    while (d.getMonth() === month0 && dates.length < limit) {
+        const wd = d.getDay() === 0 ? 7 : d.getDay();
+        if (wd === weekday) dates.push(new Date(d));
+        d.setDate(d.getDate() + 1);
+    }
+    return dates;
+}
+
+// Generic batching helper to limit concurrency
+async function runBatched<T>(items: T[], batchSize: number, worker: (item: T, index: number) => Promise<void>) {
+    for (let i = 0; i < items.length; i += batchSize) {
+        await Promise.all(items.slice(i, i + batchSize).map((it, idx) => worker(it, i + idx)));
+    }
+}
+
+// Build a map: studyPlanId -> array of studentIds (unique)
+async function buildPlanStudentsMap(planIds: number[]): Promise<Map<number, number[]>> {
+    const map = new Map<number, number[]>();
+    if (!planIds.length) return map;
+    const plans = await prisma.studyPlan.findMany({
+        where: { id: { in: planIds } },
+        include: { group: { include: { students: true } } }
+    });
+    for (const p of plans) {
+        const ids = new Set<number>();
+        for (const g of p.group) for (const st of g.students) ids.add(st.id);
+        map.set(p.id, Array.from(ids));
+    }
+    return map;
+}
+
+// Bulk create lesson results (skip duplicates) with chunking
+async function bulkLessonResults(entries: { lessonId: number; studentId: number; lessonScore?: number | null }[]) {
+    if (!entries.length) return;
+    const CHUNK = 300;
+    for (let i = 0; i < entries.length; i += CHUNK) {
+        const slice = entries.slice(i, i + CHUNK);
+        try {
+            await prisma.lessonResult.createMany({ data: slice.map(e => ({ lessonId: e.lessonId, studentId: e.studentId, lessonScore: e.lessonScore ?? undefined, attendance: true })), skipDuplicates: true });
+    } catch {
+            // Fallback to per-item ensure on error
+            for (const r of slice) {
+                await ensureLessonResult(r.lessonId, r.studentId, r.lessonScore ?? null);
+            }
+        }
+    }
+}
+
+// ---------- Main seed ----------
+async function main() {
+    console.log('🌱 Start comprehensive idempotent seed (phase 1)');
+
+    // Users
+    const admin = await ensureUser('admin@abai.edu.kz', 'ADMIN', 'Ерлан', 'Админов');
+    const financist = await ensureUser('financist@abai.edu.kz', 'FINANCIST', 'Гульмира', 'Қасымова');
+    const hr = await ensureUser('hr@abai.edu.kz', 'HR', 'Айжан', 'Муканова');
+    await ensureDashboardWidgets(admin.id, 'ADMIN');
+    await ensureDashboardWidgets(financist.id, 'FINANCIST');
+    await ensureDashboardWidgets(hr.id, 'HR');
+
+    // Teachers
+    const teacherDefs = [
+        { email: 'math.teacher@abai.edu.kz', name: 'Алия', surname: 'Иманбаева', employment: 'STAFF' as const },
+        { email: 'bio.teacher@abai.edu.kz', name: 'Динара', surname: 'Сарсенова', employment: 'STAFF' as const },
+        { email: 'phys.teacher@abai.edu.kz', name: 'Руслан', surname: 'Токтасынов', employment: 'STAFF' as const },
+        { email: 'chem.teacher@abai.edu.kz', name: 'Жанар', surname: 'Ахметова', employment: 'PART_TIME' as const }
     ];
+    const teachers: { userId: number; teacherId: number; email: string }[] = [];
+    for (const t of teacherDefs) {
+        const u = await ensureUser(t.email, 'TEACHER', t.name, t.surname);
+        const teacher = await ensureTeacher(u.id, t.employment);
+        teachers.push({ userId: u.id, teacherId: teacher.id, email: t.email });
+        await ensureDashboardWidgets(u.id, 'TEACHER');
+    }
+    // Groups
+    const g10A = await ensureGroup('10А', 10);
+    const g10B = await ensureGroup('10Б', 10);
+    const g11A = await ensureGroup('11А', 11);
+    const g11B = await ensureGroup('11Б', 11);
+    const g9A = await ensureGroup('9А', 9);
 
-    // Создаем фидбеки от каждого студента о каждом преподавателе за последние 3 месяца
-    for (const { teacher, rating } of teacherRatings) {
-        for (const studentUser of studentUsers) {
-            // Создаем фидбеки за разные периоды
-            const periods = ['2025-07', '2025-08', '2025-09'];
-            
-            for (const period of periods) {
-                const answers = createFeedbackAnswer(rating);
-                
-                feedbackResponses.push(
-                    prisma.feedbackResponse.create({
-                        data: {
-                            userId: studentUser.id,
-                            templateId: feedbackTemplates[0].id,
-                            answers: answers,
-                            isCompleted: true,
-                            period: period,
-                            aboutTeacherId: teacher.teacher.id, // Ключевое поле - о каком преподавателе фидбек
-                            submittedAt: new Date(`${period}-15T10:00:00Z`),
-                        },
-                    })
-                );
+    // Students
+    const studentDefs = [
+        { email: 'aida.student@abai.edu.kz', name: 'Аида', surname: 'Казыбекова', group: g10A.id },
+        { email: 'arman.student@abai.edu.kz', name: 'Арман', surname: 'Жакипов', group: g10A.id },
+        { email: 'temirlan.student@abai.edu.kz', name: 'Темирлан', surname: 'Байбеков', group: g10A.id },
+        { email: 'aidana.student@abai.edu.kz', name: 'Айдана', surname: 'Нурланова', group: g10A.id },
+        { email: 'dana.student@abai.edu.kz', name: 'Дана', surname: 'Сералиева', group: g10B.id },
+        { email: 'amina.student@abai.edu.kz', name: 'Амина', surname: 'Жаксылыкова', group: g10B.id },
+        { email: 'askar.student@abai.edu.kz', name: 'Асқар', surname: 'Муратов', group: g10B.id },
+        { email: 'bekzat.student@abai.edu.kz', name: 'Бекзат', surname: 'Оразбаев', group: g11A.id },
+        { email: 'zarina.student@abai.edu.kz', name: 'Зарина', surname: 'Касымова', group: g11A.id },
+        { email: 'dias.student@abai.edu.kz', name: 'Диас', surname: 'Абдильдаев', group: g11B.id },
+        { email: 'aruzhan.student@abai.edu.kz', name: 'Аружан', surname: 'Тлеубекова', group: g9A.id },
+        { email: 'alibek.student@abai.edu.kz', name: 'Алибек', surname: 'Досымов', group: g9A.id }
+    ];
+    const students: { userId: number; studentId: number; groupId: number }[] = [];
+    for (const s of studentDefs) {
+        const u = await ensureUser(s.email, 'STUDENT', s.name, s.surname);
+        const st = await ensureStudent(u.id, s.group);
+        students.push({ userId: u.id, studentId: st.id, groupId: s.group });
+        await ensureDashboardWidgets(u.id, 'STUDENT');
+    }
+
+    // Parents (subset)
+    const motherAida = await ensureUser('mother.aida@abai.edu.kz', 'PARENT', 'Назым', 'Казыбекова');
+    await ensureParent(motherAida.id, 'Мать', [students[0].studentId]);
+    await ensureDashboardWidgets(motherAida.id, 'PARENT');
+    const fatherArman = await ensureUser('father.arman@abai.edu.kz', 'PARENT', 'Болат', 'Жакипов');
+    await ensureParent(fatherArman.id, 'Отец', [students[1].studentId]);
+    await ensureDashboardWidgets(fatherArman.id, 'PARENT');
+
+    // Classrooms
+    const c101 = await ensureClassroom('101', { equipment: ['Проектор', 'Интерактивная панель'] });
+    const c205 = await ensureClassroom('205', { floor: 2, capacity: 25 });
+    const c305 = await ensureClassroom('305', { floor: 3, type: 'LABORATORY', equipment: ['Лаб.оборудование'] });
+
+    // Study plans
+    const mathTeacher = teachers.find(t => t.email === 'math.teacher@abai.edu.kz');
+    const bioTeacher = teachers.find(t => t.email === 'bio.teacher@abai.edu.kz');
+    const physTeacher = teachers.find(t => t.email === 'phys.teacher@abai.edu.kz');
+    const chemTeacher = teachers.find(t => t.email === 'chem.teacher@abai.edu.kz');
+    if (!mathTeacher || !bioTeacher || !physTeacher || !chemTeacher) throw new Error('Teacher initialization failed');
+
+    const spAlg = await ensureStudyPlan('Алгебра 10 класс', mathTeacher.teacherId, [g10A.id, g10B.id], { description: 'Углублённый курс алгебры', normativeWorkload: 102 });
+    const spBio = await ensureStudyPlan('Биология 10 класс', bioTeacher.teacherId, [g10B.id], { description: 'Общая биология', normativeWorkload: 68 });
+    const spPhys = await ensureStudyPlan('Физика 11 класс', physTeacher.teacherId, [g11A.id, g11B.id], { description: 'МКТ и термодинамика', normativeWorkload: 85 });
+    const spChem = await ensureStudyPlan('Химия 9 класс', chemTeacher.teacherId, [g9A.id], { description: 'Основы неорганической химии', normativeWorkload: 68 });
+
+    // Schedule
+    await ensureSchedule(spAlg.id, g10A.id, 1, '08:30', '09:15', mathTeacher.teacherId, c101.id);
+    await ensureSchedule(spAlg.id, g10B.id, 1, '09:25', '10:10', mathTeacher.teacherId, c101.id);
+    await ensureSchedule(spBio.id, g10B.id, 2, '10:25', '11:10', bioTeacher.teacherId, c205.id);
+    await ensureSchedule(spPhys.id, g11A.id, 3, '11:25', '12:10', physTeacher.teacherId, c305.id);
+    await ensureSchedule(spChem.id, g9A.id, 4, '12:20', '13:05', chemTeacher.teacherId, c305.id);
+
+    // Lessons + homework + results (first 4 occurrences per plan in Sept 2025)
+    const year = 2025; const month0 = 8; // September
+    const planWeekday: [number, number][] = [[spAlg.id, 1], [spBio.id, 2], [spPhys.id, 3], [spChem.id, 4]];
+    for (const [planId, weekday] of planWeekday) {
+        const dates = weekdaysInMonth(year, month0, weekday, 4);
+        for (const d of dates) {
+            const lesson = await ensureLesson(planId, d, `Урок ${d.toLocaleDateString('ru-RU')}`);
+            await ensureHomework(lesson.id, 'Домашнее задание');
+            const plan = await prisma.studyPlan.findUnique({ where: { id: planId }, include: { group: { include: { students: true } } } });
+            if (plan) {
+                for (const g of plan.group) {
+                    for (const st of g.students) {
+                        const score = Math.random() > 0.25 ? [5, 4, 3][Math.floor(Math.random() * 3)] : null;
+                        await ensureLessonResult(lesson.id, st.id, score);
+                    }
+                }
             }
         }
     }
 
-    await Promise.all(feedbackResponses);
+    // Payments & budget
+    const now = new Date();
+    const augustDue = new Date(now.getFullYear(), 7, 25);
+    const septDue = new Date(now.getFullYear(), 8, 25);
+    for (const s of students.slice(0, 6)) {
+        await ensurePayment(s.studentId, 'Обучение август', augustDue, 120000, 'paid');
+        await ensurePayment(s.studentId, 'Обучение сентябрь', septDue, 120000, 'unpaid');
+    }
+    const period = `${now.getFullYear()} Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+    await ensureBudgetItem('Доход: обучение', period, 'INCOME', 3000000, 'tuition');
+    await ensureBudgetItem('Расход: зарплаты', period, 'EXPENSE', 1800000, 'salary');
+    await ensureBudgetItem('Расход: инфраструктура', period, 'EXPENSE', 400000, 'infrastructure');
 
-    console.log('📊 Пайдаланушылар үшін пікір мәртебелерін құрамыз...');
+    // Notifications & calendar
+    await ensureNotification(admin.id, 'system', 'Платформа обновлена – добавлены отчеты');
+    for (const s of students.slice(0, 3)) await ensureNotification(s.userId, 'welcome', 'Добро пожаловать!');
+    await ensureCalendarEvent('Педсовет', new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5), admin.id);
+    await ensureCalendarEvent('Родительское собрание 10А', new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7), mathTeacher.userId);
 
-    // Создаем статус фидбеков для студентов
-    const feedbackStatuses = studentUsers.map(student => 
-        prisma.userFeedbackStatus.create({
-            data: {
-                userId: student.id,
-                hasCompletedMandatory: true,
-                lastCompletedAt: new Date('2025-09-15'),
-                currentPeriod: '2025-09',
-                nextDueDate: new Date('2025-10-15'),
-            },
-        })
-    );
+    // ---------- Expansion: bulk generation ----------
+    // Goals: many groups, students, teachers, study plans, schedules, lessons, grades, budget items
+    console.log('📦 Expansion: bulk academic + finance dataset');
+    console.time('expansion-total');
 
-    await Promise.all(feedbackStatuses);
+    // 1. Additional groups (grades 5-11, letters А, Б, В)
+    const gradeLetters = ['А', 'Б', 'В'];
+    const targetGrades = [5, 6, 7, 8, 9, 10, 11];
+    const bulkGroups: { id: number; name: string; courseNumber: number }[] = [];
+    for (const grade of targetGrades) {
+        for (const letter of gradeLetters) {
+            const name = `${grade}${letter}`;
+            // Skip if already created earlier and captured
+            const existing = await prisma.group.findFirst({ where: { name } });
+            if (existing) {
+                bulkGroups.push({ id: existing.id, name: existing.name, courseNumber: existing.courseNumber });
+            } else {
+                const g = await ensureGroup(name, grade);
+                bulkGroups.push(g);
+            }
+        }
+    }
 
-    console.log('🏆 KPI үшін оқытушылар жетістіктерін құрамыз...');
+    // Merge previously created specific groups (g10A etc) into bulkGroups if missing
+    const existingGroupIds = new Set(bulkGroups.map(g => g.id));
+    for (const g of [g10A, g10B, g11A, g11B, g9A]) {
+        if (!existingGroupIds.has(g.id)) bulkGroups.push({ id: g.id, name: g.name, courseNumber: g.courseNumber });
+    }
 
-    // Создаем достижения для преподавателей
-    await Promise.all([
-        // Достижения для Ивановой (лучший преподаватель)
-        prisma.teacherAchievement.create({
-            data: {
-                teacherId: teachers[0].teacher.id,
-                type: 'QUALIFICATION',
-                title: 'Заманауи оқыту әдістері бойынша біліктілікті арттыру',
-                description: 'Біліктілікті арттыру курстарынан өтті',
-                date: getDateInAugust2025(15),
-                points: 50,
-                isVerified: true,
-                verifiedAt: getDateInAugust2025(20),
-            },
-        }),
-        prisma.teacherAchievement.create({
-            data: {
-                teacherId: teachers[0].teacher.id,
-                type: 'TEAM_EVENT',
-                title: 'Математикалық олимпиаданы ұйымдастыру',
-                description: 'Мектепішілік математика олимпиадасын ұйымдастырды және өткізді',
-                date: getDateInAugust2025(10),
-                points: 30,
-                isVerified: true,
-                verifiedAt: getDateInAugust2025(15),
-            },
-        }),
-        // Достижения для Алиева
-        prisma.teacherAchievement.create({
-            data: {
-                teacherId: teachers[1].teacher.id,
-                type: 'PROJECT_HELP',
-                title: 'Ғылыми жобаға көмек',
-                description: 'Биология бойынша ғылыми жобаны дайындауда студенттерге көмектесті',
-                date: getDateInAugust2025(20),
-                points: 25,
-                isVerified: true,
-                verifiedAt: getDateInAugust2025(25),
-            },
-        }),
-    ]);
+    // 2. Additional teachers (cover wide subject list)
+    const subjectList = [
+        'Математика', 'Алгебра', 'Геометрия', 'Физика', 'Химия', 'Биология', 'История', 'География', 'Литература', 'Информатика', 'Английский язык', 'Казахский язык'
+    ];
+    const teacherEmailBase = (i: number) => `teacher${i}@abai.edu.kz`;
+    await runBatched(Array.from({ length: subjectList.length }, (_, i) => i), 5, async i => {
+        const email = teacherEmailBase(i + 1);
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (!existingUser) {
+            const u = await ensureUser(email, 'TEACHER', subjectList[i].split(' ')[0] || 'Учитель', 'Педагожев');
+            const tRec = await ensureTeacher(u.id, i % 4 === 0 ? 'PART_TIME' : 'STAFF');
+            teachers.push({ userId: u.id, teacherId: tRec.id, email });
+            await ensureDashboardWidgets(u.id, 'TEACHER');
+        } else {
+            const tRec = await ensureTeacher(existingUser.id, 'STAFF');
+            if (!teachers.find(t => t.teacherId === tRec.id)) teachers.push({ userId: existingUser.id, teacherId: tRec.id, email });
+        }
+    });
 
-    console.log('🥇 KPI үшін олимпиада нәтижелерін құрамыз...');
+    // 3. Bulk students per group (ensure at least 12 per group)
+    const firstNames = ['Али', 'Медет', 'Серик', 'Еркен', 'Жанна', 'Алия', 'Диана', 'Нур', 'Самат', 'Айгерим', 'Олжас', 'Аружан', 'Мадина', 'Руслан', 'Айдос'];
+    const lastNames = ['Тлеубеков', 'Нурланов', 'Касымов', 'Жаксылыков', 'Серикбаев', 'Оразбаев', 'Ахметов', 'Муканов', 'Иманбаев', 'Сарсенов'];
+    let studentCounter = 1000; // high offset to not clash with handcrafted emails
+    await runBatched(bulkGroups, 4, async g => {
+        const currentStudents = await prisma.student.findMany({ where: { groupId: g.id }, include: { user: true } });
+        if (currentStudents.length >= 12) return;
+        const toCreate = 12 - currentStudents.length;
+        const creations: Promise<void>[] = [];
+        for (let k = 0; k < toCreate; k++) {
+            creations.push((async () => {
+                const fn = firstNames[(k + g.courseNumber) % firstNames.length];
+                const ln = lastNames[(k + g.courseNumber * 2) % lastNames.length];
+                const email = `student${studentCounter++}@abai.edu.kz`;
+                const u = await ensureUser(email, 'STUDENT', fn, ln);
+                const st = await ensureStudent(u.id, g.id);
+                students.push({ userId: u.id, studentId: st.id, groupId: g.id });
+                await ensureDashboardWidgets(u.id, 'STUDENT');
+            })());
+        }
+        await Promise.all(creations);
+    });
 
-    // Создаем результаты олимпиад (влияют на KPI преподавателей)
-    await Promise.all([
-        prisma.olympiadResult.create({
-            data: {
-                studentId: studentUsers[0].student.id, // Айда
-                teacherId: teachers[0].teacher.id, // Иванова
-                olympiadName: 'Қалалық математика олимпиадасы',
-                subject: 'Математика',
-                level: 'Қалалық',
-                place: 1,
-                date: getDateInAugust2025(1),
-            },
-        }),
-        prisma.olympiadResult.create({
-            data: {
-                studentId: studentUsers[1].student.id, // Арман
-                teacherId: teachers[0].teacher.id, // Иванова
-                olympiadName: 'Мектепішілік алгебра олимпиадасы',
-                subject: 'Алгебра',
-                level: 'Мектепішілік',
-                place: 2,
-                date: getDateInAugust2025(15),
-            },
-        }),
-        prisma.olympiadResult.create({
-            data: {
-                studentId: studentUsers[2].student.id, // Дана
-                teacherId: teachers[1].teacher.id, // Алиев
-                olympiadName: 'Өңірлік биология олимпиадасы',
-                subject: 'Биология',
-                level: 'Өңірлік',
-                place: 3,
-                date: getDateInAugust2025(10),
-            },
-        }),
-    ]);
+    // 4. Study plans (subjects x grades) – only one plan per (subject, grade)
+    interface PlanMeta { planId: number; subject: string; grade: number; teacherId: number; }
+    const planMetas: PlanMeta[] = [];
+    for (const grade of targetGrades) {
+        const gradeGroups = bulkGroups.filter(g => g.courseNumber === grade).map(g => g.id);
+        for (let si = 0; si < subjectList.length; si++) {
+            // Limit subjects per grade to first 6 to control explosion
+            if (si >= 6) break;
+            const subj = subjectList[si];
+            const teacher = teachers[(si + grade) % teachers.length];
+            const planName = `${subj} ${grade} класс`;
+            const plan = await ensureStudyPlan(planName, teacher.teacherId, gradeGroups, { description: `Учебный план по предмету ${subj} для ${grade} класса`, normativeWorkload: 68 + (si % 3) * 17 });
+            planMetas.push({ planId: plan.id, subject: subj, grade, teacherId: teacher.teacherId });
+        }
+    }
 
-    console.log('🎓 KPI үшін студенттердің түсу жазбаларын құрамыз...');
+    // 5. Schedules (one weekly slot per plan for first group of grade)
+    await runBatched(planMetas, 15, async meta => {
+        const gradeGroupIds = bulkGroups.filter(g => g.courseNumber === meta.grade).map(g => g.id);
+        const firstGroupId = gradeGroupIds[0];
+        const dayOfWeek = (meta.grade + meta.planId) % 5 + 1;
+        const startHour = 8 + ((meta.planId + meta.grade) % 6);
+        const start = `${startHour.toString().padStart(2, '0')}:00`;
+        const end = `${(startHour + 1).toString().padStart(2, '0')}:45`;
+        await ensureSchedule(meta.planId, firstGroupId, dayOfWeek, start, end, meta.teacherId);
+    });
 
-    // Создаем записи о поступлениях (влияют на KPI преподавателей)
-    await Promise.all([
-        prisma.studentAdmission.create({
-            data: {
-                studentId: studentUsers[3].student.id, // Бекзат (11 класс)
-                teacherId: teachers[2].teacher.id, // Тулегенов (физика)
-                schoolType: 'RFMSH',
-                schoolName: 'Республикалық физика-математика мектебі',
-                admissionYear: 2025,
-            },
-        }),
-    ]);
+    // 6. Lessons & grades (Sept & Oct current year, up to 4 per month per plan)
+    const currYear = now.getFullYear();
+    const months = [8, 9]; // September (8), October (9) zero-based
+    const heavyPlans = planMetas.slice(0, 150);
+    const planStudentMap = await buildPlanStudentsMap(heavyPlans.map(p => p.planId));
+    await runBatched(heavyPlans, 6, async meta => {
+        const studentIds = planStudentMap.get(meta.planId) || [];
+        if (!studentIds.length) return;
+        for (const m of months) {
+            const weekday = ((meta.grade + meta.planId) % 5) + 1;
+            const dates = weekdaysInMonth(currYear, m, weekday, 4);
+            for (const d of dates) {
+                const lesson = await ensureLesson(meta.planId, d, `${meta.subject} урок ${d.toLocaleDateString('ru-RU')}`);
+                await ensureHomework(lesson.id, 'Домашнее задание');
+                const resultsData = studentIds.map(stId => ({
+                    lessonId: lesson.id,
+                    studentId: stId,
+                    lessonScore: Math.random() > 0.3 ? [5,4,3,2][Math.floor(Math.random()*4)] : null
+                }));
+                await bulkLessonResults(resultsData);
+            }
+        }
+    });
 
-    console.log('📋 КТП (күнтізбелік-тақырыптық жоспар) құрамыз...');
+    // 7. Budget expansion: monthly income/expense items for the year
+    const incomeCats = ['tuition', 'grants', 'donations'];
+    const expenseCats = ['salary', 'infrastructure', 'utilities', 'supplies'];
+    await runBatched(Array.from({ length: 12 }, (_, i) => i), 6, async month => {
+        const periodMonth = `${currYear}-${(month + 1).toString().padStart(2, '0')}`;
+        await Promise.all([
+            ...incomeCats.map(cat => ensureBudgetItem(`Доход: ${cat} ${periodMonth}`, periodMonth, 'INCOME', 500000 + Math.floor(Math.random() * 400000), cat)),
+            ...expenseCats.map(cat => ensureBudgetItem(`Расход: ${cat} ${periodMonth}`, periodMonth, 'EXPENSE', 200000 + Math.floor(Math.random() * 300000), cat))
+        ]);
+    });
 
-    // Создаем КТП для каждого учебного плана
-    await Promise.all([
-        // КТП для алгебры 10 класс (Иванова)
-        prisma.curriculumPlan.create({
-            data: {
-                studyPlanId: studyPlans[0].id, // Алгебра 10 класс
-                totalLessons: 25,
-                plannedLessons: [
-                    {
-                        id: 'section_1',
-                        title: 'Квадрат теңдеулер және теңсіздіктер',
-                        description: 'Квадрат теңдеулерді шешу әдістерін оқу',
-                        order: 1,
-                        topics: [
-                            {
-                                id: 'topic_1_1',
-                                title: 'Квадрат теңдеулер',
-                                description: 'Квадрат теңдеулерді әртүрлі тәсілдермен шешу',
-                                hours: 4,
-                                order: 1,
-                                completed: true,
-                                completedAt: '2025-07-05T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_1_2',
-                                title: 'Қысқаша көбейту формулалары',
-                                description: 'Есептерді шешуде қысқаша көбейту формулаларын қолдану',
-                                hours: 3,
-                                order: 2,
-                                completed: true,
-                                completedAt: '2025-07-12T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_1_3',
-                                title: 'Виет теоремасы',
-                                description: 'Виет теоремасын оқу және қолдану',
-                                hours: 2,
-                                order: 3,
-                                completed: true,
-                                completedAt: '2025-07-19T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_1_4',
-                                title: 'Бақылау жұмысы №1',
-                                description: 'Квадрат теңдеулер бойынша білімді тексеру',
-                                hours: 1,
-                                order: 4,
-                                completed: true,
-                                completedAt: '2025-07-26T00:00:00Z'
-                            }
-                        ]
-                    },
-                    {
-                        id: 'section_2',
-                        title: 'Теңдеулер жүйелері',
-                        description: 'Теңдеулер жүйесін шешу әдістері',
-                        order: 2,
-                        topics: [
-                            {
-                                id: 'topic_2_1',
-                                title: 'Сызықтық теңдеулер жүйелері',
-                                description: 'Сызықтық теңдеулер жүйесін шешу',
-                                hours: 3,
-                                order: 1,
-                                completed: true,
-                                completedAt: '2025-08-02T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_2_2',
-                                title: 'Квадрат теңдеулері бар жүйелер',
-                                description: 'Аралас теңдеулер жүйесін шешу',
-                                hours: 4,
-                                order: 2,
-                                completed: true,
-                                completedAt: '2025-08-09T00:00:00Z'
-                            }
-                        ]
-                    },
-                    {
-                        id: 'section_3',
-                        title: 'Функциялар және графиктер',
-                        description: 'Әртүрлі функциялар және олардың графиктерін оқу',
-                        order: 3,
-                        topics: [
-                            {
-                                id: 'topic_3_1',
-                                title: 'Сызықтық функция',
-                                description: 'Сызықтық функция қасиеттері және графигін салу',
-                                hours: 2,
-                                order: 1,
-                                completed: true,
-                                completedAt: '2025-09-06T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_3_2',
-                                title: 'Квадрат функциясы',
-                                description: 'Квадрат функциясын және параболаны оқу',
-                                hours: 3,
-                                order: 2,
-                                completed: true,
-                                completedAt: '2025-09-13T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_3_3',
-                                title: 'Функциялар практикумы',
-                                description: 'Функциялар бойынша есептер шешу',
-                                hours: 2,
-                                order: 3,
-                                completed: false // Еще не выполнено
-                            }
-                        ]
-                    }
-                ]
-            },
-        }),
-        
-        // КТП для биологии 10 класс (Алиев)
-        prisma.curriculumPlan.create({
-            data: {
-                studyPlanId: studyPlans[1].id, // Биология 10 класс
-                totalLessons: 14,
-                plannedLessons: [
-                    {
-                        id: 'section_bio_1',
-                        title: 'Цитология негіздері',
-                        description: 'Жасуша құрылысы мен функцияларын оқу',
-                        order: 1,
-                        topics: [
-                            {
-                                id: 'topic_bio_1_1',
-                                title: 'Жасуша құрылысы',
-                                description: 'Жасуша органоидтары және олардың функциялары',
-                                hours: 3,
-                                order: 1,
-                                completed: true,
-                                completedAt: '2025-07-08T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_bio_1_2',
-                                title: 'Фотосинтез',
-                                description: 'Өсімдіктердегі фотосинтез процесі',
-                                hours: 2,
-                                order: 2,
-                                completed: true,
-                                completedAt: '2025-07-15T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_bio_1_3',
-                                title: 'Өсімдіктердің тыныс алуы',
-                                description: 'Жасушалық тыныс алу процестері',
-                                hours: 2,
-                                order: 3,
-                                completed: true,
-                                completedAt: '2025-08-05T00:00:00Z'
-                            }
-                        ]
-                    },
-                    {
-                        id: 'section_bio_2',
-                        title: 'Генетика',
-                        description: 'Тұқымқуалаушылық пен өзгергіштік негіздері',
-                        order: 2,
-                        topics: [
-                            {
-                                id: 'topic_bio_2_1',
-                                title: 'Мендель заңдары',
-                                description: 'Тұқымқуалаушылықтың негізгі заңдары',
-                                hours: 4,
-                                order: 1,
-                                completed: true,
-                                completedAt: '2025-08-12T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_bio_2_2',
-                                title: 'Генетикалық есептер шығару',
-                                description: 'Генетика заңдарын практикалық қолдану',
-                                hours: 3,
-                                order: 2,
-                                completed: true,
-                                completedAt: '2025-09-02T00:00:00Z'
-                            }
-                        ]
-                    }
-                ]
-            },
-        }),
-        
-        // КТП для физики 11 класс (Тулегенов) - частично выполнен
-        prisma.curriculumPlan.create({
-            data: {
-                studyPlanId: studyPlans[2].id, // Физика 11 класс
-                totalLessons: 10,
-                plannedLessons: [
-                    {
-                        id: 'section_phys_1',
-                        title: 'Молекулалық-кинетикалық теория',
-                        description: 'МКТ негіздері және газ заңдары',
-                        order: 1,
-                        topics: [
-                            {
-                                id: 'topic_phys_1_1',
-                                title: 'МКТ негізгі қағидалары',
-                                description: 'Газдардың молекулалық-кинетикалық теориясы',
-                                hours: 3,
-                                order: 1,
-                                completed: true,
-                                completedAt: '2025-07-10T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_phys_1_2',
-                                title: 'Газ заңдары',
-                                description: 'Идеал газ заңдарын оқу',
-                                hours: 4,
-                                order: 2,
-                                completed: true,
-                                completedAt: '2025-07-17T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_phys_1_3',
-                                title: 'Термодинамика',
-                                description: 'Термодинамиканың бірінші және екінші заңдары',
-                                hours: 3,
-                                order: 3,
-                                completed: false // Не выполнено
-                            }
-                        ]
-                    },
-                    {
-                        id: 'section_phys_2',
-                        title: 'Электростатика',
-                        description: 'Электр өрісі және оның қасиеттері',
-                        order: 2,
-                        topics: [
-                            {
-                                id: 'topic_phys_2_1',
-                                title: 'Электрическое поле',
-                                description: 'Характеристики электрического поля',
-                                hours: 4,
-                                order: 1,
-                                completed: false // Не выполнено
-                            }
-                        ]
-                    }
-                ]
-            },
-        }),
-        
-        // КТП для химии 9 класс (Назарбаева) - плохо выполняется
-        prisma.curriculumPlan.create({
-            data: {
-                studyPlanId: studyPlans[3].id, // Химия 9 класс
-                totalLessons: 9,
-                plannedLessons: [
-                    {
-                        id: 'section_chem_1',
-                        title: 'Элементтердің периодтық жүйесі',
-                        description: 'Периодтық заңды оқу',
-                        order: 1,
-                        topics: [
-                            {
-                                id: 'topic_chem_1_1',
-                                title: 'Периодтық заң',
-                                description: 'Менделеевтің периодтық заңы',
-                                hours: 2,
-                                order: 1,
-                                completed: true,
-                                completedAt: '2025-07-11T00:00:00Z'
-                            },
-                            {
-                                id: 'topic_chem_1_2',
-                                title: 'Химиялық байланыстар',
-                                description: 'Химиялық байланыс түрлері',
-                                hours: 3,
-                                order: 2,
-                                completed: false // Не выполнено
-                            }
-                        ]
-                    },
-                    {
-                        id: 'section_chem_2',
-                        title: 'Химиялық реакциялар',
-                        description: 'Химиялық реакция түрлері',
-                        order: 2,
-                        topics: [
-                            {
-                                id: 'topic_chem_2_1',
-                                title: 'Қышқылдар және негіздер',
-                                description: 'Қышқылдар мен негіздердің қасиеттері',
-                                hours: 4,
-                                order: 1,
-                                completed: false // Не выполнено
-                            },
-                            {
-                                id: 'topic_chem_2_2',
-                                title: 'ТТР',
-                                description: 'Тотығу-тотықсыздану реакциялары',
-                                hours: 3,
-                                order: 2,
-                                completed: false // Не выполнено
-                            }
-                        ]
-                    }
-                ]
-            },
-        })
-    ]);
+    // Teacher workload
+    const academicYear = `${now.getFullYear()}/${now.getFullYear() + 1}`;
+    await runBatched(teachers, 15, async t => {
+        const tw = await prisma.teacherWorkload.upsert({ where: { teacherId_academicYear: { teacherId: t.teacherId, academicYear } }, update: { standardHours: 24, actualHours: 18 }, create: { teacherId: t.teacherId, academicYear, standardHours: 24, actualHours: 18 } });
+        await prisma.monthlyWorkload.upsert({ where: { teacherWorkloadId_month_year: { teacherWorkloadId: tw.id, month: now.getMonth() + 1, year: now.getFullYear() } }, update: { actualHours: 18 }, create: { teacherWorkloadId: tw.id, month: now.getMonth() + 1, year: now.getFullYear(), standardHours: 24, actualHours: 18 } });
+    });
+    console.timeEnd('expansion-total');
 
-    console.log('✅ Деректер қоры сәтті толтырылды!');
-    console.log('\n📊 Құрастырылғаны:');
-    console.log(`👤 Пайдаланушылар: ${2 + teachers.length + studentUsers.length + parents.length}`); // admin + financist + teachers + students + parents
-    console.log(`👥 Топтар: ${groups.length}`);
-    console.log(`🏫 Аудиториялар: ${classrooms.length}`);
-    console.log(`📚 Оқу жоспарлары: ${studyPlans.length}`);
-    console.log(`📖 Сабақтар: ${lessons.length}`);
-    console.log('\n🔑 Тесттік аккаунттар:');
-    console.log(`👨‍💼 Әкімші: ${admin.email} / password123`);
-    console.log(`💰 Қаржы маманы: ${financist.email} / password123`);
-    console.log('👨‍🏫 Оқытушы: ivanova@abai.edu.kz / password123');
-    console.log('🎓 Студент: aida.student@abai.edu.kz / password123');
-    console.log('👨‍👩‍👧‍👦 Ата-аналар:');
-    console.log('  👩 Назым Қазыбекова: nazym.parent@abai.edu.kz / password123 (Айданың анасы)');
-    console.log('  👨 Нұрлан Қазыбеков: nurlan.parent@abai.edu.kz / password123 (Айданың әкесі)');
-    console.log('  👨 Болат Жақыпов: bolat.parent@abai.edu.kz / password123 (Арманның әкесі)');
-    console.log('  👩 Гүлнара Жақыпова: gulnara.parent@abai.edu.kz / password123 (Арманның анасы)');
-    console.log('  👨 Асылбек Сералиев: asylbek.parent@abai.edu.kz / password123 (Дананың әкесі)');
-    console.log('  👩 Жанар Сералиева: zhanar.parent@abai.edu.kz / password123 (Дананың анасы)');
-    console.log('  👨 Алмас Оразбаев: almas.parent@abai.edu.kz / password123 (Бекзаттың әкесі)');
+    console.log('✅ Seed completed (phase 1).');
+    console.log('Test accounts:');
+    console.log('Admin: admin@abai.edu.kz /', PASSWORD);
+    console.log('Teacher: math.teacher@abai.edu.kz /', PASSWORD);
+    console.log('Student: aida.student@abai.edu.kz /', PASSWORD);
+    console.log('Parent: mother.aida@abai.edu.kz /', PASSWORD);
 }
 
-main()
-    .then(async () => {
-        await prisma.$disconnect();
-    })
-    .catch(async (e) => {
-        console.error('❌ Ошибка при заполнении базы данных:', e);
-        await prisma.$disconnect();
-        process.exit(1);
-    });
+// Execute (ignore returned promise for lint via void)
+void main()
+    .catch(e => { console.error('❌ Seed failed', e); process.exit(1); })
+    .finally(() => { void prisma.$disconnect(); });

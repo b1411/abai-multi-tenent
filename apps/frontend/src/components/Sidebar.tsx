@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { User } from '../types/api';
@@ -14,6 +14,8 @@ import {
   CreditCard,
   BarChart3,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   TrendingUp,
   Calendar,
   Building,
@@ -59,6 +61,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     edo: false,
     settings: false
   });
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem('sidebar:collapsed') === '1'; } catch { return false; }
+  });
+
+  // Сообщаем layout о состоянии (через custom событие, чтобы не тянуть пропсы)
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('sidebar:collapse', { detail: { collapsed } }));
+  try { localStorage.setItem('sidebar:collapsed', collapsed ? '1' : '0'); } catch { /* ignore */ }
+  }, [collapsed]);
 
   const toggleExpand = (key: string) => {
     setExpandedItems(prev => ({
@@ -201,80 +212,78 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0`}>
+  <div className={`fixed inset-y-0 left-0 z-40 group/sidebar ${collapsed ? 'w-20' : 'w-64 lg:w-72'} bg-white shadow-lg will-change-[width,transform] transition-[width,transform] duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-hidden`}>      
       <div className="flex h-full flex-col">
         {/* Logo and close button */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-primary">ABAI LMS</h1>
-          <button
-            onClick={onClose}
-            className="lg:hidden p-2 text-gray-400 hover:text-gray-600 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-          >
-            <X className="h-6 w-6" />
-          </button>
+        <div className={`flex h-16 items-center ${collapsed ? 'px-2 justify-center' : 'justify-between px-4'} border-b border-gray-200`}>          
+          <div className="flex items-center space-x-2">
+            {!collapsed && <h1 className="text-xl font-bold text-primary">ABAI LMS</h1>}
+            {collapsed && <h1 className="text-lg font-bold text-primary">A</h1>}
+          </div>
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? 'Развернуть' : 'Свернуть'}
+              className="hidden lg:flex p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+            >
+              {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+            </button>
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 text-gray-400 hover:text-gray-600 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4">
           {/* Профиль студента */}
-          {user?.role === 'STUDENT' && (
+          {user?.role === 'STUDENT' && !collapsed && (
             <div className="mb-6">
               <StudentProfileWidget variant="sidebar" />
             </div>
           )}
-
           <ul className="space-y-2">
-            {filteredItems.map((item) => (
+            {filteredItems.map(item => (
               <li key={item.name}>
                 {item.href ? (
                   <NavLink
                     to={item.href}
                     onClick={() => window.innerWidth < 1024 && onClose()}
-                    className={({ isActive }) =>
-                      `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
-                        ? 'bg-primary text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
-                      }`
-                    }
+                    className={({ isActive }) => `flex items-center ${collapsed ? 'justify-center' : ''} px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                    title={collapsed ? item.name : undefined}
                   >
-                    <item.icon className="mr-3 h-5 w-5" />
-                    {item.name}
+                    <item.icon className={`${collapsed ? 'h-5 w-5 flex-shrink-0' : 'mr-3 h-5 w-5 flex-shrink-0'}`} />
+                    {!collapsed && item.name}
                   </NavLink>
                 ) : (
                   <div>
                     <button
-                      onClick={() => item.key && toggleExpand(item.key)}
-                      className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      onClick={() => item.key && (!collapsed ? toggleExpand(item.key) : setCollapsed(false))}
+                      className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} w-full px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors`}
+                      title={collapsed ? item.name : undefined}
                     >
                       <div className="flex items-center">
-                        <item.icon className="mr-3 h-5 w-5" />
-                        {item.name}
+                        <item.icon className={`${collapsed ? 'h-5 w-5 flex-shrink-0' : 'mr-3 h-5 w-5 flex-shrink-0'}`} />
+                        {!collapsed && item.name}
                       </div>
-                      {item.key && (
-                        <ChevronDown
-                          className={`h-4 w-4 transition-transform ${expandedItems[item.key] ? 'rotate-180' : ''
-                            }`}
-                        />
+                      {!collapsed && item.key && (
+                        <ChevronDown className={`h-4 w-4 transition-transform ${expandedItems[item.key] ? 'rotate-180' : ''}`} />
                       )}
                     </button>
-                    {item.children && item.key && expandedItems[item.key] && (
+                    {item.children && item.key && expandedItems[item.key] && !collapsed && (
                       <ul className="ml-8 mt-1 space-y-1">
                         {item.children
-                          .filter(child =>
-                            !child.roles || hasAnyRole(child.roles as User['role'][])
-                          )
-                          .map((child) => (
+                          .filter(child => !child.roles || hasAnyRole(child.roles as User['role'][]))
+                          .map(child => (
                             <li key={child.name}>
                               <NavLink
                                 to={child.href}
                                 onClick={() => window.innerWidth < 1024 && onClose()}
-                                className={({ isActive }) =>
-                                  `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${isActive
-                                    ? 'bg-primary text-white'
-                                    : 'text-gray-600 hover:bg-gray-100'
-                                  }`
-                                }
+                                className={({ isActive }) => `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${isActive ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                                title={child.name}
                               >
                                 <child.icon className="mr-3 h-4 w-4" />
                                 {child.name}
@@ -292,21 +301,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* User section */}
         <div className="border-t border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="mr-3 h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+          <div className={`flex items-center ${collapsed ? 'flex-col space-y-2' : ''}`}>
+            <div className={`${collapsed ? '' : 'mr-3'} h-8 w-8 rounded-full bg-primary flex items-center justify-center`}>              
               <span className="text-white text-sm font-medium">
                 {user?.name?.[0]}{user?.surname?.[0]}
               </span>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">
-                {user?.name} {user?.surname}
-              </p>
-              <p className="text-xs text-gray-500">{user?.role}</p>
-            </div>
+            {!collapsed && (
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.name} {user?.surname}
+                </p>
+                <p className="text-xs text-gray-500">{user?.role}</p>
+              </div>
+            )}
             <button
               onClick={logout}
-              className="ml-2 p-1 text-gray-400 hover:text-gray-600"
+              title="Выйти"
+              className={`${collapsed ? '' : 'ml-2'} p-1 text-gray-400 hover:text-gray-600`}
             >
               <LogOut className="h-5 w-5" />
             </button>

@@ -88,7 +88,8 @@ class WidgetService {
   // Get dashboard layout
   async getDashboardLayout(userId: string): Promise<DashboardLayout | null> {
     try {
-      const response = await apiClient.get<DashboardLayout>(`/dashboard/layout/${userId}`);
+  // Backend exposes GET /dashboard/layout (without :userId). Using userId only for fallback/local mapping.
+  const response = await apiClient.get<DashboardLayout>(`/dashboard/layout`);
       return response;
     } catch (error) {
       console.error('Error fetching dashboard layout:', error);

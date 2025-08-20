@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   Edit
 } from 'lucide-react';
 import { groupService } from '../services/groupService';
+import { Modal } from '../components/ui/Modal';
 import { studentService } from '../services/studentService';
 import { performanceService } from '../services/performanceService';
 import { Spinner } from '../components/ui/Spinner';
@@ -52,6 +53,18 @@ const GroupDetail: React.FC = () => {
   const [performance, setPerformance] = useState<PerformanceOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: '', courseNumber: '' });
+  const [editError, setEditError] = useState<string | null>(null);
+  // Переназначение студента
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignStudent, setReassignStudent] = useState<GroupStudent | null>(null);
+  const [allGroups, setAllGroups] = useState<GroupDetail[]>([]);
+  const [targetGroupId, setTargetGroupId] = useState('');
+  const [reassignLoading, setReassignLoading] = useState(false);
+  const [reassignError, setReassignError] = useState<string | null>(null);
+  const [reassignSuccess, setReassignSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -80,6 +93,90 @@ const GroupDetail: React.FC = () => {
       setError('Не удалось загрузить информацию о группе');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openEdit = () => {
+    if (!group) return;
+    setForm({ name: group.name, courseNumber: String(group.courseNumber) });
+    setEditError(null);
+    setEditOpen(true);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!group) return;
+    setSaving(true);
+    setEditError(null);
+    try {
+      const payload: Partial<{ name: string; courseNumber: number; }> = {};
+      if (form.name && form.name !== group.name) payload.name = form.name.trim();
+      const num = Number(form.courseNumber);
+      if (!Number.isNaN(num) && num !== group.courseNumber) payload.courseNumber = num;
+      if (Object.keys(payload).length === 0) {
+        setEditOpen(false);
+        setSaving(false);
+        return;
+      }
+      const updated = await groupService.updateGroup(group.id, payload);
+      setGroup(prev => prev ? { ...prev, ...updated } : updated);
+      setEditOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка сохранения';
+      setEditError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // --- Переназначение студента логика ---
+  interface MinimalGroup { id: number; name: string; courseNumber: number; createdAt?: string }
+  const loadAllGroups = useCallback(async () => {
+    try {
+  const list = await groupService.getAllGroups();
+  const mapped: MinimalGroup[] = list.map(g => ({ id: g.id, name: g.name, courseNumber: (g as unknown as { courseNumber: number }).courseNumber, createdAt: (g as unknown as { createdAt?: string }).createdAt }));
+  // Приводим к типу GroupDetail (требуются только совпадающие поля)
+  setAllGroups(mapped.map(m => ({ id: m.id, name: m.name, courseNumber: m.courseNumber, createdAt: m.createdAt || new Date().toISOString() })));
+    } catch (e) {
+      // тихо игнорируем
+    }
+  }, []);
+
+  const openReassign = (student: GroupStudent) => {
+    setReassignStudent(student);
+    setTargetGroupId('');
+    setReassignError(null);
+    setReassignSuccess(null);
+    setReassignOpen(true);
+    void loadAllGroups();
+  };
+
+  const handleReassign = async () => {
+    if (!reassignStudent || !targetGroupId) return;
+    const newGroupId = parseInt(targetGroupId, 10);
+    if (!newGroupId || newGroupId === group?.id) {
+      setReassignError('Выберите другую группу');
+      return;
+    }
+    setReassignLoading(true);
+    setReassignError(null);
+    setReassignSuccess(null);
+    try {
+      await groupService.addStudentToGroup(newGroupId, reassignStudent.id);
+      setReassignSuccess('Студент переназначен');
+      // Обновляем текущую группу (удаляем студента из списка)
+      setStudents(prev => prev.filter(s => s.id !== reassignStudent.id));
+      // Если хотим перейти в новую группу: navigate(`/groups/${newGroupId}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Не удалось переназначить';
+      setReassignError(msg);
+    } finally {
+      setReassignLoading(false);
     }
   };
 
@@ -160,7 +257,7 @@ const GroupDetail: React.FC = () => {
           </div>
         </div>
 
-        <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <button onClick={openEdit} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
           <Edit className="w-4 h-4 mr-2" />
           Редактировать
         </button>
@@ -294,11 +391,15 @@ const GroupDetail: React.FC = () => {
                       <Clock className="w-4 h-4 mr-1" />
                       Зачислен {formatDate(student.createdAt)}
                     </div>
-                    <div className="text-blue-600">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openReassign(student);
+                      }}
+                      className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                    >
+                      Переназначить
+                    </button>
                   </div>
                 </div>
               </div>
@@ -314,8 +415,119 @@ const GroupDetail: React.FC = () => {
           <p className="text-gray-600">{group.description}</p>
         </div>
       )}
+
+      {/* Edit Modal */}
+      <Modal isOpen={editOpen} onClose={() => !saving && setEditOpen(false)} title="Редактирование группы" size="lg">
+        <form onSubmit={handleSave} className="space-y-6">
+          {editError && (
+            <div className="p-3 rounded bg-red-50 text-sm text-red-700 border border-red-200">{editError}</div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                required
+                maxLength={50}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Напр. 10А"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Номер курса</label>
+              <input
+                name="courseNumber"
+                type="number"
+                min={1}
+                max={12}
+                value={form.courseNumber}
+                onChange={handleChange}
+                required
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="10"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => !saving && setEditOpen(false)}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              disabled={saving}
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            >
+              {saving && <Spinner size="sm" />}
+              <span className={saving ? 'ml-2' : ''}>{saving ? 'Сохранение...' : 'Сохранить'}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Reassign Student Modal */}
+      <Modal
+        isOpen={reassignOpen}
+        onClose={() => !reassignLoading && setReassignOpen(false)}
+        title={reassignStudent ? `Переназначить: ${reassignStudent.user.name} ${reassignStudent.user.surname}` : 'Переназначить студента'}
+        size="lg"
+      >
+        {reassignError && (
+          <div className="mb-4 p-3 rounded bg-red-50 text-sm text-red-700 border border-red-200">{reassignError}</div>
+        )}
+        {reassignSuccess && (
+          <div className="mb-4 p-3 rounded bg-green-50 text-sm text-green-700 border border-green-200">{reassignSuccess}</div>
+        )}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Новая группа</label>
+            <select
+              value={targetGroupId}
+              onChange={e => setTargetGroupId(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              disabled={reassignLoading}
+            >
+              <option value="">-- Выберите группу --</option>
+              {allGroups
+                .filter(g => g.id !== group.id)
+                .map(g => (
+                  <option key={g.id} value={g.id}>{g.name} (курс {g.courseNumber})</option>
+                ))}
+            </select>
+          </div>
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => !reassignLoading && setReassignOpen(false)}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              disabled={reassignLoading}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              onClick={handleReassign}
+              disabled={reassignLoading || !targetGroupId}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center"
+            >
+              {reassignLoading && <Spinner size="sm" />}
+              <span className={reassignLoading ? 'ml-2' : ''}>{reassignLoading ? 'Переназначение...' : 'Сохранить'}</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
 
 export default GroupDetail;
+
+// Вспомогательные функции / хэндлеры (добавим перед export по факту — но для компактности оставляем здесь)
+

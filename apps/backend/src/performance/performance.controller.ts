@@ -22,7 +22,7 @@ import {
 @UseGuards(AuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class PerformanceController {
-  constructor(private readonly performanceService: PerformanceService) {}
+  constructor(private readonly performanceService: PerformanceService) { }
 
   @Get('statistics')
   @ApiOperation({
@@ -139,20 +139,6 @@ export class PerformanceController {
     return this.performanceService.getHighProgressStudents(filter);
   }
 
-  @Get('trends')
-  @ApiOperation({
-    summary: 'Получить тренды успеваемости',
-    description: 'Возвращает динамику изменения показателей успеваемости за период',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Тренды успеваемости успешно получены',
-    type: TrendsResponseDto,
-  })
-  async getTrends(@Query() filter: PerformanceFilterDto) {
-    return this.performanceService.getTrends(filter);
-  }
-
   @Get('monthly-data')
   @ApiOperation({
     summary: 'Получить помесячные данные',
@@ -170,6 +156,21 @@ export class PerformanceController {
     }
     return this.performanceService.getMonthlyData(filter);
   }
+
+  @Get('trends')
+  @ApiOperation({
+    summary: 'Получить тренды успеваемости',
+    description: 'Возвращает динамику изменения показателей успеваемости за период',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Тренды успеваемости успешно получены',
+    type: TrendsResponseDto,
+  })
+  async getTrends(@Query() filter: PerformanceFilterDto) {
+    return this.performanceService.getTrends(filter);
+  }
+
 
   @Get('grade-distribution')
   @ApiOperation({

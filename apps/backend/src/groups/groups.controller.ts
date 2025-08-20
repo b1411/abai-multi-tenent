@@ -70,7 +70,7 @@ export class GroupsController {
     }
     // Для учителей возвращаем только их группы
     if (req.user.role === 'TEACHER') {
-      return this.groupsService.findTeacherGroups(req.user.id);
+      return this.groupsService.findAll();
     }
     // Для всех остальных возвращаем все группы
     return this.groupsService.findAll();

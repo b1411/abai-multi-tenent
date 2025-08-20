@@ -880,7 +880,29 @@ export class DashboardService {
         where: { userId },
         orderBy: { position: 'asc' },
       });
-      return widgets;
+      const allowedTypes = new Set([
+        'schedule','teacher-schedule','child-schedule','grades','child-grades','assignments','child-homework','attendance','child-attendance',
+        'system-stats','finance-overview','system-alerts','activity-monitoring','school-attendance','teacher-workload','classroom-usage','grade-analytics','system-monitoring','news','tasks','birthdays'
+      ]);
+      const seen = new Set<string>();
+      const filtered = widgets.filter(w => {
+        if (!allowedTypes.has(w.type)) return false; // drop unsupported
+        if (seen.has(w.type)) return false; // drop duplicates by type
+        seen.add(w.type);
+        return true;
+      });
+      // Reassign positions sequentially if changed
+      let posChanged = false;
+      filtered.forEach((w, idx) => { if (w.position !== idx) posChanged = true; });
+      if (posChanged) {
+        for (let i = 0; i < filtered.length; i++) {
+          if (filtered[i].position !== i) {
+            await this.prisma.dashboardWidget.update({ where: { id: filtered[i].id }, data: { position: i } });
+            filtered[i].position = i as any; // keep local sync
+          }
+        }
+      }
+      return filtered;
     } catch (error) {
       console.error('Error fetching user widgets:', error);
       return [];

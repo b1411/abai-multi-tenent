@@ -454,40 +454,31 @@ export class PerformanceService {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 6);
-
-    // Используем groupBy для агрегации по месяцам
-    const grouped = await this.prisma.lessonResult.groupBy({
-      by: ['studentId'], // dummy to allow aggregations first; будем повторно группировать вручную по месяцам
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        deletedAt: null,
-      },
-      _count: { _all: true },
-    });
-    void grouped; // (оставлено для потенциального future расширения)
-
-    // fallback: прямой выбор только нужных полей и ручная агрегация (так как groupBy по выражению month не поддерживается напрямую RDB нейтрально)
-    const slice = await this.prisma.lessonResult.findMany({
-      where: { createdAt: { gte: startDate, lte: endDate }, deletedAt: null },
-      select: { lessonScore: true, attendance: true, homeworkScore: true, createdAt: true }
-    });
     const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-    interface Acc { grades: number[]; attendance: number[]; assignments: number[] }
-    const acc: Record<string, Acc> = {};
-    for (const r of slice) {
-      const m = monthNames[r.createdAt.getMonth()];
-      if (!acc[m]) acc[m] = { grades: [], attendance: [], assignments: [] };
-      if (r.lessonScore != null) acc[m].grades.push(r.lessonScore);
-      if (r.attendance != null) acc[m].attendance.push(r.attendance ? 1 : 0);
-      if (r.homeworkScore != null) acc[m].assignments.push(r.homeworkScore);
+
+    // Итерация по месяцам (<=7 запросов * несколько агрегатов вместо тысяч строк)
+    const result: MonthlyDataDto[] = [];
+    for (let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1); cursor <= endDate; cursor.setMonth(cursor.getMonth() + 1)) {
+      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1); // exclusive
+      const whereBase = { deletedAt: null as any, createdAt: { gte: monthStart, lt: monthEnd } };
+
+      const [gradeAgg, attendanceAll, attendancePresent, hwAll, hwGood] = await Promise.all([
+        this.prisma.lessonResult.aggregate({ where: { ...whereBase, lessonScore: { not: null } }, _avg: { lessonScore: true } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, attendance: { not: null } } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, attendance: true } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, homeworkScore: { not: null } } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, homeworkScore: { gte: 3 } } }),
+      ]);
+
+      result.push({
+        month: monthNames[monthStart.getMonth()],
+        value: gradeAgg._avg.lessonScore ? Number(gradeAgg._avg.lessonScore.toFixed(1)) : 0,
+        attendance: attendanceAll ? Math.round(attendancePresent / attendanceAll * 100) : 0,
+        assignments: hwAll ? Math.round(hwGood / hwAll * 100) : 0,
+      });
     }
-    return Object.keys(acc).map(month => {
-      const g = acc[month];
-      const grade = g.grades.length ? g.grades.reduce((a, b) => a + b, 0) / g.grades.length : 0;
-      const attendance = g.attendance.length ? g.attendance.reduce((a, b) => a + b, 0) / g.attendance.length * 100 : 0;
-      const assignments = g.assignments.length ? g.assignments.filter(s => s >= 3).length / g.assignments.length * 100 : 0;
-      return { month, value: Number(grade.toFixed(1)), attendance: Math.round(attendance), assignments: Math.round(assignments) };
-    });
+    return result;
   }
 
   async getGradeDistribution(filter: PerformanceFilterDto): Promise<GradeDistributionDto[]> {
@@ -1604,47 +1595,31 @@ export class PerformanceService {
 
   async getMonthlyDataForTeacher(userId: number, filter: PerformanceFilterDto): Promise<MonthlyDataDto[]> {
     const groupIds = await this.getTeacherGroupIds(userId, filter);
-
-    if (groupIds.length === 0) return [];
-
+    if (!groupIds.length) return [];
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 6);
-
-    const lessonResults = await this.prisma.lessonResult.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        deletedAt: null,
-        Student: { groupId: { in: groupIds } },
-      },
-      include: { Lesson: true },
-    });
-
     const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-    const monthlyStats: { [key: string]: { grades: number[]; attendance: number[]; assignments: number[] } } = {};
-
-    lessonResults.forEach((result) => {
-      const month = monthNames[result.createdAt.getMonth()];
-      if (!monthlyStats[month]) monthlyStats[month] = { grades: [], attendance: [], assignments: [] };
-      if (result.lessonScore !== null) monthlyStats[month].grades.push(result.lessonScore);
-      if (result.attendance !== null) monthlyStats[month].attendance.push(result.attendance ? 1 : 0);
-      if (result.homeworkScore !== null) monthlyStats[month].assignments.push(result.homeworkScore);
-    });
-
-    return Object.keys(monthlyStats).map((month) => ({
-      month,
-      value: monthlyStats[month].grades.length
-        ? Number((monthlyStats[month].grades.reduce((a, b) => a + b, 0) / monthlyStats[month].grades.length).toFixed(1))
-        : 0,
-      attendance: monthlyStats[month].attendance.length
-        ? Math.round((monthlyStats[month].attendance.reduce((a, b) => a + b, 0) / monthlyStats[month].attendance.length) * 100)
-        : 0,
-      assignments: monthlyStats[month].assignments.length
-        ? Math.round(
-          (monthlyStats[month].assignments.filter((score) => score >= 3).length / monthlyStats[month].assignments.length) * 100,
-        )
-        : 0,
-    }));
+    const result: MonthlyDataDto[] = [];
+    for (let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1); cursor <= endDate; cursor.setMonth(cursor.getMonth() + 1)) {
+      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      const whereBase = { deletedAt: null as any, createdAt: { gte: monthStart, lt: monthEnd }, Student: { groupId: { in: groupIds } } };
+      const [gradeAgg, attendanceAll, attendancePresent, hwAll, hwGood] = await Promise.all([
+        this.prisma.lessonResult.aggregate({ where: { ...whereBase, lessonScore: { not: null } }, _avg: { lessonScore: true } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, attendance: { not: null } } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, attendance: true } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, homeworkScore: { not: null } } }),
+        this.prisma.lessonResult.count({ where: { ...whereBase, homeworkScore: { gte: 3 } } }),
+      ]);
+      result.push({
+        month: monthNames[monthStart.getMonth()],
+        value: gradeAgg._avg.lessonScore ? Number(gradeAgg._avg.lessonScore.toFixed(1)) : 0,
+        attendance: attendanceAll ? Math.round(attendancePresent / attendanceAll * 100) : 0,
+        assignments: hwAll ? Math.round(hwGood / hwAll * 100) : 0,
+      });
+    }
+    return result;
   }
 
   async getGradeDistributionForTeacher(userId: number, filter: PerformanceFilterDto): Promise<GradeDistributionDto[]> {

@@ -7,7 +7,7 @@ import { Task, TaskStatus, Prisma } from "../../generated/prisma";
 
 @Injectable()
 export class TasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createTaskDto: CreateTaskDto, userId: number): Promise<Task> {
     const data: Prisma.TaskCreateInput = {
@@ -322,14 +322,14 @@ export class TasksService {
       overdue,
     ] = await Promise.all([
       this.prisma.task.count({ where }),
-      this.prisma.task.count({ 
-        where: { ...where, status: TaskStatus.PENDING } 
+      this.prisma.task.count({
+        where: { ...where, status: TaskStatus.PENDING }
       }),
-      this.prisma.task.count({ 
-        where: { ...where, status: TaskStatus.IN_PROGRESS } 
+      this.prisma.task.count({
+        where: { ...where, status: TaskStatus.IN_PROGRESS }
       }),
-      this.prisma.task.count({ 
-        where: { ...where, status: TaskStatus.COMPLETED } 
+      this.prisma.task.count({
+        where: { ...where, status: TaskStatus.COMPLETED }
       }),
       this.prisma.task.count({
         where: {
@@ -349,7 +349,7 @@ export class TasksService {
     };
   }
 
-  async getCategories(userId: number) {
+  async getCategories() {
     return this.prisma.taskCategory.findMany({
       orderBy: { name: 'asc' },
     });

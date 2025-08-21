@@ -38,8 +38,8 @@ export class TasksController {
     }
 
     @Get('categories')
-    getCategories(@Request() req) {
-        return this.tasksService.getCategories(req.user.id);
+    getCategories() {
+        return this.tasksService.getCategories();
     }
 
     @Post('categories')

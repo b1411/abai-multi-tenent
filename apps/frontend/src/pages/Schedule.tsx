@@ -30,10 +30,9 @@ import {
   useDroppable,
 } from '@dnd-kit/core';
 import { useAuth } from '../hooks/useAuth';
-import { useSearchParams } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import { Button, Loading, Modal, Autocomplete, TimePicker } from '../components/ui';
-import AIStudyPlanGeneratorModal from '../components/AILessonGeneratorModal';
-import AIScheduleGeneratorModal from '../components/AIScheduleGeneratorModal';
+// Удалены модалки AI (перенос функционала на отдельную страницу)
 
 // import WeekGrid from '../components/WeekGrid';
 import scheduleService, { ScheduleService } from '../services/scheduleService';
@@ -192,8 +191,8 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
           <h3 className="text-base sm:text-lg font-medium text-gray-900 pr-8 sm:pr-4">
             {isEdit ? 'Редактировать занятие' : 'Добавить занятие'}
           </h3>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="text-gray-400 hover:text-gray-600 p-2 rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center touch-manipulation transition-colors"
           >
             <X className="h-5 w-5" />
@@ -526,8 +525,7 @@ const SchedulePage: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<Partial<ScheduleItem> | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAILessonModalOpen, setIsAILessonModalOpen] = useState(false);
-  const [isAIScheduleFlowOpen, setIsAIScheduleFlowOpen] = useState(false);
+  // Убраны состояния AI модалок
 
   // Состояние для данных фильтров
   const [groups, setGroups] = useState<GroupOption[]>([]);
@@ -866,12 +864,12 @@ const SchedulePage: React.FC = () => {
         console.log('Редактирование занятия:', id, scheduleItem);
 
         // Создаем DTO для обновления
-  const updateData: UpdateScheduleDto = {};
-        
+        const updateData: UpdateScheduleDto = {};
+
         if (scheduleItem.day) {
           updateData.dayOfWeek = getDayNumber(scheduleItem.day);
         }
-  // Примечание: поле date не входит в UpdateScheduleDto; перенос даты делается отдельным методом rescheduleLesson
+        // Примечание: поле date не входит в UpdateScheduleDto; перенос даты делается отдельным методом rescheduleLesson
         if (scheduleItem.startTime) {
           updateData.startTime = scheduleItem.startTime;
         }
@@ -904,12 +902,12 @@ const SchedulePage: React.FC = () => {
 
         // Вызываем API для обновления
         const updatedSchedule = await scheduleService.update(id, updateData);
-        
+
         // Конвертируем ответ API в формат для отображения
         const updatedScheduleItem = ScheduleService.convertToScheduleItem(updatedSchedule);
 
         // Обновляем локальное состояние
-        setSchedule(prev => prev.map(item => 
+        setSchedule(prev => prev.map(item =>
           item.id === id ? updatedScheduleItem : item
         ));
 
@@ -1301,7 +1299,7 @@ const SchedulePage: React.FC = () => {
   const handleAIGenerateFromStudyPlans = async (params: AIStudyPlanGenerateParams) => {
     try {
       setIsLoading(true);
-      setIsAILessonModalOpen(false); // Закрываем модальное окно сразу
+      // (Удалено) Закрытие AI модалки – функционал перенесен на отдельную страницу
       // Приводим к GenerationParams (добавляем обязательные поля)
       const genParams = {
         startDate: params.startDate,
@@ -1350,7 +1348,7 @@ const SchedulePage: React.FC = () => {
     { key: 'thursday', label: 'Четверг' },
     { key: 'friday', label: 'Пятница' },
   ];
-  const gridTimes: string[] = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00'];
+  const gridTimes: string[] = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -1429,9 +1427,8 @@ const SchedulePage: React.FC = () => {
             <div className="flex rounded-lg overflow-hidden border border-gray-300 shadow-sm">
               <button
                 onClick={() => setViewMode('table')}
-                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${
-                  viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Table className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Таблица</span>
@@ -1439,9 +1436,8 @@ const SchedulePage: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${
-                  viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Calendar className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Сетка</span>
@@ -1449,9 +1445,8 @@ const SchedulePage: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('calendar')}
-                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${
-                  viewMode === 'calendar' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-3 sm:px-4 py-2 transition-colors text-sm sm:text-base min-h-[44px] flex items-center justify-center touch-manipulation ${viewMode === 'calendar' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Calendar className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Календарь</span>
@@ -1465,24 +1460,14 @@ const SchedulePage: React.FC = () => {
             {/* Показываем кнопку AI только администратору */}
             {role === 'ADMIN' && (
               <div className="flex flex-col sm:flex-row gap-2 flex-1 sm:flex-none">
-                <button
-                  onClick={() => setIsAILessonModalOpen(true)}
-                  disabled={isLoading}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
+                <NavLink
+                  to="/ai-schedule"
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
                 >
                   <Bot className="h-4 w-4 mr-2 flex-shrink-0" />
                   <span className="hidden sm:inline">AI Планирование (планы)</span>
                   <span className="sm:hidden">AI Планы</span>
-                </button>
-                <button
-                  onClick={() => setIsAIScheduleFlowOpen(true)}
-                  disabled={isLoading}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 flex items-center justify-center transition-colors disabled:opacity-50 text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
-                >
-                  <Bot className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="hidden sm:inline">AI Поток расписания</span>
-                  <span className="sm:hidden">AI Flow</span>
-                </button>
+                </NavLink>
               </div>
             )}
 
@@ -1711,51 +1696,61 @@ const SchedulePage: React.FC = () => {
             {/* Desktop Table View */}
             <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full table-fixed divide-y divide-gray-200 [&_td]:!whitespace-normal [&_td]:break-words [&_td]:align-top">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Дата / День недели
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Время
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Группа
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Предмет
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Преподаватель
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Аудитория
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Тип
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Повторение
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Статус
-                  </th>
-                  {canEditSchedule() && (
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Действия
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Дата / День недели
                     </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {getFilteredSchedule().map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      <div>
-                        {item.date ? (
-                          <div>
-                            <div className="font-medium">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
-                            <div className="text-xs text-gray-500">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Время
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Группа
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Предмет
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Преподаватель
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Аудитория
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Тип
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Повторение
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Статус
+                    </th>
+                    {canEditSchedule() && (
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Действия
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {getFilteredSchedule().map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        <div>
+                          {item.date ? (
+                            <div>
+                              <div className="font-medium">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
+                              <div className="text-xs text-gray-500">
+                                {item.day === 'monday' ? 'Понедельник' :
+                                  item.day === 'tuesday' ? 'Вторник' :
+                                    item.day === 'wednesday' ? 'Среда' :
+                                      item.day === 'thursday' ? 'Четверг' :
+                                        item.day === 'friday' ? 'Пятница' :
+                                          item.day === 'saturday' ? 'Суббота' : 'Воскресенье'}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
                               {item.day === 'monday' ? 'Понедельник' :
                                 item.day === 'tuesday' ? 'Вторник' :
                                   item.day === 'wednesday' ? 'Среда' :
@@ -1763,89 +1758,79 @@ const SchedulePage: React.FC = () => {
                                       item.day === 'friday' ? 'Пятница' :
                                         item.day === 'saturday' ? 'Суббота' : 'Воскресенье'}
                             </div>
-                          </div>
-                        ) : (
-                          <div>
-                            {item.day === 'monday' ? 'Понедельник' :
-                              item.day === 'tuesday' ? 'Вторник' :
-                                item.day === 'wednesday' ? 'Среда' :
-                                  item.day === 'thursday' ? 'Четверг' :
-                                    item.day === 'friday' ? 'Пятница' :
-                                      item.day === 'saturday' ? 'Суббота' : 'Воскресенье'}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 mr-2 text-gray-400" />
-                        {item.startTime} - {item.endTime}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      {item.classId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      {item.subject}
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-2 text-gray-400" />
-                        {item.teacherName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      <button
-                        onClick={() => handleRoomClick(item.roomId)}
-                        className="flex items-center text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-                      >
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {item.roomId}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.type === 'lesson' ? 'bg-blue-100 text-blue-800' :
-                        item.type === 'consultation' ? 'bg-green-100 text-green-800' :
-                          'bg-purple-100 text-purple-800'
-                        }`}>
-                        {item.type === 'lesson' ? 'Урок' :
-                          item.type === 'consultation' ? 'Консультация' : 'Доп. занятие'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
-                      {item.repeat === 'weekly' ? 'Еженедельно' :
-                        item.repeat === 'biweekly' ? 'Раз в 2 недели' : 'Единожды'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-normal break-words text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status === 'upcoming' ? 'bg-green-100 text-green-800' :
-                        item.status === 'completed' ? 'bg-gray-100 text-gray-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                        {item.status === 'upcoming' ? 'Предстоит' :
-                          item.status === 'completed' ? 'Завершено' : 'Отменено'}
-                      </span>
-                    </td>
-                    {canEditSchedule() && (
-                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-right">
-                        <div className="flex space-x-2 justify-end">
-                          <button
-                            onClick={() => handleEditClick(item)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(item.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          )}
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-2 text-gray-400" />
+                          {item.startTime} - {item.endTime}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        {item.classId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        {item.subject}
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        <div className="flex items-center">
+                          <User className="h-4 w-4 mr-2 text-gray-400" />
+                          {item.teacherName}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        <button
+                          onClick={() => handleRoomClick(item.roomId)}
+                          className="flex items-center text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        >
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {item.roomId}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.type === 'lesson' ? 'bg-blue-100 text-blue-800' :
+                          item.type === 'consultation' ? 'bg-green-100 text-green-800' :
+                            'bg-purple-100 text-purple-800'
+                          }`}>
+                          {item.type === 'lesson' ? 'Урок' :
+                            item.type === 'consultation' ? 'Консультация' : 'Доп. занятие'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-900">
+                        {item.repeat === 'weekly' ? 'Еженедельно' :
+                          item.repeat === 'biweekly' ? 'Раз в 2 недели' : 'Единожды'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal break-words text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status === 'upcoming' ? 'bg-green-100 text-green-800' :
+                          item.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                          {item.status === 'upcoming' ? 'Предстоит' :
+                            item.status === 'completed' ? 'Завершено' : 'Отменено'}
+                        </span>
+                      </td>
+                      {canEditSchedule() && (
+                        <td className="px-6 py-4 whitespace-normal break-words text-sm text-right">
+                          <div className="flex space-x-2 justify-end">
+                            <button
+                              onClick={() => handleEditClick(item)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(item.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
 
@@ -1947,11 +1932,10 @@ const SchedulePage: React.FC = () => {
 
                         {/* Tags */}
                         <div className="flex items-center flex-wrap gap-2">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            item.type === 'lesson' ? 'bg-blue-100 text-blue-800' :
-                              item.type === 'consultation' ? 'bg-green-100 text-green-800' :
-                                'bg-purple-100 text-purple-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.type === 'lesson' ? 'bg-blue-100 text-blue-800' :
+                            item.type === 'consultation' ? 'bg-green-100 text-green-800' :
+                              'bg-purple-100 text-purple-800'
+                            }`}>
                             {item.type === 'lesson' ? 'Урок' :
                               item.type === 'consultation' ? 'Консультация' : 'Доп. занятие'}
                           </span>
@@ -1961,11 +1945,10 @@ const SchedulePage: React.FC = () => {
                               item.repeat === 'biweekly' ? 'Раз в 2 недели' : 'Единожды'}
                           </span>
 
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            item.status === 'upcoming' ? 'bg-green-100 text-green-800' :
-                              item.status === 'completed' ? 'bg-gray-100 text-gray-800' :
-                                'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status === 'upcoming' ? 'bg-green-100 text-green-800' :
+                            item.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
                             {item.status === 'upcoming' ? 'Предстоит' :
                               item.status === 'completed' ? 'Завершено' : 'Отменено'}
                           </span>
@@ -1982,9 +1965,9 @@ const SchedulePage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                 <div className="flex items-center justify-center sm:justify-start space-x-2 text-sm">
                   <span>Строк на странице:</span>
-                  <select 
-                    value={pageSize} 
-                    onChange={handlePageSizeChange} 
+                  <select
+                    value={pageSize}
+                    onChange={handlePageSizeChange}
                     className="border border-gray-300 rounded px-2 py-1.5 text-sm min-h-[36px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value={5}>5</option>
@@ -2080,9 +2063,8 @@ const SchedulePage: React.FC = () => {
                     <button
                       key={d.key}
                       onClick={() => setSelectedGridDay(d.key)}
-                      className={`px-3 py-2 rounded-md text-sm whitespace-nowrap min-h-[36px] transition-colors ${
-                        selectedGridDay === d.key ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
-                      }`}
+                      className={`px-3 py-2 rounded-md text-sm whitespace-nowrap min-h-[36px] transition-colors ${selectedGridDay === d.key ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
+                        }`}
                     >
                       {d.label}
                     </button>
@@ -2148,7 +2130,7 @@ const SchedulePage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-7 gap-px bg-gray-200">
-              {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d) => (
+              {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
                 <div key={d} className="bg-gray-50 text-center py-2 text-xs sm:text-sm font-medium text-gray-600">
                   {d}
                 </div>
@@ -2261,27 +2243,7 @@ const SchedulePage: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* AI Study Plan Generator Modal */}
-        <AIStudyPlanGeneratorModal
-          isOpen={isAILessonModalOpen}
-          onClose={() => setIsAILessonModalOpen(false)}
-          onGenerate={handleAIGenerateFromStudyPlans}
-          groups={groups}
-          teachers={teachers}
-          studyPlans={studyPlans}
-        />
-        <AIScheduleGeneratorModal
-          isOpen={isAIScheduleFlowOpen}
-          onClose={() => setIsAIScheduleFlowOpen(false)}
-          onGenerate={(r) => {
-            if (r.success) {
-              alert(`Сохранено занятий: ${r.count}`);
-              loadScheduleData();
-            } else {
-              alert('Не удалось применить расписание');
-            }
-          }}
-        />
+        {/* Удалены AI модалки */}
       </div>
     </>
   );

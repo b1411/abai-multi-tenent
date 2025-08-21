@@ -73,6 +73,7 @@ import NotificationsPage from './pages/Notifications';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
+import AIScheduleBuilder from './pages/AIScheduleBuilder';
 
 const App: React.FC = () => {
   return (
@@ -117,6 +118,7 @@ const App: React.FC = () => {
 
                     {/* Schedule routes */}
                     <Route path="schedule" element={<SchedulePage />} />
+                    <Route path="ai-schedule" element={<AIScheduleBuilder />} />
 
                     {/* Academic routes */}
                     <Route path="academic">

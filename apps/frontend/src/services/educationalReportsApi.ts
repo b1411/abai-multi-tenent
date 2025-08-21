@@ -1,7 +1,29 @@
 import apiClient from './apiClient';
 
+// Расширенный список периодов синхронизирован с backend ReportPeriod enum
+export type ReportPeriodKey =
+  | 'day'
+  | 'week'
+  | 'quarter'
+  | 'semester'
+  | 'year'
+  | 'school_quarter_1'
+  | 'school_quarter_2'
+  | 'school_quarter_3'
+  | 'school_quarter_4'
+  | 'calendar_q1'
+  | 'calendar_q2'
+  | 'calendar_q3'
+  | 'calendar_q4'
+  | 'fall_semester'
+  | 'spring_semester'
+  | 'trimester_1'
+  | 'trimester_2'
+  | 'trimester_3'
+  | 'custom';
+
 export interface EducationalReportFilters {
-  period?: 'day' | 'week' | 'quarter' | 'semester' | 'year';
+  period?: ReportPeriodKey;
   classId?: number;
   className?: string;
   search?: string;
@@ -10,7 +32,7 @@ export interface EducationalReportFilters {
 }
 
 export interface StudentReportFilters {
-  period?: 'day' | 'week' | 'quarter' | 'semester' | 'year';
+  period?: ReportPeriodKey;
   subjectId?: number;
   startDate?: string;
   endDate?: string;

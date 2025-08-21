@@ -26,7 +26,7 @@ import {
   Plus,
   Minus
 } from 'lucide-react';
-import { educationalReportsApi, type Student as ApiStudent, type SubjectGrades as ApiSubjectGrades, type QualityStatistics } from '../services/educationalReportsApi';
+import { educationalReportsApi, type Student as ApiStudent, type SubjectGrades as ApiSubjectGrades, type QualityStatistics, type ReportPeriodKey } from '../services/educationalReportsApi';
 import {
   LineChart,
   Line,
@@ -58,6 +58,7 @@ interface Student {
   qualityPercentage: number;
   absencesExcused: number;
   absencesUnexcused: number;
+  lessonsTotal?: number; // всего уроков в периоде (для расчета процента посещаемости)
   className: string;
   subjects: string[];
   homeworkCompletion: number;
@@ -83,6 +84,9 @@ interface ReportFilters {
   teacher: string;
   level: string;
   search: string;
+  period: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface KPIMetrics {
@@ -120,12 +124,27 @@ interface GradeDetail {
   type: 'Контрольная работа' | 'Самостоятельная работа' | 'Устный ответ' | 'Домашнее задание' | 'Тест' | 'Итоговая оценка за день' | 'Итоговая оценка за неделю' | 'Итоговая оценка за четверть' | 'Итоговая оценка за год' | 'Итоговая оценка';
 }
 
-const periods = {
-  day: 'День',
-  week: 'Неделя',
-  quarter: 'Четверть',
-  year: 'Год'
-};
+const PERIOD_OPTIONS: { value: string; label: string }[] = [
+  { value: 'day', label: 'День' },
+  { value: 'week', label: 'Неделя' },
+  { value: 'school_quarter_1', label: '1 четверть (шк.)' },
+  { value: 'school_quarter_2', label: '2 четверть (шк.)' },
+  { value: 'school_quarter_3', label: '3 четверть (шк.)' },
+  { value: 'school_quarter_4', label: '4 четверть (шк.)' },
+  { value: 'quarter', label: 'Квартал (календарный)' },
+  { value: 'calendar_q1', label: 'Q1 (янв-мар)' },
+  { value: 'calendar_q2', label: 'Q2 (апр-июн)' },
+  { value: 'calendar_q3', label: 'Q3 (июл-сен)' },
+  { value: 'calendar_q4', label: 'Q4 (окт-дек)' },
+  { value: 'fall_semester', label: 'Осенний семестр' },
+  { value: 'spring_semester', label: 'Весенний семестр' },
+  { value: 'semester', label: 'Семестр (legacy)' },
+  { value: 'year', label: 'Год' },
+  { value: 'trimester_1', label: '1 триместр' },
+  { value: 'trimester_2', label: '2 триместр' },
+  { value: 'trimester_3', label: '3 триместр' },
+  { value: 'custom', label: 'Произвольный' }
+];
 
 const EducationalReports: React.FC = () => {
   // Branding (logo, school name, colors)
@@ -136,7 +155,8 @@ const EducationalReports: React.FC = () => {
     subject: '',
     teacher: '',
     level: '',
-    search: ''
+    search: '',
+    period: 'school_quarter_1'
   });
 
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -159,6 +179,13 @@ const EducationalReports: React.FC = () => {
     subject: string;
     grades: GradeDetail[];
   } | null>(null);
+  // Компактное отображение колонок предметов
+  const SUBJECT_LIMIT = 10; // разумный предел для влезания в стандартный 1920/1366 экраны
+  const [showAllSubjects, setShowAllSubjects] = useState(false);
+  const displayedSubjects = useMemo(() => {
+    if (showAllSubjects) return subjects;
+    return subjects.slice(0, SUBJECT_LIMIT);
+  }, [subjects, showAllSubjects]);
 
   // Load initial data
   useEffect(() => {
@@ -194,23 +221,46 @@ const EducationalReports: React.FC = () => {
 
         const filtersForApi = {
           className: filters.class || undefined,
-          search: filters.search || undefined
+            search: filters.search || undefined,
+            period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
+            startDate: filters.period === 'custom' ? filters.startDate : undefined,
+            endDate: filters.period === 'custom' ? filters.endDate : undefined
         };
 
         const apiStudentsData = await educationalReportsApi.getStudents(filtersForApi);
         setApiStudents(apiStudentsData);
 
-        // Load grades for all students
-        const gradesMap = new Map<number, ApiSubjectGrades[]>();
+  // Load grades & attendance for all students
+  const gradesMap = new Map<number, ApiSubjectGrades[]>();
+  const attendanceStats = new Map<number, { excused: number; unexcused: number; total: number }>();
 
         for (const student of apiStudentsData) {
           try {
-            const grades = await educationalReportsApi.getStudentGrades(student.id, {
-              period: 'quarter' // Используем четверть по умолчанию
-            });
+            const [grades, attendance] = await Promise.all([
+              educationalReportsApi.getStudentGrades(student.id, {
+                period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
+                startDate: filters.period === 'custom' ? filters.startDate : undefined,
+                endDate: filters.period === 'custom' ? filters.endDate : undefined
+              }),
+              educationalReportsApi.getStudentAttendance(student.id, {
+                period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
+                startDate: filters.period === 'custom' ? filters.startDate : undefined,
+                endDate: filters.period === 'custom' ? filters.endDate : undefined
+              })
+            ]);
             gradesMap.set(student.id, grades);
+            // Подсчет пропусков
+            const total = attendance.length;
+            let excused = 0;
+            let unexcused = 0;
+            attendance.forEach(a => {
+              if (!a.isPresent) {
+                if (a.absentReason === 'SICK' || a.absentReason === 'FAMILY') excused += 1; else unexcused += 1;
+              }
+            });
+            attendanceStats.set(student.id, { excused, unexcused, total });
           } catch (err) {
-            console.error(`Error loading grades for student ${student.id}:`, err);
+            console.error(`Error loading grades/attendance for student ${student.id}:`, err);
           }
         }
 
@@ -245,8 +295,9 @@ const EducationalReports: React.FC = () => {
             grades,
             averageGrade,
             qualityPercentage,
-            absencesExcused: 0, // TODO: Load from attendance API
-            absencesUnexcused: 0, // TODO: Load from attendance API
+            absencesExcused: attendanceStats.get(apiStudent.id)?.excused || 0,
+            absencesUnexcused: attendanceStats.get(apiStudent.id)?.unexcused || 0,
+            lessonsTotal: attendanceStats.get(apiStudent.id)?.total || 0,
             className: apiStudent.group.name,
             subjects: subjects,
             homeworkCompletion: 85, // TODO: Load from homework API
@@ -266,7 +317,7 @@ const EducationalReports: React.FC = () => {
     if (subjects.length > 0) {
       loadStudents();
     }
-  }, [filters.class, filters.search, subjects]);
+  }, [filters.class, filters.search, filters.period, filters.startDate, filters.endDate, subjects]);
 
   // Initialize export logs once
   useEffect(() => {
@@ -351,12 +402,27 @@ const EducationalReports: React.FC = () => {
     const studentsAbove4 = students.filter(s => s.averageGrade >= 4).length;
     const studentsBelow3 = students.filter(s => s.averageGrade < 3).length;
 
+    // Расчет посещаемости
+    let totalLessonsAll = 0;
+    let totalPresentAll = 0;
+    students.forEach(s => {
+      const total = s.lessonsTotal || 0;
+      const exc = s.absencesExcused || 0;
+      const unexc = s.absencesUnexcused || 0;
+      const present = total - (exc + unexc);
+      if (total > 0) {
+        totalLessonsAll += total;
+        totalPresentAll += Math.max(present, 0);
+      }
+    });
+    const attendancePercentage = totalLessonsAll > 0 ? Math.round((totalPresentAll / totalLessonsAll) * 100) : 0;
+
     return {
       totalStudents,
       qualityPercentage,
       averageGrade,
       unexcusedAbsences,
-      attendancePercentage: 85, // TODO: Calculate from attendance data
+      attendancePercentage,
       studentsAbove4,
       studentsBelow3
     };
@@ -396,23 +462,45 @@ const EducationalReports: React.FC = () => {
     try {
       const filtersForApi = {
         className: filters.class || undefined,
-        search: filters.search || undefined
+        search: filters.search || undefined,
+        period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
+        startDate: filters.period === 'custom' ? filters.startDate : undefined,
+        endDate: filters.period === 'custom' ? filters.endDate : undefined
       };
 
       const apiStudentsData = await educationalReportsApi.getStudents(filtersForApi);
       setApiStudents(apiStudentsData);
 
-      // Reload grades for all students
-      const gradesMap = new Map<number, ApiSubjectGrades[]>();
+  // Reload grades & attendance for all students
+  const gradesMap = new Map<number, ApiSubjectGrades[]>();
+  const attendanceStats = new Map<number, { excused: number; unexcused: number; total: number }>();
 
       for (const student of apiStudentsData) {
         try {
-          const grades = await educationalReportsApi.getStudentGrades(student.id, {
-            period: 'quarter' // Используем четверть по умолчанию
-          });
+          const [grades, attendance] = await Promise.all([
+            educationalReportsApi.getStudentGrades(student.id, {
+              period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
+              startDate: filters.period === 'custom' ? filters.startDate : undefined,
+              endDate: filters.period === 'custom' ? filters.endDate : undefined
+            }),
+            educationalReportsApi.getStudentAttendance(student.id, {
+              period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
+              startDate: filters.period === 'custom' ? filters.startDate : undefined,
+              endDate: filters.period === 'custom' ? filters.endDate : undefined
+            })
+          ]);
           gradesMap.set(student.id, grades);
+          const total = attendance.length;
+            let excused = 0;
+            let unexcused = 0;
+            attendance.forEach(a => {
+              if (!a.isPresent) {
+                if (a.absentReason === 'SICK' || a.absentReason === 'FAMILY') excused += 1; else unexcused += 1;
+              }
+            });
+          attendanceStats.set(student.id, { excused, unexcused, total });
         } catch (err) {
-          console.error(`Error loading grades for student ${student.id}:`, err);
+          console.error(`Error loading grades/attendance for student ${student.id}:`, err);
         }
       }
 
@@ -445,8 +533,9 @@ const EducationalReports: React.FC = () => {
           grades,
           averageGrade,
           qualityPercentage,
-          absencesExcused: 0,
-          absencesUnexcused: 0,
+          absencesExcused: attendanceStats.get(apiStudent.id)?.excused || 0,
+          absencesUnexcused: attendanceStats.get(apiStudent.id)?.unexcused || 0,
+          lessonsTotal: attendanceStats.get(apiStudent.id)?.total || 0,
           className: apiStudent.group.name,
           subjects: subjects,
           homeworkCompletion: 85,
@@ -476,8 +565,12 @@ const EducationalReports: React.FC = () => {
     setShowExportModal(false);
 
     // Собираем инфо для экспорта аналогично handleFilteredExport
+    const selectedPeriodLabel = PERIOD_OPTIONS.find(p => p.value === filters.period)?.label || 'Период';
+    const customLabel = filters.period === 'custom'
+      ? `С ${filters.startDate || '?'} по ${filters.endDate || '?'}`
+      : selectedPeriodLabel;
     const filterInfo: ExportFilterInfo = {
-      period: 'Текущий период',
+      period: customLabel,
       class: filters.class || 'Все классы',
       subject: filters.subject || 'Все предметы',
       studentsCount: filteredStudents.length,
@@ -519,8 +612,12 @@ const EducationalReports: React.FC = () => {
     setExportLogs(prev => [newLog, ...prev]);
 
     // Generate filtered report info
+    const selectedPeriodLabel2 = PERIOD_OPTIONS.find(p => p.value === filters.period)?.label || 'Период';
+    const customLabel2 = filters.period === 'custom'
+      ? `С ${filters.startDate || '?'} по ${filters.endDate || '?'}`
+      : selectedPeriodLabel2;
     const filterInfo: ExportFilterInfo = {
-      period: 'Текущий период',
+      period: customLabel2,
       class: filters.class || 'Все классы',
       subject: filters.subject || 'Все предметы',
       studentsCount: filteredStudents.length,
@@ -1082,7 +1179,7 @@ const EducationalReports: React.FC = () => {
 
       {/* Filters Section */}
       <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 mb-4 sm:mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
 
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Класс</label>
@@ -1136,6 +1233,45 @@ const EducationalReports: React.FC = () => {
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Период</label>
+            <select
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
+              value={filters.period}
+              onChange={(e) => handleFilterChange('period', e.target.value)}
+            >
+              {PERIOD_OPTIONS.map(p => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {filters.period === 'custom' && (
+            <div className="col-span-1 sm:col-span-2 lg:col-span-4 xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Дата начала</label>
+                <input
+                  type="date"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
+                  value={filters.startDate || ''}
+                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Дата окончания</label>
+                <input
+                  type="date"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
+                  value={filters.endDate || ''}
+                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                />
+              </div>
+              <div className="sm:col-span-2 text-xs text-gray-500 flex items-center">
+                Укажите произвольный интервал (макс. 365 дней). Пустые даты = сегодня.
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t space-y-3 sm:space-y-0">
@@ -1284,14 +1420,31 @@ const EducationalReports: React.FC = () => {
       {/* Main Table */}
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800 leading-tight">
-              Ведомость успеваемости по всем предметам
-              {filters.class && ` • ${filters.class}`}
-            </h3>
-            <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
-              Показано {filteredStudents.length} учащихся
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 leading-tight">
+                Ведомость успеваемости по всем предметам{filters.class && ` • ${filters.class}`}
+              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                {subjects.length > SUBJECT_LIMIT && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllSubjects(s => !s)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    {showAllSubjects ? 'Скрыть лишние' : `Показать все (${subjects.length})`}
+                  </button>
+                )}
+                <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                  Показано {filteredStudents.length} учащихся
+                </div>
+              </div>
             </div>
+            {!showAllSubjects && subjects.length > SUBJECT_LIMIT && (
+              <p className="text-[11px] text-gray-400 leading-snug">
+                Показаны первые {SUBJECT_LIMIT} предметов для улучшения вёрстки. Нажмите "Показать все" чтобы увидеть остальные.
+              </p>
+            )}
           </div>
         </div>
 
@@ -1401,100 +1554,81 @@ const EducationalReports: React.FC = () => {
 
         {/* Desktop Table View - Only show on xl screens */}
         <div className="hidden xl:block">
-          <div className="overflow-x-auto select-none" style={{ cursor: 'grab' }}>
+          <div className="relative overflow-x-auto select-none" style={{ cursor: 'grab' }}>
             <table className="w-full border-collapse min-w-max">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
                 <tr className="border-b-2 border-gray-200">
-                  <th className="border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase w-[250px]">
+                  <th className="sticky left-0 z-40 bg-gray-50/95 backdrop-blur-sm border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase w-[260px]">
                     № / ФИО
                   </th>
-                  {subjects.map((subject) => (
-                    <th key={subject} className="border-r border-gray-200 px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[100px]">
-                      <div className="h-12 flex items-center justify-center">
-                        <span className="text-center leading-tight">{subject}</span>
+                  {displayedSubjects.map((subject) => (
+                    <th key={subject} className="border-r border-gray-200 px-2 py-3 text-center text-[10px] font-semibold tracking-wide text-gray-700 uppercase w-[96px]">
+                      <div className="h-12 flex items-center justify-center px-1">
+                        <span className="text-center leading-tight break-words line-clamp-3">{subject}</span>
                       </div>
                     </th>
                   ))}
-                  <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
-                    Ср. балл
-                  </th>
-                  <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
-                    Качество
-                  </th>
-                  <th className="border-r border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[90px]">
-                    Пропуски
-                  </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase w-[80px]">
-                    Действия
-                  </th>
+                  <th className="border-r border-gray-200 px-3 py-3 text-center text-[10px] font-semibold text-gray-700 uppercase w-[80px]">Ср. балл</th>
+                  <th className="border-r border-gray-200 px-3 py-3 text-center text-[10px] font-semibold text-gray-700 uppercase w-[80px]">Качество</th>
+                  <th className="border-r border-gray-200 px-3 py-3 text-center text-[10px] font-semibold text-gray-700 uppercase w-[90px]">Пропуски</th>
+                  <th className="px-3 py-3 text-center text-[10px] font-semibold text-gray-700 uppercase w-[80px]">Действия</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
                 {filteredStudents.map((student, index) => (
-                  <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="border-r border-gray-200 px-4 py-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {index + 1}. {student.fullName}
+                  <tr key={student.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors odd:bg-white even:bg-gray-50/40">
+                    <td className="sticky left-0 z-20 bg-white even:bg-gray-50/60 border-r border-gray-200 px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900 flex items-start">
+                        <span className="inline-block w-6 text-gray-400 font-mono text-xs pt-0.5">{index + 1}</span>
+                        <span className="flex-1 leading-tight pr-2">{student.fullName}</span>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">{student.className}</div>
+                      <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-1 font-medium">{student.className}</div>
                     </td>
-                    {subjects.map((subject) => {
+                    {displayedSubjects.map((subject) => {
                       const subjectGrades = student.grades[subject] || [];
-                      const subjectAverage = subjectGrades.length > 0
-                        ? Math.round((subjectGrades.reduce((sum, grade) => sum + grade, 0) / subjectGrades.length) * 10) / 10
-                        : 0;
-
                       return (
-                        <td key={subject} className="border-r border-gray-200 px-2 py-4 text-center">
-                          <div className="h-16 flex flex-col justify-center items-center">
+                        <td key={subject} className="border-r border-gray-200 px-1 py-2 text-center align-middle">
+                          <div className="h-full flex flex-col justify-center items-center gap-1 py-1">
                             {subjectGrades.length > 0 ? (
-                              <div
-                                className="cursor-pointer hover:opacity-75"
+                              <button
+                                type="button"
                                 onClick={() => handleGradeClick(student, subject)}
-                                title="Нажмите для просмотра деталей оценки"
+                                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
+                                title="Подробнее"
                               >
-                                <span
-                                  className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold border-2 ${getGradeColor(subjectGrades[0])} ${subjectGrades[0] >= 4 ? 'border-green-300' : subjectGrades[0] >= 3 ? 'border-blue-300' : 'border-red-300'
-                                    } hover:scale-110 transition-transform`}
-                                >
-                                  {subjectGrades[0]}
-                                </span>
-                              </div>
+                                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-[13px] font-bold border ${getGradeColor(subjectGrades[0])} shadow-sm hover:scale-110 transition-transform duration-150`}>{subjectGrades[0]}</span>
+                              </button>
                             ) : (
-                              <div className="text-sm text-gray-300">—</div>
+                              <div className="text-xs text-gray-300">—</div>
                             )}
                           </div>
                         </td>
                       );
                     })}
-                    <td className="border-r border-gray-200 px-3 py-4 text-center">
-                      <div className={`text-lg font-bold ${getGradeColor(student.averageGrade).split(' ')[0]}`}>
-                        {student.averageGrade}
+                    <td className="border-r border-gray-200 px-2 py-3 text-center align-middle">
+                      <span className={`inline-block px-2 py-1 rounded font-semibold text-sm ${getGradeColor(student.averageGrade)}`}>{student.averageGrade}</span>
+                    </td>
+                    <td className="border-r border-gray-200 px-2 py-3 text-center align-middle">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-semibold ${getQualityColor(student.qualityPercentage)}`}>{student.qualityPercentage}%</span>
+                    </td>
+                    <td className="border-r border-gray-200 px-2 py-3 text-center align-middle">
+                      <div className="text-[11px] leading-tight font-medium">
+                        <span className="text-green-600 block">У: {student.absencesExcused}</span>
+                        <span className="text-red-600 block">Н: {student.absencesUnexcused}</span>
                       </div>
                     </td>
-                    <td className="border-r border-gray-200 px-3 py-4 text-center">
-                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getQualityColor(student.qualityPercentage)}`}>
-                        {student.qualityPercentage}%
-                      </div>
-                    </td>
-                    <td className="border-r border-gray-200 px-3 py-4 text-center">
-                      <div className="text-xs">
-                        <div className="text-green-600 font-medium">У: {student.absencesExcused}</div>
-                        <div className="text-red-600 font-medium">Н: {student.absencesUnexcused}</div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 text-center">
+                    <td className="px-2 py-2 text-center align-middle">
                       <div className="flex justify-center space-x-1">
                         <button
                           onClick={() => handleStudentView(student)}
-                          className="text-blue-600 hover:text-blue-900 p-1.5 rounded hover:bg-blue-50"
+                          className="text-blue-600 hover:text-blue-900 p-1.5 rounded hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                           title="Просмотр"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleStudentEdit(student)}
-                          className="text-gray-600 hover:text-gray-900 p-1.5 rounded hover:bg-gray-50"
+                          className="text-gray-600 hover:text-gray-900 p-1.5 rounded hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                           title="Редактировать"
                         >
                           <Edit className="w-4 h-4" />
@@ -1517,14 +1651,14 @@ const EducationalReports: React.FC = () => {
                   <td className="border-r border-gray-300 px-4 py-3 text-left w-[250px]">
                     <span className="text-sm font-bold">Средний балл по классу:</span>
                   </td>
-                  {subjects.map((subject) => {
+                  {displayedSubjects.map((subject) => {
                     const allSubjectGrades = filteredStudents.flatMap(s => s.grades[subject] || []);
                     const subjectClassAverage = allSubjectGrades.length > 0
                       ? Math.round((allSubjectGrades.reduce((sum, grade) => sum + grade, 0) / allSubjectGrades.length) * 10) / 10
                       : 0;
 
                     return (
-                      <td key={subject} className="border-r border-gray-300 px-2 py-3 text-center w-[100px]">
+                      <td key={subject} className="border-r border-gray-300 px-2 py-3 text-center w-[90px]">
                         <div className={`text-lg font-bold ${getGradeColor(subjectClassAverage).split(' ')[0]}`}>
                           {subjectClassAverage || '—'}
                         </div>
@@ -1585,7 +1719,11 @@ const EducationalReports: React.FC = () => {
               <span className="hidden sm:inline"> • </span>
               <span className="block sm:inline">{filters.class || 'Все классы'}</span>
               <span className="hidden sm:inline"> • </span>
-              <span className="block sm:inline text-gray-400">Текущий период</span>
+              <span className="block sm:inline text-gray-400">
+                {filters.period === 'custom'
+                  ? `С ${filters.startDate || '?'} по ${filters.endDate || '?'}`
+                  : (PERIOD_OPTIONS.find(p => p.value === filters.period)?.label || 'Период')}
+              </span>
             </div>
           </div>
         </div>

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  FileText, 
-  Download, 
-  Filter, 
+import {
+  FileText,
+  Download,
+  Filter,
   BarChart3,
   Calendar,
   ExternalLink,
@@ -100,12 +100,12 @@ const Reports: React.FC = () => {
       setLoading(true);
 
       // Загружаем данные движения денежных средств
-      const startDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
-      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.UTC(2025, 0, 1, 0, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(2025, 11, 31, 23, 59, 59, 999)).toISOString();
 
       // Получаем реальные данные cashflow
       const cashflow = await financeService.getCashflowData(`startDate=${startDate}&endDate=${endDate}`);
-      
+
       // Получаем реальные данные performance
       const performance = await financeService.getPerformanceMetrics(`startDate=${startDate}&endDate=${endDate}`);
 
@@ -140,7 +140,8 @@ const Reports: React.FC = () => {
   const loadWorkloadData = async () => {
     try {
       // Получаем аналитику нагрузок через financeService
-      const analytics = await financeService.getWorkloadAnalytics();
+      const analytics = await financeService.getWorkloadAnalytics(new Date(Date.UTC(2025, 0, 1, 0, 0, 0, 0)).toISOString(),
+        new Date(Date.UTC(2025, 11, 31, 23, 59, 59, 999)).toISOString());
 
       setWorkloadAnalytics(analytics);
 
@@ -151,7 +152,7 @@ const Reports: React.FC = () => {
           totalHours: teacher.totalHours || 0,
           weeklyHours: teacher.weeklyHours || 0
         }));
-        
+
         setWorkloadChartData(chartData.slice(0, 10)); // Показываем топ 10 преподавателей
         setWorkloadData(analytics.teacherWorkloads || []);
       } else {
@@ -170,7 +171,7 @@ const Reports: React.FC = () => {
     try {
       // Получаем данные расписания
       const schedules = await scheduleService.findAll();
-      
+
       setScheduleData(schedules || []);
 
       // Подготавливаем данные для графика расписания - анализ по дням недели
@@ -186,7 +187,7 @@ const Reports: React.FC = () => {
           const dayIndex = schedule.dayOfWeek === 7 ? 0 : schedule.dayOfWeek; // Воскресенье = 0
           if (dayIndex >= 0 && dayIndex < 7) {
             dayStats[dayIndex].count += 1;
-            
+
             // Вычисляем продолжительность занятия
             if (schedule.startTime && schedule.endTime) {
               const start = new Date(`2000-01-01T${schedule.startTime}`);
@@ -246,8 +247,8 @@ const Reports: React.FC = () => {
 
     // Статистика по нагрузкам
     const totalTeachers = workloadData.length;
-    const avgWorkload = workloadData.length > 0 
-      ? workloadData.reduce((sum, item) => sum + (item.totalHours || 0), 0) / workloadData.length 
+    const avgWorkload = workloadData.length > 0
+      ? workloadData.reduce((sum, item) => sum + (item.totalHours || 0), 0) / workloadData.length
       : 0;
 
     // Статистика по расписанию
@@ -260,7 +261,7 @@ const Reports: React.FC = () => {
       }
       return false;
     }).length;
-    
+
     return {
       totalIncome: totalIncome.toLocaleString('ru-RU'),
       avgPayment: avgPayment.toLocaleString('ru-RU'),
@@ -299,8 +300,9 @@ const Reports: React.FC = () => {
     try {
       const generateReportDto = {
         type: type as any,
-        startDate: new Date(new Date().getFullYear(), 0, 1).toISOString(),
-        endDate: new Date().toISOString(),
+        // Фиксированный период: весь 2025 год
+        startDate: new Date(Date.UTC(2025, 0, 1, 0, 0, 0, 0)).toISOString(),
+        endDate: new Date(Date.UTC(2025, 11, 31, 23, 59, 59, 999)).toISOString(),
         title: `${reportTypeLabels[type as keyof typeof reportTypeLabels]} - ${new Date().toLocaleDateString('ru-RU')}`
       };
 
@@ -331,7 +333,7 @@ const Reports: React.FC = () => {
     try {
       const startDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
       const endDate = new Date().toISOString().split('T')[0];
-      
+
       const blob = await financeService.exportReportByType(type, format, startDate, endDate);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -351,7 +353,7 @@ const Reports: React.FC = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg w-full max-w-sm sm:max-w-md">
         <h3 className="text-base sm:text-lg font-semibold mb-4">Фильтры</h3>
-        
+
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Тип отчета</label>
           <select
@@ -365,7 +367,7 @@ const Reports: React.FC = () => {
             ))}
           </select>
         </div>
-        
+
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Период</label>
           <select
@@ -394,7 +396,7 @@ const Reports: React.FC = () => {
             ))}
           </select>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
           <button
             className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm"
@@ -518,11 +520,11 @@ const Reports: React.FC = () => {
   return (
     <div className="p-3 sm:p-4 lg:p-6">
       <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 lg:mb-6">Финансовые отчеты и прогнозы</h1>
-      
+
       {/* Фильтры и действия */}
       <div className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-4 lg:mb-6">
         <div className="flex items-center space-x-3">
-          <button 
+          <button
             className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
             onClick={() => setShowFilterModal(true)}
           >
@@ -537,7 +539,7 @@ const Reports: React.FC = () => {
           </button>
         </div>
         <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0">
-          <button 
+          <button
             className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
             onClick={() => handleGenerateReport('PERFORMANCE')}
           >
@@ -582,8 +584,8 @@ const Reports: React.FC = () => {
           </div>
           <div className="text-base sm:text-2xl font-bold mt-1 sm:mt-2">+{stats.growthRate}%</div>
           <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5 mt-2">
-            <div 
-              className="bg-blue-600 h-2 sm:h-2.5 rounded-full" 
+            <div
+              className="bg-blue-600 h-2 sm:h-2.5 rounded-full"
               style={{ width: `${Math.min(stats.growthRate, 100)}%` }}
             ></div>
           </div>
@@ -631,20 +633,20 @@ const Reports: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip 
+              <Tooltip
                 formatter={(value: number) => `${value.toLocaleString()} KZT`}
                 labelStyle={{ color: '#1F2937' }}
-                contentStyle={{ 
+                contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #E5E7EB',
                   borderRadius: '0.5rem'
                 }}
               />
               <Legend />
-              <Bar 
-                dataKey="value" 
-                name="Доходы" 
-                fill="#3B82F6" 
+              <Bar
+                dataKey="value"
+                name="Доходы"
+                fill="#3B82F6"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -661,20 +663,20 @@ const Reports: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
               <YAxis dataKey="name" type="category" width={120} />
-              <Tooltip 
+              <Tooltip
                 formatter={(value: number) => `${value} часов`}
                 labelStyle={{ color: '#1F2937' }}
-                contentStyle={{ 
+                contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #E5E7EB',
                   borderRadius: '0.5rem'
                 }}
               />
               <Legend />
-              <Bar 
-                dataKey="totalHours" 
-                name="Общая нагрузка" 
-                fill="#10B981" 
+              <Bar
+                dataKey="totalHours"
+                name="Общая нагрузка"
+                fill="#10B981"
                 radius={[0, 4, 4, 0]}
               />
             </BarChart>
@@ -691,29 +693,29 @@ const Reports: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip 
+              <Tooltip
                 formatter={(value: number, name: string) => [
                   name === 'count' ? `${value} занятий` : `${value.toFixed(1)} часов`,
                   name === 'count' ? 'Количество занятий' : 'Общие часы'
                 ]}
                 labelStyle={{ color: '#1F2937' }}
-                contentStyle={{ 
+                contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #E5E7EB',
                   borderRadius: '0.5rem'
                 }}
               />
               <Legend />
-              <Bar 
-                dataKey="count" 
-                name="Количество занятий" 
-                fill="#F59E0B" 
+              <Bar
+                dataKey="count"
+                name="Количество занятий"
+                fill="#F59E0B"
                 radius={[4, 4, 0, 0]}
               />
-              <Bar 
-                dataKey="hours" 
-                name="Общие часы" 
-                fill="#EF4444" 
+              <Bar
+                dataKey="hours"
+                name="Общие часы"
+                fill="#EF4444"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -726,7 +728,7 @@ const Reports: React.FC = () => {
         <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800">Список отчетов</h3>
         </div>
-        
+
         {/* Desktop Table View */}
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full table-fixed divide-y divide-gray-200">
@@ -754,8 +756,8 @@ const Reports: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredReports.map((report) => (
-                <tr 
-                  key={report.id} 
+                <tr
+                  key={report.id}
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => handleRowClick(report)}
                 >
@@ -780,7 +782,7 @@ const Reports: React.FC = () => {
                     <div className="text-sm text-gray-900">{new Date(report.generatedAt).toLocaleDateString('ru-RU')}</div>
                   </td>
                   <td className="px-6 py-4 text-right text-sm font-medium">
-                    <button 
+                    <button
                       className="text-blue-600 hover:text-blue-900 mr-3"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -790,7 +792,7 @@ const Reports: React.FC = () => {
                     >
                       <Download className="h-4 w-4" />
                     </button>
-                    <button 
+                    <button
                       className="text-gray-600 hover:text-gray-900"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -817,7 +819,7 @@ const Reports: React.FC = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {filteredReports.map((report) => (
-                <div 
+                <div
                   key={report.id}
                   className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => handleRowClick(report)}
@@ -828,7 +830,7 @@ const Reports: React.FC = () => {
                         <FileText className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
                         <h3 className="text-sm font-medium text-gray-900 truncate">{report.title}</h3>
                       </div>
-                      
+
                       <div className="space-y-1">
                         <div className="flex items-center text-xs text-gray-500">
                           <span>Тип: {reportTypeLabels[report.type]}</span>
@@ -841,16 +843,16 @@ const Reports: React.FC = () => {
                           <span>Создан: {new Date(report.generatedAt).toLocaleDateString('ru-RU')}</span>
                         </div>
                       </div>
-                      
+
                       <div className="mt-2">
                         <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${statusColors[report.status]}`}>
                           {statusLabels[report.status]}
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-1 ml-2">
-                      <button 
+                      <button
                         className="text-blue-600 hover:text-blue-900 p-1.5 rounded transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -860,7 +862,7 @@ const Reports: React.FC = () => {
                       >
                         <Download className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         className="text-gray-600 hover:text-gray-900 p-1.5 rounded transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();

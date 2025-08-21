@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AIScheduleResponseDto } from './dto/ai-schedule-response.dto';
 import { scheduleGenerationSchema } from './schemas/schedule-generation.schema';
-import { simpleScheduleSchema } from './schemas/simple-schedule.schema';
 import * as pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 
@@ -54,102 +53,6 @@ export class AiAssistantService {
 
   async processNeuroAbaiRequest(message: string, scenario: string, files?: Express.Multer.File[]): Promise<string> {
     this.ensureKey();
-
-    if (scenario === 'schedule_generation_v1') {
-      // --- Новый пошаговый режим генерации расписания по группам ---
-      // Ожидается, что message содержит все данные (teachers, groups, studyPlans, classrooms, constraints, ...)
-      // 1. Парсим message, выделяем группы, предметы и прочее
-      let parsed: any;
-      try {
-        parsed = typeof message === 'string' ? JSON.parse(message) : message;
-      } catch {
-        // если не JSON, fallback к старому prompt
-        return this.processNeuroAbaiRequestOld(message, scenario, files);
-      }
-      const { teachers, groups, studyPlans, classrooms, constraints, ...rest } = parsed;
-      if (!groups || !Array.isArray(groups) || groups.length === 0) {
-        return this.processNeuroAbaiRequestOld(message, scenario, files);
-      }
-      const allLessons: any[] = [];
-      const allMissed: any[] = [];
-      // Для учёта занятых слотов: { [day_slot]: { teacherIds: Set, classroomIds: Set } }
-      const busyMap: Record<string, { teacherIds: Set<number>, classroomIds: Set<number> }> = {};
-      for (const group of groups) {
-        // Собираем prompt только для этой группы
-        const groupPrompt = {
-          ...rest,
-          teachers,
-          groups: [group],
-          studyPlans: studyPlans.filter((sp: any) => sp.groupId === group.id),
-          classrooms,
-          constraints,
-          busySlots: Object.entries(busyMap).map(([key, val]) => ({ key, teacherIds: Array.from(val.teacherIds), classroomIds: Array.from(val.classroomIds) }))
-        };
-        const groupPromptStr = JSON.stringify(groupPrompt);
-        const system = `Ты генератор учебного расписания для одной группы. Правила:
-1. Возвращай строго JSON по схеме simple_schedule (response_format json_schema). Никакого Markdown.
-2. Дни: 1..5 (Пн..Пт). Слоты: 1..8. Пропуски допустимы.
-3. Все уроки recurrence=weekly.
-4. Используй только перечисленные ID studyPlanId/groupId/teacherId/classroomId. Не придумывай новые.
-5. Не дублируй (day,slot) для одинакового studyPlanId. Если несколько учителей — каждой записи один teacherId.
-6. Если недостаточно данных — просто меньше lessons.
-7. Учитывай занятые слоты (busySlots): не ставь учителей и аудитории, которые уже заняты в указанные day/slot.
-8. Если не удаётся поставить предмет (например, из-за конфликтов), обязательно добавь объект в массив missedLessons: { groupId, studyPlanId, reason }.`;
-        const aiJson = await this.postOpenAIResponseText({
-          instructions: system,
-          input: groupPromptStr,
-          model: 'gpt-5',
-          schemaName: 'simple_schedule',
-          schema: simpleScheduleSchema
-        });
-        let aiObj: any;
-        try { aiObj = typeof aiJson === 'string' ? JSON.parse(aiJson) : aiJson; } catch { aiObj = {}; }
-        const lessons = Array.isArray(aiObj.lessons) ? aiObj.lessons : [];
-        const missed = Array.isArray(aiObj.missedLessons) ? aiObj.missedLessons : [];
-        allLessons.push(...lessons);
-        allMissed.push(...missed);
-        // Обновляем busyMap
-        for (const l of lessons) {
-          const key = `${l.day}_${l.slot}`;
-          if (!busyMap[key]) busyMap[key] = { teacherIds: new Set(), classroomIds: new Set() };
-          if (l.teacherId) busyMap[key].teacherIds.add(l.teacherId);
-          if (l.classroomId) busyMap[key].classroomIds.add(l.classroomId);
-        }
-      }
-      // Возвращаем общий результат
-      return JSON.stringify({ lessons: allLessons, missedLessons: allMissed });
-    }
-    // ...старый режим...
-    return this.processNeuroAbaiRequestOld(message, scenario, files);
-  }
-
-  // Старый режим генерации (одним промптом)
-  async processNeuroAbaiRequestOld(message: string, scenario: string, files?: Express.Multer.File[]): Promise<string> {
-    this.ensureKey();
-
-    if (scenario === 'schedule_generation_v1') {
-      const system = `Ты генератор учебного расписания.
-Правила:
-1. Возвращай строго JSON по схеме simple_schedule (response_format json_schema). Никакого Markdown.
-2. Дни: 1..5 (Пн..Пт). Слоты: 1..8. Пропуски допустимы.
-3. Все уроки recurrence=weekly.
-4. Используй только перечисленные ID studyPlanId/groupId/teacherId/classroomId. Не придумывай новые.
-5. Не дублируй (day,slot) для одинакового studyPlanId. Если несколько групп/учителей в промпте — каждой записи один groupId и один teacherId.
-6. Если недостаточно данных — просто меньше lessons.
-7. Сгенерируй расписание на всю неделю (Пн–Пт) для всех перечисленных групп и всех выбранных предметов. Для каждой группы и каждого предмета построй занятия на всю неделю, равномерно распределяя их по дням и слотам. Не пропускай группы/предметы, если есть возможность их поставить. Заполни максимально возможное количество слотов, чтобы каждая группа получила все свои предметы.
-8. Если не удаётся поставить предмет (например, из-за конфликтов или нехватки слотов), обязательно добавь объект в массив missedLessons: { groupId, studyPlanId, reason }. Не пропускай ни одну группу и ни один предмет без явной причины.`;
-      // Логируем отправляемый payload для отладки
-      console.log('[AI PAYLOAD] SYSTEM PROMPT:', system);
-      console.log('[AI PAYLOAD] USER PROMPT:', message);
-      const aiJson = await this.postOpenAIResponseText({
-        instructions: system,
-        input: message,
-        model: 'gpt-5',
-        schemaName: 'simple_schedule',
-        schema: simpleScheduleSchema
-      });
-      return aiJson;
-    }
     const systemPrompt = this.buildNeuroAbaiSystemPrompt();
     let userPrompt = `${scenario}\n\n${message}`;
     if (files?.length) {
@@ -164,7 +67,7 @@ export class AiAssistantService {
       }
       userPrompt += `\n\nFILES:${parts.join('')}`;
     }
-    return this.postOpenAIResponseText({ instructions: systemPrompt, input: userPrompt });
+    return this.postOpenAIResponseText({ instructions: systemPrompt, input: userPrompt, temperature: 0.7 });
   }
 
   // ---- Helpers ----
@@ -191,20 +94,7 @@ export class AiAssistantService {
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        instructions,
-        input,
-        temperature,
-        text: {
-          format: {
-            name: schemaName,
-            type: 'json_schema',
-            schema,
-            strict: true
-          }
-        }
-      })
+      body: JSON.stringify({ model, instructions, input, temperature, response_format: { type: 'json_schema', json_schema: { name: schemaName, schema, strict: true } } })
     });
     if (!res.ok) { const err = await res.text(); throw new Error(`OpenAI error ${res.status}: ${err}`); }
     const data = await res.json();
@@ -213,23 +103,10 @@ export class AiAssistantService {
     return JSON.parse(clean) as T;
   }
 
-  private async postOpenAIResponseText(p: { instructions: string; input: string; model?: string; schemaName?: string; schema?: any; }): Promise<string> {
-    const { instructions, input, model = 'gpt-4o-2024-08-06', schemaName, schema } = p;
-    const body: any = { model, instructions, input };
-    if (schemaName && schema) {
-      body.text = {
-        format: {
-          name: schemaName,
-          type: 'json_schema',
-          schema,
-          strict: true
-        }
-      };
-    }
+  private async postOpenAIResponseText(p: { instructions: string; input: string; temperature?: number; model?: string; }): Promise<string> {
+    const { instructions, input, temperature = 0.7, model = 'gpt-4o-2024-08-06' } = p;
     const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      method: 'POST', headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, instructions, input, temperature })
     });
     if (!res.ok) { const err = await res.text(); throw new Error(`OpenAI error ${res.status}: ${err}`); }
     const data = await res.json();
@@ -238,9 +115,9 @@ export class AiAssistantService {
 
   private extractResponsesText(data: any): string {
     if (typeof data?.output_text === 'string') return data.output_text;
-    const t2 = data?.output?.[1]?.content?.find((c: any) => c?.type?.includes('text'))?.text; if (typeof t2 === 'string') return t2;
-    const t3 = data?.content?.[1]?.text; if (typeof t3 === 'string') return t3;
-    const t4 = data?.choices?.[1]?.message?.content; if (typeof t4 === 'string') return t4;
+    const t2 = data?.output?.[0]?.content?.find((c: any) => c?.type?.includes('text'))?.text; if (typeof t2 === 'string') return t2;
+    const t3 = data?.content?.[0]?.text; if (typeof t3 === 'string') return t3;
+    const t4 = data?.choices?.[0]?.message?.content; if (typeof t4 === 'string') return t4;
     return JSON.stringify(data);
   }
 

@@ -14,15 +14,15 @@ config({
 });
 
 console.log(process.env.DATABASE_URL)
-// const prisma = new PrismaClient({
-//     datasources: {
-//         db: {
-//             url: "prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19MTVJXUUl0RlFGWTlWTnFDbTRLZHYiLCJhcGlfa2V5IjoiMDFLMzNQSDhSUEY0MEhEMFZOREIzSkRLNFQiLCJ0ZW5hbnRfaWQiOiIyYjk2MjQwYWMxNWQ3ZWQwOWIxM2U5OWU3NzdiN2ZiNWFiMDhiMDViY2I4YzVkNWNkNzNkZmRiOTg5MjliMzZkIiwiaW50ZXJuYWxfc2VjcmV0IjoiNDRmZWM0NjItM2IyNy00ZTE3LThmYTgtOTFmMzU1MjBkOGMxIn0.qowlnIXZiDDqrIvqegEIVL3B4CjCNtLQxX92OBW646k"
-//         }
-//     }
-// });
+const prisma = new PrismaClient({
+    datasources: {
+        db: {
+            url: "prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19MTVJXUUl0RlFGWTlWTnFDbTRLZHYiLCJhcGlfa2V5IjoiMDFLMzNQSDhSUEY0MEhEMFZOREIzSkRLNFQiLCJ0ZW5hbnRfaWQiOiIyYjk2MjQwYWMxNWQ3ZWQwOWIxM2U5OWU3NzdiN2ZiNWFiMDhiMDViY2I4YzVkNWNkNzNkZmRiOTg5MjliMzZkIiwiaW50ZXJuYWxfc2VjcmV0IjoiNDRmZWM0NjItM2IyNy00ZTE3LThmYTgtOTFmMzU1MjBkOGMxIn0.qowlnIXZiDDqrIvqegEIVL3B4CjCNtLQxX92OBW646k"
+        }
+    }
+});
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 const PASSWORD = 'password123';
 let passwordHash: string | null = null;
@@ -65,7 +65,8 @@ async function ensureParent(userId: number, relation: string, studentIds: number
 
 async function ensureClassroom(name: string, data: Partial<{ building: string; floor: number; capacity: number; type: string; equipment: string[]; description: string; }>) {
     const c = await prisma.classroom.findFirst({ where: { name } });
-    return c ?? prisma.classroom.create({ data: { name, building: data.building || 'Негізгі корпус', floor: data.floor ?? 1, capacity: data.capacity ?? 30, type: data.type || 'LECTURE', equipment: data.equipment || [], description: data.description } });
+    // Заменено "Негізгі корпус" (каз.) на "Главный корпус" (рус.)
+    return c ?? prisma.classroom.create({ data: { name, building: data.building || 'Главный корпус', floor: data.floor ?? 1, capacity: data.capacity ?? 30, type: data.type || 'LECTURE', equipment: data.equipment || [], description: data.description } });
 }
 
 async function ensureStudyPlan(name: string, teacherId: number, groupIds: number[], extra: Partial<{ description: string; normativeWorkload: number; }>) {
@@ -80,9 +81,20 @@ async function ensureStudyPlan(name: string, teacherId: number, groupIds: number
     return sp;
 }
 
+// Добавляем конкретную дату проведения в первую учебную неделю (1-5 сентября) согласно dayOfWeek
 async function ensureSchedule(studyPlanId: number, groupId: number, dayOfWeek: number, start: string, end: string, teacherId: number, classroomId?: number) {
-    const s = await prisma.schedule.findFirst({ where: { studyPlanId, groupId, dayOfWeek, startTime: start } });
-    return s ?? prisma.schedule.create({ data: { studyPlanId, groupId, dayOfWeek, startTime: start, endTime: end, teacherId, classroomId } });
+    const academicYearStart = (new Date()).getFullYear(); // если сейчас >= сентябрь – этот год, иначе предыдущий
+    const scheduleDate = (dayOfWeek >= 1 && dayOfWeek <= 5)
+        ? new Date(academicYearStart, 8, dayOfWeek) // 8 = сентябрь (0-based)
+        : null;
+    const existing = await prisma.schedule.findFirst({ where: { studyPlanId, groupId, dayOfWeek, startTime: start } });
+    if (existing) {
+        if (!existing.date && scheduleDate) {
+            return prisma.schedule.update({ where: { id: existing.id }, data: { date: scheduleDate, repeat: "weekly" } });
+        }
+        return existing;
+    }
+    return prisma.schedule.create({ data: { studyPlanId, groupId, dayOfWeek, startTime: start, endTime: end, teacherId, classroomId, date: scheduleDate, repeat: "weekly" } });
 }
 
 async function ensureLesson(studyPlanId: number, date: Date, name: string) {
@@ -208,7 +220,8 @@ async function main() {
 
     // Users
     const admin = await ensureUser('admin@abai.edu.kz', 'ADMIN', 'Ерлан', 'Админов');
-    const financist = await ensureUser('financist@abai.edu.kz', 'FINANCIST', 'Гульмира', 'Қасымова');
+    // "Қасымова" -> "Касымова" (удалена казахская буква Қ)
+    const financist = await ensureUser('financist@abai.edu.kz', 'FINANCIST', 'Гульмира', 'Касымова');
     const hr = await ensureUser('hr@abai.edu.kz', 'HR', 'Айжан', 'Муканова');
     await ensureDashboardWidgets(admin.id, 'ADMIN');
     await ensureDashboardWidgets(financist.id, 'FINANCIST');
@@ -237,18 +250,18 @@ async function main() {
 
     // Students
     const studentDefs = [
-        { email: 'aida.student@abai.edu.kz', name: 'Аида', surname: 'Казыбекова', group: g10A.id },
-        { email: 'arman.student@abai.edu.kz', name: 'Арман', surname: 'Жакипов', group: g10A.id },
-        { email: 'temirlan.student@abai.edu.kz', name: 'Темирлан', surname: 'Байбеков', group: g10A.id },
-        { email: 'aidana.student@abai.edu.kz', name: 'Айдана', surname: 'Нурланова', group: g10A.id },
-        { email: 'dana.student@abai.edu.kz', name: 'Дана', surname: 'Сералиева', group: g10B.id },
-        { email: 'amina.student@abai.edu.kz', name: 'Амина', surname: 'Жаксылыкова', group: g10B.id },
-        { email: 'askar.student@abai.edu.kz', name: 'Асқар', surname: 'Муратов', group: g10B.id },
-        { email: 'bekzat.student@abai.edu.kz', name: 'Бекзат', surname: 'Оразбаев', group: g11A.id },
-        { email: 'zarina.student@abai.edu.kz', name: 'Зарина', surname: 'Касымова', group: g11A.id },
-        { email: 'dias.student@abai.edu.kz', name: 'Диас', surname: 'Абдильдаев', group: g11B.id },
-        { email: 'aruzhan.student@abai.edu.kz', name: 'Аружан', surname: 'Тлеубекова', group: g9A.id },
-        { email: 'alibek.student@abai.edu.kz', name: 'Алибек', surname: 'Досымов', group: g9A.id }
+        { email: 'aida.student@abai.edu.kz', name: 'Алексей', surname: 'Михайлов', group: g10A.id },
+        { email: 'arman.student@abai.edu.kz', name: 'Дмитрий', surname: 'Орлов', group: g10A.id },
+        { email: 'temirlan.student@abai.edu.kz', name: 'Илья', surname: 'Зайцев', group: g10A.id },
+        { email: 'aidana.student@abai.edu.kz', name: 'Мария', surname: 'Семенова', group: g10A.id },
+        { email: 'dana.student@abai.edu.kz', name: 'Полина', surname: 'Крылова', group: g10B.id },
+        { email: 'amina.student@abai.edu.kz', name: 'Виктория', surname: 'Беляева', group: g10B.id },
+        { email: 'askar.student@abai.edu.kz', name: 'Егор', surname: 'Алексеев', group: g10B.id },
+        { email: 'bekzat.student@abai.edu.kz', name: 'Кирилл', surname: 'Власов', group: g11A.id },
+        { email: 'zarina.student@abai.edu.kz', name: 'Анастасия', surname: 'Жукова', group: g11A.id },
+        { email: 'dias.student@abai.edu.kz', name: 'Никита', surname: 'Сафонов', group: g11B.id },
+        { email: 'aruzhan.student@abai.edu.kz', name: 'Софья', surname: 'Кудряшова', group: g9A.id },
+        { email: 'alibek.student@abai.edu.kz', name: 'Роман', surname: 'Гришин', group: g9A.id }
     ];
     const students: { userId: number; studentId: number; groupId: number }[] = [];
     for (const s of studentDefs) {
@@ -278,10 +291,11 @@ async function main() {
     const chemTeacher = teachers.find(t => t.email === 'chem.teacher@abai.edu.kz');
     if (!mathTeacher || !bioTeacher || !physTeacher || !chemTeacher) throw new Error('Teacher initialization failed');
 
-    const spAlg = await ensureStudyPlan('Алгебра 10 класс', mathTeacher.teacherId, [g10A.id, g10B.id], { description: 'Углублённый курс алгебры', normativeWorkload: 102 });
-    const spBio = await ensureStudyPlan('Биология 10 класс', bioTeacher.teacherId, [g10B.id], { description: 'Общая биология', normativeWorkload: 68 });
-    const spPhys = await ensureStudyPlan('Физика 11 класс', physTeacher.teacherId, [g11A.id, g11B.id], { description: 'МКТ и термодинамика', normativeWorkload: 85 });
-    const spChem = await ensureStudyPlan('Химия 9 класс', chemTeacher.teacherId, [g9A.id], { description: 'Основы неорганической химии', normativeWorkload: 68 });
+    // Имена учебных планов теперь только предмет без номера класса
+    const spAlg = await ensureStudyPlan('Алгебра', mathTeacher.teacherId, [g10A.id, g10B.id], { description: 'Углублённый курс алгебры (10 класс)', normativeWorkload: 102 });
+    const spBio = await ensureStudyPlan('Биология', bioTeacher.teacherId, [g10B.id], { description: 'Общая биология (10 класс)', normativeWorkload: 68 });
+    const spPhys = await ensureStudyPlan('Физика', physTeacher.teacherId, [g11A.id, g11B.id], { description: 'МКТ и термодинамика (11 класс)', normativeWorkload: 85 });
+    const spChem = await ensureStudyPlan('Химия', chemTeacher.teacherId, [g9A.id], { description: 'Основы неорганической химии (9 класс)', normativeWorkload: 68 });
 
     // Schedule
     await ensureSchedule(spAlg.id, g10A.id, 1, '08:30', '09:15', mathTeacher.teacherId, c101.id);
@@ -410,8 +424,9 @@ async function main() {
             if (si >= 6) break;
             const subj = subjectList[si];
             const teacher = teachers[(si + grade) % teachers.length];
-            const planName = `${subj} ${grade} класс`;
-            const plan = await ensureStudyPlan(planName, teacher.teacherId, gradeGroups, { description: `Учебный план по предмету ${subj} для ${grade} класса`, normativeWorkload: 68 + (si % 3) * 17 });
+            // Используем единое имя плана = предмет (без номера класса). Один план связывается с группами разных классов.
+            const planName = subj;
+            const plan = await ensureStudyPlan(planName, teacher.teacherId, gradeGroups, { description: `Учебный план по предмету ${subj} (добавлены группы ${grade} класса)`, normativeWorkload: 68 + (si % 3) * 17 });
             planMetas.push({ planId: plan.id, subject: subj, grade, teacherId: teacher.teacherId });
         }
     }

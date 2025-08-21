@@ -137,8 +137,8 @@ const AIScheduleFlowModal: React.FC<Props> = ({ isOpen, onClose, onApplied }) =>
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <motion.div initial={{opacity:0,scale:.95}} animate={{opacity:1,scale:1}} className="bg-white rounded-lg shadow-xl w-[900px] max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{opacity:0,scale:.95}} animate={{opacity:1,scale:1}} className="bg-white rounded-lg shadow-xl w-full max-w-[900px] max-h-[95vh] sm:max-h-[90vh] flex flex-col">
         <div className="p-5 border-b flex justify-between items-start bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
           <div className="flex items-center space-x-3">
             <div className="bg-white/20 p-2 rounded"><Brain className="h-6 w-6" /></div>
@@ -166,7 +166,7 @@ const AIScheduleFlowModal: React.FC<Props> = ({ isOpen, onClose, onApplied }) =>
           })}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
           {error && (
             <Alert variant="error" className="mb-4"><AlertCircle className="h-4 w-4" />{error}</Alert>
           )}

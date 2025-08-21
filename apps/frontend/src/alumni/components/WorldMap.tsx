@@ -56,7 +56,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ data, className = '' }) => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkIsMobile();
     window.addEventListener('resize', checkIsMobile);
     return () => window.removeEventListener('resize', checkIsMobile);
@@ -113,12 +113,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ data, className = '' }) => {
                       ))
                     }
                   </Geographies>
-                  
+
                   {/* Маркеры стран */}
                   {data.countries.map((country) => {
                     const coords = countryCoordinates[country.code];
                     if (!coords) return null;
-                    
+
                     return (
                       <Marker
                         key={country.code}
@@ -126,7 +126,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ data, className = '' }) => {
                         onClick={() => setSelectedCountry(country)}
                         onMouseEnter={() => setHoveredCountry(country.code)}
                         onMouseLeave={() => setHoveredCountry(null)}
-                        style={{ cursor: 'pointer' }}
+                        style={{ default: { cursor: 'pointer' } }}
                       >
                         <circle
                           r={getMarkerSize(country.count)}
@@ -154,7 +154,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ data, className = '' }) => {
                   })}
                 </ZoomableGroup>
               </ComposableMap>
-              
+
               {/* Подсказка при наведении */}
               {hoveredCountry && (
                 <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white p-2 rounded text-sm pointer-events-none">
@@ -259,14 +259,14 @@ const WorldMap: React.FC<WorldMapProps> = ({ data, className = '' }) => {
               ✕ Закрыть
             </button>
           </div>
-          
+
           <div className="mb-4">
             <div className="flex items-center text-blue-800 mb-2">
               <Users className="h-5 w-5 mr-2" />
               <span className="text-lg font-medium">Студентов: {selectedCountry.count}</span>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {selectedCountry.universities.map((university, index) => (
               <div key={index} className="bg-white p-4 rounded-lg shadow-sm">

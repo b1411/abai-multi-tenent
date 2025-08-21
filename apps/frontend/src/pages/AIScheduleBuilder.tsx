@@ -389,10 +389,8 @@ const AIScheduleBuilder: React.FC = () => {
         }
     };
 
-    interface AILesson { day: number; slot: number; studyPlanId: number; groupId: number; teacherId: number; classroomId: number | null; recurrence?: string }
-    interface AIResponseShape { lessons: AILesson[]; missedLessons?: { groupId: number; studyPlanId: number; reason: string }[] }
-    const parseAiResponseIntoGrid = (raw: string | AIResponseShape) => {
-        let parsed: AIResponseShape | string | undefined;
+    const parseAiResponseIntoGrid = (raw: string | { lessons: any[]; missedLessons?: any[] }) => {
+        let parsed: any;
         if (typeof raw === 'string') {
             try {
                 parsed = JSON.parse(raw);
@@ -402,33 +400,26 @@ const AIScheduleBuilder: React.FC = () => {
         } else {
             parsed = raw;
         }
-        const lessons: AILesson[] = (parsed && typeof parsed === 'object' && 'lessons' in parsed && Array.isArray((parsed as AIResponseShape).lessons)) ? (parsed as AIResponseShape).lessons : [];
+        const lessons = Array.isArray(parsed) ? parsed : parsed.lessons || [];
         const newGrid: CellLesson[][] = Array.from({ length: 8 }, () => Array.from({ length: 5 }, () => ({ subject: '' })));
-        lessons.forEach((l) => {
+        lessons.forEach((l: any) => {
             const dayIdx = (l.day ?? 1) - 1;
             const slotIdx = (l.slot ?? 1) - 1;
             if (dayIdx >= 0 && dayIdx < 5 && slotIdx >= 0 && slotIdx < 8) {
-                const sp = studyPlans.find(sp => sp.id === l.studyPlanId);
-                const grp = groups.find(g => g.id === l.groupId);
-                const teacher = teachers.find(t => t.id === l.teacherId);
-                const room = classrooms.find(c => c.id === l.classroomId);
                 newGrid[slotIdx][dayIdx] = {
-                    subject: sp ? sp.name : (l.studyPlanId ? `SP#${l.studyPlanId}` : '—'),
+                    subject: l.studyPlanId ? `SP#${l.studyPlanId}` : '—',
                     studyPlanId: l.studyPlanId,
                     groupId: l.groupId,
-                    group: grp?.name,
                     teacherId: l.teacherId,
-                    teacher: teacher ? `${teacher.name} ${teacher.surname}` : undefined,
-                    classroomId: l.classroomId === null ? undefined : l.classroomId,
-                    classroom: room?.name,
-                    recurrence: l.recurrence || 'weekly'
+                    classroomId: l.classroomId,
+                    recurrence: l.recurrence,
                 };
             }
         });
         setGrid(newGrid);
         // обработка missedLessons
-        if (parsed && typeof parsed === 'object' && 'missedLessons' in parsed && Array.isArray((parsed as AIResponseShape).missedLessons)) {
-            setMissedLessons((parsed as AIResponseShape).missedLessons!);
+        if (parsed.missedLessons && Array.isArray(parsed.missedLessons)) {
+            setMissedLessons(parsed.missedLessons);
         } else {
             setMissedLessons([]);
         }
@@ -457,16 +448,15 @@ const AIScheduleBuilder: React.FC = () => {
         setAiResponse(null);
         try {
             // backend endpoint /ai-assistant/openai-responses expects { message, scenario }
-            const data = await apiClient.post<AIResponseShape | string>('/ai-assistant/openai-responses', {
+            const data = await apiClient.post<any>('/ai-assistant/openai-responses', {
                 message: assembledPrompt,
                 scenario: 'schedule_generation_v1'
             });
+            setAiResponse(data);
             if (typeof data === 'string') {
-                setAiResponse(data);
                 parseAiResponseIntoGrid(data);
-            } else if (data && typeof data === 'object') {
-                setAiResponse(JSON.stringify(data));
-                parseAiResponseIntoGrid(data as AIResponseShape);
+            } else if (typeof data === 'object' && data && data.lessons) {
+                parseAiResponseIntoGrid(data);
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Ошибка запроса к AI';
@@ -617,15 +607,8 @@ const AIScheduleBuilder: React.FC = () => {
                                             setGrid(prev => {
                                                 const copy = prev.map(r => r.slice());
                                                 const dragged = { ...copy[fromSlot][fromDay] };
-                                                const target = { ...copy[sIdx][dIdx] };
-                                                // swap если целевая занята
-                                                if (target.subject) {
-                                                    copy[fromSlot][fromDay] = target;
-                                                    copy[sIdx][dIdx] = dragged;
-                                                } else {
-                                                    copy[fromSlot][fromDay] = { subject: '' };
-                                                    copy[sIdx][dIdx] = dragged;
-                                                }
+                                                copy[fromSlot][fromDay] = { subject: '' };
+                                                copy[sIdx][dIdx] = dragged;
                                                 return copy;
                                             });
                                         };

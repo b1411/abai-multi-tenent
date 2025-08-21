@@ -19,20 +19,6 @@ export const simpleScheduleSchema = {
   required: ['day','slot','studyPlanId','groupId','teacherId','recurrence','classroomId'],
         additionalProperties: false
       }
-  },
-    missedLessons: {
-      type: 'array',
-      description: 'Предметы, которые не удалось поставить (для ручной доработки).',
-      items: {
-        type: 'object',
-        properties: {
-          groupId: { type: 'number' },
-          studyPlanId: { type: 'number' },
-          reason: { type: 'string' }
-        },
-        required: ['groupId','studyPlanId','reason'],
-        additionalProperties: false
-      }
     }
   },
   required: ['lessons'],

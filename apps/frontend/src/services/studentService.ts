@@ -749,5 +749,26 @@ export const studentService = {
     subject: string;
   }>> {
     return await apiClient.get(`/students/${studentId}/teachers`);
+  },
+
+  // ===== ПАГИНАЦИЯ СТУДЕНТОВ =====
+  async getPaginatedStudents(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    groupId?: number;
+  }): Promise<{
+    data: Student[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const qs = new URLSearchParams();
+    qs.append('page', String(params.page));
+    qs.append('limit', String(params.limit));
+    if (params.search) qs.append('search', params.search);
+    if (params.groupId !== undefined) qs.append('groupId', String(params.groupId));
+    return await apiClient.get(`/students/paginated?${qs.toString()}`);
   }
 };

@@ -120,6 +120,145 @@ export class StudentsService {
     });
   }
 
+  async findPaginated(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    groupId?: number;
+    role?: string;
+    teacherUserId?: number;
+  }) {
+    const { page, limit, search, groupId, role, teacherUserId } = params;
+
+    let teacherGroupIds: number[] | undefined;
+
+    if (role === 'TEACHER' && teacherUserId) {
+      const teacher = await this.prisma.teacher.findFirst({
+        where: { userId: teacherUserId, deletedAt: null },
+        include: {
+          studyPlans: {
+            where: { deletedAt: null },
+            select: {
+              group: {
+                select: { id: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (teacher) {
+        teacherGroupIds = Array.from(
+          new Set(teacher.studyPlans.flatMap(sp => sp.group.map(g => g.id)))
+        );
+        if (!teacherGroupIds.length) {
+          return {
+            data: [],
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          };
+        }
+      } else {
+        return {
+          data: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        };
+      }
+    }
+
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (groupId) {
+      where.groupId = groupId;
+    } else if (teacherGroupIds) {
+      where.groupId = { in: teacherGroupIds };
+    }
+
+    if (search) {
+      where.AND = [
+        {
+          OR: [
+            { user: { name: { contains: search, mode: 'insensitive' } } },
+            { user: { surname: { contains: search, mode: 'insensitive' } } },
+            { user: { email: { contains: search, mode: 'insensitive' } } },
+            { group: { name: { contains: search, mode: 'insensitive' } } },
+          ],
+        },
+      ];
+    }
+
+    const [total, students] = await this.prisma.$transaction([
+      this.prisma.student.count({ where }),
+      this.prisma.student.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              surname: true,
+              middlename: true,
+              phone: true,
+              avatar: true,
+              role: true,
+            },
+          },
+          group: true,
+          Parents: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  surname: true,
+                  middlename: true,
+                  phone: true,
+                  role: true,
+                },
+              },
+            },
+          },
+          lessonsResults: {
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              Lesson: {
+                include: {
+                  studyPlan: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { group: { courseNumber: 'asc' } },
+            { group: { name: 'asc' } },
+            { user: { surname: 'asc' } },
+            { user: { name: 'asc' } },
+        ],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data: students,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findOne(id: number) {
     const student = await this.prisma.student.findFirst({
       where: { id, deletedAt: null },

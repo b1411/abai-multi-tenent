@@ -72,6 +72,27 @@ export class StudentsController {
     return this.studentsService.findAll();
   }
 
+  @Get('paginated')
+  @ApiOperation({ summary: 'Получить студентов постранично' })
+  @ApiResponse({ status: 200, description: 'Пагинированный список студентов' })
+  @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT')
+  getPaginated(
+    @Request() req,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('search') search?: string,
+    @Query('groupId') groupId?: string,
+  ) {
+    return this.studentsService.findPaginated({
+      page: Number(page) || 1,
+      limit: Number(limit) || 20,
+      search: search || undefined,
+      groupId: groupId ? Number(groupId) : undefined,
+      role: req.user?.role,
+      teacherUserId: req.user?.id,
+    });
+  }
+
   @Get('group/:groupId')
   @ApiOperation({ summary: 'Получить студентов группы' })
   @ApiResponse({ status: 200, description: 'Список студентов указанной группы' })

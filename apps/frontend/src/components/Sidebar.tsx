@@ -41,7 +41,8 @@ import {
   CheckCircle,
   Newspaper,
   Activity,
-  Zap
+  Zap,
+  Smile
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -130,6 +131,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Мои дети', href: '/my-children', icon: Heart, roles: ['PARENT'] },
         { name: 'Группы', href: '/groups', icon: Users, roles: ['ADMIN', 'TEACHER', 'HR', 'PARENT'] },
         { name: 'Успеваемость', href: '/performance', icon: TrendingUp, roles: ["ADMIN", "TEACHER", "PARENT", "STUDENT"] },
+        { name: 'Психоэмоциональный анализ', href: '/students/emotional-analysis', icon: Smile, roles: ['ADMIN'] },
       ]
     },
     {

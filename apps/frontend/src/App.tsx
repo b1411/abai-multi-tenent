@@ -20,6 +20,7 @@ import AcademicJournal from './pages/AcademicJournal';
 import StudentsPage from './pages/Students';
 import StudentDetailPage from './pages/StudentDetail';
 import GroupsPage from './pages/Groups';
+import EmotionalAnalysisPage from './pages/EmotionalAnalysis';
 import AiChatPage from './pages/AiChat';
 import NeuroAbaiPage from './pages/NeuroAbai';
 import ClassroomsPage from './pages/Classrooms';
@@ -138,6 +139,7 @@ const App: React.FC = () => {
 
                     {/* Students routes */}
                     <Route path="students" element={<StudentsPage />} />
+                    <Route path="students/emotional-analysis" element={<EmotionalAnalysisPage />} />
                     <Route path="students/:id" element={<StudentDetailPage />} />
                     <Route path="my-children" element={<MyChildren />} />
                     <Route path="groups" element={<GroupsPage />} />

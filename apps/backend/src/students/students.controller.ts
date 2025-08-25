@@ -420,4 +420,29 @@ export class StudentsController {
   getStudentTeachers(@Param('id') id: string) {
     return this.studentsService.getStudentTeachers(+id);
   }
+
+  @Get(':id/exams')
+  @ApiOperation({ 
+    summary: 'Получить контрольные / экзамены студента',
+    description: `
+Возвращает список уроков типа CONTROL_WORK (по умолчанию) или EXAM для всех учебных планов группы студента.
+Поддерживает пагинацию.
+Поля result включают персональные результаты студента, если они существуют.`
+  })
+  @ApiResponse({ status: 200, description: 'Список контрольных / экзаменов студента' })
+  @ApiResponse({ status: 404, description: 'Студент не найден' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  getStudentExams(
+    @Param('id') id: string,
+    @Query('type') type?: 'CONTROL_WORK' | 'EXAM',
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50'
+  ) {
+    return this.studentsService.getStudentExams(+id, {
+      type,
+      page: Number(page) || 1,
+      limit: Number(limit) || 50
+    });
+  }
 }

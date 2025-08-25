@@ -286,4 +286,35 @@ export class GroupsController {
   removeStudentFromGroup(@Param('studentId', ParseIntPipe) studentId: number) {
     return this.groupsService.removeStudentFromGroup(studentId);
   }
+
+  @Patch(':id/curator')
+  @ApiOperation({ summary: 'Назначить или снять куратора группы' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID группы',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Куратор успешно обновлён',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Группа или преподаватель не найдены',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Недостаточно прав',
+  })
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  setCurator(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { curatorTeacherId?: number | null },
+  ) {
+    const curatorTeacherId =
+      body.curatorTeacherId === null || body.curatorTeacherId === undefined
+        ? null
+        : Number(body.curatorTeacherId);
+    return this.groupsService.setCurator(id, curatorTeacherId);
+  }
 }

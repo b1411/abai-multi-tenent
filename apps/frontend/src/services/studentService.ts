@@ -20,6 +20,18 @@ export interface Student {
     id: number;
     name: string;
     courseNumber: number;
+    curatorTeacherId?: number | null;
+    curator?: {
+      id: number;
+      user: {
+        id: number;
+        name: string;
+        surname: string;
+        middlename?: string;
+        phone?: string;
+        email: string;
+      };
+    } | null;
   };
   Parents?: {
     id: number;
@@ -770,5 +782,33 @@ export const studentService = {
     if (params.search) qs.append('search', params.search);
     if (params.groupId !== undefined) qs.append('groupId', String(params.groupId));
     return await apiClient.get(`/students/paginated?${qs.toString()}`);
+  },
+
+  // ===== ЭКЗАМЕНЫ / КОНТРОЛЬНЫЕ (оптимизированный endpoint) =====
+  async getStudentExams(
+    studentId: number,
+    params?: { type?: 'CONTROL_WORK' | 'EXAM'; page?: number; limit?: number }
+  ): Promise<{
+    data: Array<{
+      id: number;
+      name: string;
+      date: string;
+      type: string;
+      studyPlan?: { id: number; name: string };
+      result?: {
+        lessonScore?: number;
+        homeworkScore?: number;
+        attendance?: boolean;
+        absentReason?: string;
+      } | null;
+    }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const qs = new URLSearchParams();
+    if (params?.type) qs.append('type', params.type);
+    if (params?.page) qs.append('page', String(params.page));
+    if (params?.limit) qs.append('limit', String(params.limit));
+    const url = `/students/${studentId}/exams${qs.toString() ? `?${qs.toString()}` : ''}`;
+    return await apiClient.get(url);
   }
 };

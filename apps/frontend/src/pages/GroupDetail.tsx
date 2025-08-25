@@ -15,6 +15,7 @@ import {
   Edit
 } from 'lucide-react';
 import { groupService } from '../services/groupService';
+import { teacherService } from '../services/teacherService';
 import { Modal } from '../components/ui/Modal';
 import { studentService } from '../services/studentService';
 import { performanceService } from '../services/performanceService';
@@ -29,6 +30,18 @@ interface GroupDetail {
   description?: string;
   createdAt: string;
   studentsCount?: number;
+  curatorTeacherId?: number | null;
+  curator?: {
+    id: number;
+    user: {
+      id?: number; // optional to align with API type
+      name: string;
+      surname: string;
+      middlename?: string;
+      email: string;
+      phone?: string;
+    };
+  };
 }
 
 interface GroupStudent {
@@ -55,7 +68,9 @@ const GroupDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', courseNumber: '' });
+const [form, setForm] = useState({ name: '', courseNumber: '', curatorTeacherId: '' });
+const [teachers, setTeachers] = useState<any[]>([]);
+const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   // Переназначение студента
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -96,14 +111,18 @@ const GroupDetail: React.FC = () => {
     }
   };
 
-  const openEdit = () => {
+const openEdit = () => {
     if (!group) return;
-    setForm({ name: group.name, courseNumber: String(group.courseNumber) });
+    setForm({ 
+      name: group.name, 
+      courseNumber: String(group.courseNumber),
+      curatorTeacherId: group.curatorTeacherId ? String(group.curatorTeacherId) : ''
+    });
     setEditError(null);
     setEditOpen(true);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm(f => ({ ...f, [name]: value }));
   };
@@ -114,10 +133,21 @@ const GroupDetail: React.FC = () => {
     setSaving(true);
     setEditError(null);
     try {
-      const payload: Partial<{ name: string; courseNumber: number; }> = {};
+      const payload: Partial<{ name: string; courseNumber: number; curatorTeacherId: number | null; }> = {};
       if (form.name && form.name !== group.name) payload.name = form.name.trim();
       const num = Number(form.courseNumber);
       if (!Number.isNaN(num) && num !== group.courseNumber) payload.courseNumber = num;
+
+      // curator logic
+      if (form.curatorTeacherId === '' && group.curatorTeacherId != null) {
+        payload.curatorTeacherId = null;
+      } else if (
+        form.curatorTeacherId !== '' && 
+        Number(form.curatorTeacherId) !== group.curatorTeacherId
+      ) {
+        payload.curatorTeacherId = Number(form.curatorTeacherId);
+      }
+
       if (Object.keys(payload).length === 0) {
         setEditOpen(false);
         setSaving(false);
@@ -203,6 +233,23 @@ const GroupDetail: React.FC = () => {
     ];
     return colors[(courseNumber - 1) % colors.length];
   };
+
+  // Load teachers when edit modal opens
+  useEffect(() => {
+    if (editOpen) {
+      (async () => {
+        setLoadingTeachers(true);
+        try {
+          const list = await teacherService.getTeachers();
+          setTeachers(list);
+        } catch {
+          setTeachers([]);
+        } finally {
+          setLoadingTeachers(false);
+        }
+      })();
+    }
+  }, [editOpen]);
 
   if (loading) {
     return (
@@ -449,6 +496,31 @@ const GroupDetail: React.FC = () => {
                 placeholder="10"
               />
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Куратор</label>
+              <select
+                name="curatorTeacherId"
+                value={form.curatorTeacherId}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                disabled={loadingTeachers || saving}
+              >
+                <option value="">— Не выбран —</option>
+                {teachers.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.user.surname} {t.user.name}{t.user.middlename ? ` ${t.user.middlename}` : ''}
+                  </option>
+                ))}
+              </select>
+              {loadingTeachers && (
+                <p className="mt-1 text-xs text-gray-500">Загрузка преподавателей...</p>
+              )}
+              {group.curatorTeacherId && !form.curatorTeacherId && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Текущий куратор будет снят
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -530,4 +602,3 @@ const GroupDetail: React.FC = () => {
 export default GroupDetail;
 
 // Вспомогательные функции / хэндлеры (добавим перед export по факту — но для компактности оставляем здесь)
-

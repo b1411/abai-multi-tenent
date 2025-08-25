@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreateGroupDto } from '../types/group';
+import { teacherService } from '../services/teacherService';
+import type { Teacher } from '../types/teacher';
 
 interface GroupFormProps {
   onSubmit: (data: CreateGroupDto) => Promise<void>;
@@ -17,6 +19,25 @@ export const GroupForm: React.FC<GroupFormProps> = ({
     courseNumber: 1,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [teachersError, setTeachersError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadTeachers = async () => {
+      setLoadingTeachers(true);
+      try {
+        const list = await teacherService.getTeachers();
+        setTeachers(list);
+        setTeachersError(null);
+      } catch (e) {
+        setTeachersError('Не удалось загрузить преподавателей');
+        setTeachers([]);
+      }
+      setLoadingTeachers(false);
+    };
+    loadTeachers();
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -44,17 +65,27 @@ export const GroupForm: React.FC<GroupFormProps> = ({
 
     try {
       await onSubmit(formData);
-      // Сбрасываем форму после успешного создания
       setFormData({ name: '', courseNumber: 1 });
       setErrors({});
-    } catch (error) {
-      // Ошибка обрабатывается в родительском компоненте
+    } catch {
+      /* handled outside */
     }
   };
 
-  const handleInputChange = (field: keyof CreateGroupDto, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Очищаем ошибку для этого поля при изменении
+  const handleInputChange = (field: keyof CreateGroupDto, value: string | number | null) => {
+    setFormData(prev => {
+      const next = { ...prev };
+      if (field === 'curatorTeacherId') {
+        if (value === null || value === '' || Number.isNaN(value)) {
+          delete (next as any).curatorTeacherId;
+        } else {
+          (next as any).curatorTeacherId = value as number;
+        }
+      } else {
+        (next as any)[field] = value;
+      }
+      return next;
+    });
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -105,6 +136,35 @@ export const GroupForm: React.FC<GroupFormProps> = ({
           />
           {errors.courseNumber && (
             <p className="mt-1 text-sm text-red-600">{errors.courseNumber}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="curatorTeacherId" className="block text-sm font-medium text-gray-700 mb-1">
+            Куратор (опционально)
+          </label>
+          <select
+            id="curatorTeacherId"
+            value={formData.curatorTeacherId ?? ''}
+            onChange={(e) => handleInputChange(
+              'curatorTeacherId',
+              e.target.value ? parseInt(e.target.value) : null
+            )}
+            disabled={loading || loadingTeachers}
+            className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 border-gray-300 bg-white"
+          >
+            <option value="">— Не выбран —</option>
+            {teachers.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.user.surname} {t.user.name}{t.user.middlename ? ` ${t.user.middlename}` : ''}
+              </option>
+            ))}
+          </select>
+          {loadingTeachers && (
+            <p className="mt-1 text-xs text-gray-500">Загрузка преподавателей...</p>
+          )}
+          {teachersError && (
+            <p className="mt-1 text-xs text-red-600">{teachersError}</p>
           )}
         </div>
 

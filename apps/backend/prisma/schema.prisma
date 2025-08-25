@@ -212,6 +212,9 @@ model Teacher {
 
   // Фидбеки о преподавателе
   feedbacksAbout FeedbackResponse[]
+
+  // Кураторские группы
+  curatorGroups Group[]
 }
 
 model Parent {
@@ -237,6 +240,10 @@ model Group {
   studyPlans   StudyPlan[]
   schedules    Schedule[]
   reviews      StudentReview[] @relation("StudentReviewsGroup")
+
+  // Классный руководитель (куратор) - опционально
+  curatorTeacherId Int?
+  curator          Teacher?      @relation(fields: [curatorTeacherId], references: [id])
 }
 
 model StudyPlan {

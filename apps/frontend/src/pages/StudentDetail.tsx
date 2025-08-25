@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FaArrowLeft,
@@ -20,17 +20,30 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaArrowRight,
-  FaDownload,
   FaEye,
   FaMoneyBillWave,
-  FaFileInvoiceDollar
+  FaFileInvoiceDollar,
+  FaAngleRight,
+  FaMapMarkerAlt
 } from 'react-icons/fa';
 import { useStudent } from '../hooks/useStudents';
 import { useAuth } from '../hooks/useAuth';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
-import { studentService, AttendanceData, FinanceData, EmotionalData, StudentRemarksResponse, CreateRemarkData, UpdateRemarkData, StudentRemark, StudentCommentsResponse, CreateCommentData, UpdateCommentData, StudentComment } from '../services/studentService';
-import { feedbackService } from '../services/feedbackService';
+import {
+  studentService,
+  AttendanceData,
+  FinanceData,
+  EmotionalData,
+  StudentRemarksResponse,
+  CreateRemarkData,
+  UpdateRemarkData,
+  StudentRemark,
+  StudentCommentsResponse,
+  CreateCommentData,
+  UpdateCommentData,
+  StudentComment
+} from '../services/studentService';
 import RemarkModal from '../components/RemarkModal';
 import DeleteRemarkModal from '../components/DeleteRemarkModal';
 import { CommentModal } from '../components/CommentModal';
@@ -56,6 +69,22 @@ import {
   Radar
 } from 'recharts';
 
+const monthLabelsRu = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+interface StudentExamItem {
+  id: number;
+  name: string;
+  date: string;
+  type: string;
+  studyPlan?: { id: number; name: string };
+  result?: {
+    lessonScore?: number;
+    homeworkScore?: number;
+    attendance?: boolean;
+    absentReason?: string;
+  } | null;
+}
+
 const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -68,7 +97,245 @@ const StudentDetail: React.FC = () => {
   const [emotionalData, setEmotionalData] = useState<EmotionalData | null>(null);
   const [remarksData, setRemarksData] = useState<StudentRemarksResponse | null>(null);
   const [commentsData, setCommentsData] = useState<StudentCommentsResponse | null>(null);
+
+  // Exams optimized endpoint state
+  const [examsData, setExamsData] = useState<{
+    data: StudentExamItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  } | null>(null);
+  const [examPage, setExamPage] = useState(1);
+  const examLimit = 20;
+  const [loadingExams, setLoadingExams] = useState<boolean>(false);
+  // Exams deterministic mock (explicit user request override: deterministic mocks allowed for Exams)
+  const [examFilterYear, setExamFilterYear] = useState('2024/2025');
+  const [examFilterQuarter, setExamFilterQuarter] = useState('Все четверти');
+  const [examFilterMonth, setExamFilterMonth] = useState('Все месяцы');
+  const [examFilterType, setExamFilterType] = useState('Все типы экзаменов');
+
+  // Deterministic pseudo-random generator placeholder (for future scaling)
+  const seededRandom = useCallback((seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }, []);
+
+  // Fixed deterministic dataset per specification (values match provided sample)
+  const examMockData = useMemo(() => {
+    return [
+      { subject: 'Английский', max: 100, min: 35, obtained: 65, passed: true },
+      { subject: 'Математика', max: 100, min: 35, obtained: 73, passed: true },
+      { subject: 'Физика', max: 100, min: 35, obtained: 55, passed: true },
+      { subject: 'Химия', max: 100, min: 35, obtained: 90, passed: true },
+      { subject: 'Испанский', max: 100, min: 35, obtained: 88, passed: true }
+    ];
+  }, [student?.id]);
+
+  const examTotals = useMemo(() => {
+    const totalMax = examMockData.reduce((s, r) => s + r.max, 0);
+    const totalObtained = examMockData.reduce((s, r) => s + r.obtained, 0);
+    const passedCount = examMockData.filter(r => r.passed).length;
+    const failedCount = examMockData.length - passedCount;
+    const percent = totalMax ? (totalObtained / totalMax) * 100 : 0;
+    const avg = examMockData.length ? totalObtained / examMockData.length : 0;
+    return { totalMax, totalObtained, passedCount, failedCount, percent, avg };
+  }, [examMockData]);
+  // (future) exam type toggle if needed. Currently default CONTROL_WORK
+  // const [examType, setExamType] = useState<'CONTROL_WORK' | 'EXAM'>('CONTROL_WORK');
+
   const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
+
+  // Доп образование (разрешены моки, расширенный формат)
+  interface ExtraActivity {
+    id: string;
+    name: string;
+    category: 'Кружки' | 'Организации' | 'Курсы' | 'Олимпиады';
+    organization: string;
+    progress: number;
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'PLANNED';
+    startDate: string;
+    endDate?: string;
+    mentor: string;
+    mentorTitle?: string;
+    description: string;
+    schedule: { day: string; time: string }[];
+    location: string;
+    participants: number;
+    skills: string[];
+    achievements: {
+      id: string;
+      title: string;
+      description: string;
+      date: string;
+      level: 'WIN' | 'PARTICIPANT' | 'PROJECT' | 'CERT';
+    }[];
+  }
+
+  const [extraEducationPrograms] = useState<ExtraActivity[]>([
+    {
+      id: 'extra-1',
+      name: 'Курс по алгоритмам',
+      category: 'Курсы',
+      organization: 'IT Academy',
+      progress: 70,
+      status: 'IN_PROGRESS',
+      startDate: '2025-06-01',
+      mentor: 'Иванов Сергей',
+      mentorTitle: 'Senior Engineer',
+      description: 'Продвинутые структуры данных и алгоритмы оптимизации.',
+      schedule: [
+        { day: 'Вт', time: '17:00-18:30' },
+        { day: 'Чт', time: '17:00-18:30' }
+      ],
+      location: 'Кампус А, ауд. 204',
+      participants: 18,
+      skills: ['Алгоритмы', 'Структуры данных', 'Оптимизация', 'Командная работа'],
+      achievements: [
+        {
+          id: 'ach-1',
+          title: 'Проект: Поиск пути',
+          description: 'Реализация A* и сравнение с Dijkstra',
+          date: '2025-07-10',
+          level: 'PROJECT'
+        }
+      ]
+    },
+    {
+      id: 'extra-2',
+      name: 'Академия лидерства',
+      category: 'Организации',
+      organization: 'EduLead',
+      progress: 100,
+      status: 'COMPLETED',
+      startDate: '2024-09-01',
+      endDate: '2025-02-01',
+      mentor: 'Петрова Анна',
+      mentorTitle: 'HR Coach',
+      description: 'Развитие навыков публичных выступлений и лидерства.',
+      schedule: [
+        { day: 'Ср', time: '16:00-17:30' }
+      ],
+      location: 'Онлайн',
+      participants: 25,
+      skills: ['Лидерство', 'Коммуникации', 'Публичные выступления'],
+      achievements: [
+        {
+          id: 'ach-2',
+          title: 'Финальная презентация',
+          description: 'Командный питч социального проекта',
+          date: '2025-02-01',
+          level: 'PROJECT'
+        }
+      ]
+    },
+    {
+      id: 'extra-3',
+      name: 'Разговорный английский',
+      category: 'Кружки',
+      organization: 'Lingua Center',
+      progress: 10,
+      status: 'PLANNED',
+      startDate: '2025-09-10',
+      mentor: 'Johnson Emily',
+      mentorTitle: 'Native Speaker',
+      description: 'Практика разговорного английского в малых группах.',
+      schedule: [
+        { day: 'Пн', time: '18:00-19:00' },
+        { day: 'Пт', time: '18:00-19:00' }
+      ],
+      location: 'Кампус B, ауд. 12',
+      participants: 12,
+      skills: ['Английский', 'Коммуникации', 'Слушание'],
+      achievements: []
+    },
+    {
+      id: 'extra-4',
+      name: 'Олимпиада по математике',
+      category: 'Олимпиады',
+      organization: 'STEM League',
+      progress: 55,
+      status: 'IN_PROGRESS',
+      startDate: '2025-05-15',
+      mentor: 'Сидоров Алексей',
+      mentorTitle: 'Math Coach',
+      description: 'Подготовка к региональному этапу олимпиады.',
+      schedule: [
+        { day: 'Сб', time: '11:00-13:00' }
+      ],
+      location: 'Кампус A, ауд. 310',
+      participants: 8,
+      skills: ['Математика', 'Аналитика', 'Проблем-солвинг'],
+      achievements: [
+        {
+          id: 'ach-3',
+          title: 'Отборочный тур',
+          description: 'Прошел в топ-10 списка',
+          date: '2025-06-20',
+          level: 'PARTICIPANT'
+        }
+      ]
+    }
+  ]);
+
+  // Агрегации по распределению и навыкам
+  const extraDistribution = useMemo(() => {
+    const counts: Record<string, number> = {
+      'Кружки': 0,
+      'Организации': 0,
+      'Курсы': 0,
+      'Олимпиады': 0
+    };
+    extraEducationPrograms.forEach(p => {
+      counts[p.category] = (counts[p.category] || 0) + 1;
+    });
+    return counts;
+  }, [extraEducationPrograms]);
+
+  const extraSkillStats = useMemo(() => {
+    const categories = {
+      Технические: new Set<string>(),
+      Творческие: new Set<string>(),
+      Лидерские: new Set<string>()
+    };
+    const technicalKeywords = ['Алгорит', 'Структур', 'Оптимиз', 'Матем', 'Аналит', 'Problem', 'Английский'];
+    const leadershipKeywords = ['Лидер', 'Коммуник', 'Публич', 'Команд', 'организац'];
+    extraEducationPrograms.forEach(p => {
+      p.skills.forEach(skill => {
+        if (technicalKeywords.some(k => skill.toLowerCase().includes(k.toLowerCase()))) {
+          categories.Технические.add(skill);
+        } else if (leadershipKeywords.some(k => skill.toLowerCase().includes(k.toLowerCase()))) {
+          categories.Лидерские.add(skill);
+        } else {
+          categories.Творческие.add(skill);
+        }
+      });
+    });
+    return {
+      technical: Array.from(categories.Технические),
+      creative: Array.from(categories.Творческие),
+      leadership: Array.from(categories.Лидерские)
+    };
+  }, [extraEducationPrograms]);
+
+  // Data for charts (pie + radar)
+  const distributionData = useMemo(
+    () => Object.entries(extraDistribution).map(([name, value]) => ({ name, value })),
+    [extraDistribution]
+  );
+
+  const skillsRadarData = useMemo(() => ([
+    { category: 'Технические', value: extraSkillStats.technical.length },
+    { category: 'Лидерские', value: extraSkillStats.leadership.length },
+    { category: 'Творческие', value: extraSkillStats.creative.length }
+  ]), [extraSkillStats]);
+
+  const skillsMaxValue = useMemo(
+    () => Math.max(
+      1,
+      extraSkillStats.technical.length,
+      extraSkillStats.leadership.length,
+      extraSkillStats.creative.length
+    ),
+    [extraSkillStats]
+  );
 
   // Состояние для модальных окон замечаний
   const [remarkModalOpen, setRemarkModalOpen] = useState(false);
@@ -82,10 +349,9 @@ const StudentDetail: React.FC = () => {
   const [editingComment, setEditingComment] = useState<StudentComment | null>(null);
   const [deletingComment, setDeletingComment] = useState<StudentComment | null>(null);
 
-  // Функция для загрузки данных посещаемости
+  // Посещаемость
   const fetchAttendanceData = useCallback(async () => {
     if (!id) return;
-
     setLoadingData(prev => ({ ...prev, attendance: true }));
     try {
       const data = await studentService.getStudentAttendance(Number(id));
@@ -96,10 +362,9 @@ const StudentDetail: React.FC = () => {
     setLoadingData(prev => ({ ...prev, attendance: false }));
   }, [id]);
 
-  // Функция для загрузки финансовых данных
+  // Финансы
   const fetchFinanceData = useCallback(async () => {
     if (!id) return;
-
     setLoadingData(prev => ({ ...prev, finance: true }));
     try {
       const data = await studentService.getStudentFinances(Number(id));
@@ -110,14 +375,11 @@ const StudentDetail: React.FC = () => {
     setLoadingData(prev => ({ ...prev, finance: false }));
   }, [id]);
 
-  // Функция для загрузки эмоциональных данных
+  // Эмоциональные данные
   const fetchEmotionalData = useCallback(async () => {
     if (!id) return;
-
     setLoadingData(prev => ({ ...prev, emotional: true }));
     try {
-      // Используем обновленный метод из studentService, который автоматически
-      // пытается получить данные из feedback системы, а затем из legacy
       const emotionalData = await studentService.getStudentEmotionalState(Number(id));
       setEmotionalData(emotionalData);
     } catch (error) {
@@ -127,10 +389,9 @@ const StudentDetail: React.FC = () => {
     setLoadingData(prev => ({ ...prev, emotional: false }));
   }, [id]);
 
-  // Функция для загрузки замечаний
+  // Замечания
   const fetchRemarksData = useCallback(async () => {
     if (!id) return;
-
     setLoadingData(prev => ({ ...prev, remarks: true }));
     try {
       const data = await studentService.getStudentRemarks(Number(id));
@@ -141,10 +402,9 @@ const StudentDetail: React.FC = () => {
     setLoadingData(prev => ({ ...prev, remarks: false }));
   }, [id]);
 
-  // Функция для загрузки комментариев
+  // Комментарии
   const fetchCommentsData = useCallback(async () => {
     if (!id) return;
-
     setLoadingData(prev => ({ ...prev, comments: true }));
     try {
       const data = await studentService.getStudentComments(Number(id));
@@ -155,50 +415,63 @@ const StudentDetail: React.FC = () => {
     setLoadingData(prev => ({ ...prev, comments: false }));
   }, [id]);
 
-  // Функция для объединения данных из разных источников
-  const combineEmotionalData = (feedbackData: any, legacyData: any) => {
-    // Сначала проверяем данные из фидбеков
-    if (feedbackData && feedbackData.currentState) {
-      // Используем данные из фидбеков если они есть
-      return {
-        currentState: feedbackData.currentState,
-        lastUpdated: feedbackData.lastUpdated,
-        trends: feedbackData.trends,
-        recommendations: feedbackData.recommendations,
-        source: 'feedback',
-        feedbackHistory: feedbackData.trends || [],
-      };
-    } else if (legacyData && legacyData.currentState) {
-      // Используем данные из старой системы как fallback
-      return {
-        ...legacyData,
-        source: 'legacy',
-      };
-    } else {
-      // Возвращаем null если нет реальных данных - не показываем моки
-      return null;
+  // Экзамены (оптимизированный endpoint)
+  const fetchExamsData = useCallback(async () => {
+    if (!student) return;
+    setLoadingExams(true);
+    try {
+      const resp = await studentService.getStudentExams(student.id, {
+        page: examPage,
+        limit: examLimit,
+        // type: examType
+        type: 'CONTROL_WORK'
+      });
+      setExamsData(resp);
+    } catch (e) {
+      console.error('Ошибка загрузки экзаменов:', e);
+      setExamsData({
+        data: [],
+        pagination: { page: examPage, limit: examLimit, total: 0, totalPages: 0 }
+      });
     }
-  };
+    setLoadingExams(false);
+  }, [student, examPage]);
 
+  // Сброс страницы при переключении студента
   useEffect(() => {
-    if (student && activeTab === 'grades') {
+    setExamPage(1);
+    setExamsData(null);
+  }, [student?.id]);
+
+  // Основной effect для большинства табов (без экзаменов, чтобы избежать лишних перезапусков)
+  useEffect(() => {
+    if (!student) return;
+    if (activeTab === 'grades') {
       fetchGrades();
-    } else if (student && activeTab === 'attendance') {
+    } else if (activeTab === 'attendance') {
       fetchAttendanceData();
-    } else if (student && activeTab === 'finance') {
+    } else if (activeTab === 'finance') {
       fetchFinanceData();
-    } else if (student && activeTab === 'emotional') {
-      fetchEmotionalData();
-    } else if (student && activeTab === 'remarks') {
+    } else if (activeTab === 'remarks') {
       fetchRemarksData();
-    } else if (student && activeTab === 'comments') {
+    } else if (activeTab === 'comments') {
       fetchCommentsData();
+    } else if (activeTab === 'overview') {
+      if (!emotionalData) fetchEmotionalData();
+      if (!attendanceData) fetchAttendanceData();
     }
-  }, [student?.id, activeTab]); // Убираем все функции из зависимостей - они мемоизированы
+  }, [student?.id, activeTab]); // избегаем включения функций и состояний, чтобы не создавать бесконечные циклы
+
+  // Отдельный effect для экзаменов с зависимостью от страницы
+  useEffect(() => {
+    if (!student) return;
+    if (activeTab === 'exams') {
+      fetchExamsData();
+    }
+  }, [student?.id, activeTab, examPage]); // examPage триггерит перезагрузку
 
   const getAccessLevel = () => {
     if (!user || !student) return 'none';
-
     switch (user.role) {
       case 'STUDENT':
         return student.userId === user.id ? 'full' : 'basic';
@@ -215,123 +488,279 @@ const StudentDetail: React.FC = () => {
 
   const accessLevel = getAccessLevel();
 
-  // Функции для работы с замечаниями
-  const handleAddRemark = () => {
-    setEditingRemark(null);
-    setRemarkModalOpen(true);
-  };
+  // Агрегация динамики успеваемости
+  const performanceChartData = useMemo(() => {
+    if (!student?.lessonsResults || student.lessonsResults.length === 0) return [];
+    const map: Record<string, { month: string;[subject: string]: number | string }> = {};
+    const counts: Record<string, Record<string, number>> = {};
+    student.lessonsResults.forEach(r => {
+      if (r.lessonScore == null || r.lessonScore === undefined || !r.Lesson) return;
+      const d = new Date(r.Lesson.date);
+      const keyMonth = `${d.getFullYear()}-${d.getMonth()}`;
+      const label = monthLabelsRu[d.getMonth()];
+      const subject = r.Lesson.studyPlan?.name || r.Lesson.name;
+      if (!map[keyMonth]) {
+        map[keyMonth] = { month: label };
+        counts[keyMonth] = {};
+      }
+      if (!map[keyMonth][subject]) {
+        map[keyMonth][subject] = 0;
+        counts[keyMonth][subject] = 0;
+      }
+      map[keyMonth][subject] = (map[keyMonth][subject] as number) + (r.lessonScore || 0);
+      counts[keyMonth][subject] += 1;
+    });
+    Object.keys(map).forEach(k => {
+      Object.keys(counts[k]).forEach(subject => {
+        map[k][subject] = (map[k][subject] as number) / counts[k][subject];
+      });
+    });
+    const rows = Object.entries(map)
+      .sort((a, b) => {
+        const [ay, am] = a[0].split('-').map(Number);
+        const [by, bm] = b[0].split('-').map(Number);
+        if (ay === by) return am - bm;
+        return ay - by;
+      })
+      .map(e => e[1]);
+    return rows.slice(-6);
+  }, [student?.lessonsResults]);
 
-  const handleEditRemark = (remark: StudentRemark) => {
-    setEditingRemark(remark);
-    setRemarkModalOpen(true);
-  };
+  const performanceSubjects = useMemo(() => {
+    if (performanceChartData.length === 0) return [];
+    const subjectsSet = new Set<string>();
+    performanceChartData.forEach(row => {
+      Object.keys(row).forEach(k => {
+        if (k !== 'month') subjectsSet.add(k);
+      });
+    });
+    return Array.from(subjectsSet).slice(0, 5);
+  }, [performanceChartData]);
 
-  const handleDeleteRemark = (remark: StudentRemark) => {
-    setDeletingRemark(remark);
-    setDeleteRemarkModalOpen(true);
-  };
+  // ===== Redesigned Grades tab data (moved above early returns to satisfy hooks rules) =====
+  const gradeSubjectsMetrics = useMemo(() => {
+    if (!grades) return [];
+    return Object.entries(grades).map(([subjectName, subjectData]: any) => {
+      const gArr = subjectData.grades || [];
+      const currentScore = gArr[0]?.lessonScore ?? null;
+      const previousScore = gArr[1]?.lessonScore ?? null;
+      const averageScore = subjectData.statistics?.averageLessonScore ?? null;
+      let trend: 'up' | 'down' | 'stable' | null = null;
+      if (currentScore != null && previousScore != null) {
+        if (currentScore > previousScore) trend = 'up';
+        else if (currentScore < previousScore) trend = 'down';
+        else trend = 'stable';
+      }
+      return {
+        subjectName,
+        currentScore,
+        previousScore,
+        averageScore,
+        trend,
+        teacher: subjectData.subject?.teacher?.user
+          ? `${subjectData.subject.teacher.user.surname} ${subjectData.subject.teacher.user.name}`
+          : null
+      };
+    });
+  }, [grades]);
 
+  const lastAssignments = useMemo(() => {
+    if (!grades) return [];
+    const all: any[] = [];
+    Object.entries(grades).forEach(([subjectName, subjectData]: any) => {
+      (subjectData.grades || []).slice(0, 8).forEach((g: any) => {
+        if (g.lessonScore == null) return;
+        all.push({
+          subject: subjectName,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          title: g.Lesson?.name || 'Задание',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          date: new Date(g.Lesson?.date),
+          score: g.lessonScore
+        });
+      });
+    });
+    return all
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 3)
+      .map(item => ({
+        ...item,
+        dateStr: item.date.toLocaleDateString('ru-RU')
+      }));
+  }, [grades]);
+
+  // Allowed mock personal development plan (explicitly permitted)
+  const personalPlan = useMemo(() => {
+    return [
+      {
+        id: 'plan-math',
+        subject: 'Математика',
+        status: 'В процессе',
+        mentor: 'Иванов С.',
+        description: 'Усилить решение задач с параметрами и повысить средний балл до 4.9.',
+        progress: 60,
+        skills: ['Алгебра', 'Аналитика', 'Логика'],
+        goals: [
+          { id: 'm1', title: 'Параметры', status: 'done', deadline: '2025-09-01' },
+            { id: 'm2', title: 'Неравенства', status: 'in_progress', deadline: '2025-09-15' },
+          { id: 'm3', title: 'Тригонометрия', status: 'pending', deadline: '2025-10-01' }
+        ]
+      },
+      {
+        id: 'plan-phys',
+        subject: 'Физика',
+        status: 'В процессе',
+        mentor: 'Петров А.',
+        description: 'Стабилизировать результаты по механике и электродинамике.',
+        progress: 45,
+        skills: ['Механика', 'Аналитика'],
+        goals: [
+          { id: 'p1', title: 'Кинематика', status: 'in_progress', deadline: '2025-09-10' },
+          { id: 'p2', title: 'Электричество', status: 'pending', deadline: '2025-10-05' }
+        ]
+      },
+      {
+        id: 'plan-eng',
+        subject: 'Английский',
+        status: 'В процессе',
+        mentor: 'Smith E.',
+        description: 'Поднять speaking и listening до стабильных 85/100.',
+        progress: 35,
+        skills: ['Speaking', 'Listening', 'Vocabulary'],
+        goals: [
+          { id: 'e1', title: 'Listening practice', status: 'in_progress', deadline: '2025-09-12' },
+          { id: 'e2', title: 'Vocabulary расширение', status: 'pending', deadline: '2025-09-25' }
+        ]
+      }
+    ];
+  }, []);
+
+  const skillsDistributionData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    personalPlan.forEach(p => {
+      p.skills.forEach((s: string) => {
+        counts[s] = (counts[s] || 0) + 1;
+      });
+    });
+    return Object.entries(counts).map(([skill, value]) => ({ skill, value }));
+  }, [personalPlan]);
+
+  // Мок расширенная история посещаемости (разрешено пользователем)
+  const attendanceHistoryMock = useMemo(() => ([
+    {
+      type: 'medical',
+      category: 'Мед. пункт',
+      reason: 'Головная боль',
+      date: '2024-03-15',
+      time: '10:30',
+      status: 'Подтверждено',
+      confirmer: 'Асанова А.К.',
+      duration: '2 часа',
+      comment: 'Отправлен домой после приема лекарств'
+    },
+    {
+      type: 'late',
+      category: 'Опоздание',
+      subject: 'Математика',
+      date: '2024-03-14',
+      time: '09:15',
+      duration: '15 минут',
+      comment: 'Опоздание по причине транспортных проблем'
+    },
+    {
+      type: 'excused',
+      category: 'Уважительная',
+      reason: 'Семейные обстоятельства',
+      date: '2024-03-10',
+      status: 'Одобрено',
+      confirmer: 'Классный руководитель',
+      duration: 'Полный день',
+      comment: 'Заявление от родителей предоставлено'
+    },
+    {
+      type: 'medical',
+      category: 'Мед. пункт',
+      reason: 'Плановый осмотр',
+      date: '2024-02-20',
+      time: '11:45',
+      status: 'Подтверждено',
+      confirmer: 'Асанова А.К.',
+      duration: '1 час',
+      comment: 'Профилактический осмотр пройден успешно'
+    },
+    {
+      type: 'absence',
+      category: 'Отсутствие',
+      reason: 'ОРВИ',
+      date: '2024-02-15',
+      status: 'Подтверждено',
+      confirmer: 'Мед. справка',
+      duration: '5 дней',
+      comment: 'Справка от врача предоставлена'
+    }
+  ]), []);
+
+  // Remark handlers
+  const handleAddRemark = () => { setEditingRemark(null); setRemarkModalOpen(true); };
+  const handleEditRemark = (remark: StudentRemark) => { setEditingRemark(remark); setRemarkModalOpen(true); };
+  const handleDeleteRemark = (remark: StudentRemark) => { setDeletingRemark(remark); setDeleteRemarkModalOpen(true); };
   const handleRemarkSubmit = async (remarkData: CreateRemarkData | UpdateRemarkData) => {
     if (!id) return;
-
     try {
       if (editingRemark) {
-        // Редактирование существующего замечания
         await studentService.updateStudentRemark(editingRemark.id, remarkData);
       } else {
-        // Добавление нового замечания
         await studentService.addStudentRemark(Number(id), remarkData as CreateRemarkData);
       }
-
-      // Перезагружаем данные замечаний
       await fetchRemarksData();
     } catch (error) {
       console.error('Ошибка при сохранении замечания:', error);
       throw error;
     }
   };
-
   const handleRemarkDelete = async () => {
     if (!deletingRemark) return;
-
     try {
       await studentService.deleteStudentRemark(deletingRemark.id);
-      // Перезагружаем данные замечаний
       await fetchRemarksData();
     } catch (error) {
       console.error('Ошибка при удалении замечания:', error);
       throw error;
     }
   };
+  const closeRemarkModal = () => { setRemarkModalOpen(false); setEditingRemark(null); };
+  const closeDeleteModal = () => { setDeleteRemarkModalOpen(false); setDeletingRemark(null); };
 
-  const closeRemarkModal = () => {
-    setRemarkModalOpen(false);
-    setEditingRemark(null);
-  };
-
-  const closeDeleteModal = () => {
-    setDeleteRemarkModalOpen(false);
-    setDeletingRemark(null);
-  };
-
-  // Функции для работы с комментариями
-  const handleAddComment = () => {
-    setEditingComment(null);
-    setCommentModalOpen(true);
-  };
-
-  const handleEditComment = (comment: StudentComment) => {
-    setEditingComment(comment);
-    setCommentModalOpen(true);
-  };
-
-  const handleDeleteComment = (comment: StudentComment) => {
-    setDeletingComment(comment);
-    setDeleteCommentModalOpen(true);
-  };
-
+  // Comment handlers
+  const handleAddComment = () => { setEditingComment(null); setCommentModalOpen(true); };
+  const handleEditComment = (comment: StudentComment) => { setEditingComment(comment); setCommentModalOpen(true); };
+  const handleDeleteComment = (comment: StudentComment) => { setDeletingComment(comment); setDeleteCommentModalOpen(true); };
   const handleCommentSubmit = async (commentData: CreateCommentData | UpdateCommentData) => {
     if (!id) return;
-
     try {
       if (editingComment) {
-        // Редактирование существующего комментария
         await studentService.updateStudentComment(editingComment.id, commentData);
       } else {
-        // Добавление нового комментария
         await studentService.addStudentComment(Number(id), commentData as CreateCommentData);
       }
-
-      // Перезагружаем данные комментариев
       await fetchCommentsData();
     } catch (error) {
       console.error('Ошибка при сохранении комментария:', error);
       throw error;
     }
   };
-
   const handleCommentDelete = async () => {
     if (!deletingComment) return;
-
     try {
       await studentService.deleteStudentComment(deletingComment.id);
-      // Перезагружаем данные комментариев
       await fetchCommentsData();
     } catch (error) {
       console.error('Ошибка при удалении комментария:', error);
       throw error;
     }
   };
-
-  const closeCommentModal = () => {
-    setCommentModalOpen(false);
-    setEditingComment(null);
-  };
-
-  const closeDeleteCommentModal = () => {
-    setDeleteCommentModalOpen(false);
-    setDeletingComment(null);
-  };
+  const closeCommentModal = () => { setCommentModalOpen(false); setEditingComment(null); };
+  const closeDeleteCommentModal = () => { setDeleteCommentModalOpen(false); setDeletingComment(null); };
 
   if (loading) {
     return (
@@ -340,15 +769,13 @@ const StudentDetail: React.FC = () => {
       </div>
     );
   }
-
   if (error) {
     return (
-      <div className="p-6">
+      <div className="px-4 py-6 md:px-6 max-w-7xl mx-auto w-full overflow-x-hidden break-words min-w-0">
         <Alert variant="error" message={error} />
       </div>
     );
   }
-
   if (!student) {
     return (
       <div className="p-6">
@@ -356,7 +783,6 @@ const StudentDetail: React.FC = () => {
       </div>
     );
   }
-
   if (accessLevel === 'none') {
     return (
       <div className="p-6">
@@ -381,9 +807,10 @@ const StudentDetail: React.FC = () => {
     { id: 'overview', label: 'Обзор', icon: FaUserGraduate },
     ...(accessLevel === 'full' && user?.role !== 'STUDENT' ? [
       { id: 'grades', label: 'Успеваемость', icon: FaChartLine },
+      { id: 'exams', label: 'Экзамены', icon: FaBook },
       { id: 'attendance', label: 'Посещаемость', icon: FaClipboardList },
       { id: 'finance', label: 'Финансы', icon: FaCreditCard },
-      { id: 'emotional', label: 'Эмоциональное состояние', icon: FaSmile },
+      { id: 'extra', label: 'Доп образование', icon: FaSmile },
       ...(user?.role === 'TEACHER' || user?.role === 'ADMIN' ? [
         { id: 'remarks', label: 'Замечания', icon: FaExclamationTriangle },
       ] : []),
@@ -393,8 +820,43 @@ const StudentDetail: React.FC = () => {
     ] : [])
   ];
 
+  const renderTrendIcon = (trend?: string) => {
+    if (trend === 'up') return <FaArrowUp className="w-4 h-4 text-green-500" />;
+    if (trend === 'down') return <FaArrowDown className="w-4 h-4 text-red-500" />;
+    return <FaArrowRight className="w-4 h-4 text-gray-400" />;
+  };
+
+  // Мок данные для психоэмоционального состояния (по запросу)
+  const effectiveEmotional: EmotionalData = emotionalData?.currentState
+    ? emotionalData
+    : {
+      student: student.id,
+      currentState: {
+        mood: { value: 72, description: 'Хорошее настроение', trend: 'up' },
+        concentration: { value: 65, description: 'Хорошая концентрация', trend: 'stable' },
+        socialization: { value: 58, description: 'Нормальная социализация', trend: 'up' },
+        motivation: { value: 75, description: 'Высокая учебная мотивация', trend: 'up' },
+        lastUpdated: new Date().toISOString()
+      },
+      feedbackHistory: [],
+      trends: {},
+      recommendations: [],
+      source: 'feedback'
+    };
+
+  const emotionalCurrent = effectiveEmotional.currentState;
+  const emotionalUpdatedAt = emotionalCurrent?.lastUpdated
+    ? new Date(emotionalCurrent.lastUpdated).toLocaleDateString('ru-RU')
+    : student.EmotionalState
+      ? new Date(student.EmotionalState.updatedAt).toLocaleDateString('ru-RU')
+      : null;
+
+  const legacyEmotion = student.EmotionalState;
+
+  // (hooks block moved above early returns)
+
   return (
-    <div className="p-6">
+    <div className="px-4 py-6 md:px-6 max-w-7xl mx-auto w-full overflow-x-hidden break-words min-w-0">
       {/* Хлебные крошки */}
       <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
         <button
@@ -408,21 +870,19 @@ const StudentDetail: React.FC = () => {
         <span className="text-gray-900">{student.user.surname} {student.user.name}</span>
       </div>
 
-      {/* Заголовок с информацией о студенте */}
+      {/* Заголовок */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex items-start gap-6">
-          <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-2xl">
+        <div className="flex flex-col md:flex-row md:items-start gap-6 min-w-0">
+          <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-2xl shrink-0">
             {student.user.name.charAt(0)}{student.user.surname.charAt(0)}
           </div>
-
           <div className="flex-1">
-            <div className="flex justify-between items-start">
+            <div className="flex flex-col md:flex-row justify-between gap-4 min-w-0">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {student.user.surname} {student.user.name}
-                  {student.user.middlename && ` ${student.user.middlename}`}
+                  {student.user.surname} {student.user.name}{student.user.middlename && ` ${student.user.middlename}`}
                 </h1>
-                <div className="flex items-center gap-4 mt-2 text-gray-600">
+                <div className="flex flex-wrap items-center gap-4 mt-2 text-gray-600 text-sm">
                   <div className="flex items-center gap-1">
                     <FaUsers className="w-4 h-4" />
                     <span>{student.group.name}</span>
@@ -441,11 +901,10 @@ const StudentDetail: React.FC = () => {
                   )}
                 </div>
               </div>
-
               {accessLevel === 'full' && (
                 <button
-                  onClick={() => {/* TODO: Открыть чат */ }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  onClick={() => { }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 self-start"
                 >
                   <FaComments className="w-4 h-4" />
                   Написать
@@ -456,15 +915,15 @@ const StudentDetail: React.FC = () => {
         </div>
 
         {/* Вкладки */}
-        <div className="flex gap-6 mt-8 border-b border-gray-200">
-          {tabs.map((tab) => {
+        <div className="flex gap-4 mt-8 border-b border-gray-200 overflow-x-auto">
+          {tabs.map(tab => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
-                className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 ${activeTab === tab.id
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                className={`pb-3 px-2 text-sm font-medium flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
                   }`}
                 onClick={() => setActiveTab(tab.id)}
               >
@@ -476,218 +935,589 @@ const StudentDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Содержимое вкладок */}
+      {/* OVERVIEW */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Основная информация */}
-          <div className="lg:col-span-2">
+        <div className="space-y-6">
+          {/* 1. Психоэмоциональное состояние */}
+          {accessLevel === 'full' && (emotionalCurrent || legacyEmotion) && (
             <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Основная информация</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                 <div>
-                  <label className="text-sm text-gray-500">Группа</label>
-                  <p className="font-medium">{student.group.name}</p>
+                  <h2 className="text-xl font-semibold">Психоэмоциональное состояние</h2>
+                  {emotionalUpdatedAt && (
+                    <p className="text-xs text-gray-500 mt-1">Обновлено: {emotionalUpdatedAt}</p>
+                  )}
                 </div>
-                <div>
-                  <label className="text-sm text-gray-500">Курс</label>
-                  <p className="font-medium">{student.group.courseNumber}</p>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${effectiveEmotional?.source === 'feedback'
+                      ? 'bg-green-100 text-green-800'
+                      : effectiveEmotional?.source === 'legacy'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                    {effectiveEmotional?.source === 'feedback'
+                      ? 'Из фидбеков'
+                      : effectiveEmotional?.source === 'legacy'
+                        ? 'Старая система'
+                        : 'Источник не определён'}
+                  </span>
+                  {loadingData.emotional && <Spinner size="sm" />}
                 </div>
-                {accessLevel === 'full' && (
-                  <>
-                    <div>
-                      <label className="text-sm text-gray-500">Email</label>
-                      <p className="font-medium">{student.user.email}</p>
-                    </div>
-                    {student.user.phone && (
-                      <div>
-                        <label className="text-sm text-gray-500">Телефон</label>
-                        <p className="font-medium">{student.user.phone}</p>
-                      </div>
-                    )}
-                    <div>
-                      <label className="text-sm text-gray-500">Дата регистрации</label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <EmotionMetricCard
+                  title="Общее настроение"
+                  icon={<FaSmile className="w-6 h-6 text-yellow-500" />}
+                  colorRing="from-yellow-400 to-yellow-600"
+                  value={emotionalCurrent?.mood.value ?? legacyEmotion?.mood}
+                  description={emotionalCurrent?.mood.description ?? legacyEmotion?.moodDesc}
+                  trend={emotionalCurrent?.mood.trend}
+                />
+                <EmotionMetricCard
+                  title="Концентрация"
+                  icon={<FaBrain className="w-6 h-6 text-purple-500" />}
+                  colorRing="from-purple-400 to-purple-600"
+                  value={emotionalCurrent?.concentration.value ?? legacyEmotion?.concentration}
+                  description={emotionalCurrent?.concentration.description ?? legacyEmotion?.concentrationDesc}
+                  trend={emotionalCurrent?.concentration.trend}
+                />
+                <EmotionMetricCard
+                  title="Социализация"
+                  icon={<FaUsers className="w-6 h-6 text-blue-500" />}
+                  colorRing="from-blue-400 to-blue-600"
+                  value={emotionalCurrent?.socialization.value}
+                  description={emotionalCurrent?.socialization.description}
+                  trend={emotionalCurrent?.socialization.trend}
+                />
+                <EmotionMetricCard
+                  title="Учебная мотивация"
+                  icon={<FaBook className="w-6 h-6 text-green-500" />}
+                  colorRing="from-green-400 to-green-600"
+                  value={emotionalCurrent?.motivation.value}
+                  description={emotionalCurrent?.motivation.description}
+                  trend={emotionalCurrent?.motivation.trend}
+                />
+              </div>
+
+              {(effectiveEmotional?.feedbackHistory?.length ?? 0) > 1 && (
+                <div className="mt-8">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <FaChartLine className="w-4 h-4 text-blue-500" />
+                    История изменений
+                  </h3>
+                  <div style={{ height: 220 }} className="max-w-full overflow-x-auto">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={(effectiveEmotional?.feedbackHistory ?? []).slice(-10).map(item => ({
+                          date: new Date(item.date).toLocaleDateString('ru-RU'),
+                          настроение: item.mood,
+                          концентрация: item.concentration,
+                          социализация: item.socialization,
+                          мотивация: item.motivation
+                        }))}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis domain={[0, 100]} />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="настроение" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="концентрация" stroke="#8B5CF6" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="социализация" stroke="#3B82F6" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="мотивация" stroke="#10B981" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 2. Контакты */}
+          {accessLevel === 'full' && (student.Parents?.length || true) && (
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h3 className="text-lg font-semibold mb-4">Контакты</h3>
+              <div className="space-y-4">
+                {student.Parents?.map(parent => (
+                  <div key={parent.id} className="flex items-start justify-between min-w-0">
+                    <div className="min-w-0">
                       <p className="font-medium">
-                        {new Date(student.createdAt).toLocaleDateString('ru-RU')}
+                        {parent.user.surname} {parent.user.name}
                       </p>
+                      {parent.user.phone && (
+                        <p className="text-xs text-gray-600">{parent.user.phone}</p>
+                      )}
+                      <p className="text-xs text-gray-500 truncate">{parent.user.email}</p>
                     </div>
-                  </>
+                    <button
+                      onClick={() => { }}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <FaComments className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {student.group?.curator?.user && (
+                  <div className="flex items-start justify-between border-t pt-4 min-w-0">
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        Куратор: {student.group.curator.user.surname} {student.group.curator.user.name}
+                      </p>
+                      {student.group.curator.user.phone && (
+                        <p className="text-xs text-gray-600">{student.group.curator.user.phone}</p>
+                      )}
+                      <p className="text-xs text-gray-500 truncate">{student.group.curator.user.email}</p>
+                    </div>
+                    <button
+                      onClick={() => { }}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <FaComments className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
+          )}
 
-            {/* Последние результаты */}
-            {accessLevel === 'full' && student.lessonsResults && student.lessonsResults.length > 0 && (
-              <div className="bg-white rounded-xl shadow-md p-6 mt-6">
-                <h2 className="text-xl font-semibold mb-4">Последние результаты</h2>
-                <div className="space-y-3">
-                  {student.lessonsResults.slice(0, 5).map((result, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{result.Lesson.name}</p>
-                        <p className="text-sm text-gray-600">
-                          {result.Lesson.studyPlan.name} • {new Date(result.Lesson.date).toLocaleDateString('ru-RU')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {result.attendance !== null && (
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${result.attendance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                            {result.attendance ? 'Присутствовал' : 'Отсутствовал'}
-                          </span>
-                        )}
-                        {result.lessonScore !== null && result.lessonScore !== undefined && (
-                          <span className={`px-3 py-1 rounded-lg text-sm font-semibold text-white ${result.lessonScore >= 4
-                            ? 'bg-green-500'
-                            : result.lessonScore >= 3
-                              ? 'bg-yellow-500'
-                              : 'bg-red-500'
-                            }`}>
+          {/* 3. Графики */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 min-w-0">
+            {accessLevel === 'full' && performanceChartData.length > 0 && (
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold">Динамика успеваемости</h2>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    Средние оценки по месяцам
+                    {loadingData.grades && <Spinner size="sm" />}
+                  </div>
+                </div>
+                <div className="w-full h-72 max-w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={performanceChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis domain={[0, 5]} />
+                      <Tooltip />
+                      <Legend />
+                      {performanceSubjects.map((s, idx) => {
+                        const palette = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
+                        return (
+                          <Line
+                            key={s}
+                            type="monotone"
+                            dataKey={s}
+                            stroke={palette[idx % palette.length]}
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                        );
+                      })}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {accessLevel === 'full' && attendanceData && (
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-semibold mb-4">Посещаемость</h3>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <FaCheckCircle className="w-6 h-6 mx-auto mb-1 text-green-600" />
+                    <div className="text-lg font-bold text-green-600">
+                      {attendanceData.summary.attendanceRate}%
+                    </div>
+                    <div className="text-xs text-gray-600">Посещаемость</div>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3 text-center">
+                    <FaExclamationTriangle className="w-6 h-6 mx-auto mb-1 text-red-600" />
+                    <div className="text-lg font-bold text-red-600">
+                      {attendanceData.summary.missedLessons}
+                    </div>
+                    <div className="text-xs text-gray-600">Пропущено</div>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-40 overflow-auto pr-1">
+                  {Object.entries(attendanceData.subjectAttendance)
+                    .slice(0, 6)
+                    .map(([subject, data]) => {
+                      const total = (data as any).attended + (data as any).missed;
+                      const rate = total ? Math.round(((data as any).attended / total) * 100) : 0;
+                      return (
+                        <div key={subject}>
+                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <span className="truncate">{subject}</span>
+                            <span>{rate}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 h-1.5 rounded">
+                            <div
+                              className="h-1.5 rounded bg-green-500"
+                              style={{ width: `${rate}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                <button
+                  onClick={() => setActiveTab('attendance')}
+                  className="mt-4 text-xs text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  Детали <FaAngleRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 4. Последние результаты */}
+          {accessLevel === 'full' && student.lessonsResults && student.lessonsResults.length > 0 && (
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Последние результаты</h2>
+              <div className="space-y-3">
+                {student.lessonsResults.slice(0, 5).map((result, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg min-w-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{result.Lesson.name}</p>
+                      <p className="text-sm text-gray-600 truncate">
+                        {result.Lesson.studyPlan?.name} •{' '}
+                        {new Date(result.Lesson.date).toLocaleDateString('ru-RU')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {result.attendance !== null && (
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${result.attendance
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                            }`}
+                        >
+                          {result.attendance ? 'Присутствовал' : 'Отсутствовал'}
+                        </span>
+                      )}
+                      {result.lessonScore !== null &&
+                        result.lessonScore !== undefined && (
+                          <span
+                            className={`px-3 py-1 rounded-lg text-sm font-semibold text-white ${result.lessonScore >= 4
+                                ? 'bg-green-500'
+                                : result.lessonScore >= 3
+                                  ? 'bg-yellow-500'
+                                  : 'bg-red-500'
+                              }`}
+                          >
                             {result.lessonScore}
                           </span>
                         )}
-                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Боковая панель */}
-          <div className="space-y-6">
-            {/* Родители/Кураторы */}
-            {accessLevel === 'full' && student.Parents && student.Parents.length > 0 && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-lg font-semibold mb-4">Родители</h3>
-                <div className="space-y-3">
-                  {student.Parents.map((parent) => (
-                    <div key={parent.id} className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">
-                          {parent.user.surname} {parent.user.name}
-                        </p>
-                        {parent.user.phone && (
-                          <p className="text-sm text-gray-600">{parent.user.phone}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => {/* TODO: Открыть чат с родителем */ }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <FaComments className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Эмоциональное состояние */}
-            {accessLevel === 'full' && student.EmotionalState && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-lg font-semibold mb-4">Эмоциональное состояние</h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-gray-600">Настроение</span>
-                      <span className="text-sm font-medium">{student.EmotionalState.mood}/100</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${student.EmotionalState.mood}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{student.EmotionalState.moodDesc}</p>
                   </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-gray-600">Концентрация</span>
-                      <span className="text-sm font-medium">{student.EmotionalState.concentration}/100</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-purple-600 h-2 rounded-full"
-                        style={{ width: `${student.EmotionalState.concentration}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{student.EmotionalState.concentrationDesc}</p>
-                  </div>
-                </div>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* GRADES */}
       {activeTab === 'grades' && accessLevel === 'full' && (
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-6">Успеваемость</h2>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <h2 className="text-xl font-semibold">Успеваемость</h2>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700">
+                Персональный план (мок данные)
+              </span>
+              {grades && (
+                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                  Предметов: {gradeSubjectsMetrics.length}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Subject cards */}
           {grades ? (
-            <div className="space-y-6">
-              {Object.entries(grades).map(([subjectName, subjectData]) => (
-                <div key={subjectName} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">{subjectName}</h3>
-                      <p className="text-sm text-gray-600">
-                        Преподаватель: {subjectData.subject.teacher.user.surname} {subjectData.subject.teacher.user.name}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {subjectData.statistics.averageLessonScore.toFixed(1)}
+            <div className="space-y-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {gradeSubjectsMetrics.map(m => {
+                  const trendIcon =
+                    m.trend === 'up'
+                      ? <FaArrowUp className="w-4 h-4 text-green-500" />
+                      : m.trend === 'down'
+                        ? <FaArrowDown className="w-4 h-4 text-red-500" />
+                        : <FaArrowRight className="w-4 h-4 text-gray-400" />;
+                  return (
+                    <div
+                      key={m.subjectName}
+                      className="border rounded-xl p-5 flex flex-col gap-4 bg-gradient-to-b from-white to-slate-50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-gray-900 leading-snug truncate">
+                            {m.subjectName}
+                          </h3>
+                          {m.teacher && (
+                            <p className="text-[11px] text-gray-500 mt-1 truncate">
+                              Преподаватель: {m.teacher}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {trendIcon}
+                          <span className="text-[11px] text-gray-500">
+                            {m.trend === 'up'
+                              ? 'Рост'
+                              : m.trend === 'down'
+                                ? 'Снижение'
+                                : 'Стабильно'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500">Средний балл</div>
+                      <div className="flex items-end gap-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-3xl font-bold text-gray-900">
+                              {m.currentScore != null ? m.currentScore.toFixed ? m.currentScore.toFixed(1) : m.currentScore : '—'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                            {m.previousScore != null && (
+                              <span className="mr-2">
+                                Предыдущая:{' '}
+                                <span className="font-medium text-gray-700">
+                                  {m.previousScore.toFixed ? m.previousScore.toFixed(1) : m.previousScore}
+                                </span>
+                              </span>
+                            )}
+                            {m.averageScore != null && (
+                              <span>
+                                Средняя:{' '}
+                                <span className="font-medium text-gray-700">
+                                  {m.averageScore.toFixed ? m.averageScore.toFixed(1) : m.averageScore}
+                                </span>
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
 
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <div className="text-lg font-semibold">{subjectData.statistics.totalLessons}</div>
-                      <div className="text-sm text-gray-600">Занятий</div>
-                    </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <div className="text-lg font-semibold text-blue-600">
-                        {subjectData.statistics.averageHomeworkScore.toFixed(1)}
-                      </div>
-                      <div className="text-sm text-gray-600">Ср. за ДЗ</div>
-                    </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <div className="text-lg font-semibold text-green-600">
-                        {subjectData.statistics.attendanceRate}%
-                      </div>
-                      <div className="text-sm text-gray-600">Посещаемость</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-700">Последние оценки:</h4>
-                    <div className="flex gap-2 flex-wrap">
-                      {subjectData.grades.slice(0, 10).map((grade, index) => (
+              {/* Last assignments + Personal plan */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* Last assignments */}
+                <div className="border rounded-xl p-5 flex flex-col">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaClipboardList className="w-4 h-4 text-blue-500" />
+                    Последние задания
+                  </h3>
+                  {lastAssignments.length > 0 ? (
+                    <div className="space-y-3">
+                      {lastAssignments.map((a, idx) => (
                         <div
-                          key={index}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${grade.lessonScore && grade.lessonScore >= 4
-                            ? 'bg-green-500'
-                            : grade.lessonScore && grade.lessonScore >= 3
-                              ? 'bg-yellow-500'
-                              : grade.lessonScore
-                                ? 'bg-red-500'
-                                : 'bg-gray-400'
-                            }`}
-                          title={`${grade.Lesson.name} - ${new Date(grade.Lesson.date).toLocaleDateString('ru-RU')}`}
+                          key={idx}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                         >
-                          {grade.lessonScore || '–'}
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm text-gray-800 truncate">
+                              {a.title}
+                            </p>
+                            <p className="text-[11px] text-gray-500 truncate">
+                              {a.subject} • {a.dateStr}
+                            </p>
+                          </div>
+                          <span
+                            className={`px-3 py-1 rounded-md text-sm font-semibold text-white ${
+                              a.score >= 4
+                                ? 'bg-green-500'
+                                : a.score >= 3
+                                  ? 'bg-yellow-500'
+                                  : 'bg-red-500'
+                            }`}
+                          >
+                            {a.score}
+                          </span>
                         </div>
                       ))}
                     </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">Нет оценок</div>
+                  )}
+                </div>
+
+                {/* Personal development plan (mock) */}
+                <div className="border rounded-xl p-5 flex flex-col">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaChartLine className="w-4 h-4 text-green-600" />
+                    Персональный план развития
+                  </h3>
+                  <div className="space-y-5 max-h-[420px] overflow-auto pr-1">
+                    {personalPlan.map(plan => (
+                      <div
+                        key={plan.id}
+                        className="p-4 rounded-lg border bg-white flex flex-col gap-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {plan.subject}
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Ментор: {plan.mentor}
+                            </p>
+                          </div>
+                          <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800 shrink-0">
+                            {plan.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-700 leading-snug">
+                          {plan.description}
+                        </p>
+                        {/* Progress */}
+                        <div>
+                          <div className="flex justify-between text-[11px] text-gray-500 mb-1">
+                            <span>Прогресс</span>
+                            <span>{plan.progress}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-gray-200 rounded">
+                            <div
+                              className={`h-2 rounded ${
+                                plan.progress >= 70
+                                  ? 'bg-green-500'
+                                  : plan.progress >= 40
+                                    ? 'bg-blue-500'
+                                    : 'bg-yellow-500'
+                              }`}
+                              style={{ width: `${Math.min(plan.progress, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        {/* Skills */}
+                        <div className="flex flex-wrap gap-1">
+                          {plan.skills.map(s => (
+                            <span
+                              key={s}
+                              className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-[10px]"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                        {/* Goals / tasks */}
+                        <div className="space-y-2">
+                          {plan.goals.map(g => {
+                            const badge =
+                              g.status === 'done'
+                                ? 'bg-green-100 text-green-800'
+                                : g.status === 'in_progress'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-yellow-100 text-yellow-800';
+                            const label =
+                              g.status === 'done'
+                                ? 'Готово'
+                                : g.status === 'in_progress'
+                                  ? 'В работе'
+                                  : 'Запланировано';
+                            return (
+                              <div
+                                key={g.id}
+                                className="flex items-center justify-between gap-3 text-xs"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${badge}`}
+                                  >
+                                    {label}
+                                  </span>
+                                  <span className="truncate">{g.title}</span>
+                                </div>
+                                <span className="text-[10px] text-gray-400 shrink-0">
+                                  {g.deadline
+                                    ? new Date(g.deadline).toLocaleDateString('ru-RU')
+                                    : ''}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Charts */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <div className="border rounded-xl p-5">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaChartLine className="w-4 h-4 text-blue-500" />
+                    Динамика оценок по предметам
+                  </h3>
+                  {performanceChartData.length > 0 ? (
+                    <div style={{ height: 280 }} className="w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={performanceChartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis domain={[0, 5]} />
+                          <Tooltip />
+                          <Legend />
+                          {performanceSubjects.map((s, idx) => {
+                            const palette = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
+                            return (
+                              <Line
+                                key={s}
+                                type="monotone"
+                                dataKey={s}
+                                stroke={palette[idx % palette.length]}
+                                strokeWidth={2}
+                                dot={false}
+                              />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">Недостаточно данных</p>
+                  )}
+                </div>
+
+                <div className="border rounded-xl p-5">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaBrain className="w-4 h-4 text-purple-500" />
+                    Распределение навыков
+                  </h3>
+                  {skillsDistributionData.length > 0 ? (
+                    <div style={{ height: 280 }} className="w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={skillsDistributionData}>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="skill" />
+                          <PolarRadiusAxis />
+                          <Radar
+                            name="Навык"
+                            dataKey="value"
+                            stroke="#6366F1"
+                            fill="#6366F1"
+                            fillOpacity={0.5}
+                          />
+                          <Tooltip />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">Нет данных по навыкам</p>
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <FaBook className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p className="text-gray-500">Оценки загружаются...</p>
             </div>
@@ -695,7 +1525,210 @@ const StudentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Вкладка посещаемости */}
+      {/* EXAMS */}
+      {activeTab === 'exams' && accessLevel === 'full' && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          {/* Header */}
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h2 className="text-xl font-semibold">Экзамены и результаты</h2>
+              <div className="flex flex-wrap items-center gap-2 text-xs">                <button
+                onClick={() => { }}
+                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Скачать PDF
+              </button>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="flex flex-col">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide mb-1">
+                  Учебный год
+                </label>
+                <select
+                  value={examFilterYear}
+                  onChange={e => setExamFilterYear(e.target.value)}
+                  className="border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option>2024/2025</option>
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide mb-1">
+                  Четверть
+                </label>
+                <select
+                  value={examFilterQuarter}
+                  onChange={e => setExamFilterQuarter(e.target.value)}
+                  className="border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option>Все четверти</option>
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide mb-1">
+                  Месяц
+                </label>
+                <select
+                  value={examFilterMonth}
+                  onChange={e => setExamFilterMonth(e.target.value)}
+                  className="border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option>Все месяцы</option>
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide mb-1">
+                  Тип экзамена
+                </label>
+                <select
+                  value={examFilterType}
+                  onChange={e => setExamFilterType(e.target.value)}
+                  className="border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option>Все типы экзаменов</option>
+                </select>
+              </div>
+              <div className="hidden md:flex flex-col">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide mb-1">
+                  Статус
+                </label>
+                <select disabled className="border rounded-lg px-2 py-1 text-sm bg-gray-50 text-gray-400 cursor-not-allowed">
+                  <option>Все</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary + Table */}
+          <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+            {/* Overall result card */}
+            <div className="w-full lg:w-64 flex-shrink-0">
+              <div className="border rounded-xl p-5 bg-gradient-to-b from-white to-slate-50 h-full flex flex-col gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Общий рейтинг</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">30</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Процент</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">79.5%</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Результат</p>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
+                    Сдано
+                  </span>
+                </div>
+                <div className="mt-auto">
+                  <p className="text-[11px] text-gray-500 leading-snug">
+                    Данные сформированы детерминированным образом по запросу. В будущем можно заменить на реальные.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <FaBook className="w-4 h-4 text-blue-500" />
+                Все экзамены
+              </h3>
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
+                        Предмет
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
+                        Макс. баллы
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
+                        Мин. баллы
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
+                        Получено баллов
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
+                        Результат
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {examMockData.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap">{row.subject}</td>
+                        <td className="px-4 py-2 text-gray-700">{row.max}</td>
+                        <td className="px-4 py-2 text-gray-700">{row.min}</td>
+                        <td className="px-4 py-2 text-gray-900 font-semibold">
+                          {row.obtained}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${row.passed
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                              }`}
+                          >
+                            {row.passed ? 'Сдано' : 'Не сдано'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        Рейтинг: 30
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        Всего: {examTotals.totalMax}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        Получено баллов: {examTotals.totalObtained}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        Процент: {examTotals.percent.toFixed(2)}%
+                      </td>
+                      <td className="px-4 py-3"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Bottom stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <FaClipboardList className="w-6 h-6 mx-auto mb-1 text-blue-600" />
+                  <div className="text-lg font-bold text-blue-600">{examMockData.length}</div>
+                  <div className="text-xs text-gray-600">Всего экзаменов</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <FaCheckCircle className="w-6 h-6 mx-auto mb-1 text-green-600" />
+                  <div className="text-lg font-bold text-green-600">{examTotals.passedCount}</div>
+                  <div className="text-xs text-gray-600">Сдано</div>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 text-center">
+                  <FaExclamationTriangle className="w-6 h-6 mx-auto mb-1 text-red-600" />
+                  <div className="text-lg font-bold text-red-600">{examTotals.failedCount}</div>
+                  <div className="text-xs text-gray-600">Не сдано</div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                  <FaChartLine className="w-6 h-6 mx-auto mb-1 text-yellow-600" />
+                  <div className="text-lg font-bold text-yellow-600">
+                    {examTotals.avg.toFixed(1)}
+                  </div>
+                  <div className="text-xs text-gray-600">Средний балл</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ATTENDANCE */}
       {activeTab === 'attendance' && accessLevel === 'full' && (
         <div className="space-y-6">
           {loadingData.attendance ? (
@@ -704,10 +1737,9 @@ const StudentDetail: React.FC = () => {
             </div>
           ) : attendanceData ? (
             <>
-              {/* Статистика посещаемости */}
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h2 className="text-xl font-semibold mb-6">Статистика посещаемости</h2>
-                <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-green-50 rounded-lg p-4 text-center">
                     <FaCheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
                     <div className="text-2xl font-bold text-green-600">
@@ -738,14 +1770,15 @@ const StudentDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* График посещаемости по предметам */}
-                <div className="mb-6">
+                <div className="mb-6 overflow-x-auto">
                   <h3 className="text-lg font-semibold mb-4">Посещаемость по предметам</h3>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={Object.entries(attendanceData.subjectAttendance).map(([subject, data]) => ({
-                      subject,
-                      ...data
-                    }))}>
+                    <BarChart
+                      data={Object.entries(attendanceData.subjectAttendance).map(([subject, data]) => ({
+                        subject,
+                        ...(data as any)
+                      }))}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="subject" />
                       <YAxis />
@@ -758,29 +1791,81 @@ const StudentDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Детальная история */}
               <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-lg font-semibold mb-4">История посещаемости</h3>
-                <div className="space-y-3">
-                  {attendanceData.details.slice(0, 10).map((record, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{record.subject}</p>
-                        <p className="text-sm text-gray-600">{new Date(record.date).toLocaleDateString('ru-RU')}</p>
+                <h3 className="text-lg font-semibold mb-2">История посещаемости</h3>
+                <p className="text-xs text-gray-500 mb-4">Записи о посещаемости, медицинских визитах и пропусках (мок данные)</p>
+                <div className="space-y-4">
+                  {attendanceHistoryMock.map((item, idx) => {
+                    const badge =
+                      item.type === 'medical'
+                        ? 'bg-purple-100 text-purple-800'
+                        : item.type === 'late'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : item.type === 'excused'
+                            ? 'bg-blue-100 text-blue-800'
+                            : item.type === 'absence'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800';
+                    return (
+                      <div
+                        key={idx}
+                        className="border rounded-lg p-4 bg-white flex flex-col gap-3"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${badge}`}>
+                              {item.category}
+                            </span>
+                            {item.status && (
+                              <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-green-100 text-green-800">
+                                {item.status}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                            <span>{new Date(item.date).toLocaleDateString('ru-RU')}</span>
+                            {item.time && <span>{item.time}</span>}
+                            {item.duration && (
+                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                                {item.duration}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                          <div className="space-y-1">
+                            {item.reason && (
+                              <p className="text-sm font-medium text-gray-800">
+                                {item.reason}
+                              </p>
+                            )}
+                            {item.subject && (
+                              <p className="text-sm font-medium text-gray-800">
+                                Предмет: {item.subject}
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {item.confirmer && (
+                              <p className="text-gray-700">
+                                <span className="font-medium text-gray-600">Подтверждено:</span>{' '}
+                                {item.confirmer}
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {item.comment && (
+                              <p className="text-gray-700">
+                                <span className="font-medium text-gray-600 block">Комментарий</span>
+                                <span className="block">{item.comment}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${record.attendance
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                          }`}>
-                          {record.attendance ? 'Присутствовал' : 'Отсутствовал'}
-                        </span>
-                        {record.absentReason && (
-                          <span className="text-xs text-gray-500">{record.absentReason}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </>
@@ -795,7 +1880,7 @@ const StudentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Вкладка финансов */}
+      {/* FINANCE */}
       {activeTab === 'finance' && accessLevel === 'full' && (
         <div className="space-y-6">
           {loadingData.finance ? (
@@ -804,10 +1889,9 @@ const StudentDetail: React.FC = () => {
             </div>
           ) : financeData ? (
             <>
-              {/* Финансовая сводка */}
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h2 className="text-xl font-semibold mb-6">Финансовая сводка</h2>
-                <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-green-50 rounded-lg p-4 text-center">
                     <FaCheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
                     <div className="text-2xl font-bold text-green-600">
@@ -838,16 +1922,15 @@ const StudentDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* График платежей по типам */}
-                <div className="mb-6">
+                <div className="mb-6 overflow-x-auto">
                   <h3 className="text-lg font-semibold mb-4">Платежи по типам</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
                         data={Object.entries(financeData.paymentsByType).map(([type, data]) => ({
                           name: type,
-                          value: data.total,
-                          count: data.count
+                          value: (data as any).total,
+                          count: (data as any).count
                         }))}
                         dataKey="value"
                         nameKey="name"
@@ -857,7 +1940,10 @@ const StudentDetail: React.FC = () => {
                         fill="#8884d8"
                       >
                         {Object.entries(financeData.paymentsByType).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={['#0088FE', '#00C49F', '#FFBB28', '#FF8042'][index % 4]} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={['#0088FE', '#00C49F', '#FFBB28', '#FF8042'][index % 4]}
+                          />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -867,23 +1953,22 @@ const StudentDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Последние платежи */}
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold mb-4">Последние платежи</h3>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
                           Тип
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
                           Сумма
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
                           Статус
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
                           Дата
                         </th>
                       </tr>
@@ -891,24 +1976,29 @@ const StudentDetail: React.FC = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {financeData.recentPayments.map((payment, index) => (
                         <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 font-medium text-gray-900 break-words">
                             {payment.serviceName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 text-gray-900 break-words">
                             {payment.amount.toLocaleString()} ₸
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${payment.status === 'paid'
-                              ? 'bg-green-100 text-green-800'
-                              : payment.status === 'overdue'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                              {payment.status === 'paid' ? 'Оплачено' :
-                                payment.status === 'overdue' ? 'Просрочено' : 'К оплате'}
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${payment.status === 'paid'
+                                  ? 'bg-green-100 text-green-800'
+                                  : payment.status === 'overdue'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}
+                            >
+                              {payment.status === 'paid'
+                                ? 'Оплачено'
+                                : payment.status === 'overdue'
+                                  ? 'Просрочено'
+                                  : 'К оплате'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 text-gray-500">
                             {new Date(payment.dueDate).toLocaleDateString('ru-RU')}
                           </td>
                         </tr>
@@ -929,260 +2019,289 @@ const StudentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Вкладка эмоционального состояния */}
-      {activeTab === 'emotional' && accessLevel === 'full' && (
-        <div className="space-y-6">
-          {loadingData.emotional ? (
-            <div className="flex justify-center items-center h-64">
-              <Spinner size="lg" />
+      {/* EXTRA EDUCATION */}
+      {activeTab === 'extra' && accessLevel === 'full' && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <h2 className="text-xl font-semibold">Дополнительное образование</h2>
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <span className="px-2 py-1 rounded bg-blue-50 text-blue-700">
+                Активностей: {extraEducationPrograms.length}
+              </span>
             </div>
-          ) : emotionalData ? (
-            <>
-              {/* Текущее состояние */}
-              {emotionalData.currentState && (
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">Текущее эмоциональное состояние</h2>
-                    <div className="flex items-center gap-3">
-                      {/* Индикатор источника данных */}
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${emotionalData.source === 'feedback' ? 'bg-green-100 text-green-800' :
-                        emotionalData.source === 'legacy' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                        {emotionalData.source === 'feedback' ? '📊 Из фидбеков' :
-                          emotionalData.source === 'legacy' ? '💾 Старая система' :
-                            '⚠️ Нет данных'}
-                      </div>
+          </div>
 
-                      {/* Кнопка создания шаблонов если данных нет */}
-                      {emotionalData.source === 'no_data' && user?.role === 'ADMIN' && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await feedbackService.createDefaultTemplates();
-                              // Перезагружаем данные
-                              fetchEmotionalData();
-                            } catch (error) {
-                              console.error('Ошибка создания шаблонов:', error);
-                            }
-                          }}
-                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Создать шаблоны фидбеков
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                    <div className="text-center">
-                      <FaSmile className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
-                      <div className="text-2xl font-bold text-yellow-600">
-                        {emotionalData.currentState.mood.value}/100
-                      </div>
-                      <div className="text-sm text-gray-600 mb-2">Настроение</div>
-                      <div className="flex items-center justify-center gap-1">
-                        {emotionalData.currentState.mood.trend === 'up' && <FaArrowUp className="w-3 h-3 text-green-500" />}
-                        {emotionalData.currentState.mood.trend === 'down' && <FaArrowDown className="w-3 h-3 text-red-500" />}
-                        <span className="text-xs text-gray-500">{emotionalData.currentState.mood.description}</span>
-                      </div>
-                    </div>
+          {extraEducationPrograms.length > 0 ? (
+            <div className="space-y-10">
+              {/* Сетка активностей */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {extraEducationPrograms.map(p => {
+                  const statusBadge = p.status === 'COMPLETED'
+                    ? 'bg-green-100 text-green-800'
+                    : p.status === 'IN_PROGRESS'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-yellow-100 text-yellow-800';
+                  const statusLabel = p.status === 'COMPLETED'
+                    ? 'Завершено'
+                    : p.status === 'IN_PROGRESS'
+                      ? 'В процессе'
+                      : 'Запланировано';
 
-                    <div className="text-center">
-                      <FaBrain className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-                      <div className="text-2xl font-bold text-purple-600">
-                        {emotionalData.currentState.concentration.value}/100
-                      </div>
-                      <div className="text-sm text-gray-600 mb-2">Концентрация</div>
-                      <div className="flex items-center justify-center gap-1">
-                        {emotionalData.currentState.concentration.trend === 'up' && <FaArrowUp className="w-3 h-3 text-green-500" />}
-                        {emotionalData.currentState.concentration.trend === 'down' && <FaArrowDown className="w-3 h-3 text-red-500" />}
-                        <span className="text-xs text-gray-500">{emotionalData.currentState.concentration.description}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-center">
-                      <FaUsers className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                      <div className="text-2xl font-bold text-blue-600">
-                        {emotionalData.currentState.socialization.value}/100
-                      </div>
-                      <div className="text-sm text-gray-600 mb-2">Социализация</div>
-                      <div className="flex items-center justify-center gap-1">
-                        {emotionalData.currentState.socialization.trend === 'up' && <FaArrowUp className="w-3 h-3 text-green-500" />}
-                        {emotionalData.currentState.socialization.trend === 'down' && <FaArrowDown className="w-3 h-3 text-red-500" />}
-                        <span className="text-xs text-gray-500">{emotionalData.currentState.socialization.description}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-center">
-                      <FaBook className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                      <div className="text-2xl font-bold text-green-600">
-                        {emotionalData.currentState.motivation.value}/100
-                      </div>
-                      <div className="text-sm text-gray-600 mb-2">Мотивация</div>
-                      <div className="flex items-center justify-center gap-1">
-                        {emotionalData.currentState.motivation.trend === 'up' && <FaArrowUp className="w-3 h-3 text-green-500" />}
-                        {emotionalData.currentState.motivation.trend === 'down' && <FaArrowDown className="w-3 h-3 text-red-500" />}
-                        <span className="text-xs text-gray-500">{emotionalData.currentState.motivation.description}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Радарная диаграмма */}
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-4">Общий профиль</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RadarChart data={[
-                        { subject: 'Настроение', value: emotionalData.currentState.mood.value },
-                        { subject: 'Концентрация', value: emotionalData.currentState.concentration.value },
-                        { subject: 'Социализация', value: emotionalData.currentState.socialization.value },
-                        { subject: 'Мотивация', value: emotionalData.currentState.motivation.value },
-                      ]}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="subject" />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                        <Radar
-                          name="Текущее состояние"
-                          dataKey="value"
-                          stroke="#8884d8"
-                          fill="#8884d8"
-                          fillOpacity={0.6}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
-
-              {/* Рекомендации */}
-              {emotionalData.recommendations && emotionalData.recommendations.length > 0 && (
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="text-lg font-semibold mb-4">Рекомендации</h3>
-                  <div className="space-y-3">
-                    {emotionalData.recommendations.map((rec, index) => (
-                      <div key={index} className={`p-4 rounded-lg border-l-4 ${rec.priority === 'high' ? 'border-red-500 bg-red-50' :
-                        rec.priority === 'medium' ? 'border-yellow-500 bg-yellow-50' :
-                          'border-blue-500 bg-blue-50'
-                        }`}>
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-full ${rec.priority === 'high' ? 'bg-red-100' :
-                            rec.priority === 'medium' ? 'bg-yellow-100' :
-                              'bg-blue-100'
-                            }`}>
-                            {rec.priority === 'high' ? <FaExclamationTriangle className="w-4 h-4 text-red-600" /> :
-                              rec.priority === 'medium' ? <FaExclamationTriangle className="w-4 h-4 text-yellow-600" /> :
-                                <FaCheckCircle className="w-4 h-4 text-blue-600" />}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 capitalize">{rec.type}</p>
-                            <p className="text-sm text-gray-600 mt-1">{rec.message}</p>
-                          </div>
+                  return (
+                    <div
+                      key={p.id}
+                      className="border rounded-xl p-5 flex flex-col gap-4 hover:shadow transition bg-gradient-to-b from-white to-slate-50 min-w-0"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-base leading-snug break-words">{p.name}</h3>
+                          <p className="text-xs text-gray-500 mt-1 truncate">{p.organization}</p>
                         </div>
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusBadge} shrink-0 whitespace-nowrap`}>
+                          {statusLabel}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* Оценки преподавателей */}
-              {emotionalData.teacherRatings && emotionalData.teacherRatings.length > 0 && (
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="text-lg font-semibold mb-4">Оценки преподавателей из фидбеков</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    {emotionalData.teacherRatings
-                      .reduce((acc: any[], rating: any) => {
-                        const existing = acc.find(r => r.teacherId === rating.teacherId);
-                        if (existing) {
-                          existing.ratings.push(rating);
-                          existing.averageRating = existing.ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / existing.ratings.length;
-                        } else {
-                          acc.push({
-                            teacherId: rating.teacherId,
-                            ratings: [rating],
-                            averageRating: rating.rating,
-                            lastDate: rating.date
-                          });
-                        }
-                        return acc;
-                      }, [])
-                      .map((teacher: any) => (
-                        <div key={teacher.teacherId} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h4 className="font-medium text-gray-900">Преподаватель ID: {teacher.teacherId}</h4>
-                              <p className="text-sm text-gray-600">
-                                Последняя оценка: {new Date(teacher.lastDate).toLocaleDateString('ru-RU')}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <div className={`text-2xl font-bold ${teacher.averageRating >= 4 ? 'text-green-600' :
-                                teacher.averageRating >= 3 ? 'text-yellow-600' : 'text-red-600'
-                                }`}>
-                                {teacher.averageRating.toFixed(1)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {teacher.ratings.length} оценок
-                              </div>
-                            </div>
-                          </div>
+                      <div className="flex flex-wrap gap-2 text-[11px] text-gray-600">
+                        <span className="px-2 py-0.5 rounded bg-gray-100">{p.category}</span>
+                        <span className="px-2 py-0.5 rounded bg-gray-100">Участников: {p.participants}</span>
+                        <span className="px-2 py-0.5 rounded bg-gray-100">
+                          Старт: {new Date(p.startDate).toLocaleDateString('ru-RU')}
+                        </span>
+                        {p.endDate && (
+                          <span className="px-2 py-0.5 rounded bg-gray-100">
+                            Конец: {new Date(p.endDate).toLocaleDateString('ru-RU')}
+                          </span>
+                        )}
+                      </div>
 
-                          {/* Звездочки для визуализации */}
-                          <div className="flex justify-center">
-                            {[1, 2, 3, 4, 5].map(star => (
+                      <p className="text-xs text-gray-700 leading-relaxed line-clamp-3">
+                        {p.description}
+                      </p>
+
+                      <div className="flex flex-col gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <FaUsers className="w-3 h-3 text-blue-500" />
+                          <span className="font-medium text-gray-700">
+                            Ментор: {p.mentor}{p.mentorTitle && ` • ${p.mentorTitle}`}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <FaCalendarAlt className="w-3 h-3 text-green-600 mt-0.5" />
+                          <div className="flex flex-wrap gap-1">
+                            {p.schedule.map((s, idx) => (
                               <span
-                                key={star}
-                                className={`text-lg ${star <= Math.round(teacher.averageRating)
-                                  ? 'text-yellow-400'
-                                  : 'text-gray-300'
-                                  }`}
+                                key={idx}
+                                className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-[10px]"
                               >
-                                ★
+                                {s.day} {s.time}
                               </span>
                             ))}
                           </div>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-2">
+                          <FaMapMarkerAlt className="w-3 h-3 text-purple-500" />
+                          <span className="truncate">{p.location}</span>
+                        </div>
+                      </div>
+
+                      {/* Навыки */}
+                      <div>
+                        <h4 className="text-[11px] font-semibold text-gray-700 mb-1 uppercase tracking-wide">
+                          Навыки
+                        </h4>
+                        <div className="flex flex-wrap gap-1">
+                          {p.skills.map(skill => (
+                            <span
+                              key={skill}
+                              className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] break-words"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Достижения */}
+                      {p.achievements.length > 0 && (
+                        <div>
+                          <h4 className="text-[11px] font-semibold text-gray-700 mb-1 uppercase tracking-wide">
+                            Достижения
+                          </h4>
+                          <div className="space-y-2 max-h-32 overflow-auto pr-1">
+                            {p.achievements.map(a => {
+                              const badge =
+                                a.level === 'WIN'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : a.level === 'PROJECT'
+                                    ? 'bg-indigo-100 text-indigo-800'
+                                    : a.level === 'CERT'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-gray-100 text-gray-700';
+                              const label =
+                                a.level === 'WIN'
+                                  ? 'Победа'
+                                  : a.level === 'PROJECT'
+                                    ? 'Проект'
+                                    : a.level === 'CERT'
+                                      ? 'Сертификат'
+                                      : 'Участник';
+                              return (
+                                <div key={a.id} className="border rounded-lg p-2 bg-white">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <p className="text-xs font-medium text-gray-800 truncate">
+                                      {a.title}
+                                    </p>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${badge} shrink-0`}>
+                                      {label}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 line-clamp-2 mb-1">
+                                    {a.description}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">
+                                    {new Date(a.date).toLocaleDateString('ru-RU')}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Прогресс */}
+                      <div className="mt-auto">
+                        <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+                          <span>Прогресс</span>
+                          <span>{p.progress}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-gray-200 rounded">
+                          <div
+                            className={`h-2 rounded ${p.progress >= 100
+                                ? 'bg-green-500'
+                                : p.progress >= 60
+                                  ? 'bg-blue-500'
+                                  : 'bg-yellow-500'
+                              }`}
+                            style={{ width: `${Math.min(100, p.progress)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Распределение активностей */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <div className="border rounded-xl p-5">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaChartLine className="w-4 h-4 text-blue-500" />
+                    Распределение активностей
+                  </h3>
+                  <div style={{ height: 260 }} className="w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={distributionData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={40}
+                          outerRadius={90}
+                          paddingAngle={3}
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {distributionData.map((_, idx) => (
+                            <Cell
+                              key={`dist-cell-${idx}`}
+                              fill={['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'][idx % 4]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: any, name: any) => [`${value}`, name]} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-              )}
 
-              {/* История изменений */}
-              {emotionalData.feedbackHistory && emotionalData.feedbackHistory.length > 0 && (
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="text-lg font-semibold mb-4">История изменений</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={emotionalData.feedbackHistory.map(item => ({
-                      date: new Date(item.date).toLocaleDateString('ru-RU'),
-                      настроение: item.mood,
-                      концентрация: item.concentration,
-                      социализация: item.socialization,
-                      мотивация: item.motivation
-                    }))}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="настроение" stroke="#F59E0B" />
-                      <Line type="monotone" dataKey="концентрация" stroke="#8B5CF6" />
-                      <Line type="monotone" dataKey="социализация" stroke="#3B82F6" />
-                      <Line type="monotone" dataKey="мотивация" stroke="#10B981" />
-                    </LineChart>
-                  </ResponsiveContainer>
+                {/* Развитие навыков */}
+                <div className="border rounded-xl p-5">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaBrain className="w-4 h-4 text-purple-500" />
+                    Развитие навыков
+                  </h3>
+                  <div className="space-y-6">
+                    <div style={{ height: 300 }} className="w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={skillsRadarData}>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="category" />
+                          <PolarRadiusAxis domain={[0, skillsMaxValue]} />
+                          <Radar
+                            name="Навыки"
+                            dataKey="value"
+                            stroke="#6366F1"
+                            fill="#6366F1"
+                            fillOpacity={0.5}
+                          />
+                          <Tooltip />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-[11px] font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                          Технические ({extraSkillStats.technical.length})
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {extraSkillStats.technical.map(s => (
+                            <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]">
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                          Лидерские ({extraSkillStats.leadership.length})
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {extraSkillStats.leadership.map(s => (
+                            <span key={s} className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-[10px]">
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                          Творческие ({extraSkillStats.creative.length})
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {extraSkillStats.creative.map(s => (
+                            <span key={s} className="px-2 py-0.5 bg-yellow-50 text-yellow-700 rounded text-[10px]">
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="text-center py-8">
-                <FaSmile className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">Нет данных об эмоциональном состоянии</p>
               </div>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <FaSmile className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-500">Нет данных</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Вкладка замечаний */}
+      {/* REMARKS */}
       {activeTab === 'remarks' && accessLevel === 'full' && (user?.role === 'TEACHER' || user?.role === 'ADMIN') && (
         <div className="space-y-6">
           {loadingData.remarks ? (
@@ -1191,9 +2310,8 @@ const StudentDetail: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Заголовок с кнопкой добавления */}
               <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                   <h2 className="text-xl font-semibold">Замечания студента</h2>
                   <button
                     onClick={handleAddRemark}
@@ -1203,16 +2321,14 @@ const StudentDetail: React.FC = () => {
                     Добавить замечание
                   </button>
                 </div>
-
-                {/* Статистика замечаний */}
                 {remarksData && (
-                  <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-red-50 rounded-lg p-4 text-center">
                       <FaExclamationTriangle className="w-8 h-8 mx-auto mb-2 text-red-600" />
                       <div className="text-2xl font-bold text-red-600">
                         {remarksData.totalRemarks}
                       </div>
-                      <div className="text-sm text-gray-600">Всего замечаний</div>
+                      <div className="text-sm text-gray-600">Всего</div>
                     </div>
                     <div className="bg-orange-50 rounded-lg p-4 text-center">
                       <FaBook className="w-8 h-8 mx-auto mb-2 text-orange-600" />
@@ -1238,25 +2354,34 @@ const StudentDetail: React.FC = () => {
                   </div>
                 )}
               </div>
-
-              {/* Список замечаний */}
               {remarksData && remarksData.remarks.length > 0 ? (
                 <div className="bg-white rounded-xl shadow-md p-6">
                   <h3 className="text-lg font-semibold mb-4">История замечаний</h3>
                   <div className="space-y-4">
-                    {remarksData.remarks.map((remark) => (
-                      <div key={remark.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex justify-between items-start mb-3">
+                    {remarksData.remarks.map(remark => (
+                      <div
+                        key={remark.id}
+                        className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3 min-w-0">
                           <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${remark.type === 'ACADEMIC' ? 'bg-orange-100 text-orange-800' :
-                              remark.type === 'BEHAVIOR' ? 'bg-purple-100 text-purple-800' :
-                                remark.type === 'ATTENDANCE' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                              }`}>
-                              {remark.type === 'ACADEMIC' ? 'Учебное' :
-                                remark.type === 'BEHAVIOR' ? 'Поведение' :
-                                  remark.type === 'ATTENDANCE' ? 'Посещаемость' :
-                                    'Общее'}
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${remark.type === 'ACADEMIC'
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : remark.type === 'BEHAVIOR'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : remark.type === 'ATTENDANCE'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                }`}
+                            >
+                              {remark.type === 'ACADEMIC'
+                                ? 'Учебное'
+                                : remark.type === 'BEHAVIOR'
+                                  ? 'Поведение'
+                                  : remark.type === 'ATTENDANCE'
+                                    ? 'Посещаемость'
+                                    : 'Общее'}
                             </span>
                             {remark.isPrivate && (
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -1268,7 +2393,7 @@ const StudentDetail: React.FC = () => {
                             <button
                               onClick={() => handleEditRemark(remark)}
                               className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="Редактировать"
+                              title="Просмотр / редактирование"
                             >
                               <FaEye className="w-4 h-4" />
                             </button>
@@ -1281,11 +2406,9 @@ const StudentDetail: React.FC = () => {
                             </button>
                           </div>
                         </div>
-
                         <h4 className="font-semibold text-gray-900 mb-2">{remark.title}</h4>
                         <p className="text-gray-700 mb-3">{remark.content}</p>
-
-                        <div className="flex justify-between items-center text-sm text-gray-500">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-500 gap-2">
                           <div className="flex items-center gap-1">
                             <FaUserGraduate className="w-3 h-3" />
                             <span>Преподаватель: {remark.teacher.name}</span>
@@ -1321,7 +2444,7 @@ const StudentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Вкладка комментариев для админов */}
+      {/* COMMENTS */}
       {activeTab === 'comments' && accessLevel === 'full' && user?.role === 'ADMIN' && (
         <div className="space-y-6">
           {loadingData.comments ? (
@@ -1330,9 +2453,8 @@ const StudentDetail: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Заголовок с кнопкой добавления */}
               <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                   <h2 className="text-xl font-semibold">Комментарии администрации</h2>
                   <button
                     onClick={handleAddComment}
@@ -1342,8 +2464,6 @@ const StudentDetail: React.FC = () => {
                     Добавить комментарий
                   </button>
                 </div>
-
-                {/* Информация о комментариях */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start gap-3">
                     <div className="p-2 rounded-full bg-blue-100">
@@ -1352,22 +2472,19 @@ const StudentDetail: React.FC = () => {
                     <div>
                       <h3 className="font-medium text-blue-900">Внутренние комментарии</h3>
                       <p className="text-sm text-blue-700 mt-1">
-                        Эти комментарии видны только администраторам и используются для внутренних заметок о студенте.
-                        Студенты и родители не имеют доступа к этой информации.
+                        Видны только администраторам. Студенты и родители не видят эти записи.
                       </p>
                     </div>
                   </div>
                 </div>
-
-                {/* Статистика комментариев */}
                 {commentsData && (
-                  <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <div className="bg-blue-50 rounded-lg p-4 text-center">
                       <FaComments className="w-8 h-8 mx-auto mb-2 text-blue-600" />
                       <div className="text-2xl font-bold text-blue-600">
                         {commentsData.totalComments}
                       </div>
-                      <div className="text-sm text-gray-600">Всего комментариев</div>
+                      <div className="text-sm text-gray-600">Всего</div>
                     </div>
                     <div className="bg-green-50 rounded-lg p-4 text-center">
                       <FaUserGraduate className="w-8 h-8 mx-auto mb-2 text-green-600" />
@@ -1386,23 +2503,30 @@ const StudentDetail: React.FC = () => {
                   </div>
                 )}
               </div>
-
-              {/* Список комментариев */}
               {commentsData && commentsData.comments.length > 0 ? (
                 <div className="bg-white rounded-xl shadow-md p-6">
                   <h3 className="text-lg font-semibold mb-4">История комментариев</h3>
                   <div className="space-y-4">
-                    {commentsData.comments.map((comment) => (
-                      <div key={comment.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex justify-between items-start mb-3">
+                    {commentsData.comments.map(comment => (
+                      <div
+                        key={comment.id}
+                        className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3 min-w-0">
                           <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${comment.type === 'ACADEMIC' ? 'bg-green-100 text-green-800' :
-                              comment.type === 'GENERAL' ? 'bg-purple-100 text-purple-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                              {comment.type === 'ACADEMIC' ? 'Учебный' :
-                                comment.type === 'GENERAL' ? 'Общий' :
-                                  'Другое'}
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${comment.type === 'ACADEMIC'
+                                  ? 'bg-green-100 text-green-800'
+                                  : comment.type === 'GENERAL'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                            >
+                              {comment.type === 'ACADEMIC'
+                                ? 'Учебный'
+                                : comment.type === 'GENERAL'
+                                  ? 'Общий'
+                                  : 'Другое'}
                             </span>
                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                               Конфиденциально
@@ -1425,11 +2549,9 @@ const StudentDetail: React.FC = () => {
                             </button>
                           </div>
                         </div>
-
                         <h4 className="font-semibold text-gray-900 mb-2">{comment.title}</h4>
                         <p className="text-gray-700 mb-3">{comment.content}</p>
-
-                        <div className="flex justify-between items-center text-sm text-gray-500">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-500 gap-2">
                           <div className="flex items-center gap-1">
                             <FaUserGraduate className="w-3 h-3" />
                             <span>Автор: {comment.author.name}</span>
@@ -1465,8 +2587,7 @@ const StudentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Модальные окна */}
-      {/* Модал для добавления/редактирования замечания */}
+      {/* Модалы */}
       <RemarkModal
         isOpen={remarkModalOpen}
         onClose={closeRemarkModal}
@@ -1474,8 +2595,6 @@ const StudentDetail: React.FC = () => {
         remark={editingRemark}
         studentName={`${student?.user.surname} ${student?.user.name}`}
       />
-
-      {/* Модал для подтверждения удаления замечания */}
       <DeleteRemarkModal
         isOpen={deleteRemarkModalOpen}
         onClose={closeDeleteModal}
@@ -1483,8 +2602,6 @@ const StudentDetail: React.FC = () => {
         remarkTitle={deletingRemark?.title || ''}
         studentName={`${student?.user.surname} ${student?.user.name}`}
       />
-
-      {/* Модал для добавления/редактирования комментария */}
       <CommentModal
         isOpen={commentModalOpen}
         onClose={closeCommentModal}
@@ -1493,8 +2610,6 @@ const StudentDetail: React.FC = () => {
         studentName={`${student?.user.surname} ${student?.user.name}`}
         title={editingComment ? 'Редактировать комментарий' : 'Добавить комментарий'}
       />
-
-      {/* Модал для подтверждения удаления комментария */}
       <DeleteCommentModal
         isOpen={deleteCommentModalOpen}
         onClose={closeDeleteCommentModal}
@@ -1502,6 +2617,47 @@ const StudentDetail: React.FC = () => {
         comment={deletingComment}
         studentName={`${student?.user.surname} ${student?.user.name}`}
       />
+    </div>
+  );
+};
+
+const EmotionMetricCard: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  colorRing: string;
+  value?: number;
+  description?: string;
+  trend?: string;
+}> = ({ title, icon, colorRing, value, description, trend }) => {
+  return (
+    <div className="p-4 rounded-lg border bg-gradient-to-b from-white to-slate-50">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colorRing} flex items-center justify-center text-white`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-gray-700">{title}</p>
+          <p className="text-lg font-bold text-gray-900">
+            {value !== undefined && value !== null ? `${value}/100` : '—'}
+          </p>
+        </div>
+      </div>
+      {description && (
+        <p className="text-xs text-gray-600 line-clamp-2 mb-2">{description}</p>
+      )}
+      <div className="flex items-center gap-2 text-xs text-gray-500">
+        <span className="font-medium text-gray-600">Тренд:</span>
+        {trend === 'up' && <FaArrowUp className="w-3 h-3 text-green-500" />}
+        {trend === 'down' && <FaArrowDown className="w-3 h-3 text-red-500" />}
+        {!trend && <FaArrowRight className="w-3 h-3 text-gray-400" />}
+        <span className="capitalize">
+          {trend === 'up'
+            ? 'рост'
+            : trend === 'down'
+              ? 'снижение'
+              : 'стабильно'}
+        </span>
+      </div>
     </div>
   );
 };

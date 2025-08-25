@@ -62,7 +62,24 @@ export class StudentsService {
             role: true,
           },
         },
-        group: true,
+        group: {
+          include: {
+            curator: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    surname: true,
+                    middlename: true,
+                    phone: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -83,7 +100,24 @@ export class StudentsService {
             role: true,
           },
         },
-        group: true,
+        group: {
+          include: {
+            curator: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    surname: true,
+                    middlename: true,
+                    phone: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         Parents: {
           include: {
             user: {
@@ -279,6 +313,20 @@ export class StudentsService {
         },
         group: {
           include: {
+            curator: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    surname: true,
+                    middlename: true,
+                    phone: true,
+                    email: true,
+                  },
+                },
+              },
+            },
             studyPlans: {
               where: { deletedAt: null },
               include: {
@@ -380,7 +428,24 @@ export class StudentsService {
             role: true,
           },
         },
-        group: true,
+          group: {
+            include: {
+              curator: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      surname: true,
+                      middlename: true,
+                      phone: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
       },
     });
   }
@@ -473,7 +538,24 @@ export class StudentsService {
               updatedAt: true,
             },
           },
-          group: true,
+          group: {
+            include: {
+              curator: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      surname: true,
+                      middlename: true,
+                      phone: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       });
 
@@ -555,7 +637,24 @@ export class StudentsService {
             role: true,
           },
         },
-        group: true,
+        group: {
+          include: {
+            curator: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    surname: true,
+                    middlename: true,
+                    phone: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         Parents: {
           include: {
             user: {
@@ -2069,5 +2168,68 @@ export class StudentsService {
     }));
 
     return teachers;
+  }
+
+  // === ОПТИМИЗИРОВАННЫЙ ПОЛУЧЕНИЕ ЭКЗАМЕНОВ / КОНТРОЛЬНЫХ ===
+  async getStudentExams(
+    studentId: number,
+    opts: { type?: 'CONTROL_WORK' | 'EXAM'; page: number; limit: number },
+  ) {
+    const { type, page, limit } = opts;
+    const student = await this.findOne(studentId); // выбросит NotFound если нет
+
+    const where: any = {
+      deletedAt: null,
+      type: (type || 'CONTROL_WORK'),
+      studyPlan: {
+        group: {
+          some: { id: student.groupId },
+        },
+      },
+    };
+
+    const [total, lessons] = await this.prisma.$transaction([
+      this.prisma.lesson.count({ where }),
+      this.prisma.lesson.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          studyPlan: {
+            select: { id: true, name: true },
+          },
+          LessonResult: {
+            where: {
+              studentId,
+              deletedAt: null,
+            },
+            select: {
+              lessonScore: true,
+              homeworkScore: true,
+              attendance: true,
+              absentReason: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data: lessons.map(l => ({
+        id: l.id,
+        name: l.name,
+        date: l.date,
+        type: l.type,
+        studyPlan: l.studyPlan,
+        result: l.LessonResult[0] || null,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

@@ -10,6 +10,13 @@ export class GroupsService {
   async create(createGroupDto: CreateGroupDto) {
     return this.prisma.group.create({
       data: createGroupDto,
+      include: {
+        curator: {
+          include: {
+            user: true,
+          },
+        },
+      },
     });
   }
 
@@ -17,6 +24,11 @@ export class GroupsService {
     return this.prisma.group.findMany({
       where: { deletedAt: null },
       include: {
+        curator: {
+          include: {
+            user: true,
+          },
+        },
         students: {
           where: { deletedAt: null },
           include: {
@@ -42,6 +54,11 @@ export class GroupsService {
     const group = await this.prisma.group.findFirst({
       where: { id, deletedAt: null },
       include: {
+        curator: {
+          include: {
+            user: true,
+          },
+        },
         students: {
           where: { deletedAt: null },
           include: {
@@ -109,6 +126,11 @@ export class GroupsService {
       where: { id },
       data: updateGroupDto,
       include: {
+        curator: {
+          include: {
+            user: true,
+          },
+        },
         students: {
           where: { deletedAt: null },
           include: {
@@ -143,6 +165,11 @@ export class GroupsService {
         deletedAt: null 
       },
       include: {
+        curator: {
+          include: {
+            user: true,
+          },
+        },
         students: {
           where: { deletedAt: null },
           include: {
@@ -325,6 +352,11 @@ export class GroupsService {
         deletedAt: null 
       },
       include: {
+        curator: {
+          include: {
+            user: true,
+          },
+        },
         students: {
           where: { deletedAt: null },
           include: {
@@ -491,5 +523,44 @@ export class GroupsService {
       groupsByCourse: groupsByCourseData,
       averageStudentsPerGroup: totalGroups ? totalStudents / totalGroups : 0,
     };
+  }
+
+  async setCurator(id: number, curatorTeacherId: number | null) {
+    await this.findOne(id);
+
+    if (curatorTeacherId !== null) {
+      const teacher = await this.prisma.teacher.findFirst({
+        where: { id: curatorTeacherId, deletedAt: null },
+        include: { user: true },
+      });
+      if (!teacher) {
+        throw new NotFoundException(`Teacher with ID ${curatorTeacherId} not found`);
+      }
+    }
+
+    return this.prisma.group.update({
+      where: { id },
+      data: { curatorTeacherId: curatorTeacherId ?? null },
+      include: {
+        curator: {
+          include: {
+            user: true,
+          },
+        },
+        students: {
+          where: { deletedAt: null },
+          include: {
+            user: true,
+          },
+        },
+        _count: {
+          select: {
+            students: {
+              where: { deletedAt: null },
+            },
+          },
+        },
+      },
+    });
   }
 }

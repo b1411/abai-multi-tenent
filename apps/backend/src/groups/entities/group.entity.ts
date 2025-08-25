@@ -10,6 +10,12 @@ export class Group {
   @ApiProperty({ description: 'Номер курса' })
   courseNumber: number;
 
+  @ApiPropertyOptional({ description: 'ID куратора (преподаватель)', nullable: true })
+  curatorTeacherId: number | null;
+
+  @ApiPropertyOptional({ description: 'Куратор (преподаватель с данными пользователя)', nullable: true })
+  curator?: any;
+
   @ApiProperty({ description: 'Дата создания' })
   createdAt: Date;
 

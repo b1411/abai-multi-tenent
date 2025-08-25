@@ -2,6 +2,18 @@ export interface Group {
   id: number;
   name: string;
   courseNumber: number;
+  curatorTeacherId?: number | null;
+  curator?: {
+    id: number;
+    user: {
+      id?: number;
+      name: string;
+      surname: string;
+      email: string;
+      phone?: string;
+      middlename?: string;
+    };
+  };
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
@@ -14,11 +26,13 @@ export interface Group {
 export interface CreateGroupDto {
   name: string;
   courseNumber: number;
+  curatorTeacherId?: number | null;
 }
 
 export interface UpdateGroupDto {
   name?: string;
   courseNumber?: number;
+  curatorTeacherId?: number | null;
 }
 
 export interface GroupStatistics {

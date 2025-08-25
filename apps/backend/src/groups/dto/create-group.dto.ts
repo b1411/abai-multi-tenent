@@ -1,5 +1,5 @@
-import { IsString, IsInt, Min, IsNotEmpty, MinLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsInt, Min, IsNotEmpty, MinLength, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateGroupDto {
   @ApiProperty({
@@ -20,4 +20,14 @@ export class CreateGroupDto {
   @IsInt()
   @Min(1, { message: 'Номер группы должен быть не меньше 1' })
   courseNumber: number;
+
+  @ApiPropertyOptional({
+    description: 'ID куратора (преподаватель)',
+    example: 12,
+    nullable: true,
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  curatorTeacherId?: number | null;
 }

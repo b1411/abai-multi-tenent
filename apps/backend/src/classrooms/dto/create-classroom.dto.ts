@@ -44,4 +44,13 @@ export class CreateClassroomDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID ответственного пользователя',
+    example: 42,
+    nullable: true
+  })
+  @IsOptional()
+  @IsInt()
+  responsibleId?: number;
 }

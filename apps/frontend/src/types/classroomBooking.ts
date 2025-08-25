@@ -15,7 +15,7 @@ export interface ClassroomBooking {
   responsiblePerson: string;
   description?: string;
   contactInfo: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
 }
 

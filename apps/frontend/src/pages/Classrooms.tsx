@@ -7,6 +7,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import ClassroomForm from '../components/ClassroomForm';
 import ClassroomBookingModal from '../components/ClassroomBookingModal';
+import ClassroomDetailsModal from '../components/ClassroomDetailsModal';
 
 const CLASSROOM_TYPE_LABELS: Record<ClassroomType, string> = {
   LECTURE: 'Лекционная',
@@ -26,7 +27,7 @@ const CLASSROOM_TYPE_COLORS: Record<ClassroomType, string> = {
 
 const Classrooms: React.FC = () => {
   const { user } = useAuth();
-  const { classrooms, loading, error, deleteClassroom, createClassroom, updateClassroom } = useClassrooms();
+const { classrooms, loading, error, deleteClassroom, createClassroom, updateClassroom, fetchClassrooms } = useClassrooms();
   const { buildings } = useBuildings();
   const { equipmentTypes } = useEquipmentTypes();
 
@@ -40,7 +41,8 @@ const Classrooms: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
-  const [showBookingModal, setShowBookingModal] = useState(false);
+const [showBookingModal, setShowBookingModal] = useState(false);
+const [detailsClassroomId, setDetailsClassroomId] = useState<number | null>(null);
 
   // Фильтрация аудиторий
   const filteredClassrooms = useMemo(() => {
@@ -330,9 +332,10 @@ const Classrooms: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 md:p-6">
             {filteredClassrooms.map((classroom) => (
-              <div
+<div
                 key={classroom.id}
-                className="bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200"
+                onClick={() => setDetailsClassroomId(classroom.id)}
+                className="bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer"
               >
                 <div className="p-4 sm:p-5 md:p-6">
                   {/* Заголовок */}
@@ -350,14 +353,14 @@ const Classrooms: React.FC = () => {
                     </div>
                     {canManageClassrooms && (
                       <div className="flex gap-1 ml-2">
-                        <button
-                          onClick={() => setSelectedClassroom(classroom)}
+<button
+                          onClick={(e) => { e.stopPropagation(); setSelectedClassroom(classroom); }}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors min-h-[36px] min-w-[36px] touch-manipulation flex items-center justify-center"
                         >
                           <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
                         </button>
-                        <button
-                          onClick={() => setShowDeleteConfirm(classroom.id)}
+<button
+                          onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(classroom.id); }}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors min-h-[36px] min-w-[36px] touch-manipulation flex items-center justify-center"
                         >
                           <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -455,10 +458,16 @@ const Classrooms: React.FC = () => {
       />
 
       {/* Модальное окно бронирования аудитории */}
-      <ClassroomBookingModal
+<ClassroomBookingModal
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
         classrooms={classrooms}
+      />
+      <ClassroomDetailsModal
+        isOpen={detailsClassroomId !== null}
+        classroomId={detailsClassroomId}
+        onClose={() => setDetailsClassroomId(null)}
+        onUpdated={fetchClassrooms}
       />
     </div>
   );

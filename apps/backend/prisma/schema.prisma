@@ -131,6 +131,8 @@ model User {
   // Student remarks relations
   teacherRemarks  StudentRemark[]  @relation("TeacherRemarks")
   teacherComments StudentComment[] @relation("TeacherComments")
+  responsibleClassrooms Classroom[] @relation("ResponsibleClassrooms")
+  classroomBookingsCreated ClassroomBooking[] @relation("ClassroomBookingsCreated")
 }
 
 model Student {
@@ -444,18 +446,50 @@ model Notification {
 }
 
 model Classroom {
-  id          Int        @id @default(autoincrement())
-  name        String
-  building    String
-  floor       Int
-  capacity    Int
-  type        String // LECTURE, PRACTICE, COMPUTER, LABORATORY, OTHER
-  equipment   String[] // Оборудование (проектор, интерактивная доска и т.д.)
-  description String?    @db.Text
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
-  schedules   Schedule[]
+  id            Int               @id @default(autoincrement())
+  name          String
+  building      String
+  floor         Int
+  capacity      Int
+  type          String // LECTURE, PRACTICE, COMPUTER, LABORATORY, OTHER
+  equipment     String[] // Оборудование
+  description   String?            @db.Text
+  responsibleId Int?
+  responsible   User?              @relation("ResponsibleClassrooms", fields: [responsibleId], references: [id])
+  fileIds       Int[]              @default([])
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+  schedules     Schedule[]
+  bookings      ClassroomBooking[]
+}
+
+enum ClassroomBookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model ClassroomBooking {
+  id                String     @id @default(uuid())
+  classroomId       Int
+  classroom         Classroom  @relation(fields: [classroomId], references: [id])
+  date              DateTime
+  startTime         String
+  endTime           String
+  purpose           String
+  responsiblePerson String
+  contactInfo       String
+  description       String?
+  status            ClassroomBookingStatus @default(PENDING)
+  createdById       Int
+  createdBy         User       @relation("ClassroomBookingsCreated", fields: [createdById], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  deletedAt         DateTime?
+
+  @@index([classroomId, date])
 }
 
 enum ScheduleStatus {

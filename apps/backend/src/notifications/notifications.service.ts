@@ -348,4 +348,47 @@ export class NotificationsService {
       url: `/vacations/${vacationId}`,
     });
   }
+
+  // ----- Classroom bookings -----
+  async notifyClassroomBookingCreated(params: {
+    classroom: { id: number; name: string; building: string; floor: number };
+    booking: {
+      date: Date;
+      startTime: string;
+      endTime: string;
+      purpose: string;
+      responsiblePerson: string;
+      contactInfo: string;
+    };
+    createdBy?: number;
+  }) {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: 'ADMIN', deletedAt: null },
+        select: { id: true },
+      });
+
+      if (admins.length === 0) return [];
+
+      // Красивый формат: "1 сентября 2025 12:00-13:00" (ru-RU, без ведущего нуля у дня)
+      const dateLong = params.booking.date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+      const dateTimeSegment = `${dateLong} ${params.booking.startTime}-${params.booking.endTime}`;
+      const message = `Новая заявка бронирования: ${params.classroom.name} (${params.classroom.building}, ${params.classroom.floor} этаж) ${dateTimeSegment}. Цель: ${params.booking.purpose}. Отв.: ${params.booking.responsiblePerson}`;
+
+      return this.addNotification({
+        userIds: admins.map(a => a.id),
+        type: 'CLASSROOM_BOOKING_CREATED',
+        message,
+        url: `/classrooms/${params.classroom.id}`,
+        createdBy: params.createdBy,
+      });
+    } catch (error) {
+      this.logger.error('Error notifying admins about classroom booking', error);
+      return [];
+    }
+  }
 }

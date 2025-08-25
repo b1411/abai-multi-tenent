@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Request, ParseIntPipe } from '@nestjs/common';
 import { ClassroomsService } from './classrooms.service';
 import { CreateClassroomDto } from './dto/create-classroom.dto';
 import { UpdateClassroomDto } from './dto/update-classroom.dto';
@@ -6,12 +6,14 @@ import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { CreateClassroomBookingDto, UpdateClassroomBookingStatusDto } from './dto/create-classroom-booking.dto';
+import { ModifyClassroomDocumentDto } from './dto/modify-classroom-document.dto';
 
 @ApiTags('Classrooms')
 @Controller('classrooms')
 @ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
-@Roles('ADMIN', 'TEACHER')
+@Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR')
 export class ClassroomsController {
   constructor(private readonly classroomsService: ClassroomsService) { }
 
@@ -129,5 +131,63 @@ export class ClassroomsController {
   @Roles('ADMIN')
   remove(@Param('id') id: string) {
     return this.classroomsService.remove(+id);
+  }
+
+  // ----- Bookings -----
+
+  @Post(':id/bookings')
+  @ApiOperation({ summary: 'Создать бронирование аудитории' })
+  @ApiResponse({ status: 201, description: 'Заявка создана (PENDING)' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  createBooking(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateClassroomBookingDto,
+    @Request() req,
+  ) {
+    // classroomId в dto можно не доверять - форсируем из параметра
+    return this.classroomsService.createBooking({ ...dto, classroomId: id }, req.user.id);
+  }
+
+  @Get(':id/bookings')
+  @ApiOperation({ summary: 'Список бронирований аудитории' })
+  @ApiQuery({ name: 'date', required: false, description: 'Фильтр по дате (YYYY-MM-DD)' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'HR')
+  listBookings(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('date') date?: string,
+  ) {
+    return this.classroomsService.listBookings(id, date);
+  }
+
+  @Patch('bookings/:bookingId/status')
+  @ApiOperation({ summary: 'Изменить статус бронирования' })
+  @Roles('ADMIN')
+  updateBookingStatus(
+    @Param('bookingId') bookingId: string,
+    @Body() dto: UpdateClassroomBookingStatusDto,
+  ) {
+    return this.classroomsService.updateBookingStatus(bookingId, dto.status);
+  }
+
+  // ----- Documents attach/detach -----
+
+  @Post(':id/documents')
+  @ApiOperation({ summary: 'Прикрепить документ к аудитории' })
+  @Roles('ADMIN', 'TEACHER')
+  attachDocument(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ModifyClassroomDocumentDto,
+  ) {
+    return this.classroomsService.attachDocument(id, dto.fileId);
+  }
+
+  @Delete(':id/documents/:fileId')
+  @ApiOperation({ summary: 'Удалить документ из аудитории' })
+  @Roles('ADMIN', 'TEACHER')
+  detachDocument(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('fileId', ParseIntPipe) fileId: number,
+  ) {
+    return this.classroomsService.detachDocument(id, fileId);
   }
 }

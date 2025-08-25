@@ -1,3 +1,5 @@
+import { ClassroomBooking } from './classroomBooking';
+
 export interface Classroom {
   id: number;
   name: string;
@@ -7,9 +9,16 @@ export interface Classroom {
   type: ClassroomType;
   equipment: string[];
   description?: string;
+  responsible?: {
+    id: number;
+    name: string;
+    surname: string;
+  };
+  fileIds?: number[];
   createdAt: string;
   updatedAt: string;
   schedules?: Schedule[];
+  bookings?: ClassroomBooking[];
 }
 
 export enum ClassroomType {
@@ -28,6 +37,7 @@ export interface CreateClassroomDto {
   type: ClassroomType;
   equipment: string[];
   description?: string;
+  responsibleId?: number;
 }
 
 export type UpdateClassroomDto = Partial<CreateClassroomDto>;

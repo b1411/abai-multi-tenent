@@ -36,6 +36,16 @@ const Performance: React.FC = () => {
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetric[]>([]);
   const [allStudents, setAllStudents] = useState<{ id: number; name: string; surname: string; group: string; averageGrade: number; attendanceRate: number; assignmentRate: number }[]>([]);
 
+  const topBestStudents = useMemo(() => {
+    if (!allStudents || allStudents.length === 0) return [];
+    return [...allStudents].sort((a, b) => b.averageGrade - a.averageGrade).slice(0, 5);
+  }, [allStudents]);
+
+  const topWorstStudents = useMemo(() => {
+    if (!allStudents || allStudents.length === 0) return [];
+    return [...allStudents].sort((a, b) => a.averageGrade - b.averageGrade).slice(0, 5);
+  }, [allStudents]);
+
   const filter: PerformanceFilter = useMemo(() =>
     selectedClass === 'all' ? {} : { groupId: selectedClass },
     [selectedClass]
@@ -317,86 +327,150 @@ const Performance: React.FC = () => {
         </div>
       </div>
 
-      {/* Полный список студентов (только для админов и учителей) */}
+      {/* Топ 5 лучших и худших студентов (только для админов и учителей) */}
       {(hasRole('ADMIN') || hasRole('TEACHER')) && (
-        <div className="bg-white rounded-lg shadow-sm p-6 border">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Все студенты по успеваемости</h3>
-          <div className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Студент
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Группа
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Средний балл
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Посещаемость
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Выполнение заданий
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {allStudents.length === 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-sm p-6 border">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Студенты с высоким прогрессом</h3>
+            <div className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
-                        Нет данных о студентах
-                      </td>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Студент</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Группа</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Средний балл</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Посещ.</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Задания</th>
                     </tr>
-                  ) : (
-                    allStudents.map((student, index) => (
-                      <tr
-                        key={student.id}
-                        className={`hover:bg-gray-50 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                        onClick={() => window.location.href = `/students/${student.id}`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {student.name} {student.surname}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-600">{student.group}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-medium ${student.averageGrade >= 4.5 ? 'text-green-600' :
-                              student.averageGrade >= 3.5 ? 'text-yellow-600' :
-                                student.averageGrade >= 3.0 ? 'text-orange-600' :
-                                  'text-red-600'
-                            }`}>
-                            {student.averageGrade.toFixed(1)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm ${student.attendanceRate >= 90 ? 'text-green-600' :
-                              student.attendanceRate >= 80 ? 'text-yellow-600' :
-                                student.attendanceRate >= 70 ? 'text-orange-600' :
-                                  'text-red-600'
-                            }`}>
-                            {student.attendanceRate}%
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm ${student.assignmentRate >= 90 ? 'text-green-600' :
-                              student.assignmentRate >= 80 ? 'text-yellow-600' :
-                                student.assignmentRate >= 70 ? 'text-orange-600' :
-                                  'text-red-600'
-                            }`}>
-                            {student.assignmentRate}%
-                          </div>
-                        </td>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {topBestStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-4 text-center text-gray-500">Нет данных</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      topBestStudents.map((student, index) => (
+                        <tr
+                          key={student.id}
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => window.location.href = `/students/${student.id}`}
+                        >
+                          <td className="px-4 py-2 text-sm font-medium text-gray-700">{index + 1}</td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {student.name} {student.surname}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className="text-sm text-gray-600">{student.group}</div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className={`text-sm font-medium ${student.averageGrade >= 4.5 ? 'text-green-600' :
+                                student.averageGrade >= 3.5 ? 'text-yellow-600' :
+                                  student.averageGrade >= 3.0 ? 'text-orange-600' :
+                                    'text-red-600'
+                              }`}>
+                              {student.averageGrade.toFixed(1)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className={`text-sm ${student.attendanceRate >= 90 ? 'text-green-600' :
+                                student.attendanceRate >= 80 ? 'text-yellow-600' :
+                                  student.attendanceRate >= 70 ? 'text-orange-600' :
+                                    'text-red-600'
+                              }`}>
+                              {student.attendanceRate}%
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className={`text-sm ${student.assignmentRate >= 90 ? 'text-green-600' :
+                                student.assignmentRate >= 80 ? 'text-yellow-600' :
+                                  student.assignmentRate >= 70 ? 'text-orange-600' :
+                                    'text-red-600'
+                              }`}>
+                              {student.assignmentRate}%
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-6 border">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Студенты с низкой успеваемостью
+</h3>
+            <div className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Студент</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Группа</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Средний балл</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Посещ.</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Задания</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {topWorstStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-4 text-center text-gray-500">Нет данных</td>
+                      </tr>
+                    ) : (
+                      topWorstStudents.map((student, index) => (
+                        <tr
+                          key={student.id}
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => window.location.href = `/students/${student.id}`}
+                        >
+                          <td className="px-4 py-2 text-sm font-medium text-gray-700">{index + 1}</td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {student.name} {student.surname}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className="text-sm text-gray-600">{student.group}</div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className={`text-sm font-medium ${student.averageGrade >= 4.5 ? 'text-green-600' :
+                                student.averageGrade >= 3.5 ? 'text-yellow-600' :
+                                  student.averageGrade >= 3.0 ? 'text-orange-600' :
+                                    'text-red-600'
+                              }`}>
+                              {student.averageGrade.toFixed(1)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className={`text-sm ${student.attendanceRate >= 90 ? 'text-green-600' :
+                                student.attendanceRate >= 80 ? 'text-yellow-600' :
+                                  student.attendanceRate >= 70 ? 'text-orange-600' :
+                                    'text-red-600'
+                              }`}>
+                              {student.attendanceRate}%
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className={`text-sm ${student.assignmentRate >= 90 ? 'text-green-600' :
+                                student.assignmentRate >= 80 ? 'text-yellow-600' :
+                                  student.assignmentRate >= 70 ? 'text-orange-600' :
+                                    'text-red-600'
+                              }`}>
+                              {student.assignmentRate}%
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

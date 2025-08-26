@@ -45,7 +45,6 @@ const DashboardLayout: React.FC = () => {
         <TopPanel onToggleSidebar={toggleSidebar} />
         <main className="flex-1 bg-gray-50 p-0 sm:p-4 lg:p-6 overflow-x-hidden min-w-0 transition-all duration-300 ease-in-out">
           <Outlet />
-          <RealtimeChatWidget />
         </main>
       </div>
     </div>

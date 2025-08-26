@@ -298,7 +298,63 @@ const PaymentsPage: React.FC = () => {
 
   // Модальное окно платежа
   const PaymentModal = () => {
+    // Локальные состояния редактирования (инициализация допускает отсутствие selectedPayment)
+    const [editStatus, setEditStatus] = useState<string>(selectedPayment?.status || 'unpaid');
+    const [editPaidAmount, setEditPaidAmount] = useState<number>(selectedPayment?.paidAmount || 0);
+    const [editPaymentDate, setEditPaymentDate] = useState<string>(selectedPayment?.paymentDate ? selectedPayment.paymentDate.split('T')[0] : '');
+    const [saving, setSaving] = useState(false);
+
+    // Синхронизация при смене выбранного платежа
+    useEffect(() => {
+      if (selectedPayment) {
+        setEditStatus(selectedPayment.status);
+        setEditPaidAmount(selectedPayment.paidAmount || 0);
+        setEditPaymentDate(selectedPayment.paymentDate ? selectedPayment.paymentDate.split('T')[0] : '');
+      }
+    }, [selectedPayment]);
+
     if (!selectedPayment) return null;
+
+    const statusOptions = [
+      { value: 'unpaid', label: 'Не оплачено' },
+      { value: 'partial', label: 'Частично оплачено' },
+      { value: 'paid', label: 'Оплачено' },
+      { value: 'overdue', label: 'Просрочено' },
+    ];
+
+    const handleSave = async () => {
+      try {
+        setSaving(true);
+        const payload: any = {
+          status: editStatus,
+        };
+
+        if (editStatus === 'paid') {
+          payload.paidAmount = editPaidAmount || selectedPayment.amount;
+          payload.paymentDate = editPaymentDate || new Date().toISOString().split('T')[0];
+        } else if (editStatus === 'partial') {
+          payload.paidAmount = editPaidAmount;
+          if (editPaymentDate) payload.paymentDate = editPaymentDate;
+        } else {
+          // unpaid / overdue
+          payload.paidAmount = editStatus === 'unpaid' ? 0 : editPaidAmount;
+          if (editPaymentDate) payload.paymentDate = editPaymentDate;
+        }
+
+        await paymentsService.updatePayment(selectedPayment.id, payload);
+        const response = await paymentsService.getPayments(filters);
+        setPayments(response.payments);
+        setStats(response.summary);
+        const refreshed = response.payments.find(p => p.id === selectedPayment.id);
+        if (refreshed) setSelectedPayment(refreshed);
+        alert('Платеж обновлен');
+      } catch (e) {
+        console.error(e);
+        setError('Ошибка обновления платежа');
+      } finally {
+        setSaving(false);
+      }
+    };
     
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -367,6 +423,58 @@ const PaymentsPage: React.FC = () => {
               </p>
             </div>
           </div>
+
+          {!isParent && (
+            <div className="border-t pt-4 mb-4">
+              <h4 className="text-sm font-semibold mb-3">Изменить статус</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Статус</label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                  >
+                    {statusOptions.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+                {(editStatus === 'partial' || editStatus === 'paid') && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Оплачено (KZT)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                      value={editPaidAmount}
+                      onChange={(e) => setEditPaidAmount(parseInt(e.target.value || '0', 10))}
+                    />
+                  </div>
+                )}
+                {(editStatus === 'partial' || editStatus === 'paid') && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Дата оплаты</label>
+                    <input
+                      type="date"
+                      className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                      value={editPaymentDate}
+                      onChange={(e) => setEditPaymentDate(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm disabled:opacity-60"
+                >
+                  {saving ? 'Сохранение...' : 'Сохранить изменения'}
+                </button>
+              </div>
+            </div>
+          )}
           
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
             {!isParent && (

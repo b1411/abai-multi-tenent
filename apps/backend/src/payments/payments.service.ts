@@ -18,7 +18,7 @@ export class PaymentsService {
   ) { }
 
   async create(createPaymentDto: CreatePaymentDto) {
-    return this.prisma.payment.create({
+    const payment = await this.prisma.payment.create({
       data: {
         studentId: createPaymentDto.studentId,
         serviceType: createPaymentDto.type,
@@ -37,6 +37,8 @@ export class PaymentsService {
         },
       },
     });
+    await this.ensureBudgetItem(payment);
+    return payment;
   }
 
   async createGroupPayment(createGroupPaymentDto: CreateGroupPaymentDto) {
@@ -127,6 +129,7 @@ export class PaymentsService {
             },
           });
 
+          await this.ensureBudgetItem(payment);
           createdPayments.push(payment);
 
           // Собираем ID родителей для уведомлений
@@ -408,10 +411,35 @@ export class PaymentsService {
   }
 
   async update(id: number, updatePaymentDto: UpdatePaymentDto) {
-    return this.prisma.payment.update({
+    // Подготовка данных (приведение типов)
+    const data: any = { ...updatePaymentDto };
+
+    if (data.paymentDate) {
+      // Преобразуем YYYY-MM-DD в Date
+      data.paymentDate = new Date(data.paymentDate);
+    }
+
+    if (data.paidAmount !== undefined) {
+      data.paidAmount = Number(data.paidAmount);
+    }
+
+    // Если статус paid и не передана paidAmount, берем сумму платежа
+    if (data.status === 'paid' && (data.paidAmount === undefined || data.paidAmount === null)) {
+      const original = await this.prisma.payment.findUnique({ where: { id } });
+      if (original) {
+        data.paidAmount = original.amount;
+        if (!data.paymentDate) data.paymentDate = new Date();
+      }
+    }
+
+    // Обновляем платеж
+    const updated = await this.prisma.payment.update({
       where: { id },
-      data: updatePaymentDto,
+      data,
     });
+
+    await this.ensureBudgetItem(updated);
+    return updated;
   }
 
   async remove(id: number) {
@@ -704,5 +732,65 @@ export class PaymentsService {
     };
     
     return labels[recurrence] || 'Однократно';
+  }
+
+  // Формируем период бюджета в формате "YYYY QN"
+  private getBudgetPeriod(date: Date): string {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const quarter = Math.floor(d.getMonth() / 3) + 1;
+    return `${year} Q${quarter}`;
+  }
+
+  // Создание/обновление бюджетной статьи для планового и фактического дохода
+  private async ensureBudgetItem(payment: any) {
+    try {
+      const status = (payment.status || '').toLowerCase();
+      const periodDate = payment.paymentDate || payment.dueDate || new Date();
+      const period = this.getBudgetPeriod(periodDate);
+      const name = `Поступление платежа #${payment.id}`;
+
+      const existing = await this.prisma.budgetItem.findFirst({
+        where: {
+          name,
+          deletedAt: null,
+        },
+      });
+
+      let actualAmount = 0;
+      if (status === 'paid') {
+        actualAmount = payment.paidAmount || payment.amount;
+      } else if (status === 'partial') {
+        actualAmount = payment.paidAmount || 0;
+      }
+
+      if (!existing) {
+        await this.prisma.budgetItem.create({
+          data: {
+            name,
+            type: 'INCOME',
+            category: 'tuition',
+            plannedAmount: payment.amount,
+            actualAmount,
+            currency: payment.currency || 'KZT',
+            period,
+            responsible: 'FINANCE',
+            status: 'ACTIVE',
+            description: `Платеж за ${payment.serviceName}, студент ID ${payment.studentId}`,
+          },
+        });
+      } else {
+        await this.prisma.budgetItem.update({
+          where: { id: existing.id },
+          data: {
+            plannedAmount: payment.amount,
+            actualAmount,
+            description: `Обновлено: платеж за ${payment.serviceName}, студент ID ${payment.studentId}`,
+          },
+        });
+      }
+    } catch (e) {
+      console.error('ensureBudgetItem error', payment?.id, e);
+    }
   }
 }

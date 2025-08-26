@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsDateString, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, IsDateString, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export enum PaymentType {
@@ -33,8 +33,9 @@ export class CreatePaymentDto {
   @Transform(({ value }) => parseFloat(value))
   amount: number;
 
+  @IsOptional()
   @IsEnum(PaymentMethod)
-  method: PaymentMethod;
+  method?: PaymentMethod;
 
   @IsDateString()
   dueDate: string;
@@ -42,6 +43,10 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  serviceName?: string;
 }
 
 export enum PaymentStatus {

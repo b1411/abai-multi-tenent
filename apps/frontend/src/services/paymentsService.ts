@@ -85,8 +85,16 @@ class PaymentsService {
     return await apiClient.post('/payments', data);
   }
 
-  // Обновление платежа
-  async updatePayment(id: string, data: Partial<CreatePaymentDto>): Promise<Payment> {
+  // Обновление платежа (статус, суммы)
+  async updatePayment(id: string, data: {
+    status?: string;
+    paidAmount?: number;
+    paymentDate?: string;
+    notes?: string;
+    amount?: number;
+    dueDate?: string;
+    type?: string;
+  }): Promise<Payment> {
     return await apiClient.patch(`/payments/${id}`, data);
   }
 

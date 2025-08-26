@@ -14,15 +14,15 @@ config({
 });
 
 console.log(process.env.DATABASE_URL)
-const prisma = new PrismaClient({
-    datasources: {
-        db: {
-            url: "prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19MTVJXUUl0RlFGWTlWTnFDbTRLZHYiLCJhcGlfa2V5IjoiMDFLMzNQSDhSUEY0MEhEMFZOREIzSkRLNFQiLCJ0ZW5hbnRfaWQiOiIyYjk2MjQwYWMxNWQ3ZWQwOWIxM2U5OWU3NzdiN2ZiNWFiMDhiMDViY2I4YzVkNWNkNzNkZmRiOTg5MjliMzZkIiwiaW50ZXJuYWxfc2VjcmV0IjoiNDRmZWM0NjItM2IyNy00ZTE3LThmYTgtOTFmMzU1MjBkOGMxIn0.qowlnIXZiDDqrIvqegEIVL3B4CjCNtLQxX92OBW646k"
-        }
-    }
-});
+// const prisma = new PrismaClient({
+//     datasources: {
+//         db: {
+//             url: "prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19MTVJXUUl0RlFGWTlWTnFDbTRLZHYiLCJhcGlfa2V5IjoiMDFLMzNQSDhSUEY0MEhEMFZOREIzSkRLNFQiLCJ0ZW5hbnRfaWQiOiIyYjk2MjQwYWMxNWQ3ZWQwOWIxM2U5OWU3NzdiN2ZiNWFiMDhiMDViY2I4YzVkNWNkNzNkZmRiOTg5MjliMzZkIiwiaW50ZXJuYWxfc2VjcmV0IjoiNDRmZWM0NjItM2IyNy00ZTE3LThmYTgtOTFmMzU1MjBkOGMxIn0.qowlnIXZiDDqrIvqegEIVL3B4CjCNtLQxX92OBW646k"
+//         }
+//     }
+// });
 
-// const prisma = new PrismaClient();
+const prisma = new PrismaClient();
 
 const PASSWORD = 'password123';
 let passwordHash: string | null = null;

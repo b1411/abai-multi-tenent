@@ -280,31 +280,34 @@ const LessonsPage: React.FC = () => {
       key: 'actions',
       title: 'Действия',
       render: (_: any, record: Lesson) => (
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
             onClick={() => navigate(`/lessons/${record.id}`)}
+            className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white hover:bg-gray-100 w-10 h-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+            aria-label="Просмотр"
           >
-            <Eye className="h-4 w-4" />
-          </Button>
+            <Eye className="w-4 h-4 text-gray-700" />
+          </button>
           {(hasRole('ADMIN') || (hasRole('TEACHER') && record.studyPlan?.teacher?.user?.id === user?.id)) && (
-            <Button
-              variant="outline"
-              size="sm"
+            <button
+              type="button"
               onClick={() => handleEdit(record)}
+              className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white hover:bg-gray-100 w-10 h-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+              aria-label="Редактировать"
             >
-              <Edit className="h-4 w-4" />
-            </Button>
+              <Edit className="w-4 h-4 text-gray-700" />
+            </button>
           )}
           {hasRole('ADMIN') && (
-            <Button
-              variant="danger"
-              size="sm"
+            <button
+              type="button"
               onClick={() => setDeletingLesson(record)}
+              className="inline-flex items-center justify-center rounded-md border border-red-300 bg-red-50 hover:bg-red-100 w-10 h-10 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+              aria-label="Удалить"
             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+              <Trash2 className="w-4 h-4 text-red-600" />
+            </button>
           )}
         </div>
       )
@@ -327,7 +330,7 @@ const LessonsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 min-h-screen bg-gray-50 w-full overflow-x-hidden" style={{fontSize: '16px'}}>
+    <div className="p-3 sm:p-4 lg:p-6 min-h-screen bg-gray-50 w-full overflow-x-hidden" style={{ fontSize: '16px' }}>
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
@@ -390,8 +393,8 @@ const LessonsPage: React.FC = () => {
                 { value: 'all', label: 'Все планы' },
                 ...studyPlans.map(plan => ({
                   value: plan.id.toString(),
-                  label: window.innerWidth < 640 && plan.name.length > 25 ? 
-                    `${plan.name.substring(0, 25)}...` : 
+                  label: window.innerWidth < 640 && plan.name.length > 25 ?
+                    `${plan.name.substring(0, 25)}...` :
                     plan.name.length > 35 ? `${plan.name.substring(0, 35)}...` : plan.name
                 }))
               ]}
@@ -495,7 +498,7 @@ const LessonsPage: React.FC = () => {
           ) : (
             <div className="divide-y divide-gray-100">
               {lessons.map((lesson) => (
-                <div key={lesson.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors duration-150" style={{minHeight: '100px'}}>
+                <div key={lesson.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors duration-150" style={{ minHeight: '100px' }}>
                   <div className="space-y-3 sm:space-y-4">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-3">
@@ -506,7 +509,7 @@ const LessonsPage: React.FC = () => {
                         >
                           <span className="truncate">{lesson.name}</span>
                         </button>
-                        
+
                         <div className="flex items-center mt-1 sm:mt-2 text-xs sm:text-sm text-gray-500">
                           <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 flex-shrink-0" />
                           <span className="truncate">{formatDate(lesson.date)}</span>
@@ -876,8 +879,8 @@ const LessonForm: React.FC<{
           {loading ? (
             <span className="flex items-center justify-center">
               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               Сохранение...
             </span>

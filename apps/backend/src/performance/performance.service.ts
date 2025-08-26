@@ -449,8 +449,7 @@ export class PerformanceService {
     return { trends, analysis };
   }
 
-  async getMonthlyData(_filter: PerformanceFilterDto): Promise<MonthlyDataDto[]> {
-    void _filter;
+  async getMonthlyData(filter: PerformanceFilterDto): Promise<MonthlyDataDto[]> {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 6);
@@ -461,7 +460,11 @@ export class PerformanceService {
     for (let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1); cursor <= endDate; cursor.setMonth(cursor.getMonth() + 1)) {
       const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1); // exclusive
-      const whereBase = { deletedAt: null as any, createdAt: { gte: monthStart, lt: monthEnd } };
+      const whereBase = {
+        deletedAt: null as any,
+        createdAt: { gte: monthStart, lt: monthEnd },
+        ...(filter.groupId && { Student: { groupId: parseInt(filter.groupId) } })
+      };
 
       const [gradeAgg, attendanceAll, attendancePresent, hwAll, hwGood] = await Promise.all([
         this.prisma.lessonResult.aggregate({ where: { ...whereBase, lessonScore: { not: null } }, _avg: { lessonScore: true } }),

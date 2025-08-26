@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "",
   "author": "",
   "private": true,
@@ -60,9 +60,8 @@
     "mammoth": "^1.9.1",
     "multer": "^2.0.1",
     "nodemailer": "^7.0.5",
-  "pdf-parse": "^1.1.1",
-  "openai": "^4.70.0",
-  "zod": "^3.23.8",
+    "openai": "^4.70.0",
+    "pdf-parse": "^1.1.1",
     "pdfkit": "^0.17.1",
     "prisma": "^6.11.1",
     "puppeteer": "^24.15.0",
@@ -71,7 +70,8 @@
     "socket.io": "^4.8.1",
     "swagger-typescript-api": "^13.2.7",
     "ua-parser-js": "^2.0.4",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

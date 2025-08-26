@@ -72,6 +72,30 @@ export class CreateScheduleDto {
   })
   endTime: string;
 
+  @ApiPropertyOptional({
+    description: 'Дата начала периода повторения (YYYY-MM-DD). Используется при repeat weekly/biweekly',
+    example: '2025-09-01'
+  })
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Дата окончания периода повторения (YYYY-MM-DD). Используется при repeat weekly/biweekly',
+    example: '2025-10-31'
+  })
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Пресет периода: quarter1|quarter2|quarter3|quarter4|half_year_1|half_year_2|year',
+    enum: ['quarter1','quarter2','quarter3','quarter4','half_year_1','half_year_2','year']
+  })
+  @IsEnum(['quarter1','quarter2','quarter3','quarter4','half_year_1','half_year_2','year'])
+  @IsOptional()
+  periodPreset?: string;
+
   @ApiPropertyOptional({ 
     description: 'Тип расписания',
     enum: ['REGULAR', 'MAKEUP', 'SUBSTITUTE', 'EXTRA']

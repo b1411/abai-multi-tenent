@@ -12,6 +12,9 @@ export interface Schedule {
   type?: string; // REGULAR, MAKEUP, SUBSTITUTE, EXTRA
   status?: string; // SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED, POSTPONED, MOVED
   repeat?: string; // weekly, biweekly, once
+  startDate?: string; // начало периода повторения (YYYY-MM-DD)
+  endDate?: string; // конец периода повторения (YYYY-MM-DD)
+  periodPreset?: 'quarter1' | 'quarter2' | 'quarter3' | 'quarter4' | 'half_year_1' | 'half_year_2' | 'year';
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -54,10 +57,14 @@ export interface CreateScheduleDto {
   teacherId: number;
   classroomId?: number;
   dayOfWeek: number; // 1-7
-  date?: string; // конкретная дата в формате YYYY-MM-DD
+  date?: string; // конкретная дата в формате YYYY-MM-DD (для single/once)
   startTime: string; // HH:MM
   endTime: string; // HH:MM
   repeat?: 'weekly' | 'biweekly' | 'once';
+  // Ограниченный период повторения
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+  periodPreset?: 'quarter1' | 'quarter2' | 'quarter3' | 'quarter4' | 'half_year_1' | 'half_year_2' | 'year';
 }
 
 export interface UpdateScheduleDto {
@@ -69,6 +76,9 @@ export interface UpdateScheduleDto {
   startTime?: string;
   endTime?: string;
   repeat?: 'weekly' | 'biweekly' | 'once';
+  startDate?: string;
+  endDate?: string;
+  periodPreset?: 'quarter1' | 'quarter2' | 'quarter3' | 'quarter4' | 'half_year_1' | 'half_year_2' | 'year';
 }
 
 // Frontend display types (совместимые с legacy фронтом)
@@ -85,6 +95,9 @@ export interface ScheduleItem {
   roomId: string; // classroom name
   type: 'lesson' | 'consultation' | 'extra';
   repeat: 'weekly' | 'biweekly' | 'once';
+  startDate?: string;
+  endDate?: string;
+  periodPreset?: 'quarter1' | 'quarter2' | 'quarter3' | 'quarter4' | 'half_year_1' | 'half_year_2' | 'year';
   comment?: string;
   status: 'upcoming' | 'completed' | 'cancelled';
 }

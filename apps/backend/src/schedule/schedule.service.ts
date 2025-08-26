@@ -11,7 +11,7 @@ export class ScheduleService {
     // Проверяем существование связанных сущностей
     await this.validateRelatedEntities(createScheduleDto);
 
-    // Проверяем конфликты расписания
+    // Проверяем конфликты расписания (по времени в рамках дня)
     await this.checkScheduleConflicts(createScheduleDto);
 
     // Преобразуем DTO в правильный формат для Prisma
@@ -25,23 +25,33 @@ export class ScheduleService {
     };
 
     // Добавляем опциональные поля если они есть
-    if (createScheduleDto.classroomId) {
-      data.classroomId = createScheduleDto.classroomId;
+    if (createScheduleDto.classroomId) data.classroomId = createScheduleDto.classroomId;
+    if (createScheduleDto.lessonId) data.lessonId = createScheduleDto.lessonId;
+    if (createScheduleDto.date) data.date = new Date(createScheduleDto.date);
+    if (createScheduleDto.type) data.type = createScheduleDto.type;
+    if (createScheduleDto.status) data.status = createScheduleDto.status;
+    if (createScheduleDto.repeat) data.repeat = createScheduleDto.repeat;
+
+    // Период повторения
+    if (createScheduleDto.periodPreset) {
+      const { startDate, endDate } = this.resolvePeriodPreset(createScheduleDto.periodPreset);
+      data.startDate = startDate;
+      data.endDate = endDate;
+      data.periodPreset = createScheduleDto.periodPreset;
+    } else {
+      if (createScheduleDto.startDate) data.startDate = new Date(createScheduleDto.startDate);
+      if (createScheduleDto.endDate) data.endDate = new Date(createScheduleDto.endDate);
+      if (createScheduleDto.periodPreset) data.periodPreset = createScheduleDto.periodPreset;
     }
-    if (createScheduleDto.lessonId) {
-      data.lessonId = createScheduleDto.lessonId;
-    }
-    if (createScheduleDto.date) {
-      data.date = new Date(createScheduleDto.date);
-    }
-    if (createScheduleDto.type) {
-      data.type = createScheduleDto.type;
-    }
-    if (createScheduleDto.status) {
-      data.status = createScheduleDto.status;
-    }
-    if (createScheduleDto.repeat) {
-      data.repeat = createScheduleDto.repeat;
+
+    // Валидации для повторяющихся занятий
+    if (createScheduleDto.repeat && createScheduleDto.repeat !== 'once') {
+      if (!data.startDate || !data.endDate) {
+        throw new BadRequestException('Для repeat weekly/biweekly требуется startDate и endDate или periodPreset');
+      }
+      if (data.startDate > data.endDate) {
+        throw new BadRequestException('startDate не может быть позже endDate');
+      }
     }
 
     return this.prisma.schedule.create({
@@ -49,11 +59,7 @@ export class ScheduleService {
       include: {
         studyPlan: true,
         group: true,
-        teacher: {
-          include: {
-            user: true,
-          },
-        },
+        teacher: { include: { user: true } },
         classroom: true,
       },
     });
@@ -145,17 +151,40 @@ export class ScheduleService {
     if (updateScheduleDto.status !== undefined) data.status = updateScheduleDto.status;
     if (updateScheduleDto.repeat !== undefined) data.repeat = updateScheduleDto.repeat;
 
+    // Период
+    if (updateScheduleDto.periodPreset) {
+      const { startDate, endDate } = this.resolvePeriodPreset(updateScheduleDto.periodPreset);
+      data.startDate = startDate;
+      data.endDate = endDate;
+      data.periodPreset = updateScheduleDto.periodPreset;
+    } else {
+      if (updateScheduleDto.startDate !== undefined) {
+        data.startDate = updateScheduleDto.startDate ? new Date(updateScheduleDto.startDate as any) : null;
+      }
+      if (updateScheduleDto.endDate !== undefined) {
+        data.endDate = updateScheduleDto.endDate ? new Date(updateScheduleDto.endDate as any) : null;
+      }
+      if (updateScheduleDto.periodPreset === null) {
+        data.periodPreset = null;
+      }
+    }
+
+    if (data.repeat && data.repeat !== 'once') {
+      if (!data.startDate || !data.endDate) {
+        throw new BadRequestException('Для repeat weekly/biweekly требуется startDate и endDate или periodPreset');
+      }
+      if (data.startDate > data.endDate) {
+        throw new BadRequestException('startDate не может быть позже endDate');
+      }
+    }
+
     return this.prisma.schedule.update({
       where: { id },
       data,
       include: {
         studyPlan: true,
         group: true,
-        teacher: {
-          include: {
-            user: true,
-          },
-        },
+        teacher: { include: { user: true } },
         classroom: true,
       },
     });
@@ -379,6 +408,34 @@ export class ScheduleService {
       if (!classroom) {
         throw new NotFoundException(`Classroom with ID ${dto.classroomId} not found`);
       }
+    }
+  }
+
+  private resolvePeriodPreset(preset: string): { startDate: Date; endDate: Date } {
+    const now = new Date();
+    // Учебный год начинается 1 сентября
+    const currentYear = now.getFullYear();
+    const schoolYear = now.getMonth() >= 8 ? currentYear : currentYear - 1;
+    // Утилита для даты (month is 0-based)
+    const d = (y: number, m: number, day: number) => new Date(y, m, day);
+
+    switch (preset) {
+      case 'quarter1':
+        return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear, 9, 31) }; // Sep 1 - Oct 31
+      case 'quarter2':
+        return { startDate: d(schoolYear, 10 - 1, 1), endDate: d(schoolYear, 11, 31) }; // Nov 1 - Dec 31
+      case 'quarter3':
+        return { startDate: d(schoolYear + 1, 0, 9), endDate: d(schoolYear + 1, 2, 31) }; // Jan 9 - Mar 31
+      case 'quarter4':
+        return { startDate: d(schoolYear + 1, 3, 1), endDate: d(schoolYear + 1, 4, 31) }; // Apr 1 - May 31
+      case 'half_year_1':
+        return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear, 11, 31) }; // Sep 1 - Dec 31
+      case 'half_year_2':
+        return { startDate: d(schoolYear + 1, 0, 9), endDate: d(schoolYear + 1, 4, 31) }; // Jan 9 - May 31
+      case 'year':
+        return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear + 1, 4, 31) }; // Sep 1 - May 31
+      default:
+        throw new BadRequestException('Неизвестный periodPreset');
     }
   }
 
@@ -701,39 +758,86 @@ export class ScheduleService {
 
   // Генерация экземпляров для одной записи расписания
   private generateInstancesForSchedule(
-    schedule: any, 
-    startDate: Date, 
+    schedule: any,
+    startDate: Date,
     endDate: Date
   ): Array<{ date: Date; status: 'COMPLETED' | 'SCHEDULED' | 'CANCELLED' | 'POSTPONED' | 'MOVED' | 'RESCHEDULED' }> {
     const instances: Array<{ date: Date; status: 'COMPLETED' | 'SCHEDULED' | 'CANCELLED' | 'POSTPONED' | 'MOVED' | 'RESCHEDULED' }> = [];
-    const current = new Date(startDate);
     const now = new Date();
-    
-    // Находим первую дату с нужным днем недели
-    while (current <= endDate) {
-      const currentDayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
-      
-      if (currentDayOfWeek === schedule.dayOfWeek) {
-        // Определяем статус на основе текущего времени
-        const instanceDateTime = new Date(current);
-        const [hours, minutes] = schedule.endTime.split(':');
-        instanceDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
-        const status: 'COMPLETED' | 'SCHEDULED' = instanceDateTime < now ? 'COMPLETED' : 'SCHEDULED';
-        
-        instances.push({
-          date: new Date(current),
-          status,
-        });
-        
-        // Для двухнедельных занятий увеличиваем на 14 дней, для еженедельных на 7
-        const increment = schedule.repeat === 'biweekly' ? 14 : 7;
-        current.setDate(current.getDate() + increment);
-      } else {
-        current.setDate(current.getDate() + 1);
+
+    // Учитываем границы самой записи расписания (schedule.startDate / schedule.endDate)
+    let effectiveStart = new Date(startDate);
+    let effectiveEnd = new Date(endDate);
+    if (schedule.startDate) {
+      const sd = new Date(schedule.startDate);
+      if (sd > effectiveStart) effectiveStart = sd;
+    }
+    if (schedule.endDate) {
+      const ed = new Date(schedule.endDate);
+      if (ed < effectiveEnd) effectiveEnd = ed;
+    }
+    // Нет пересечения
+    if (effectiveStart > effectiveEnd) {
+      return instances;
+    }
+
+    // Опорная дата для biweekly (чтобы соблюдать 14-дневный шаг от начала периода расписания)
+    let biweeklyAnchor: Date | null = null;
+    if (schedule.repeat === 'biweekly' && schedule.startDate) {
+      const anchorCandidate = new Date(schedule.startDate);
+      // Сдвигаем вперед до нужного дня недели
+      while ((anchorCandidate.getDay() === 0 ? 7 : anchorCandidate.getDay()) !== schedule.dayOfWeek) {
+        anchorCandidate.setDate(anchorCandidate.getDate() + 1);
+      }
+      biweeklyAnchor = anchorCandidate;
+    }
+
+    // Старт курсора
+    const current = new Date(effectiveStart);
+
+    // Найти первое вхождение дня недели в пределах периода
+    while ((current.getDay() === 0 ? 7 : current.getDay()) !== schedule.dayOfWeek && current <= effectiveEnd) {
+      current.setDate(current.getDate() + 1);
+    }
+
+    // Выравнивание для biweekly относительно anchor
+    if (schedule.repeat === 'biweekly' && biweeklyAnchor) {
+      if (biweeklyAnchor > current && biweeklyAnchor <= effectiveEnd) {
+        current.setTime(biweeklyAnchor.getTime());
+      } else if (biweeklyAnchor <= current) {
+        const diffDays = Math.floor((current.getTime() - biweeklyAnchor.getTime()) / 86400000);
+        const remainder = diffDays % 14;
+        if (remainder !== 0) {
+          current.setDate(current.getDate() + (14 - remainder));
+        }
       }
     }
-    
+
+    const intervalDays = schedule.repeat === 'biweekly' ? 14 : 7;
+
+    while (current <= effectiveEnd) {
+      // Проверка что день совпадает (безопасно)
+      const day = current.getDay() === 0 ? 7 : current.getDay();
+      if (day !== schedule.dayOfWeek) {
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
+
+      const instanceDateTime = new Date(current);
+      const [hours, minutes] = schedule.endTime.split(':');
+      instanceDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      const status: 'COMPLETED' | 'SCHEDULED' = instanceDateTime < now ? 'COMPLETED' : 'SCHEDULED';
+
+      instances.push({
+        date: new Date(current),
+        status,
+      });
+
+      // Инкремент по интервалу
+      current.setDate(current.getDate() + intervalDays);
+    }
+
     return instances;
   }
 }

@@ -391,10 +391,26 @@ export class TeacherWorkedHoursService {
       } 
       // Если это периодическое занятие (есть день недели и периодичность)
       else if (schedule.dayOfWeek && schedule.repeat) {
+        // Определяем эффективные границы с учетом startDate/endDate самой записи расписания
+        let effectiveStart = startDate;
+        let effectiveEnd = endDate;
+        if (schedule.startDate) {
+          const sd = new Date(schedule.startDate);
+            if (sd > effectiveStart) effectiveStart = sd;
+        }
+        if (schedule.endDate) {
+          const ed = new Date(schedule.endDate);
+          if (ed < effectiveEnd) effectiveEnd = ed;
+        }
+        // Если диапазоны не пересекаются — пропускаем
+        if (effectiveStart > effectiveEnd) {
+          continue;
+        }
+
         const instances = this.generatePeriodicInstances(
           schedule,
-          startDate,
-          endDate,
+          effectiveStart,
+          effectiveEnd,
           schedule.excludedDates || []
         );
 
@@ -422,7 +438,9 @@ export class TeacherWorkedHoursService {
     excludedDates: Date[] = []
   ): Array<{ date: Date; status: 'COMPLETED' | 'SCHEDULED' }> {
     const instances = [];
-    const current = new Date(startDate);
+    // Эффективные границы уже переданы (startDate/endDate параметрами) — они учитывают месяц и границы расписания
+    const effectiveStart = new Date(startDate);
+    const effectiveEnd = new Date(endDate);
     const now = new Date();
     
     // Добавляем буфер времени - урок считается завершенным только через час после окончания
@@ -431,9 +449,40 @@ export class TeacherWorkedHoursService {
     // Преобразуем день недели (1=понедельник в нашем формате, 0=воскресенье в JS)
     const targetDay = schedule.dayOfWeek === 7 ? 0 : schedule.dayOfWeek; // 7 (воскресенье) -> 0
 
+    // Опорная дата для biweekly — исходный startDate записи расписания (schedule.startDate),
+    // приведенная к первому нужному дню недели не раньше этой даты.
+    let biweeklyAnchor: Date | null = null;
+    if (schedule.repeat === 'biweekly' && schedule.startDate) {
+      const anchorCandidate = new Date(schedule.startDate);
+      // Сдвигаем anchorCandidate вперед до нужного дня недели
+      while ((anchorCandidate.getDay() === 0 ? 7 : anchorCandidate.getDay()) !== targetDay) {
+        anchorCandidate.setDate(anchorCandidate.getDate() + 1);
+      }
+      biweeklyAnchor = anchorCandidate;
+    }
+
+    // Текущий курсор — первая дата периода
+    const current = new Date(effectiveStart);
+
     // Найти первое вхождение нужного дня недели в периоде
-    while (current.getDay() !== targetDay && current <= endDate) {
+    while ((current.getDay() === 0 ? 7 : current.getDay()) !== targetDay && current <= effectiveEnd) {
       current.setDate(current.getDate() + 1);
+    }
+
+    // Для biweekly приводим current к первой "совпадающей" с шагом 14 дней относительно anchor
+    if (schedule.repeat === 'biweekly' && biweeklyAnchor) {
+      // Если anchor позже текущего найденного дня и внутри периода — берем anchor
+      if (biweeklyAnchor > current && biweeklyAnchor <= effectiveEnd) {
+        // Поднимаем current до anchor
+        current.setTime(biweeklyAnchor.getTime());
+      } else if (biweeklyAnchor <= current) {
+        const diffDays = Math.floor((current.getTime() - biweeklyAnchor.getTime()) / 86400000);
+        const remainder = diffDays % 14;
+        if (remainder !== 0) {
+          const add = 14 - remainder;
+          current.setDate(current.getDate() + add);
+        }
+      }
     }
 
     // Определяем интервал в зависимости от периодичности
@@ -479,7 +528,7 @@ export class TeacherWorkedHoursService {
     }
 
     // Генерируем даты с учетом интервала
-    while (current <= endDate) {
+    while (current <= effectiveEnd) {
       const dateToCheck = new Date(current);
 
       // Проверяем, не исключена ли эта дата

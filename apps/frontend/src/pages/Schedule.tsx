@@ -91,6 +91,9 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
     roomId: initialData?.roomId || '',
     type: (initialData?.type || 'lesson') as ScheduleItem['type'],
     repeat: (initialData?.repeat || 'weekly') as ScheduleItem['repeat'],
+    startDate: initialData?.startDate || '',
+    endDate: initialData?.endDate || '',
+    periodPreset: initialData?.periodPreset || undefined,
     status: (initialData?.status || 'upcoming') as ScheduleItem['status']
   });
 
@@ -110,6 +113,9 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
         roomId: initialData.roomId || '',
         type: (initialData.type || 'lesson') as ScheduleItem['type'],
         repeat: (initialData.repeat || 'weekly') as ScheduleItem['repeat'],
+        startDate: initialData.startDate || '',
+        endDate: initialData.endDate || '',
+        periodPreset: initialData.periodPreset || undefined,
         status: (initialData.status || 'upcoming') as ScheduleItem['status']
       });
       // Определяем формат и учебный план для редактирования
@@ -129,6 +135,9 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
         startTime: '',
         endTime: '',
         roomId: '',
+        startDate: '',
+        endDate: '',
+        periodPreset: undefined
       });
       setSelectedStudyPlan(null);
       setLessonFormat('offline');
@@ -279,42 +288,68 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
             )}
           </AnimatePresence>
 
-          {/* Дата проведения занятия */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Дата проведения занятия
-            </label>
-            <input
-              type="date"
-              value={formData.date || ''}
-              onChange={(e) => {
-                const selectedDate = new Date(e.target.value);
-                const dayOfWeek = selectedDate.getDay();
-                const dayNames: ScheduleItem['day'][] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          {/* День недели для повторяющихся занятий */}
+          {formData.repeat !== 'once' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                День недели
+              </label>
+              <select
+                value={formData.day || ''}
+                onChange={(e) => setFormData({ ...formData, day: e.target.value as ScheduleItem['day'] })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Не выбрано</option>
+                <option value="monday">Понедельник</option>
+                <option value="tuesday">Вторник</option>
+                <option value="wednesday">Среда</option>
+                <option value="thursday">Четверг</option>
+                <option value="friday">Пятница</option>
+                <option value="saturday">Суббота</option>
+                <option value="sunday">Воскресенье</option>
+              </select>
+            </div>
+          )}
 
-                setFormData({
-                  ...formData,
-                  date: e.target.value,
-                  day: dayNames[dayOfWeek]
-                });
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            {formData.date && (
-              <div className="text-xs text-gray-500 mt-1">
-                День недели: {
-                  formData.day === 'monday' ? 'Понедельник' :
-                    formData.day === 'tuesday' ? 'Вторник' :
-                      formData.day === 'wednesday' ? 'Среда' :
-                        formData.day === 'thursday' ? 'Четверг' :
-                          formData.day === 'friday' ? 'Пятница' :
-                            formData.day === 'saturday' ? 'Суббота' :
-                              'Воскресенье'
-                }
-              </div>
-            )}
-          </div>
+          {/* Дата проведения (только для одноразового занятия) */}
+          {formData.repeat === 'once' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Дата проведения занятия
+              </label>
+              <input
+                type="date"
+                value={formData.date || ''}
+                onChange={(e) => {
+                  const selectedDate = new Date(e.target.value);
+                  const dayOfWeek = selectedDate.getDay();
+                  const dayNames: ScheduleItem['day'][] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+                  setFormData({
+                    ...formData,
+                    date: e.target.value,
+                    day: dayNames[dayOfWeek]
+                  });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required={formData.repeat === 'once'}
+              />
+              {formData.date && (
+                <div className="text-xs text-gray-500 mt-1">
+                  День недели: {
+                    formData.day === 'monday' ? 'Понедельник' :
+                      formData.day === 'tuesday' ? 'Вторник' :
+                        formData.day === 'wednesday' ? 'Среда' :
+                          formData.day === 'thursday' ? 'Четверг' :
+                            formData.day === 'friday' ? 'Пятница' :
+                              formData.day === 'saturday' ? 'Суббота' :
+                                'Воскресенье'
+                  }
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Планирование времени и длительности */}
           <div className="grid grid-cols-1 gap-4">
@@ -364,13 +399,91 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
             </label>
             <select
               value={formData.repeat}
-              onChange={(e) => setFormData({ ...formData, repeat: e.target.value as ScheduleItem['repeat'] })}
+              onChange={(e) => {
+                const repeat = e.target.value as ScheduleItem['repeat'];
+                // Сброс периодов при смене
+                setFormData(prev => ({
+                  ...prev,
+                  repeat,
+                  ...(repeat === 'once'
+                    ? { startDate: '', endDate: '', periodPreset: undefined }
+                    : prev)
+                }));
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="weekly">Еженедельно</option>
               <option value="biweekly">Раз в две недели</option>
               <option value="once">Один раз</option>
             </select>
+
+            {(formData.repeat === 'weekly' || formData.repeat === 'biweekly') && (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Период повторения
+                  </label>
+                  <select
+                    value={formData.periodPreset || (formData.startDate && formData.endDate ? 'custom' : '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'custom') {
+                        setFormData(prev => ({ ...prev, periodPreset: undefined, startDate: prev.startDate || '', endDate: prev.endDate || '' }));
+                      } else if (val === '') {
+                        setFormData(prev => ({ ...prev, periodPreset: undefined, startDate: '', endDate: '' }));
+                      } else {
+                        setFormData(prev => ({ ...prev, periodPreset: val as any, startDate: '', endDate: '' }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">Не выбрано</option>
+                    <option value="quarter1">1 четверть</option>
+                    <option value="quarter2">2 четверть</option>
+                    <option value="quarter3">3 четверть</option>
+                    <option value="quarter4">4 четверть</option>
+                    <option value="half_year_1">1 полугодие</option>
+                    <option value="half_year_2">2 полугодие</option>
+                    <option value="year">Учебный год</option>
+                    <option value="custom">Свой диапазон</option>
+                  </select>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Выберите готовый период или свой диапазон дат
+                  </div>
+                </div>
+
+                {!formData.periodPreset && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Начало периода
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.startDate || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required={!formData.periodPreset}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Конец периода
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.endDate || ''}
+                        min={formData.startDate || undefined}
+                        onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required={!formData.periodPreset}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Статус занятия */}
@@ -412,7 +525,15 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!selectedStudyPlan || !formData.day || !formData.startTime || (lessonFormat === 'offline' && !formData.roomId)}
+              disabled={
+                !selectedStudyPlan ||
+                !formData.day ||
+                !formData.startTime ||
+                (lessonFormat === 'offline' && !formData.roomId) ||
+                ((formData.repeat === 'weekly' || formData.repeat === 'biweekly') &&
+                  !formData.periodPreset &&
+                  !(formData.startDate && formData.endDate))
+              }
               className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
             >
               {isEdit ? 'Сохранить' : 'Добавить'}
@@ -897,6 +1018,15 @@ const SchedulePage: React.FC = () => {
             updateData.groupId = selectedGroup.id;
           }
         }
+        if (scheduleItem.repeat) {
+          updateData.repeat = scheduleItem.repeat;
+        }
+        if (scheduleItem.periodPreset) {
+          updateData.periodPreset = scheduleItem.periodPreset as any;
+        } else if (scheduleItem.startDate && scheduleItem.endDate) {
+          updateData.startDate = scheduleItem.startDate;
+          updateData.endDate = scheduleItem.endDate;
+        }
 
         console.log('Отправляем обновление с данными:', updateData);
 
@@ -931,10 +1061,16 @@ const SchedulePage: React.FC = () => {
           teacherId: selectedTeacher.id,
           classroomId: scheduleItem.roomId ? parseInt(scheduleItem.roomId, 10) : undefined,
           dayOfWeek: getDayNumber(scheduleItem.day!),
-          date: scheduleItem.date,
+          date: scheduleItem.repeat === 'once' ? scheduleItem.date : undefined,
           startTime: scheduleItem.startTime!,
           endTime: scheduleItem.endTime || getEndTime(scheduleItem.startTime!, 50),
-          repeat: scheduleItem.repeat
+          repeat: scheduleItem.repeat,
+          ...(scheduleItem.repeat !== 'once' && scheduleItem.periodPreset
+            ? { periodPreset: scheduleItem.periodPreset as any }
+            : {}),
+          ...(scheduleItem.repeat !== 'once' && !scheduleItem.periodPreset && scheduleItem.startDate && scheduleItem.endDate
+            ? { startDate: scheduleItem.startDate, endDate: scheduleItem.endDate }
+            : {})
         };
 
         // Вызываем API для создания

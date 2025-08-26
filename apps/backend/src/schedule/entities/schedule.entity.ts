@@ -34,6 +34,18 @@ export class Schedule {
   @ApiPropertyOptional({ description: 'Дата удаления', nullable: true })
   deletedAt: Date | null;
 
+  @ApiPropertyOptional({ description: 'Дата начала периода повторения', nullable: true })
+  startDate?: Date | null;
+
+  @ApiPropertyOptional({ description: 'Дата окончания периода повторения', nullable: true })
+  endDate?: Date | null;
+
+  @ApiPropertyOptional({
+    description: 'Пресет периода (quarter1|quarter2|quarter3|quarter4|half_year_1|half_year_2|year)',
+    nullable: true
+  })
+  periodPreset?: string | null;
+
   @ApiPropertyOptional({
     description: 'Регулярность занятия',
     enum: ['weekly', 'biweekly', 'once'],

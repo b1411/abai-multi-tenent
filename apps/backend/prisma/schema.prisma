@@ -543,6 +543,10 @@ model Schedule {
   startTime String // HH:MM
   endTime   String // HH:MM
   date      DateTime? // Конкретная дата (если привязан к уроку)
+  // Диапазон повторения (для weekly/biweekly)
+  startDate DateTime? // Дата начала периода повторения
+  endDate   DateTime? // Дата окончания периода повторения
+  periodPreset String? // Пресет периода (quarter, half_year, year)
 
   // Тип и статус расписания
   type   ScheduleType   @default(REGULAR)

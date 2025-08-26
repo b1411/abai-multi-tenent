@@ -326,6 +326,9 @@ class ScheduleService {
       roomId: schedule.classroom?.name || schedule.classroomId?.toString() || '',
       type: convertType(schedule.type || 'REGULAR'),
       repeat: convertRepeat(schedule.repeat || 'weekly'),
+      startDate: schedule.startDate ? new Date(schedule.startDate).toISOString().split('T')[0] : undefined,
+      endDate: schedule.endDate ? new Date(schedule.endDate).toISOString().split('T')[0] : undefined,
+      periodPreset: schedule.periodPreset as any,
       status: convertStatus(
         schedule.status || 'SCHEDULED',
         schedule.startTime,
@@ -359,7 +362,11 @@ class ScheduleService {
       classroomId: additionalData.classroomId,
       dayOfWeek: dayNumbers[item.day as keyof typeof dayNumbers] || 1,
       startTime: item.startTime || '',
-      endTime: item.endTime || ''
+      endTime: item.endTime || '',
+      ...(item.repeat ? { repeat: item.repeat } : {}),
+      ...(item.periodPreset ? { periodPreset: item.periodPreset } : {}),
+      ...(!item.periodPreset && item.startDate && item.endDate ? { startDate: item.startDate, endDate: item.endDate } : {}),
+      ...(item.repeat === 'once' && item.date ? { date: item.date } : {})
     };
   }
 

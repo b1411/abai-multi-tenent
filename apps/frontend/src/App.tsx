@@ -75,6 +75,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import AISchedule from './pages/AISchedule';
+import StaffCompositionPage from './pages/StaffCompositionPage';
 
 const App: React.FC = () => {
   return (
@@ -172,6 +173,7 @@ const App: React.FC = () => {
                       <Route path="vacation" element={<VacationsPage />} />
                       <Route path="substitutions" element={<SubstitutionsPage />} />
                       <Route path="fake-positions" element={<FakePositions />} />
+                      <Route path="staff-composition" element={<StaffCompositionPage />} />
                     </Route>
 
                     {/* Finance routes */}

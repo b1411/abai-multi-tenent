@@ -155,6 +155,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Сотрудники и преподаватели', href: '/hr/employees', icon: Users, roles: ['ADMIN', 'HR'] },
         { name: 'Нагрузки и расписание ставок', href: '/hr/workload', icon: ClipboardList, roles: ['ADMIN', 'HR'] },
         { name: 'KPI и эффективность', href: '/hr/kpi', icon: BarChart3, roles: ['ADMIN', 'HR'] },
+        { name: 'Кадровый состав', href: '/hr/staff-composition', icon: Users, roles: ['ADMIN', 'HR'] },
         { name: 'Отпуска и замены', href: '/hr/vacation', icon: Umbrella, roles: ['ADMIN', 'HR', 'TEACHER', 'FINANCIST'] },
         { name: 'Контроль фиктивных ставок (AI)', href: '/hr/fake-positions', icon: UserX, roles: ['ADMIN', 'HR'] },
       ]

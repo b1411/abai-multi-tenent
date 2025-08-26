@@ -112,5 +112,10 @@ export const teacherService = {
     return await apiClient.patch<Teacher>(`/teachers/${id}`, { 
       employmentType: newType 
     });
+  },
+
+  // Получить кадровый состав (штат / совместители)
+  async getEmploymentComposition(): Promise<{ staff: Teacher[]; partTime: Teacher[] }> {
+    return await apiClient.get<{ staff: Teacher[]; partTime: Teacher[] }>(`/teachers/employment-composition`);
   }
 };

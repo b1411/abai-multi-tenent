@@ -475,6 +475,62 @@ export class TeachersService {
     };
   }
 
+  async findByEmploymentComposition() {
+    const baseInclude = {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          surname: true,
+          middlename: true,
+          phone: true,
+          avatar: true,
+          role: true,
+        },
+      },
+      studyPlans: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          group: {
+            select: {
+              id: true,
+              name: true,
+              courseNumber: true,
+              students: {
+                where: { deletedAt: null },
+                select: { id: true },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const [staff, partTime] = await Promise.all([
+      this.prisma.teacher.findMany({
+        where: { deletedAt: null, employmentType: 'STAFF' },
+        include: baseInclude,
+        orderBy: [
+          { user: { surname: 'asc' } },
+          { user: { name: 'asc' } },
+        ],
+      }),
+      this.prisma.teacher.findMany({
+        where: { deletedAt: null, employmentType: 'PART_TIME' },
+        include: baseInclude,
+        orderBy: [
+          { user: { surname: 'asc' } },
+          { user: { name: 'asc' } },
+        ],
+      }),
+    ]);
+
+    return { staff, partTime };
+  }
+
   async searchTeachers(query: string) {
     return this.prisma.teacher.findMany({
       where: {

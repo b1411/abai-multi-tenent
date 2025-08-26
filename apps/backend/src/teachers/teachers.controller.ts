@@ -27,6 +27,12 @@ export class TeachersController {
     return this.teachersService.findAll();
   }
 
+  // Группировка по типу занятости (штат / совместители)
+  @Get('employment-composition')
+  getEmploymentComposition() {
+    return this.teachersService.findByEmploymentComposition();
+  }
+
   // Новые эндпоинты для WorkloadV2 - должны быть ПЕРЕД параметризованными роутами
   @Get('worked-hours')
   getAllWorkedHours(@Query('month') month: string, @Query('year') year: string) {

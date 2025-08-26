@@ -40,6 +40,7 @@ const RouteRoleGuard: React.FC = () => {
     { pattern: /^\/hr\/kpi$/, roles: ['ADMIN', 'HR'] },
     { pattern: /^\/hr\/vacation$/, roles: ['ADMIN', 'HR', 'TEACHER', 'FINANCIST'] },
     { pattern: /^\/hr\/fake-positions$/, roles: ['ADMIN', 'HR'] },
+    { pattern: /^\/hr\/staff-composition$/, roles: ['ADMIN', 'HR'] },
 
     // Финансы
     { pattern: /^\/finance\/payments$/, roles: ['ADMIN', 'FINANCIST', 'PARENT'] },

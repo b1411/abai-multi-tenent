@@ -16,12 +16,15 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import * as ExcelJS from 'exceljs';
 import * as puppeteer from 'puppeteer';
+import * as fs from 'fs';
+import * as path from 'path';
+import { SystemService } from '../system/system.service';
 
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService, private systemService: SystemService) { }
 
   async generateReport(generateReportDto: GenerateReportDto, userId: string): Promise<FinancialReport> {
     const reportId = uuidv4();
@@ -315,6 +318,99 @@ export class ReportsService {
     }
   }
 
+  private logoCache?: string;
+  private fontCache: Record<string, string> = {};
+
+  private readFileBase64(filePath: string): string | undefined {
+    try {
+      if (fs.existsSync(filePath)) {
+        return fs.readFileSync(filePath).toString('base64');
+      }
+    } catch (e) {
+      this.logger.warn(`Не удалось прочитать файл ${filePath}: ${(e as Error).message}`);
+    }
+    return undefined;
+  }
+
+  private getAssetsRoot(): string {
+    // Пути к фронтенд ассетам (шрифты / лого)
+    return path.resolve(process.cwd(), 'apps', 'frontend', 'public');
+  }
+
+  private getLogoBase64(): string | undefined {
+    if (this.logoCache) return this.logoCache;
+    const root = this.getAssetsRoot();
+    const file = path.join(root, 'logo rfm.png');
+    const data = this.readFileBase64(file);
+    if (data) this.logoCache = data;
+    return data;
+  }
+
+  private async fetchImageAsBase64(url: string): Promise<string | undefined> {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return undefined;
+      const buffer = Buffer.from(await res.arrayBuffer());
+      return buffer.toString('base64');
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async getBrandLogoBase64(): Promise<string | undefined> {
+    if (this.logoCache) return this.logoCache;
+    try {
+      const branding = await this.systemService.getBrandingSettings();
+      if (branding?.logo) {
+        const remote = await this.fetchImageAsBase64(branding.logo);
+        if (remote) {
+          this.logoCache = remote;
+          return remote;
+        }
+      }
+    } catch {
+      // игнорируем и используем дефолт
+    }
+    return this.getLogoBase64();
+  }
+
+  private getFontBase64(fontFile: string): string | undefined {
+    if (this.fontCache[fontFile]) return this.fontCache[fontFile];
+    const root = this.getAssetsRoot();
+    const file = path.join(root, 'fonts', fontFile);
+    const data = this.readFileBase64(file);
+    if (data) this.fontCache[fontFile] = data;
+    return data;
+  }
+
+  private buildFontFaceCSS(): string {
+    const noto = this.getFontBase64('NotoSans-Regular.ttf');
+    const dejavu = this.getFontBase64('DejaVuSans.ttf');
+
+    const faces: string[] = [];
+    if (noto) {
+      faces.push(`
+        @font-face {
+          font-family: 'NotoSans';
+          src: url(data:font/ttf;base64,${noto}) format('truetype');
+          font-weight: 400;
+          font-style: normal;
+        }
+      `);
+    }
+    if (dejavu) {
+      faces.push(`
+        @font-face {
+          font-family: 'DejaVuSans';
+          src: url(data:font/ttf;base64,${dejavu}) format('truetype');
+          font-weight: 400;
+          font-style: normal;
+        }
+      `);
+    }
+    return faces.join('\n');
+  }
+
   private async generatePDF(title: string, type: ReportType, data: any, period: string): Promise<Buffer> {
     try {
       const browser = await puppeteer.launch({
@@ -323,18 +419,39 @@ export class ReportsService {
       });
 
       const page = await browser.newPage();
-      const html = this.generateReportHTML(title, type, data, period);
-      
+
+      const logo = await this.getBrandLogoBase64();
+      const branding = await this.systemService.getBrandingSettings();
+      const html = this.generateReportHTML(
+        title,
+        type,
+        data,
+        period,
+        logo,
+        this.buildFontFaceCSS(),
+        branding
+      );
+
       await page.setContent(html, { waitUntil: 'networkidle0' });
-      
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
+        displayHeaderFooter: true,
+        headerTemplate: `
+          <div style="font-size:8px; font-family:'NotoSans','DejaVuSans',Arial,sans-serif; width:100%; padding:4px 32px; color:#6B7280; text-align:right;">
+            ${title}
+          </div>`,
+        footerTemplate: `
+          <div style="font-size:8px; font-family:'NotoSans','DejaVuSans',Arial,sans-serif; width:100%; padding:4px 32px; color:#6B7280; display:flex; justify-content:space-between;">
+            <span>Период: ${period}</span>
+            <span class="pageNumber"></span>/<span class="totalPages"></span>
+          </div>`,
         margin: {
-          top: '20mm',
-          right: '20mm',
-          bottom: '20mm',
-          left: '20mm'
+          top: '30mm',
+          right: '18mm',
+          bottom: '18mm',
+          left: '18mm'
         }
       });
 
@@ -380,21 +497,257 @@ export class ReportsService {
     }
   }
 
-  private generateReportHTML(title: string, type: ReportType, data: any, period: string): string {
+  private generateReportHTML(
+    title: string,
+    type: ReportType,
+    data: any,
+    period: string,
+    logoBase64?: string,
+    fontFacesCSS: string = '',
+    branding?: { schoolName?: string; primaryColor?: string; secondaryColor?: string; accentColor?: string }
+  ): string {
     const baseStyles = `
       <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #4F46E5; padding-bottom: 20px; }
-        .title { font-size: 24px; font-weight: bold; color: #4F46E5; margin-bottom: 10px; }
-        .period { font-size: 14px; color: #666; }
-        .section { margin-bottom: 30px; }
-        .section-title { font-size: 18px; font-weight: bold; color: #4F46E5; margin-bottom: 15px; border-bottom: 1px solid #E5E7EB; padding-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #E5E7EB; padding: 8px 12px; text-align: left; }
-        th { background-color: #F3F4F6; font-weight: bold; }
-        .metric { display: inline-block; margin: 10px 15px 10px 0; padding: 15px; background-color: #F9FAFB; border-radius: 8px; border-left: 4px solid #4F46E5; }
-        .metric-label { font-size: 12px; color: #666; margin-bottom: 5px; }
-        .metric-value { font-size: 18px; font-weight: bold; color: #111827; }
+        ${fontFacesCSS}
+        :root {
+          --color-primary:${branding?.primaryColor || '#2563EB'};
+          --color-primary-dark:${branding?.accentColor || branding?.primaryColor || '#1D4ED8'};
+          --color-border:#E5E7EB;
+          --color-bg:#FFFFFF;
+          --color-bg-alt:#F9FAFB;
+          --color-text:#111827;
+          --color-text-muted:#6B7280;
+        }
+        * { box-sizing:border-box; }
+        body {
+          font-family: 'NotoSans','DejaVuSans',Arial,sans-serif;
+          margin:0;
+          padding:0 0 16px 0;
+          color: var(--color-text);
+          background: #FFFFFF;
+          -webkit-font-smoothing: antialiased;
+        }
+        .page {
+          padding:24px 24px 8px 24px;
+        }
+        .header {
+          display:flex;
+          align-items:center;
+          gap:20px;
+          margin-bottom:28px;
+          padding-bottom:18px;
+          border-bottom:3px solid var(--color-primary);
+        }
+        .brand {
+          display:flex;
+          align-items:center;
+          gap:14px;
+        }
+        .brand img {
+          height:56px;
+          width:auto;
+          object-fit:contain;
+        }
+        .title-block {
+          flex:1;
+        }
+        .org-name {
+          font-size:12px;
+          letter-spacing:1px;
+          font-weight:600;
+          text-transform:uppercase;
+          color: var(--color-primary-dark);
+          margin-bottom:4px;
+        }
+        .title {
+          font-size:24px;
+          line-height:1.2;
+          font-weight:700;
+          color: var(--color-primary-dark);
+          margin:0 0 6px 0;
+        }
+        .period {
+          font-size:12px;
+          color: var(--color-text-muted);
+          font-weight:500;
+        }
+        .badges {
+          display:flex;
+          flex-direction:column;
+          gap:6px;
+          min-width:120px;
+          align-items:flex-end;
+        }
+        .badge {
+          background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));
+          color:#fff;
+          padding:6px 10px;
+          font-size:11px;
+          font-weight:600;
+          border-radius:6px;
+          letter-spacing:.5px;
+          box-shadow:0 2px 4px rgba(0,0,0,0.12);
+        }
+        .section {
+          margin-bottom:30px;
+          page-break-inside:avoid;
+        }
+        .section-title {
+          font-size:16px;
+            font-weight:700;
+            color:var(--color-primary-dark);
+            margin:0 0 14px 0;
+            letter-spacing:.5px;
+            display:flex;
+            align-items:center;
+            gap:10px;
+            position:relative;
+            padding-left:10px;
+        }
+        .section-title:before {
+          content:'';
+          position:absolute;
+          left:0;
+          top:0;
+          bottom:0;
+          width:3px;
+          background:linear-gradient(var(--color-primary),var(--color-primary-dark));
+          border-radius:2px;
+        }
+        table {
+          width:100%;
+          border-collapse:separate;
+          border-spacing:0;
+          margin:0 0 18px 0;
+          font-size:12px;
+        }
+        th {
+          background:linear-gradient(135deg,#EEF2FF,#E0EAFF);
+          color:#1E3A8A;
+          font-weight:600;
+          text-align:left;
+          padding:10px 12px;
+          border-top:1px solid var(--color-border);
+          border-bottom:1px solid var(--color-border);
+          border-right:1px solid var(--color-border);
+          letter-spacing:.3px;
+        }
+        th:first-child {
+          border-left:1px solid var(--color-border);
+          border-top-left-radius:8px;
+        }
+        th:last-child {
+          border-top-right-radius:8px;
+        }
+        td {
+          padding:9px 12px;
+          background:#fff;
+          border-right:1px solid var(--color-border);
+          border-bottom:1px solid var(--color-border);
+        }
+        td:first-child {
+          border-left:1px solid var(--color-border);
+        }
+        tr:last-child td:first-child { border-bottom-left-radius:8px; }
+        tr:last-child td:last-child { border-bottom-right-radius:8px; }
+        tbody tr:nth-child(even) td {
+          background:#F8FAFC;
+        }
+        tbody tr:hover td {
+          background:#F1F5F9;
+        }
+        .metrics-grid {
+          display:flex;
+          flex-wrap:wrap;
+          gap:14px;
+          margin:4px 0 8px 0;
+        }
+        .metric {
+          flex:1 1 180px;
+          background:linear-gradient(#fff,#F3F6FB);
+          border:1px solid #E2E8F0;
+          border-radius:10px;
+          padding:14px 16px 12px 16px;
+          position:relative;
+          overflow:hidden;
+          box-shadow:0 2px 4px rgba(0,0,0,0.06);
+        }
+        .metric:before {
+          content:'';
+          position:absolute;
+          inset:0;
+          background:
+            radial-gradient(circle at 85% 15%,rgba(37,99,235,0.18),transparent 60%),
+            radial-gradient(circle at 15% 85%,rgba(29,78,216,0.1),transparent 70%);
+          opacity:.6;
+          pointer-events:none;
+        }
+        .metric-label {
+          font-size:11px;
+          text-transform:uppercase;
+          letter-spacing:.5px;
+          font-weight:600;
+          color:#475569;
+          margin-bottom:6px;
+        }
+        .metric-value {
+          font-size:22px;
+          font-weight:700;
+          color:#1E3A8A;
+          letter-spacing:.5px;
+          line-height:1.1;
+        }
+        .metric small {
+          display:block;
+          font-size:10px;
+          color:#64748B;
+          margin-top:4px;
+          font-weight:500;
+        }
+        ul {
+          margin:8px 0 0 0;
+          padding:0 0 0 18px;
+        }
+        li {
+          margin-bottom:6px;
+          line-height:1.35;
+        }
+        .raw-json {
+          font-family: 'Courier New', monospace;
+          white-space:pre-wrap;
+          background:#0F172A;
+          color:#E2E8F0;
+          padding:14px 16px;
+          border-radius:10px;
+          font-size:11px;
+          border:1px solid #1E293B;
+          box-shadow:inset 0 0 4px rgba(0,0,0,0.4);
+        }
+        .divider {
+          height:1px;
+          background:linear-gradient(to right,transparent,#CBD5E1,transparent);
+          margin:26px 0 24px;
+        }
+        .badge-outline {
+          display:inline-block;
+          border:1px solid var(--color-primary);
+          color:var(--color-primary-dark);
+          background:#F0F7FF;
+          padding:4px 10px;
+          border-radius:20px;
+          font-size:11px;
+          font-weight:600;
+          letter-spacing:.4px;
+          margin:2px 6px 4px 0;
+        }
+        .meta {
+          display:flex;
+          flex-wrap:wrap;
+          gap:10px 18px;
+          font-size:11px;
+          color:#475569;
+          margin-top:2px;
+        }
       </style>
     `;
 
@@ -414,23 +767,47 @@ export class ReportsService {
         contentHTML = this.generateScheduleHTML(data);
         break;
       default:
-        contentHTML = `<div class="section"><p>Данные отчета: ${JSON.stringify(data, null, 2)}</p></div>`;
+        contentHTML = `
+          <div class="section">
+            <div class="section-title">Сырые данные</div>
+            <div class="raw-json">${(JSON.stringify(data, null, 2) || '').replace(/</g,'<')}</div>
+          </div>`;
     }
+
+    const logoHTML = logoBase64
+      ? `<img src="data:image/png;base64,${logoBase64}" alt="Logo" />`
+      : '';
 
     return `
       <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        ${baseStyles}
-      </head>
-      <body>
-        <div class="header">
-          <div class="title">${title}</div>
-          <div class="period">${period}</div>
-        </div>
-        ${contentHTML}
-      </body>
+      <html lang="ru">
+        <head>
+          <meta charset="UTF-8" />
+          ${baseStyles}
+          <title>${title}</title>
+        </head>
+        <body>
+          <div class="page">
+            <div class="header">
+              <div class="brand">
+                ${logoHTML}
+              </div>
+              <div class="title-block">
+                <div class="org-name">${(branding?.schoolName || 'ФИНАНСОВАЯ СИСТЕМА').toUpperCase()}</div>
+                <h1 class="title">${title}</h1>
+                <div class="period">Период: ${period}</div>
+                <div class="meta">
+                  <span>Сформировано: ${new Date().toLocaleDateString('ru-RU')}</span>
+                  <span>ID: ${Math.random().toString(36).substring(2,8).toUpperCase()}</span>
+                </div>
+              </div>
+              <div class="badges">
+                <div class="badge">ОТЧЁТ</div>
+              </div>
+            </div>
+            ${contentHTML}
+          </div>
+        </body>
       </html>
     `;
   }
@@ -478,29 +855,31 @@ export class ReportsService {
     return `
       <div class="section">
         <div class="section-title">Ключевые показатели эффективности</div>
-        <div class="metric">
-          <div class="metric-label">Рост доходов</div>
-          <div class="metric-value">${data.revenueGrowth?.toFixed(1) || 0}%</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Контроль расходов</div>
-          <div class="metric-value">${data.expenseControl?.toFixed(1) || 0}%</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Точность бюджета</div>
-          <div class="metric-value">${data.budgetAccuracy?.toFixed(1) || 0}%</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Коэффициент сбора</div>
-          <div class="metric-value">${data.collectionRate?.toFixed(1) || 0}%</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Коэффициент ликвидности</div>
-          <div class="metric-value">${data.liquidityRatio?.toFixed(2) || 0}</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Маржа прибыли</div>
-          <div class="metric-value">${data.profitMargin?.toFixed(1) || 0}%</div>
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-label">Рост доходов</div>
+            <div class="metric-value">${data.revenueGrowth?.toFixed(1) || 0}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Контроль расходов</div>
+            <div class="metric-value">${data.expenseControl?.toFixed(1) || 0}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Точность бюджета</div>
+            <div class="metric-value">${data.budgetAccuracy?.toFixed(1) || 0}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Коэффициент сбора</div>
+            <div class="metric-value">${data.collectionRate?.toFixed(1) || 0}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Коэффициент ликвидности</div>
+            <div class="metric-value">${data.liquidityRatio?.toFixed(2) || 0}</div>
+          </div>
+            <div class="metric">
+              <div class="metric-label">Маржа прибыли</div>
+              <div class="metric-value">${data.profitMargin?.toFixed(1) || 0}%</div>
+            </div>
         </div>
       </div>
     `;
@@ -510,13 +889,15 @@ export class ReportsService {
     return `
       <div class="section">
         <div class="section-title">Анализ нагрузки преподавателей</div>
-        <div class="metric">
-          <div class="metric-label">Всего преподавателей</div>
-          <div class="metric-value">${data.totalTeachers || 0}</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Средняя нагрузка</div>
-          <div class="metric-value">${data.averageWorkload?.toFixed(1) || 0} часов</div>
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-label">Всего преподавателей</div>
+            <div class="metric-value">${data.totalTeachers || 0}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Средняя нагрузка</div>
+            <div class="metric-value">${data.averageWorkload?.toFixed(1) || 0} часов</div>
+          </div>
         </div>
         <div class="section-title">Рекомендации</div>
         <ul>
@@ -530,13 +911,15 @@ export class ReportsService {
     return `
       <div class="section">
         <div class="section-title">Анализ расписания</div>
-        <div class="metric">
-          <div class="metric-label">Всего занятий</div>
-          <div class="metric-value">${data.totalClasses || 0}</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Загруженность</div>
-          <div class="metric-value">${data.utilizationRate?.toFixed(1) || 0}%</div>
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-label">Всего занятий</div>
+            <div class="metric-value">${data.totalClasses || 0}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Загруженность</div>
+            <div class="metric-value">${data.utilizationRate?.toFixed(1) || 0}%</div>
+          </div>
         </div>
         <div class="section-title">Рекомендации</div>
         <ul>
@@ -682,16 +1065,22 @@ export class ReportsService {
   }
 
   private generateForecastReport(_startDate: Date, _endDate: Date): Promise<ForecastData[]> {
+    void _startDate;
+    void _endDate;
     // Простая реализация прогноза
     return Promise.resolve([]);
   }
 
   private generateVarianceReport(_startDate: Date, _endDate: Date): Promise<VarianceAnalysis[]> {
+    void _startDate;
+    void _endDate;
     // Простая реализация анализа отклонений
     return Promise.resolve([]);
   }
 
   private generateBudgetAnalysisReport(_startDate: Date, _endDate: Date): Promise<any> {
+    void _startDate;
+    void _endDate;
     return Promise.resolve({});
   }
 

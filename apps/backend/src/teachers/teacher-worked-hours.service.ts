@@ -62,7 +62,7 @@ export class TeacherWorkedHoursService {
     console.log(`[TeacherWorkedHours] Всего расписаний у преподавателя ${teacherId}: ${allSchedules.length}`);
 
     // Разворачиваем периодические занятия в конкретные даты для указанного месяца
-    const expandedSchedules = this.expandSchedulesForPeriod(allSchedules, startDate, endDate);
+    let expandedSchedules = this.expandSchedulesForPeriod(allSchedules, startDate, endDate);
 
     console.log(`[TeacherWorkedHours] После развертывания периодических занятий: ${expandedSchedules.length} занятий`);
 
@@ -98,6 +98,42 @@ export class TeacherWorkedHoursService {
       console.log(`  - Замещающий: ${vacation.substitute ? `${vacation.substitute.user.name} ${vacation.substitute.user.surname} (ID: ${vacation.substituteId})` : 'НЕТ'}`);
       console.log(`  - Статус: ${vacation.status}`);
     });
+
+    // Добавляем расписания преподавателей, которых этот преподаватель замещает по заявкам на отпуск (когда в расписании нет substituteId)
+    const vacationTeacherIds = approvedVacations
+      .filter(v => v.substituteId === teacherId)
+      .map(v => v.teacherId)
+      .filter((id, idx, arr) => arr.indexOf(id) === idx);
+
+    if (vacationTeacherIds.length > 0) {
+      const additionalSchedules = await this.prisma.schedule.findMany({
+        where: {
+          teacherId: { in: vacationTeacherIds },
+          deletedAt: null,
+        },
+        include: {
+          teacher: true,
+          substitute: true,
+          lesson: true,
+        },
+      });
+
+      // Добавляем только те, которых еще нет
+      let added = 0;
+      for (const s of additionalSchedules) {
+        if (!allSchedules.find(x => x.id === s.id)) {
+          allSchedules.push(s);
+          added++;
+        }
+      }
+      console.log(`[TeacherWorkedHours] Добавлены занятия учителей в отпуске для синтетического замещения: всего найдено=${additionalSchedules.length}, добавлено новых=${added}`);
+    }
+
+    // Пере-разворачиваем после добавления дополнительных расписаний (синтетическое замещение)
+    if (vacationTeacherIds.length > 0) {
+      expandedSchedules = this.expandSchedulesForPeriod(allSchedules, startDate, endDate);
+      console.log(`[TeacherWorkedHours] Повторное развертывание после синтетических добавлений: ${expandedSchedules.length} занятий`);
+    }
 
     // Рассчитываем часы
     let scheduledHours = 0;
@@ -181,21 +217,45 @@ export class TeacherWorkedHoursService {
       } else if (schedule.substituteId === teacherId) {
         console.log(`[TeacherWorkedHours] >>> ЭТО ЗАМЕЩЕНИЕ ПРЕПОДАВАТЕЛЕМ ${teacherId} (основной преподаватель: ${schedule.teacherId})`);
         
-        // Преподаватель замещал другого
-        if (substitutionVacation) {
-          console.log(`[TeacherWorkedHours] !!! НАЙДЕНА ЗАЯВКА НА ОТПУСК: преподаватель ${teacherId} замещает ${substitutionVacation.teacher.user.name} ${substitutionVacation.teacher.user.surname} (отпуск: ${substitutionVacation.type})`);
-          
+        // Теперь считаем часы замещающему преподавателю даже если нет заявки на отпуск
+        if (schedule.status === 'COMPLETED') {
+          substitutedHours += duration;
+          workedHours += duration;
+          if (substitutionVacation) {
+            console.log(`[TeacherWorkedHours] + Замещение (найдена заявка на отпуск ${substitutionVacation.type}) засчитано: ${duration}ч. Итого замещений: ${substitutedHours}ч, итого отработанных: ${workedHours}ч`);
+          } else {
+            console.log(`[TeacherWorkedHours] + Замещение (без заявки на отпуск) засчитано: ${duration}ч. Итого замещений: ${substitutedHours}ч, итого отработанных: ${workedHours}ч`);
+          }
+        } else {
+          if (substitutionVacation) {
+            console.log(`[TeacherWorkedHours] - Замещение (есть заявка на отпуск) НЕ завершено (статус: ${schedule.status}), не засчитываем`);
+          } else {
+            console.log(`[TeacherWorkedHours] - Замещение (без заявки на отпуск) НЕ завершено (статус: ${schedule.status}), не засчитываем`);
+          }
+        }
+      } else if (schedule.teacherId !== teacherId && !schedule.substituteId) {
+        // Синтетическое замещение: в расписании нет substituteId, но есть vacation с substituteId=teacherId
+        const syntheticVacation = approvedVacations.find(v =>
+          v.substituteId === teacherId &&
+          v.teacherId === schedule.teacherId &&
+          scheduleDate >= new Date(v.startDate) &&
+            scheduleDate <= new Date(v.endDate)
+        );
+        if (syntheticVacation) {
+          console.log(`[TeacherWorkedHours] >>> СИНТЕТИЧЕСКОЕ ЗАМЕЩЕНИЕ (по vacation) преподавателем ${teacherId} за ${schedule.teacherId} без substituteId в расписании`);
           if (schedule.status === 'COMPLETED') {
             substitutedHours += duration;
             workedHours += duration;
-            console.log(`[TeacherWorkedHours] + Замещение засчитано: ${duration}ч. Итого замещений: ${substitutedHours}ч, итого отработанных: ${workedHours}ч`);
+            console.log(`[TeacherWorkedHours] + (СИНТЕТИЧЕСКОЕ) Замещение COMPLETED: +${duration}ч. substitutedHours=${substitutedHours} workedHours=${workedHours}`);
+          } else if (schedule.status === 'SCHEDULED') {
+            // Учитываем как замещаемые часы, чтобы преподаватель появился в списке
+            substitutedHours += duration;
+            console.log(`[TeacherWorkedHours] + (СИНТЕТИЧЕСКОЕ) Запланированное замещение SCHEDULED: +${duration}ч в substitutedHours (для отображения). substitutedHours=${substitutedHours}`);
           } else {
-            console.log(`[TeacherWorkedHours] - Замещение НЕ завершено (статус: ${schedule.status}), не засчитываем`);
+            console.log(`[TeacherWorkedHours] - (СИНТЕТИЧЕСКОЕ) Замещение со статусом ${schedule.status} пока не учитываем`);
           }
         } else {
-          console.log(`[TeacherWorkedHours] - Замещение НЕ связано с найденными заявками на отпуск`);
-          // Возможно, это замещение по другим причинам (болезнь и т.д.)
-          // Пока не засчитываем, но можно добавить логику для других типов замещений
+          console.log(`[TeacherWorkedHours] >>> Это занятие НЕ относится к преподавателю ${teacherId} (teacherId: ${schedule.teacherId}, substituteId: ${schedule.substituteId})`);
         }
       } else {
         console.log(`[TeacherWorkedHours] >>> Это занятие НЕ относится к преподавателю ${teacherId} (teacherId: ${schedule.teacherId}, substituteId: ${schedule.substituteId})`);

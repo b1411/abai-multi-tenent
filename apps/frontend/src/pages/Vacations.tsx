@@ -158,7 +158,8 @@ const VacationForm: React.FC<{
   onClose: () => void;
   vacation?: Vacation | null;
   onSubmit: (data: CreateVacationRequest) => void;
-}> = ({ isOpen, onClose, vacation, onSubmit }) => {
+  vacations: Vacation[];
+}> = ({ isOpen, onClose, vacation, onSubmit, vacations }) => {
   const { user } = useAuth();
   const { teachers } = useTeachers();
   const [formData, setFormData] = useState<CreateVacationRequest>({
@@ -175,6 +176,36 @@ const VacationForm: React.FC<{
   const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
   const [affectedSchedule, setAffectedSchedule] = useState<any[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  // Недоступность преподавателей (отпуск или замещение) с учетом выбранного периода
+  const datesOverlap = (startA: string, endA: string, startB: string, endB: string) => {
+    if (!startA || !endA) return false;
+    const aStart = new Date(startA);
+    const aEnd = new Date(endA);
+    const bStart = new Date(startB);
+    const bEnd = new Date(endB);
+    return aStart <= bEnd && bStart <= aEnd;
+  };
+
+  const isTeacherUnavailable = (teacherId: number) => {
+    return vacations.some(v => {
+      if (vacation && v.id === vacation.id) return false; // игнорируем редактируемую заявку
+      const statusOk = v.status !== 'rejected';
+      if (formData.startDate && formData.endDate) {
+        if (!statusOk) return false;
+        if (datesOverlap(formData.startDate, formData.endDate, v.startDate, v.endDate)) {
+          return v.teacherId === teacherId || v.substituteId === teacherId;
+        }
+        return false;
+      }
+      const now = new Date();
+      const vStart = new Date(v.startDate);
+      const vEnd = new Date(v.endDate);
+      const currently = statusOk && now >= vStart && now <= vEnd;
+      if (!currently) return false;
+      return v.teacherId === teacherId || v.substituteId === teacherId;
+    });
+  };
 
   // Для админов и HR - выбор преподавателя, для которого создается заявка
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | undefined>(undefined);
@@ -315,11 +346,13 @@ const VacationForm: React.FC<{
                 required
               >
                 <option value="">Выберите преподавателя</option>
-                {teachers.map(teacher => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.user.name} {teacher.user.surname}
-                  </option>
-                ))}
+                {teachers
+                  .filter(teacher => !isTeacherUnavailable(teacher.id))
+                  .map(teacher => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.user.name} {teacher.user.surname}
+                    </option>
+                  ))}
               </select>
             </div>
           )}
@@ -357,7 +390,8 @@ const VacationForm: React.FC<{
               >
                 <option value="">Выберите преподавателя</option>
                 {teachers
-                  .filter(teacher => teacher.id !== selectedTeacherId) // Исключаем выбранного преподавателя из списка замещающих
+                  .filter(teacher => teacher.id !== selectedTeacherId)
+                  .filter(teacher => !isTeacherUnavailable(teacher.id))
                   .map(teacher => (
                     <option key={teacher.id} value={teacher.id}>
                       {teacher.user.name} {teacher.user.surname}
@@ -1117,6 +1151,7 @@ const Vacations: React.FC = () => {
         }}
         vacation={editingVacation}
         onSubmit={handleCreateVacation}
+        vacations={vacations}
       />
 
       {/* Details Modal */}

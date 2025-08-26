@@ -245,7 +245,12 @@ const StudyPlanForm: React.FC<StudyPlanFormProps> = ({
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                         <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">{group.name}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {group.name}
+                            {group.courseNumber !== undefined && (
+                              <span className="ml-1 text-gray-500">({group.courseNumber} курс)</span>
+                            )}
+                          </div>
                           {group.description && (
                             <div className="text-xs text-gray-500">{group.description}</div>
                           )}
@@ -267,14 +272,14 @@ const StudyPlanForm: React.FC<StudyPlanFormProps> = ({
                 <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
                   <span className="text-green-800 font-medium">Выбрано групп: {selectedGroups.length}</span>
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {selectedGroups.map(group => (
-                      <span
-                        key={group.id}
-                        className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded"
-                      >
-                        {group.name}
-                      </span>
-                    ))}
+                        {selectedGroups.map(group => (
+                          <span
+                            key={group.id}
+                            className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded"
+                          >
+                            {group.name}{group.courseNumber !== undefined && ` (${group.courseNumber} курс)`}
+                          </span>
+                        ))}
                   </div>
                 </div>
               )}

@@ -1,32 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Search,
-  Filter,
   Download,
   FileDown,
   Settings,
-  Calendar,
   Users,
   TrendingUp,
   BookOpen,
   AlertTriangle,
-  Clock,
-  CheckCircle,
   X,
-  ChevronDown,
   RefreshCw,
   FileText,
   Mail,
   Eye,
-  Edit,
-  Lock,
-  Unlock,
-  ExternalLink,
-  BarChart3,
-  Plus,
-  Minus
+  Edit
 } from 'lucide-react';
-import { educationalReportsApi, type Student as ApiStudent, type SubjectGrades as ApiSubjectGrades, type QualityStatistics, type ReportPeriodKey } from '../services/educationalReportsApi';
+import { educationalReportsApi, type Student as ApiStudent, type SubjectGrades as ApiSubjectGrades, type ReportPeriodKey } from '../services/educationalReportsApi';
 import {
   LineChart,
   Line,
@@ -58,7 +46,7 @@ interface Student {
   qualityPercentage: number;
   absencesExcused: number;
   absencesUnexcused: number;
-  lessonsTotal?: number; // всего уроков в периоде (для расчета процента посещаемости)
+  lessonsTotal?: number;
   className: string;
   subjects: string[];
   homeworkCompletion: number;
@@ -81,7 +69,6 @@ interface Student {
 interface ReportFilters {
   class: string;
   subject: string;
-  teacher: string;
   level: string;
   search: string;
   period: string;
@@ -147,13 +134,11 @@ const PERIOD_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const EducationalReports: React.FC = () => {
-  // Branding (logo, school name, colors)
   const { settings: branding } = useBranding();
 
   const [filters, setFilters] = useState<ReportFilters>({
-    class: '10А',
+    class: '',
     subject: '',
-    teacher: '',
     level: '',
     search: '',
     period: 'school_quarter_1'
@@ -163,9 +148,7 @@ const EducationalReports: React.FC = () => {
   const [apiStudents, setApiStudents] = useState<ApiStudent[]>([]);
   const [studentGradesMap, setStudentGradesMap] = useState<Map<number, ApiSubjectGrades[]>>(new Map());
   const [subjects, setSubjects] = useState<string[]>([]);
-  const [allSubjectsMaster, setAllSubjectsMaster] = useState<string[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
-  const [teachers, setTeachers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -180,68 +163,63 @@ const EducationalReports: React.FC = () => {
     subject: string;
     grades: GradeDetail[];
   } | null>(null);
-  // Компактное отображение колонок предметов
-  const SUBJECT_LIMIT = 10; // разумный предел для влезания в стандартный 1920/1366 экраны
+
+  const SUBJECT_LIMIT = 10;
   const [showAllSubjects, setShowAllSubjects] = useState(false);
   const displayedSubjects = useMemo(() => {
     if (showAllSubjects) return subjects;
     return subjects.slice(0, SUBJECT_LIMIT);
   }, [subjects, showAllSubjects]);
 
-  // Список предметов для таблицы с учетом выбранного фильтра предмета
   const tableSubjects = useMemo(() => {
     if (filters.subject) return [filters.subject];
     return displayedSubjects;
   }, [filters.subject, displayedSubjects]);
 
-  // Load initial data
+  // Load classes only
   useEffect(() => {
-    const loadInitialData = async () => {
+    const loadClasses = async () => {
       try {
         setLoading(true);
-        const [subjectsData, classesData, teachersData] = await Promise.all([
-          educationalReportsApi.getSubjects(),
-          educationalReportsApi.getClasses(),
-          educationalReportsApi.getTeachers()
-        ]);
-
-        const masterSubjects = subjectsData.map(s => s.name);
-        setAllSubjectsMaster(masterSubjects);
-        setSubjects(masterSubjects);
+        const classesData = await educationalReportsApi.getClasses();
         setClasses(classesData);
-        setTeachers(teachersData);
+        setSubjects([]);
       } catch (err) {
-        console.error('Error loading initial data:', err);
-        setError('Ошибка загрузки данных');
+        console.error('Error loading classes:', err);
+        setError('Ошибка загрузки списка классов');
       } finally {
         setLoading(false);
       }
     };
-
-    loadInitialData();
+    loadClasses();
   }, []);
 
-  // Load students data
+  // Load students + derive subjects after class selection
   useEffect(() => {
     const loadStudents = async () => {
       try {
         setLoading(true);
         setError(null);
 
+        if (!filters.class) {
+          setAllStudents([]);
+          setSubjects([]);
+          return;
+        }
+
         const filtersForApi = {
           className: filters.class || undefined,
-            search: filters.search || undefined,
-            period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
-            startDate: filters.period === 'custom' ? filters.startDate : undefined,
-            endDate: filters.period === 'custom' ? filters.endDate : undefined
+          search: filters.search || undefined,
+          period: filters.period !== 'custom' ? (filters.period as ReportPeriodKey) : undefined,
+          startDate: filters.period === 'custom' ? filters.startDate : undefined,
+          endDate: filters.period === 'custom' ? filters.endDate : undefined
         };
 
         const apiStudentsData = await educationalReportsApi.getStudents(filtersForApi);
         setApiStudents(apiStudentsData);
 
-  // Load grades & attendance for all students
-  const gradesMap = new Map<number, ApiSubjectGrades[]>();
-  const attendanceStats = new Map<number, { excused: number; unexcused: number; total: number }>();
+        const gradesMap = new Map<number, ApiSubjectGrades[]>();
+        const attendanceStats = new Map<number, { excused: number; unexcused: number; total: number }>();
 
         for (const student of apiStudentsData) {
           try {
@@ -258,7 +236,7 @@ const EducationalReports: React.FC = () => {
               })
             ]);
             gradesMap.set(student.id, grades);
-            // Подсчет пропусков
+
             const total = attendance.length;
             let excused = 0;
             let unexcused = 0;
@@ -275,24 +253,16 @@ const EducationalReports: React.FC = () => {
 
         setStudentGradesMap(gradesMap);
 
-        // Transform API data to component format
         const transformedStudents: Student[] = apiStudentsData.map(apiStudent => {
           const studentGrades = gradesMap.get(apiStudent.id) || [];
-
-          // Convert grades to component format
           const grades: { [subject: string]: number[] } = {};
           studentGrades.forEach(subjectGrade => {
-            grades[subjectGrade.subjectName] = subjectGrade.grades.map(gradeDetail => gradeDetail.grade);
+            grades[subjectGrade.subjectName] = subjectGrade.grades.map(g => g.grade);
           });
 
-          // Calculate averages
           const allGrades = Object.values(grades).flat();
-          const averageGrade = allGrades.length > 0
-            ? educationalReportsApi.calculateAverageGrade(allGrades)
-            : 0;
-          const qualityPercentage = allGrades.length > 0
-            ? educationalReportsApi.calculateQualityPercentage(allGrades)
-            : 0;
+          const averageGrade = allGrades.length > 0 ? educationalReportsApi.calculateAverageGrade(allGrades) : 0;
+          const qualityPercentage = allGrades.length > 0 ? educationalReportsApi.calculateQualityPercentage(allGrades) : 0;
 
           return {
             id: apiStudent.id,
@@ -309,25 +279,25 @@ const EducationalReports: React.FC = () => {
             lessonsTotal: attendanceStats.get(apiStudent.id)?.total || 0,
             className: apiStudent.group.name,
             subjects: Object.keys(grades),
-            homeworkCompletion: 85, // TODO: Load from homework API
-            disciplinaryNotes: 0 // TODO: Load from discipline API
+            homeworkCompletion: 85,
+            disciplinaryNotes: 0
           };
         });
 
-        // Обновляем список предметов ограниченный выбранным классом
-        if (filters.class) {
-          const classSubjectSet = new Set<string>();
-          transformedStudents.forEach(st => {
-            Object.keys(st.grades).forEach(subj => classSubjectSet.add(subj));
+        // derive subjects
+        const classSubjectSet = new Set<string>();
+        gradesMap.forEach(subjectGradesArr => {
+          subjectGradesArr.forEach(sg => {
+            classSubjectSet.add(sg.subjectName);
           });
-          const classSubjects = Array.from(classSubjectSet).sort();
-          setSubjects(classSubjects);
-          if (filters.subject && !classSubjects.includes(filters.subject)) {
-            setFilters(prev => ({ ...prev, subject: '' }));
-          }
-        } else {
-          setSubjects(allSubjectsMaster);
-        }
+        });
+        const classSubjects = Array.from(classSubjectSet).sort();
+        setSubjects(classSubjects);
+        setFilters(prev => ({
+          ...prev,
+          subject: prev.subject && !classSubjects.includes(prev.subject) ? '' : prev.subject
+        }));
+
         setAllStudents(transformedStudents);
       } catch (err) {
         console.error('Error loading students:', err);
@@ -337,12 +307,9 @@ const EducationalReports: React.FC = () => {
       }
     };
 
-    if (subjects.length > 0) {
-      loadStudents();
-    }
-  }, [filters.class, filters.search, filters.period, filters.startDate, filters.endDate, allSubjectsMaster]);
+    loadStudents();
+  }, [filters.class, filters.search, filters.period, filters.startDate, filters.endDate]);
 
-  // Initialize export logs once
   useEffect(() => {
     setExportLogs([
       {
@@ -376,7 +343,6 @@ const EducationalReports: React.FC = () => {
     ]);
   }, []);
 
-  // Filter students based on current filters
   const filteredStudents = useMemo(() => {
     let students = allStudents;
 
@@ -390,7 +356,6 @@ const EducationalReports: React.FC = () => {
       );
     }
 
-    // Set current subject grades for display
     return students.map(student => ({
       ...student,
       currentSubjectGrades: filters.subject
@@ -399,7 +364,6 @@ const EducationalReports: React.FC = () => {
     }));
   }, [allStudents, filters]);
 
-  // Calculate KPI metrics based on filtered data
   const kpiMetrics = useMemo((): KPIMetrics => {
     const students = filteredStudents;
     if (students.length === 0) {
@@ -414,29 +378,26 @@ const EducationalReports: React.FC = () => {
       };
     }
 
-    // Если выбран предмет — считаем метрики только по нему
     if (filters.subject) {
       const allSubjectGrades = students.flatMap(s => s.grades[filters.subject] || []);
       if (allSubjectGrades.length === 0) {
         return {
           totalStudents: students.length,
-            qualityPercentage: 0,
-            averageGrade: 0,
-            unexcusedAbsences: students.reduce((sum, s) => sum + s.absencesUnexcused, 0),
-            attendancePercentage: 0,
-            studentsAbove4: 0,
-            studentsBelow3: 0
+          qualityPercentage: 0,
+          averageGrade: 0,
+          unexcusedAbsences: students.reduce((sum, s) => sum + s.absencesUnexcused, 0),
+          attendancePercentage: 0,
+          studentsAbove4: 0,
+          studentsBelow3: 0
         };
       }
 
-      // Средний балл по предмету (все оценки)
       const avg = Math.round(
         (allSubjectGrades.reduce((sum, g) => sum + g, 0) / allSubjectGrades.length) * 10
       ) / 10;
 
       const quality = educationalReportsApi.calculateQualityPercentage(allSubjectGrades);
 
-      // По студентам (средняя по предмету > порогов)
       let studentsAbove4 = 0;
       let studentsBelow3 = 0;
       students.forEach(s => {
@@ -448,7 +409,6 @@ const EducationalReports: React.FC = () => {
         }
       });
 
-      // Посещаемость (оставляем общую по периоду, не завязываем на предмет пока)
       let totalLessonsAll = 0;
       let totalPresentAll = 0;
       students.forEach(s => {
@@ -485,7 +445,6 @@ const EducationalReports: React.FC = () => {
     const studentsAbove4 = students.filter(s => s.averageGrade >= 4).length;
     const studentsBelow3 = students.filter(s => s.averageGrade < 3).length;
 
-    // Расчет посещаемости
     let totalLessonsAll = 0;
     let totalPresentAll = 0;
     students.forEach(s => {
@@ -511,9 +470,7 @@ const EducationalReports: React.FC = () => {
     };
   }, [filteredStudents, filters.subject]);
 
-  // Generate dynamic chart data
   const chartData: ChartDataPoint[] = useMemo(() => {
-    // tie to filters to intentionally re-seed mock data without direct usage
     const _deps = `${filters.class}|${filters.subject}`;
     void _deps;
     const months = ['Сен', 'Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар', 'Апр', 'Май'];
@@ -551,12 +508,18 @@ const EducationalReports: React.FC = () => {
         endDate: filters.period === 'custom' ? filters.endDate : undefined
       };
 
+      if (!filters.class) {
+        setSubjects([]);
+        setAllStudents([]);
+        setStudentGradesMap(new Map());
+        return;
+      }
+
       const apiStudentsData = await educationalReportsApi.getStudents(filtersForApi);
       setApiStudents(apiStudentsData);
 
-  // Reload grades & attendance for all students
-  const gradesMap = new Map<number, ApiSubjectGrades[]>();
-  const attendanceStats = new Map<number, { excused: number; unexcused: number; total: number }>();
+      const gradesMap = new Map<number, ApiSubjectGrades[]>();
+      const attendanceStats = new Map<number, { excused: number; unexcused: number; total: number }>();
 
       for (const student of apiStudentsData) {
         try {
@@ -574,13 +537,13 @@ const EducationalReports: React.FC = () => {
           ]);
           gradesMap.set(student.id, grades);
           const total = attendance.length;
-            let excused = 0;
-            let unexcused = 0;
-            attendance.forEach(a => {
-              if (!a.isPresent) {
-                if (a.absentReason === 'SICK' || a.absentReason === 'FAMILY') excused += 1; else unexcused += 1;
-              }
-            });
+          let excused = 0;
+          let unexcused = 0;
+          attendance.forEach(a => {
+            if (!a.isPresent) {
+              if (a.absentReason === 'SICK' || a.absentReason === 'FAMILY') excused += 1; else unexcused += 1;
+            }
+          });
           attendanceStats.set(student.id, { excused, unexcused, total });
         } catch (err) {
           console.error(`Error loading grades/attendance for student ${student.id}:`, err);
@@ -589,10 +552,8 @@ const EducationalReports: React.FC = () => {
 
       setStudentGradesMap(gradesMap);
 
-      // Transform data
       const transformedStudents: Student[] = apiStudentsData.map(apiStudent => {
         const studentGrades = gradesMap.get(apiStudent.id) || [];
-
         const grades: { [subject: string]: number[] } = {};
         studentGrades.forEach(subjectGrade => {
           grades[subjectGrade.subjectName] = subjectGrade.grades.map(gradeDetail => gradeDetail.grade);
@@ -626,20 +587,16 @@ const EducationalReports: React.FC = () => {
         };
       });
 
-      // Обновляем предметы при ручном обновлении
-      if (filters.class) {
-        const classSubjectSet = new Set<string>();
-        transformedStudents.forEach(st => {
-          Object.keys(st.grades).forEach(subj => classSubjectSet.add(subj));
-        });
-        const classSubjects = Array.from(classSubjectSet).sort();
-        setSubjects(classSubjects);
-        if (filters.subject && !classSubjects.includes(filters.subject)) {
-          setFilters(prev => ({ ...prev, subject: '' }));
-        }
-      } else {
-        setSubjects(allSubjectsMaster);
-      }
+      const classSubjectSet = new Set<string>();
+      transformedStudents.forEach(st => {
+        Object.keys(st.grades).forEach(subj => classSubjectSet.add(subj));
+      });
+      const classSubjects = Array.from(classSubjectSet).sort();
+      setSubjects(classSubjects);
+      setFilters(prev => ({
+        ...prev,
+        subject: prev.subject && !classSubjects.includes(prev.subject) ? '' : prev.subject
+      }));
       setAllStudents(transformedStudents);
     } catch (err) {
       console.error('Error refreshing data:', err);
@@ -661,7 +618,6 @@ const EducationalReports: React.FC = () => {
     setExportLogs(prev => [newLog, ...prev]);
     setShowExportModal(false);
 
-    // Собираем инфо для экспорта аналогично handleFilteredExport
     const selectedPeriodLabel = PERIOD_OPTIONS.find(p => p.value === filters.period)?.label || 'Период';
     const customLabel = filters.period === 'custom'
       ? `С ${filters.startDate || '?'} по ${filters.endDate || '?'}`
@@ -708,7 +664,6 @@ const EducationalReports: React.FC = () => {
 
     setExportLogs(prev => [newLog, ...prev]);
 
-    // Generate filtered report info
     const selectedPeriodLabel2 = PERIOD_OPTIONS.find(p => p.value === filters.period)?.label || 'Период';
     const customLabel2 = filters.period === 'custom'
       ? `С ${filters.startDate || '?'} по ${filters.endDate || '?'}`
@@ -732,7 +687,6 @@ const EducationalReports: React.FC = () => {
 
   const exportToExcel = (fileName: string, filterInfo: ExportFilterInfo) => {
     try {
-      // Prepare data for Excel
       type ExcelRow = Record<string, string | number>;
       const excelData: ExcelRow[] = filteredStudents.map((student, index) => {
         const row: ExcelRow = {
@@ -741,7 +695,6 @@ const EducationalReports: React.FC = () => {
           'Класс': student.className,
         };
 
-        // Add grades for each subject
         subjects.forEach(subject => {
           const grade = student.grades[subject]?.[0];
           row[subject] = grade || '—';
@@ -755,7 +708,6 @@ const EducationalReports: React.FC = () => {
         return row;
       });
 
-      // Add summary row
       const summaryRow: ExcelRow = {
         '№': '',
         'ФИО': 'СРЕДНИЙ БАЛЛ ПО КЛАССУ:',
@@ -777,11 +729,9 @@ const EducationalReports: React.FC = () => {
 
       excelData.push(summaryRow);
 
-      // Create workbook
       const ws = XLSX.utils.json_to_sheet(excelData);
       const wb = XLSX.utils.book_new();
 
-      // Workbook properties (metadata)
       const wbWithProps = wb as unknown as { Props?: { Title?: string; Subject?: string; Author?: string; CreatedDate?: Date } };
       wbWithProps.Props = {
         Title: 'Отчет по успеваемости',
@@ -790,27 +740,24 @@ const EducationalReports: React.FC = () => {
         CreatedDate: new Date()
       };
 
-      // Set column widths
       const colWidths = [
-        { wch: 5 },  // №
-        { wch: 25 }, // ФИО
-        { wch: 8 },  // Класс
-        ...subjects.map(() => ({ wch: 12 })), // Предметы
-        { wch: 12 }, // Средний балл
-        { wch: 10 }, // Качество
-        { wch: 12 }, // Пропуски (У)
-        { wch: 12 }  // Пропуски (Н)
+        { wch: 5 },
+        { wch: 25 },
+        { wch: 8 },
+        ...subjects.map(() => ({ wch: 12 })),
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 12 },
+        { wch: 12 }
       ];
       ws['!cols'] = colWidths;
 
-      // Enable AutoFilter on header row
       if (ws['!ref']) {
         (ws as unknown as { ['!autofilter']?: { ref: string } })['!autofilter'] = { ref: ws['!ref'] as string };
       }
 
       XLSX.utils.book_append_sheet(wb, ws, 'Успеваемость');
 
-      // Add info sheet
       const infoData = [
         ['Параметры отчета', ''],
         ['Период', filterInfo.period],
@@ -829,17 +776,13 @@ const EducationalReports: React.FC = () => {
       infoWs['!cols'] = [{ wch: 25 }, { wch: 20 }];
       XLSX.utils.book_append_sheet(wb, infoWs, 'Информация');
 
-      // Download file
       XLSX.writeFile(wb, `${fileName}.xlsx`);
-
-      console.log('Excel файл успешно создан и скачан');
     } catch (error) {
       console.error('Ошибка при создании Excel файла:', error);
       alert('Произошла ошибка при создании Excel файла');
     }
   };
 
-  // Экспорт CSV на основе тех же данных
   const exportToCSV = (fileName: string, filterInfo: ExportFilterInfo) => {
     try {
       type Row = Record<string, string | number>;
@@ -877,29 +820,24 @@ const EducationalReports: React.FC = () => {
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
 
-      // Ensure Cyrillic-capable font is embedded (fallback to helvetica if not available)
-  const FONT_NAME = 'UnicodeFont';
-  const ensureUnicodeFont = async () => {
-        // Helpers
+      const FONT_NAME = 'UnicodeFont';
+      const ensureUnicodeFont = async () => {
         const toBase64 = (buf: ArrayBuffer) => {
           let binary = '';
           const bytes = new Uint8Array(buf);
           const len = bytes.byteLength;
           for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-          // btoa may choke on large strings in some browsers; slice in chunks if needed
-          // but in modern browsers it should be okay for typical TTF sizes (< 1MB)
           return btoa(binary);
         };
         const isLikelyTTF = (buf: ArrayBuffer) => {
           try {
             const v = new DataView(buf);
-            const tag = v.getUint32(0, false); // big-endian
-            // 0x00010000 or 'OTTO' or 'true' or 'ttcf'
+            const tag = v.getUint32(0, false);
             return (
               tag === 0x00010000 ||
-              tag === 0x4f54544f || // 'OTTO'
-              tag === 0x74727565 || // 'true'
-              tag === 0x74746366    // 'ttcf'
+              tag === 0x4f54544f ||
+              tag === 0x74727565 ||
+              tag === 0x74746366
             );
           } catch {
             return false;
@@ -907,21 +845,12 @@ const EducationalReports: React.FC = () => {
         };
         const fetchFont = async (url: string) => {
           const res = await fetch(url, { cache: 'no-cache' });
-          if (!res.ok) {
-            console.warn(`[PDF] Font fetch failed`, url, res.status);
-            return undefined;
-          }
+          if (!res.ok) return undefined;
           const buf = await res.arrayBuffer();
           const ct = res.headers.get('content-type') || '';
-          if (!isLikelyTTF(buf) || ct.includes('text/html')) {
-            console.warn(`[PDF] Fetched file is not a valid TTF`, url, ct, buf.byteLength);
-            return undefined;
-          }
+            if (!isLikelyTTF(buf) || ct.includes('text/html')) return undefined;
           return toBase64(buf);
         };
-
-        // Candidate sources: prefer local public assets, then remote mirrors
-        // Prefer DejaVuSans (известно стабильно работает с jsPDF), затем Noto/Roboto
         const localRegular = [
           '/fonts/DejaVuSans.ttf',
           '/fonts/NotoSans-Regular.ttf',
@@ -942,10 +871,8 @@ const EducationalReports: React.FC = () => {
           'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf',
           'https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Bold.ttf'
         ];
-
         let loaded = false;
         let loadedBold = false;
-        // Small validator to ensure font actually works with Cyrillic
         const validateFont = () => {
           try {
             doc.setFont(FONT_NAME, 'normal');
@@ -955,63 +882,64 @@ const EducationalReports: React.FC = () => {
             return false;
           }
         };
-
-        // Try locals
-    for (const url of localRegular) {
+        for (const url of localRegular) {
           try {
-      const b64 = await fetchFont(url);
-      if (!b64) continue;
+            const b64 = await fetchFont(url);
+            if (!b64) continue;
             doc.addFileToVFS('UnicodeFont-Regular.ttf', b64);
             doc.addFont('UnicodeFont-Regular.ttf', FONT_NAME, 'normal');
             if (validateFont()) { loaded = true; break; }
-          } catch { /* try next */ }
+          } catch (e) {
+            console.warn('[pdf] local regular font load failed', url, e);
+          }
         }
-    for (const url of localBold) {
+        for (const url of localBold) {
           if (loadedBold) break;
           try {
-      const b64 = await fetchFont(url);
-      if (!b64) continue;
+            const b64 = await fetchFont(url);
+            if (!b64) continue;
             doc.addFileToVFS('UnicodeFont-Bold.ttf', b64);
             doc.addFont('UnicodeFont-Bold.ttf', FONT_NAME, 'bold');
             loadedBold = true;
-          } catch { /* try next */ }
+          } catch (e) {
+            console.warn('[pdf] local bold font load failed', url, e);
+          }
         }
-        // Try remotes
         if (!loaded) {
-      for (const url of remoteRegular) {
+          for (const url of remoteRegular) {
             try {
-        const b64 = await fetchFont(url);
-        if (!b64) continue;
+              const b64 = await fetchFont(url);
+              if (!b64) continue;
               doc.addFileToVFS('UnicodeFont-Regular.ttf', b64);
               doc.addFont('UnicodeFont-Regular.ttf', FONT_NAME, 'normal');
               if (validateFont()) { loaded = true; break; }
-            } catch { /* try next */ }
+            } catch (e) {
+              console.warn('[pdf] remote regular font load failed', url, e);
+            }
           }
         }
         if (!loadedBold) {
-      for (const url of remoteBold) {
+          for (const url of remoteBold) {
             try {
-        const b64 = await fetchFont(url);
-        if (!b64) continue;
+              const b64 = await fetchFont(url);
+              if (!b64) continue;
               doc.addFileToVFS('UnicodeFont-Bold.ttf', b64);
               doc.addFont('UnicodeFont-Bold.ttf', FONT_NAME, 'bold');
               loadedBold = true;
               break;
-            } catch { /* try next */ }
+            } catch (e) {
+              console.warn('[pdf] remote bold font load failed', url, e);
+            }
           }
         }
-
         if (loaded) {
           doc.setFont(FONT_NAME, 'normal');
         } else {
-          // fallback to core font (may break Cyrillic, but avoids crash)
           doc.setFont('helvetica', 'normal');
-          console.warn('Unicode TTF font was not loaded, falling back to core font. Cyrillic may render incorrectly.');
         }
         return { loaded, loadedBold };
       };
 
-      // Set document metadata
       doc.setProperties({
         title: 'Отчёт по успеваемости',
         subject: `${filterInfo.class} • ${filterInfo.period}`,
@@ -1019,40 +947,37 @@ const EducationalReports: React.FC = () => {
         creator: 'abai-multi-tenant'
       });
 
-  // Load and set Unicode font
-  const { loaded: fontOk, loadedBold: fontBoldOk } = await ensureUnicodeFont();
+      const { loaded: fontOk, loadedBold: fontBoldOk } = await ensureUnicodeFont();
 
-  // Header helper
-  const drawHeader = (logoDataUrl?: string) => {
+      const drawHeader = (logoDataUrl?: string) => {
         const margin = 15;
         let x = margin;
         const y = 12;
         if (logoDataUrl) {
           try {
-            // best-effort detect format
             const fmt = ((brandingSettings?.logo || '').toLowerCase().endsWith('.jpg') || (brandingSettings?.logo || '').toLowerCase().endsWith('.jpeg') ? 'JPEG' : 'PNG') as 'JPEG' | 'PNG';
             doc.addImage(logoDataUrl, fmt, x, y - 5, 20, 20);
             x += 24;
-          } catch (e) { /* ignore image draw errors */ }
+          } catch (e) {
+            console.warn('[pdf] header logo addImage failed', e);
+          }
         }
-  doc.setFont(fontOk ? FONT_NAME : 'helvetica', 'normal');
+        doc.setFont(fontOk ? FONT_NAME : 'helvetica', 'normal');
         doc.setFontSize(12);
         doc.text(brandingSettings?.schoolName || 'Образовательная организация', x, y);
         doc.setFontSize(10);
         doc.text(`Отчет: Успеваемость`, x, y + 6);
         doc.text(`Класс: ${filterInfo.class} • Предмет: ${filterInfo.subject}`, x, y + 11);
         doc.text(`Период: ${filterInfo.period} • Уч-ся: ${filterInfo.studentsCount} из ${filterInfo.totalStudents}`, x, y + 16);
-        // top line
         doc.setDrawColor(200);
         doc.line(margin, y + 19, doc.internal.pageSize.width - margin, y + 19);
       };
 
-      // Footer helper
       const drawFooter = (page: number, total: number) => {
         const margin = 15;
         const y = doc.internal.pageSize.height - 12;
-  doc.setFont(fontOk ? FONT_NAME : 'helvetica', 'normal');
-  doc.setFontSize(8);
+        doc.setFont(fontOk ? FONT_NAME : 'helvetica', 'normal');
+        doc.setFontSize(8);
         doc.setTextColor(100);
         doc.text(`Система учета успеваемости • ${new Date().toLocaleString('ru-RU')}`, margin, y);
         const pageStr = `Стр. ${page} / ${total}`;
@@ -1062,7 +987,6 @@ const EducationalReports: React.FC = () => {
 
       const getPageCount = (d: jsPDF) => (d as unknown as { internal: { getNumberOfPages(): number } }).internal.getNumberOfPages();
 
-      // Load logo (if available)
       const loadImageAsDataURL = async (url?: string): Promise<string | undefined> => {
         try {
           if (!url) return undefined;
@@ -1081,10 +1005,8 @@ const EducationalReports: React.FC = () => {
       const logoUrl = brandingSettings?.logo || '/logo rfm.png';
       const logoData = await loadImageAsDataURL(logoUrl);
 
-      // Draw header on first page
       drawHeader(logoData);
 
-      // Prepare table data
       const tableData = filteredStudents.map((student, index) => {
         const row = [
           index + 1,
@@ -1092,13 +1014,12 @@ const EducationalReports: React.FC = () => {
           student.className,
           ...subjects.map(subject => student.grades[subject]?.[0] || '—'),
           student.averageGrade,
-          `${student.qualityPercentage}%`,
+            `${student.qualityPercentage}%`,
           `У:${student.absencesExcused} Н:${student.absencesUnexcused}`
         ];
         return row;
       });
 
-      // Add summary row
       const summaryRow = [
         '',
         'СРЕДНИЙ БАЛЛ ПО КЛАССУ:',
@@ -1126,55 +1047,48 @@ const EducationalReports: React.FC = () => {
         'Пропуски'
       ];
 
-    autoTable(doc, {
+      autoTable(doc, {
         head: [tableHeaders],
         body: tableData,
         startY: 38,
         margin: { top: 38, bottom: 30, left: 15, right: 15 },
         styles: {
-      font: fontOk ? FONT_NAME : 'helvetica',
-      fontSize: 8,
+          font: fontOk ? FONT_NAME : 'helvetica',
+          fontSize: 8,
           cellPadding: 2,
         },
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: 255,
-      font: fontOk ? FONT_NAME : 'helvetica',
-      fontStyle: fontBoldOk && fontOk ? 'bold' : 'normal'
+          font: fontOk ? FONT_NAME : 'helvetica',
+          fontStyle: fontBoldOk && fontOk ? 'bold' : 'normal'
         },
         columnStyles: {
-          0: { cellWidth: 8 },   // №
-          1: { cellWidth: 40 },  // ФИО
-          2: { cellWidth: 12 },  // Класс
-          [subjects.length + 3]: { cellWidth: 15 }, // Ср. балл
-          [subjects.length + 4]: { cellWidth: 15 }, // Качество
-          [subjects.length + 5]: { cellWidth: 20 }  // Пропуски
+          0: { cellWidth: 8 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 12 },
+          [subjects.length + 3]: { cellWidth: 15 },
+          [subjects.length + 4]: { cellWidth: 15 },
+          [subjects.length + 5]: { cellWidth: 20 }
         },
         didDrawPage: function (data: { pageNumber: number }) {
-          // Header/Footer per page
           const current = data.pageNumber;
           drawHeader(logoData);
           drawFooter(current, getPageCount(doc));
         }
       });
 
-      // Draw signature block on last page
       const totalPages = getPageCount(doc);
       doc.setPage(totalPages);
       const sigY = doc.internal.pageSize.height - 22;
-  doc.setFont(FONT_NAME, 'normal');
-  doc.setFontSize(9);
+      doc.setFont(fontOk ? FONT_NAME : 'helvetica', 'normal');
+      doc.setFontSize(9);
       doc.setTextColor(50);
       doc.text('Подписи:', 15, sigY - 6);
-      // Director
       doc.text('Директор __________________ / __________________', 15, sigY);
-      // Class teacher
       doc.text('Классный руководитель __________________ / __________________', 120, sigY);
 
-      // Save PDF
       doc.save(`${fileName}.pdf`);
-
-      console.log('PDF файл успешно создан и скачан');
     } catch (error) {
       console.error('Ошибка при создании PDF файла:', error);
       alert('Произошла ошибка при создании PDF файла');
@@ -1183,11 +1097,9 @@ const EducationalReports: React.FC = () => {
 
   const handleStudentView = (student: Student) => {
     setSelectedStudent(student);
-    console.log('Просмотр ученика:', student.fullName);
   };
 
   const handleStudentEdit = (student: Student) => {
-    console.log('Редактирование ученика:', student.fullName);
     alert(`Редактирование: ${student.fullName}`);
   };
 
@@ -1196,7 +1108,6 @@ const EducationalReports: React.FC = () => {
   };
 
   const handleGradeClick = (student: Student, subject: string) => {
-    // Get grade details from API data
     const studentGrades = studentGradesMap.get(student.id) || [];
     const subjectGrades = studentGrades.find(sg => sg.subjectName === subject);
 
@@ -1240,7 +1151,6 @@ const EducationalReports: React.FC = () => {
     return 'bg-red-100 text-red-800';
   };
 
-  // Pie chart data for grade distribution
   const gradeDistributionData = useMemo(() => {
     const allGrades = filteredStudents.flatMap(s => s.currentSubjectGrades || []);
     const distribution = [
@@ -1254,7 +1164,6 @@ const EducationalReports: React.FC = () => {
 
   return (
     <div className="p-2 sm:p-3 md:p-4 lg:p-6 max-w-none mx-auto min-h-screen bg-gray-50">
-      {/* Error Message */}
       {error && (
         <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center">
@@ -1264,7 +1173,6 @@ const EducationalReports: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
       <div className="mb-3 sm:mb-4 lg:mb-6">
         <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mb-1 sm:mb-2 leading-tight">
           Отчёты по учебному процессу
@@ -1274,16 +1182,17 @@ const EducationalReports: React.FC = () => {
         </p>
       </div>
 
-      {/* Filters Section */}
       <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4 mb-4 sm:mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Класс</label>
             <select
               className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
               value={filters.class}
-              onChange={(e) => handleFilterChange('class', e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFilters(prev => ({ ...prev, class: value, subject: '' }));
+              }}
             >
               <option value="">Все классы</option>
               {classes.map(className => (
@@ -1295,27 +1204,14 @@ const EducationalReports: React.FC = () => {
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Предмет</label>
             <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors disabled:bg-gray-100 disabled:text-gray-400"
               value={filters.subject}
+              disabled={!filters.class || subjects.length === 0}
               onChange={(e) => handleFilterChange('subject', e.target.value)}
             >
               <option value="">Все предметы</option>
               {subjects.map(subject => (
                 <option key={subject} value={subject}>{subject}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1">Учитель</label>
-            <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] transition-colors"
-              value={filters.teacher}
-              onChange={(e) => handleFilterChange('teacher', e.target.value)}
-            >
-              <option value="">Все учителя</option>
-              {teachers.map(teacher => (
-                <option key={teacher} value={teacher}>{teacher}</option>
               ))}
             </select>
           </div>
@@ -1545,7 +1441,7 @@ const EducationalReports: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Card View - Show on screens smaller than xl */}
+        {/* Mobile Card View */}
         <div className="xl:hidden">
           {filteredStudents.length === 0 ? (
             <div className="text-center py-12 px-4">
@@ -1558,7 +1454,6 @@ const EducationalReports: React.FC = () => {
               {filteredStudents.map((student, index) => (
                 <div key={student.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
                   <div className="space-y-3">
-                    {/* Student Info Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm sm:text-base font-semibold text-gray-900 leading-tight">
@@ -1584,7 +1479,6 @@ const EducationalReports: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Main Stats */}
                     <div className="grid grid-cols-3 gap-3 sm:gap-4">
                       <div className="text-center p-2 bg-gray-50 rounded-lg">
                         <div className={`text-lg sm:text-xl font-bold ${getGradeColor(student.averageGrade).split(' ')[0]}`}>
@@ -1607,14 +1501,12 @@ const EducationalReports: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Subject Grades */}
                     <div>
                       <div className="text-xs text-gray-600 mb-2">Оценки по предметам:</div>
                       <div className="flex flex-wrap gap-1">
                         {subjects.slice(0, 6).map(subject => {
                           const subjectGrades = student.grades[subject] || [];
                           const latestGrade = subjectGrades[0];
-
                           return (
                             <button
                               key={subject}
@@ -1634,7 +1526,6 @@ const EducationalReports: React.FC = () => {
                             </button>
                           );
                         })}
-
                         {subjects.length > 6 && (
                           <div className="flex items-center justify-center p-2 bg-gray-50 border border-gray-200 rounded-lg min-h-[48px]">
                             <span className="text-xs text-gray-500">+{subjects.length - 6}</span>
@@ -1649,7 +1540,7 @@ const EducationalReports: React.FC = () => {
           )}
         </div>
 
-        {/* Desktop Table View - Only show on xl screens */}
+        {/* Desktop Table */}
         <div className="hidden xl:block">
           <div className="relative overflow-x-auto select-none" style={{ cursor: 'grab' }}>
             <table className="w-full border-collapse min-w-max">
@@ -1739,7 +1630,7 @@ const EducationalReports: React.FC = () => {
           </div>
         </div>
 
-        {/* Table Footer with Subject Averages */}
+        {/* Table Footer */}
         <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t-2 border-gray-300">
           <div className="overflow-x-auto select-none" style={{ cursor: 'grab' }}>
             <table className="w-full border-collapse min-w-max">
@@ -1785,14 +1676,14 @@ const EducationalReports: React.FC = () => {
         </div>
       </div>
 
-      {/* Export Buttons Below Table */}
+      {/* Export Buttons */}
       <div className="mt-4 sm:mt-6 bg-white rounded-lg shadow-sm border p-3 sm:p-4">
         <div className="flex flex-col space-y-3 sm:space-y-4">
           <div className="text-center sm:text-left">
             <span className="text-sm sm:text-base text-gray-600 font-medium">Скачать отчет:</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 lg:gap-4">
             <button
               onClick={() => handleFilteredExport('xlsx')}
               className="flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm sm:text-base font-medium transition-colors min-h-[48px] touch-manipulation shadow-sm hover:shadow-md"
@@ -1979,7 +1870,6 @@ const EducationalReports: React.FC = () => {
         </div>
       )}
 
-      {/* Right Sidebar - Export Log (Admin mode) */}
       {showSidebar && (
         <div className="fixed right-4 top-20 w-80 bg-white rounded-lg shadow-lg border p-4 hidden xl:block z-40">
           <div className="flex items-center justify-between mb-3">
@@ -2015,7 +1905,6 @@ const EducationalReports: React.FC = () => {
         </div>
       )}
 
-      {/* Toggle Sidebar Button */}
       {!showSidebar && (
         <button
           onClick={() => setShowSidebar(true)}
@@ -2026,7 +1915,6 @@ const EducationalReports: React.FC = () => {
         </button>
       )}
 
-      {/* Grade Details Modal */}
       {showGradeModal && selectedGradeDetails && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">

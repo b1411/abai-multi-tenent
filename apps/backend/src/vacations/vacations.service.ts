@@ -450,14 +450,17 @@ export class VacationsService {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    // Только создатель заявки или HR может удалять
+    // Только создатель заявки или HR/ADMIN может удалять
     if (currentUser.teacher?.id !== vacation.teacherId && currentUser.role !== 'HR' && currentUser.role !== 'ADMIN') {
       throw new ForbiddenException('Недостаточно прав для удаления');
     }
 
-    // Нельзя удалять утвержденные отпуска
-    if (vacation.status === 'approved' || vacation.status === 'completed') {
-      throw new BadRequestException('Нельзя удалять утвержденные или завершенные отпуска');
+    // Нельзя удалять завершенные отпуска. Одобренные можно удалять только HR или ADMIN
+    if (vacation.status === 'completed') {
+      throw new BadRequestException('Нельзя удалять завершенные отпуска');
+    }
+    if (vacation.status === 'approved' && currentUser.role !== 'HR' && currentUser.role !== 'ADMIN') {
+      throw new BadRequestException('Удалять одобренные отпуска могут только HR или ADMIN');
     }
 
     // Сначала удаляем связанные уроки

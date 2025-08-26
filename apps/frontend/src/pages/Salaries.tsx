@@ -53,6 +53,7 @@ const Salaries: React.FC = () => {
   const {
     salaries,
     statistics,
+    monthlySummary,
     pagination,
     loading,
     error,
@@ -63,7 +64,9 @@ const Salaries: React.FC = () => {
     markSalaryAsPaid,
     updateFilters,
     resetFilters,
-    recalculateSalaries
+    recalculateSalaries,
+    generateMonth,
+    fetchMonthlySummary
   } = useSalaries();
 
   const { teachers, loading: teachersLoading } = useTeachers();
@@ -88,6 +91,10 @@ const Salaries: React.FC = () => {
   const [showCalculationBreakdown, setShowCalculationBreakdown] = useState(false);
   const [selectedSalaryForBreakdown, setSelectedSalaryForBreakdown] = useState<number | null>(null);
 
+  // Период (месяц/год) для операций
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
   // Состояния для истории выплат
   const [salaryHistory, setSalaryHistory] = useState<Salary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -105,7 +112,6 @@ const Salaries: React.FC = () => {
   const [localFilters, setLocalFilters] = useState({
     department: 'all',
     position: 'all',
-    period: 'current',
     status: 'all' as string
   });
 
@@ -133,26 +139,30 @@ const Salaries: React.FC = () => {
 
   const handleRecalculate = async () => {
     setIsRecalculating(true);
-
     try {
-      // Получаем текущий месяц и год для пересчета
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
+      // Сначала пробуем сгенерировать недостающие записи за период
+      let genInfo: any = null;
+      try {
+        genInfo = await generateMonth(selectedMonth, selectedYear);
+      } catch (e) {
+        console.error('Ошибка генерации месяца (пропущено):', e);
+      }
 
-      // Вызываем новую систему пересчета зарплат
       const result = await recalculateSalaries({
-        month: currentMonth,
-        year: currentYear
+        month: selectedMonth,
+        year: selectedYear
       });
 
+      await fetchMonthlySummary(selectedYear);
+
       if (result) {
-        // Показываем уведомление об успешном пересчете
-        alert(`Пересчет завершен успешно! Обновлено записей: ${result.summary?.successful || 0}`);
+        const created = genInfo?.created ?? 0;
+        const skipped = genInfo?.skipped ?? 0;
+        alert(`Создано: ${created}, пропущено: ${skipped}. Перерасчет выполнен. Обновлено: ${result.updated || 0}`);
       }
     } catch (error) {
       console.error('Ошибка при пересчете:', error);
-      alert('Произошла ошибка при пересчете зарплат');
+      alert('Произошла ошибка при перерасчете периода');
     } finally {
       setIsRecalculating(false);
     }
@@ -309,24 +319,11 @@ const Salaries: React.FC = () => {
           </select>
         </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Период</label>
-          <select
-            className="w-full border border-gray-300 rounded-md p-2"
-            value={localFilters.period}
-            onChange={(e) => setLocalFilters(prev => ({ ...prev, period: e.target.value }))}
-          >
-            <option value="current">Текущий месяц</option>
-            <option value="previous">Предыдущий месяц</option>
-            <option value="quarter">Текущий квартал</option>
-          </select>
-        </div>
-
         <div className="flex justify-end space-x-3">
           <button
             className="px-4 py-2 border border-gray-300 rounded-md text-sm"
             onClick={() => {
-              setLocalFilters({ department: 'all', position: 'all', period: 'current', status: 'all' });
+              setLocalFilters({ department: 'all', position: 'all', status: 'all' });
               setShowFilterModal(false);
             }}
           >
@@ -666,6 +663,11 @@ const Salaries: React.FC = () => {
     );
   };
 
+  useEffect(() => {
+    fetchMonthlySummary(selectedYear);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear]);
+
   // Загружаем историю выплат при изменении historyEmployee
   useEffect(() => {
     const loadSalaryHistory = async () => {
@@ -905,8 +907,27 @@ const Salaries: React.FC = () => {
   return (
     <div className="p-4 sm:p-6">
       {/* Заголовок и действия */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Управление заработной платой</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-4 sm:space-y-0">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Управление заработной платой</h1>
+          <div className="flex flex-wrap gap-2 items-center">
+            <select
+              className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(Number(e.target.value))}
+            >
+              {['1','2','3','4','5','6','7','8','9','10','11','12'].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm"
+              value={selectedYear}
+              onChange={e => setSelectedYear(Number(e.target.value))}
+            />
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
@@ -931,7 +952,7 @@ const Salaries: React.FC = () => {
             ) : (
               <>
                 <FaCalculator className="mr-2" />
-                Массовый перерасчет
+                Перерасчет периода
               </>
             )}
           </button>
@@ -1053,25 +1074,12 @@ const Salaries: React.FC = () => {
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={(() => {
-                // Генерируем данные за последние 6 месяцев на основе текущих данных
-                const currentDate = new Date();
-                const months = [];
-                const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-
-                for (let i = 5; i >= 0; i--) {
-                  const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-                  const baseValue = stats.totalPayroll || 0;
-                  // Добавляем небольшую вариацию для демонстрации тренда
-                  const variation = (Math.random() - 0.5) * 0.2 + (i * 0.05); // Небольшой рост со временем
-
-                  months.push({
-                    month: monthNames[date.getMonth()],
-                    value: Math.max(0, baseValue + (baseValue * variation)),
-                    year: date.getFullYear()
-                  });
-                }
-
-                return months;
+                const monthNames = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                if (!monthlySummary?.months) return [];
+                return monthlySummary.months.map((m: any) => ({
+                  month: monthNames[m.month - 1],
+                  value: m.totalNet || 0
+                }));
               })()}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />

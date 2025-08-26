@@ -81,7 +81,8 @@ export const salaryService = {
 
   // Пересчитать зарплаты через новую систему
   async recalculateSalaries(filters?: { month?: number; year?: number }): Promise<any> {
-    return await apiClient.post('/payroll/recalculate', filters);
+    // обновлено: используем актуальный эндпоинт salaries/recalculate
+    return await apiClient.post('/salaries/recalculate', filters);
   },
 
   // Получить сводку по зарплатам
@@ -174,5 +175,15 @@ export const salaryService = {
 
   async rejectSalary(salaryId: number, reason: string): Promise<any> {
     return await apiClient.post(`/salaries/${salaryId}/reject`, { reason });
+  },
+
+  // Генерация зарплат за месяц (создает отсутствующие)
+  async generateSalariesForMonth(month: number, year: number): Promise<any> {
+    return await apiClient.post('/salaries/generate-month', { month, year });
+  },
+
+  // Сводка по месяцам за год
+  async getMonthlySummary(year: number): Promise<any> {
+    return await apiClient.get(`/salaries/monthly-summary/${year}`);
   },
 };

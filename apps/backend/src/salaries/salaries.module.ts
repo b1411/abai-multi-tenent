@@ -5,10 +5,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from 'src/jwt/jwt.service';
 import { PayrollNotificationsService } from '../teachers/payroll-notifications.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { TeacherWorkedHoursService } from 'src/teachers/teacher-worked-hours.service';
+import { ScheduleService } from 'src/schedule/schedule.service';
+import { SystemService } from 'src/system/system.service';
 
 @Module({
     controllers: [SalariesController],
-    providers: [SalariesService, PrismaService, JwtService, PayrollNotificationsService, NotificationsService],
+    providers: [SalariesService, PrismaService, JwtService, PayrollNotificationsService, NotificationsService, TeacherWorkedHoursService, ScheduleService, SystemService],
     exports: [SalariesService],
 })
 export class SalariesModule { }

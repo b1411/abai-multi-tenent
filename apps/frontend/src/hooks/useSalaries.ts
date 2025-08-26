@@ -20,6 +20,7 @@ export const useSalaries = (initialFilters?: SalaryFilter) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<SalaryFilter>(initialFilters || {});
+  const [monthlySummary, setMonthlySummary] = useState<any | null>(null);
 
   // Загрузка списка зарплат
   const fetchSalaries = async (newFilters?: SalaryFilter) => {
@@ -47,6 +48,16 @@ export const useSalaries = (initialFilters?: SalaryFilter) => {
       setStatistics(stats);
     } catch (err) {
       console.error('Error fetching salary statistics:', err);
+    }
+  };
+
+  // Сводка по месяцам года
+  const fetchMonthlySummary = async (year: number) => {
+    try {
+      const summary = await salaryService.getMonthlySummary(year);
+      setMonthlySummary(summary);
+    } catch (err) {
+      console.error('Error fetching monthly summary:', err);
     }
   };
 
@@ -190,17 +201,35 @@ export const useSalaries = (initialFilters?: SalaryFilter) => {
       setLoading(true);
       setError(null);
       
-      // Используем новую систему пересчета зарплат
       const result = await salaryService.recalculateSalaries(filters);
       
-      // Обновляем данные после пересчета
       await fetchSalaries();
-      await fetchStatistics();
+      await fetchStatistics(filters?.year, filters?.month);
+      if (filters?.year) await fetchMonthlySummary(filters.year);
       
       return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка при пересчете зарплат');
       console.error('Error recalculating salaries:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Генерация отсутствующих зарплат за месяц
+  const generateMonth = async (month: number, year: number) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await salaryService.generateSalariesForMonth(month, year);
+      await fetchSalaries({ ...filters, month, year });
+      await fetchStatistics(year, month);
+      await fetchMonthlySummary(year);
+      return res;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при генерации зарплат');
+      console.error('Error generating salaries for month:', err);
       return null;
     } finally {
       setLoading(false);
@@ -324,6 +353,7 @@ export const useSalaries = (initialFilters?: SalaryFilter) => {
     // Данные
     salaries,
     statistics,
+    monthlySummary,
     pagination,
     filters,
     loading,
@@ -332,6 +362,8 @@ export const useSalaries = (initialFilters?: SalaryFilter) => {
     // Методы
     fetchSalaries,
     fetchStatistics,
+    fetchMonthlySummary,
+    generateMonth,
     createSalary,
     updateSalary,
     deleteSalary,

@@ -209,4 +209,20 @@ export class SalariesController {
     // Временно используем ID 1 как rejectedBy
     return this.salariesService.rejectSalary(id, 1, body.reason);
   }
+
+  @Post('generate-month')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Сгенерировать зарплаты за месяц (создаёт только отсутствующие)' })
+  @ApiResponse({ status: 200, description: 'Результат генерации' })
+  generateMonth(@Body() body: { month: number; year: number }) {
+    return this.salariesService.generateSalariesForMonth(body.month, body.year);
+  }
+
+  @Get('monthly-summary/:year')
+  @Roles('ADMIN', 'FINANCIST')
+  @ApiOperation({ summary: 'Сводка по месяцам за год' })
+  @ApiResponse({ status: 200, description: 'Месячная сводка' })
+  getMonthlySummary(@Param('year', ParseIntPipe) year: number) {
+    return this.salariesService.getMonthlySummary(year);
+  }
 }

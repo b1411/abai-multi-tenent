@@ -7,13 +7,15 @@ import { Prisma } from '../../generated/prisma';
 import * as ExcelJS from 'exceljs';
 import * as PDFDocument from 'pdfkit';
 import { PayrollNotificationsService } from '../teachers/payroll-notifications.service';
+import { TeacherWorkedHoursService } from '../teachers/teacher-worked-hours.service';
 
 @Injectable()
 export class SalariesService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: PayrollNotificationsService,
-  ) {}
+    private teacherWorkedHoursService: TeacherWorkedHoursService,
+  ) { }
 
   async create(createSalaryDto: CreateSalaryDto) {
     const { allowances, bonuses, deductions, hourlyRate, hoursWorked, ...salaryData } = createSalaryDto;
@@ -255,7 +257,7 @@ export class SalariesService {
 
     const totalGross = baseSalary + totalAllowances + totalBonuses;
     const totalNet = totalGross - totalDeductions;
-    
+
     return this.prisma.salary.update({
       where: { id },
       data: {
@@ -670,25 +672,25 @@ export class SalariesService {
     const { ...filters } = filterDto;
     delete (filters as any).page;
     delete (filters as any).limit;
-    
+
     const where: Prisma.SalaryWhereInput = {};
-    
+
     if (filters.teacherId) {
       where.teacherId = filters.teacherId;
     }
-    
+
     if (filters.status) {
       where.status = filters.status;
     }
-    
+
     if (filters.month) {
       where.month = filters.month;
     }
-    
+
     if (filters.year) {
       where.year = filters.year;
     }
-    
+
     where.deletedAt = null;
 
     const salaries = await this.prisma.salary.findMany({
@@ -781,8 +783,10 @@ export class SalariesService {
 
       if (currentRate && workedHours) {
         // Пересчитываем базовую зарплату на основе отработанных часов и ставки
-        const newBaseSalary = Math.round(workedHours.workedHours * currentRate.totalRate);
-        
+        // Fallback: если фактически отработанных (COMPLETED) часов нет, используем запланированные (scheduledHours)
+        const hoursValue = workedHours.workedHours && workedHours.workedHours > 0 ? workedHours.workedHours : workedHours.scheduledHours;
+        const newBaseSalary = Math.round(hoursValue * currentRate.totalRate);
+
         const totalBonuses = salary.bonuses.reduce((sum, bonus) => sum + bonus.amount, 0);
         const totalDeductions = salary.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
         const totalGross = newBaseSalary + totalBonuses;
@@ -793,6 +797,8 @@ export class SalariesService {
           await this.prisma.salary.update({
             where: { id: salary.id },
             data: {
+              // сохраняем часы с fallback (worked или scheduled)
+              hoursWorked: hoursValue,
               baseSalary: newBaseSalary,
               totalGross,
               totalNet,
@@ -832,10 +838,10 @@ export class SalariesService {
     }
 
     const headers = Object.keys(data[0]);
-    
+
     // Добавляем заголовки
     worksheet.addRow(headers);
-    
+
     // Стилизуем заголовки
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true };
@@ -855,14 +861,14 @@ export class SalariesService {
     headers.forEach((header, index) => {
       const column = worksheet.getColumn(index + 1);
       let maxLength = header.length;
-      
+
       data.forEach(row => {
         const value = String(row[header] || '');
         if (value.length > maxLength) {
           maxLength = value.length;
         }
       });
-      
+
       column.width = Math.min(maxLength + 2, 50);
     });
 
@@ -879,7 +885,7 @@ export class SalariesService {
     const headers = Object.keys(data[0]);
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
+      ...data.map(row =>
         headers.map(header => {
           const value = row[header] || '';
           // Экранируем кавычки и переносы строк
@@ -887,7 +893,7 @@ export class SalariesService {
         }).join(',')
       )
     ].join('\n');
-    
+
     return Buffer.from('\uFEFF' + csvContent, 'utf-8'); // BOM для корректного отображения кириллицы
   }
 
@@ -924,10 +930,10 @@ export class SalariesService {
       headers.forEach((header, index) => {
         const x = startX + (index * colWidth);
         doc.rect(x, currentY, colWidth, rowHeight).stroke();
-        doc.text(header, x + 2, currentY + 5, { 
-          width: colWidth - 4, 
+        doc.text(header, x + 2, currentY + 5, {
+          width: colWidth - 4,
           height: rowHeight - 10,
-          ellipsis: true 
+          ellipsis: true
         });
       });
 
@@ -935,7 +941,6 @@ export class SalariesService {
 
       // Рисуем данные
       data.forEach((row) => {
-        // Проверяем, помещается ли строка на страницу
         if (currentY + rowHeight > doc.page.height - 50) {
           doc.addPage();
           currentY = 50;
@@ -944,12 +949,11 @@ export class SalariesService {
         headers.forEach((header, index) => {
           const x = startX + (index * colWidth);
           const value = String(row[header] || '');
-          
           doc.rect(x, currentY, colWidth, rowHeight).stroke();
-          doc.text(value, x + 2, currentY + 5, { 
-            width: colWidth - 4, 
+          doc.text(value, x + 2, currentY + 5, {
+            width: colWidth - 4,
             height: rowHeight - 10,
-            ellipsis: true 
+            ellipsis: true
           });
         });
 
@@ -958,5 +962,171 @@ export class SalariesService {
 
       doc.end();
     });
+  }
+
+  // Генерация зарплат за месяц для всех преподавателей (если отсутствуют)
+  async generateSalariesForMonth(month: number, year: number) {
+    if (!month || !year) {
+      throw new BadRequestException('month и year обязательны');
+    }
+
+    const teachers = await this.prisma.teacher.findMany({
+      where: { deletedAt: null },
+      include: {
+        salaryRates: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        workedHours: {
+          where: { month, year },
+          take: 1,
+        },
+      },
+    });
+
+    const results: any[] = [];
+    let created = 0;
+    let skipped = 0;
+
+    for (const teacher of teachers) {
+      const rate = teacher.salaryRates[0];
+      let hours = teacher.workedHours[0];
+
+      // Авторасчет часов для будущего месяца (если запись отсутствует) на основе расписания
+      if (rate && !hours) {
+        try {
+          hours = await this.teacherWorkedHoursService.calculateAndSaveWorkedHours({
+            teacherId: teacher.id,
+            month,
+            year,
+          });
+        } catch {
+          // игнорируем ошибки авторасчета, перейдем к обычной проверке
+        }
+      }
+
+      // Проверяем существование зарплаты
+      const existing = await this.prisma.salary.findUnique({
+        where: {
+          teacherId_month_year: {
+            teacherId: teacher.id,
+            month,
+            year,
+          },
+        },
+      });
+
+      if (existing) {
+        skipped++;
+        results.push({
+          teacherId: teacher.id,
+          reason: 'exists',
+        });
+        continue;
+      }
+
+      if (!rate || !hours) {
+        skipped++;
+        results.push({
+          teacherId: teacher.id,
+          reason: !rate ? 'no_active_rate' : 'no_worked_hours_after_auto_calc',
+        });
+        continue;
+      }
+
+      // Fallback: если нет completed часов, берём scheduledHours (для будущих месяцев)
+      const hoursValue = hours.workedHours && hours.workedHours > 0 ? hours.workedHours : hours.scheduledHours;
+      const baseSalary = Math.round(hoursValue * rate.totalRate);
+
+      await this.prisma.salary.create({
+        data: {
+          teacherId: teacher.id,
+          month,
+          year,
+          hourlyRate: rate.totalRate,
+          // сохраняем fallback часы (если нет completed берем scheduled)
+          hoursWorked: hoursValue,
+          baseSalary,
+          totalGross: baseSalary,
+          totalNet: baseSalary,
+          // пустые наборы allowances/bonuses/deductions
+        },
+      });
+
+      created++;
+      results.push({
+        teacherId: teacher.id,
+        status: 'created',
+        baseSalary,
+        hoursWorked: hoursValue, // fallback сохранен
+        hourlyRate: rate.totalRate,
+      });
+    }
+
+    return {
+      month,
+      year,
+      created,
+      skipped,
+      total: teachers.length,
+      details: results,
+    };
+  }
+
+  // Сводка по месяцам за год
+  async getMonthlySummary(year: number) {
+    if (!year) {
+      throw new BadRequestException('year обязателен');
+    }
+
+    const grouped = await this.prisma.salary.groupBy({
+      by: ['month'],
+      where: {
+        year,
+        deletedAt: null,
+      },
+      _sum: {
+        totalNet: true,
+        totalGross: true,
+        baseSalary: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const map = new Map<number, any>();
+    for (const g of grouped) {
+      map.set(g.month, {
+        month: g.month,
+        totalNet: g._sum.totalNet || 0,
+        totalGross: g._sum.totalGross || 0,
+        baseSalary: g._sum.baseSalary || 0,
+        count: g._count.id,
+      });
+    }
+
+    // возвращаем 1..12
+    const result = [];
+    for (let m = 1; m <= 12; m++) {
+      if (map.has(m)) {
+        result.push(map.get(m));
+      } else {
+        result.push({
+          month: m,
+          totalNet: 0,
+          totalGross: 0,
+          baseSalary: 0,
+          count: 0,
+        });
+      }
+    }
+
+    return {
+      year,
+      months: result,
+      totalPayroll: result.reduce((s, r) => s + r.totalNet, 0),
+    };
   }
 }

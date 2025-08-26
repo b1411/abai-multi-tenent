@@ -163,6 +163,7 @@ const EducationalReports: React.FC = () => {
   const [apiStudents, setApiStudents] = useState<ApiStudent[]>([]);
   const [studentGradesMap, setStudentGradesMap] = useState<Map<number, ApiSubjectGrades[]>>(new Map());
   const [subjects, setSubjects] = useState<string[]>([]);
+  const [allSubjectsMaster, setAllSubjectsMaster] = useState<string[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -187,6 +188,12 @@ const EducationalReports: React.FC = () => {
     return subjects.slice(0, SUBJECT_LIMIT);
   }, [subjects, showAllSubjects]);
 
+  // Список предметов для таблицы с учетом выбранного фильтра предмета
+  const tableSubjects = useMemo(() => {
+    if (filters.subject) return [filters.subject];
+    return displayedSubjects;
+  }, [filters.subject, displayedSubjects]);
+
   // Load initial data
   useEffect(() => {
     const loadInitialData = async () => {
@@ -198,7 +205,9 @@ const EducationalReports: React.FC = () => {
           educationalReportsApi.getTeachers()
         ]);
 
-        setSubjects(subjectsData.map(s => s.name));
+        const masterSubjects = subjectsData.map(s => s.name);
+        setAllSubjectsMaster(masterSubjects);
+        setSubjects(masterSubjects);
         setClasses(classesData);
         setTeachers(teachersData);
       } catch (err) {
@@ -299,12 +308,26 @@ const EducationalReports: React.FC = () => {
             absencesUnexcused: attendanceStats.get(apiStudent.id)?.unexcused || 0,
             lessonsTotal: attendanceStats.get(apiStudent.id)?.total || 0,
             className: apiStudent.group.name,
-            subjects: subjects,
+            subjects: Object.keys(grades),
             homeworkCompletion: 85, // TODO: Load from homework API
             disciplinaryNotes: 0 // TODO: Load from discipline API
           };
         });
 
+        // Обновляем список предметов ограниченный выбранным классом
+        if (filters.class) {
+          const classSubjectSet = new Set<string>();
+          transformedStudents.forEach(st => {
+            Object.keys(st.grades).forEach(subj => classSubjectSet.add(subj));
+          });
+          const classSubjects = Array.from(classSubjectSet).sort();
+          setSubjects(classSubjects);
+          if (filters.subject && !classSubjects.includes(filters.subject)) {
+            setFilters(prev => ({ ...prev, subject: '' }));
+          }
+        } else {
+          setSubjects(allSubjectsMaster);
+        }
         setAllStudents(transformedStudents);
       } catch (err) {
         console.error('Error loading students:', err);
@@ -317,7 +340,7 @@ const EducationalReports: React.FC = () => {
     if (subjects.length > 0) {
       loadStudents();
     }
-  }, [filters.class, filters.search, filters.period, filters.startDate, filters.endDate, subjects]);
+  }, [filters.class, filters.search, filters.period, filters.startDate, filters.endDate, allSubjectsMaster]);
 
   // Initialize export logs once
   useEffect(() => {
@@ -391,6 +414,66 @@ const EducationalReports: React.FC = () => {
       };
     }
 
+    // Если выбран предмет — считаем метрики только по нему
+    if (filters.subject) {
+      const allSubjectGrades = students.flatMap(s => s.grades[filters.subject] || []);
+      if (allSubjectGrades.length === 0) {
+        return {
+          totalStudents: students.length,
+            qualityPercentage: 0,
+            averageGrade: 0,
+            unexcusedAbsences: students.reduce((sum, s) => sum + s.absencesUnexcused, 0),
+            attendancePercentage: 0,
+            studentsAbove4: 0,
+            studentsBelow3: 0
+        };
+      }
+
+      // Средний балл по предмету (все оценки)
+      const avg = Math.round(
+        (allSubjectGrades.reduce((sum, g) => sum + g, 0) / allSubjectGrades.length) * 10
+      ) / 10;
+
+      const quality = educationalReportsApi.calculateQualityPercentage(allSubjectGrades);
+
+      // По студентам (средняя по предмету > порогов)
+      let studentsAbove4 = 0;
+      let studentsBelow3 = 0;
+      students.forEach(s => {
+        const sg = s.grades[filters.subject] || [];
+        if (sg.length > 0) {
+          const personalAvg = sg.reduce((sum, g) => sum + g, 0) / sg.length;
+          if (personalAvg >= 4) studentsAbove4 += 1;
+          if (personalAvg < 3) studentsBelow3 += 1;
+        }
+      });
+
+      // Посещаемость (оставляем общую по периоду, не завязываем на предмет пока)
+      let totalLessonsAll = 0;
+      let totalPresentAll = 0;
+      students.forEach(s => {
+        const total = s.lessonsTotal || 0;
+        const exc = s.absencesExcused || 0;
+        const unexc = s.absencesUnexcused || 0;
+        const present = total - (exc + unexc);
+        if (total > 0) {
+          totalLessonsAll += total;
+          totalPresentAll += Math.max(present, 0);
+        }
+      });
+      const attendancePercentage = totalLessonsAll > 0 ? Math.round((totalPresentAll / totalLessonsAll) * 100) : 0;
+
+      return {
+        totalStudents: students.length,
+        qualityPercentage: quality,
+        averageGrade: avg,
+        unexcusedAbsences: students.reduce((sum, s) => sum + s.absencesUnexcused, 0),
+        attendancePercentage,
+        studentsAbove4,
+        studentsBelow3
+      };
+    }
+
     const totalStudents = students.length;
     const qualityPercentage = Math.round(
       students.reduce((sum, s) => sum + s.qualityPercentage, 0) / totalStudents
@@ -426,7 +509,7 @@ const EducationalReports: React.FC = () => {
       studentsAbove4,
       studentsBelow3
     };
-  }, [filteredStudents]);
+  }, [filteredStudents, filters.subject]);
 
   // Generate dynamic chart data
   const chartData: ChartDataPoint[] = useMemo(() => {
@@ -537,12 +620,26 @@ const EducationalReports: React.FC = () => {
           absencesUnexcused: attendanceStats.get(apiStudent.id)?.unexcused || 0,
           lessonsTotal: attendanceStats.get(apiStudent.id)?.total || 0,
           className: apiStudent.group.name,
-          subjects: subjects,
+          subjects: Object.keys(grades),
           homeworkCompletion: 85,
           disciplinaryNotes: 0
         };
       });
 
+      // Обновляем предметы при ручном обновлении
+      if (filters.class) {
+        const classSubjectSet = new Set<string>();
+        transformedStudents.forEach(st => {
+          Object.keys(st.grades).forEach(subj => classSubjectSet.add(subj));
+        });
+        const classSubjects = Array.from(classSubjectSet).sort();
+        setSubjects(classSubjects);
+        if (filters.subject && !classSubjects.includes(filters.subject)) {
+          setFilters(prev => ({ ...prev, subject: '' }));
+        }
+      } else {
+        setSubjects(allSubjectsMaster);
+      }
       setAllStudents(transformedStudents);
     } catch (err) {
       console.error('Error refreshing data:', err);
@@ -1561,7 +1658,7 @@ const EducationalReports: React.FC = () => {
                   <th className="sticky left-0 z-40 bg-gray-50/95 backdrop-blur-sm border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase w-[260px]">
                     № / ФИО
                   </th>
-                  {displayedSubjects.map((subject) => (
+                  {tableSubjects.map((subject) => (
                     <th key={subject} className="border-r border-gray-200 px-2 py-3 text-center text-[10px] font-semibold tracking-wide text-gray-700 uppercase w-[96px]">
                       <div className="h-12 flex items-center justify-center px-1">
                         <span className="text-center leading-tight break-words line-clamp-3">{subject}</span>
@@ -1584,7 +1681,7 @@ const EducationalReports: React.FC = () => {
                       </div>
                       <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-1 font-medium">{student.className}</div>
                     </td>
-                    {displayedSubjects.map((subject) => {
+                    {tableSubjects.map((subject) => {
                       const subjectGrades = student.grades[subject] || [];
                       return (
                         <td key={subject} className="border-r border-gray-200 px-1 py-2 text-center align-middle">
@@ -1651,7 +1748,7 @@ const EducationalReports: React.FC = () => {
                   <td className="border-r border-gray-300 px-4 py-3 text-left w-[250px]">
                     <span className="text-sm font-bold">Средний балл по классу:</span>
                   </td>
-                  {displayedSubjects.map((subject) => {
+                  {tableSubjects.map((subject) => {
                     const allSubjectGrades = filteredStudents.flatMap(s => s.grades[subject] || []);
                     const subjectClassAverage = allSubjectGrades.length > 0
                       ? Math.round((allSubjectGrades.reduce((sum, grade) => sum + grade, 0) / allSubjectGrades.length) * 10) / 10

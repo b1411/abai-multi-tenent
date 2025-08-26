@@ -84,6 +84,10 @@ const Reports: React.FC = () => {
   const [workloadChartData, setWorkloadChartData] = useState<any[]>([]);
   const [scheduleChartData, setScheduleChartData] = useState<any[]>([]);
   const [activeStudentsCount, setActiveStudentsCount] = useState<number>(0);
+  const todayISO = new Date().toISOString().split('T')[0];
+  const yearStartISO = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+  const [reportStartDate, setReportStartDate] = useState<string>(yearStartISO);
+  const [reportEndDate, setReportEndDate] = useState<string>(todayISO);
 
   // Загрузка данных
   useEffect(() => {
@@ -274,6 +278,11 @@ const Reports: React.FC = () => {
     };
   }, [cashflowData, performanceMetrics, workloadData, scheduleData, activeStudentsCount]);
 
+  const invalidRange = useMemo(() => {
+    if (!reportStartDate || !reportEndDate) return true;
+    return new Date(reportStartDate) > new Date(reportEndDate);
+  }, [reportStartDate, reportEndDate]);
+
   // Обработчики событий
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({
@@ -298,16 +307,18 @@ const Reports: React.FC = () => {
 
   const handleGenerateReport = async (type: string) => {
     try {
+      if (invalidRange) return;
+      const start = `${reportStartDate}T00:00:00.000Z`;
+      const end = `${reportEndDate}T23:59:59.999Z`;
       const generateReportDto = {
         type: type as any,
-        // Фиксированный период: весь 2025 год
-        startDate: new Date(Date.UTC(2025, 0, 1, 0, 0, 0, 0)).toISOString(),
-        endDate: new Date(Date.UTC(2025, 11, 31, 23, 59, 59, 999)).toISOString(),
+        startDate: new Date(start).toISOString(),
+        endDate: new Date(end).toISOString(),
         title: `${reportTypeLabels[type as keyof typeof reportTypeLabels]} - ${new Date().toLocaleDateString('ru-RU')}`
       };
 
       await financeService.generateReport(generateReportDto.type, generateReportDto, 'PDF');
-      await loadReportsData(); // Перезагружаем список отчетов
+      await loadReportsData();
     } catch (error) {
       console.error('Ошибка генерации отчета:', error);
     }
@@ -365,21 +376,6 @@ const Reports: React.FC = () => {
             {Object.entries(reportTypeLabels).map(([key, label]) => (
               <option key={key} value={key}>{label}</option>
             ))}
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Период</label>
-          <select
-            className="w-full border border-gray-300 rounded-md p-2"
-            value={filters.period}
-            onChange={(e) => handleFilterChange('period', e.target.value)}
-          >
-            <option value="all">Все периоды</option>
-            <option value="2024">2024 год</option>
-            <option value="Q4">Q4 2024</option>
-            <option value="Декабрь">Декабрь</option>
-            <option value="2025">2025 год</option>
           </select>
         </div>
 
@@ -538,19 +534,49 @@ const Reports: React.FC = () => {
             )}
           </button>
         </div>
-        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0">
-          <button
-            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
-            onClick={() => handleGenerateReport('PERFORMANCE')}
-          >
-            <BarChart3 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Сгенерировать отчет</span>
-            <span className="sm:hidden">Создать</span>
-          </button>
-          <button className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center">
-            <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            Экспорт
-          </button>
+        <div className="flex flex-col space-y-2 sm:flex-row sm:items-end sm:space-x-3 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-2 space-y-2 sm:space-y-0">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Начало</label>
+              <input
+                type="date"
+                value={reportStartDate}
+                onChange={(e) => setReportStartDate(e.target.value)}
+                className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-full"
+                max={reportEndDate}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Конец</label>
+              <input
+                type="date"
+                value={reportEndDate}
+                onChange={(e) => setReportEndDate(e.target.value)}
+                className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-full"
+                min={reportStartDate}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0">
+            <button
+              className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center transition-colors ${
+                invalidRange ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              disabled={invalidRange}
+              onClick={() => handleGenerateReport('PERFORMANCE')}
+            >
+              <BarChart3 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Сгенерировать отчет</span>
+              <span className="sm:hidden">Создать</span>
+            </button>
+            <button className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center">
+              <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              Экспорт
+            </button>
+          </div>
+          {invalidRange && (
+            <div className="text-xs text-red-600 mt-1">Некорректный диапазон дат</div>
+          )}
         </div>
       </div>
 

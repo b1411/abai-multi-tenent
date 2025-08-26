@@ -218,70 +218,74 @@ async function upsertTeacher(t: NormalizedTeacher) {
         }
     });
     await prisma.teacher.create({ data: { userId: user.id } });
-return { status: 'created' as const };
+    return { status: 'created' as const };
 }
 
-async function ensureAdmins(emails: string[], passwordPlain: string) {
+async function ensureAdmins(admins: {
+    email: string;
+    name: string;
+    surname: string;
+}[], passwordPlain: string) {
     const hashed = await bcrypt.hash(passwordPlain, 10);
-    for (const email of emails) {
-        let user = await prisma.user.findUnique({ where: { email } });
+    for (const admin of admins) {
+        let user = await prisma.user.findUnique({ where: { email: admin.email } });
         if (!user) {
             user = await prisma.user.create({
                 data: {
-                    email,
-                    name: 'Admin',
-                    surname: 'User',
+                    email: admin.email,
+                    name: admin.name,
+                    surname: admin.surname,
                     role: 'ADMIN',
                     hashedPassword: hashed
                 }
             });
-            console.log(`Создан админ ${email}`);
+            console.log(`Создан админ ${admin.email}`);
         } else if (user.role !== 'ADMIN') {
-            console.warn(`Пользователь ${email} уже существует с ролью ${user.role} (роль не меняем).`);
+            console.warn(`Пользователь ${admin.email} уже существует с ролью ${user.role} (роль не меняем).`);
         }
     }
 }
 
 async function main() {
-  function printProgress(label: string, current: number, total: number) {
-    const barLength = 20;
-    const ratio = total ? current / total : 0;
-    const filled = Math.round(ratio * barLength);
-    const bar = '█'.repeat(filled) + '░'.repeat(barLength - filled);
-    const pct = (ratio * 100).toFixed(1).padStart(5, ' ');
-    process.stdout.write(`\r${label} ${bar} ${pct}% (${current}/${total})`);
-    if (current === total) process.stdout.write('\n');
-  }
+    function printProgress(label: string, current: number, total: number) {
+        const barLength = 20;
+        const ratio = total ? current / total : 0;
+        const filled = Math.round(ratio * barLength);
+        const bar = '█'.repeat(filled) + '░'.repeat(barLength - filled);
+        const pct = (ratio * 100).toFixed(1).padStart(5, ' ');
+        process.stdout.write(`\r${label} ${bar} ${pct}% (${current}/${total})`);
+        if (current === total) process.stdout.write('\n');
+    }
     // --- Students ---
     const studentsPath = path.resolve(__dirname, 'students.json');
     const studentStats = { created: 0, skipped: 0, failed: 0 };
     if (fs.existsSync(studentsPath)) {
         try {
             const rawStudents = JSON.parse(fs.readFileSync(studentsPath, 'utf-8')) as unknown;
-      if (Array.isArray(rawStudents)) {
-        const studentsArr = rawStudents as StudentJson[];
-        const totalStudents = studentsArr.length;
-        let processed = 0;
-        for (const s of studentsArr) {
-          const normalized = normalizeStudent(s);
-          if (!normalized) { studentStats.skipped++; processed++; printProgress('Студенты     ', processed, totalStudents); continue; }
-          try {
-            const res = await upsertStudent(normalized);
-            if (res.status === 'created') {
-              studentStats.created++;
+            if (Array.isArray(rawStudents)) {
+                const studentsArr = rawStudents as StudentJson[];
+                const totalStudents = studentsArr.length;
+                let processed = 0;
+                for (const s of studentsArr) {
+                    const normalized = normalizeStudent(s);
+                    if (!normalized) { studentStats.skipped++; processed++; printProgress('Студенты     ', processed, totalStudents); continue; }
+                    try {
+                        const res = await upsertStudent(normalized);
+                        if (res.status === 'created') {
+                            studentStats.created++;
+                        } else {
+                            studentStats.skipped++;
+                        }
+                    } catch (e) {
+                        studentStats.failed++;
+                        console.error(`\nОшибка при обработке студента ${s.Email}:`, e);
+                    }
+                    processed++;
+                    printProgress('Студенты     ', processed, totalStudents);
+                }
             } else {
-              studentStats.skipped++;
+                console.error('students.json: ожидался массив.');
             }
-          } catch (e) {
-            studentStats.failed++;
-            console.error(`\nОшибка при обработке студента ${s.Email}:`, e);
-          }
-          processed++;
-          printProgress('Студенты     ', processed, totalStudents);
-        }
-      } else {
-        console.error('students.json: ожидался массив.');
-      }
         } catch (e) {
             console.error('Ошибка чтения students.json:', e);
         }
@@ -295,32 +299,32 @@ async function main() {
     if (fs.existsSync(teachersPath)) {
         try {
             const rawTeachers = JSON.parse(fs.readFileSync(teachersPath, 'utf-8')) as unknown;
-      if (Array.isArray(rawTeachers)) {
-        const teachersArr = rawTeachers as TeacherJson[];
-        const totalTeachers = teachersArr.length;
-        let processedT = 0;
-        for (const t of teachersArr) {
-          const normalized = normalizeTeacher(t);
-          if (!normalized) { teacherStats.skipped++; processedT++; printProgress('Преподаватели', processedT, totalTeachers); continue; }
-          try {
-            const res = await upsertTeacher(normalized);
-            if (res.status === 'created') {
-              teacherStats.created++;
-            } else if (res.status === 'role-mismatch') {
-              teacherStats.roleMismatch++;
+            if (Array.isArray(rawTeachers)) {
+                const teachersArr = rawTeachers as TeacherJson[];
+                const totalTeachers = teachersArr.length;
+                let processedT = 0;
+                for (const t of teachersArr) {
+                    const normalized = normalizeTeacher(t);
+                    if (!normalized) { teacherStats.skipped++; processedT++; printProgress('Преподаватели', processedT, totalTeachers); continue; }
+                    try {
+                        const res = await upsertTeacher(normalized);
+                        if (res.status === 'created') {
+                            teacherStats.created++;
+                        } else if (res.status === 'role-mismatch') {
+                            teacherStats.roleMismatch++;
+                        } else {
+                            teacherStats.skipped++;
+                        }
+                    } catch (e) {
+                        teacherStats.failed++;
+                        console.error(`\nОшибка при обработке преподавателя ${t.Email}:`, e);
+                    }
+                    processedT++;
+                    printProgress('Преподаватели', processedT, totalTeachers);
+                }
             } else {
-              teacherStats.skipped++;
+                console.error('teachers.json: ожидался массив.');
             }
-          } catch (e) {
-            teacherStats.failed++;
-            console.error(`\nОшибка при обработке преподавателя ${t.Email}:`, e);
-          }
-          processedT++;
-          printProgress('Преподаватели', processedT, totalTeachers);
-        }
-      } else {
-        console.error('teachers.json: ожидался массив.');
-      }
         } catch (e) {
             console.error('Ошибка чтения teachers.json:', e);
         }
@@ -329,7 +333,15 @@ async function main() {
     }
 
     // --- Admins ---
-    await ensureAdmins(['eraliev.dias@gmail.com', 'kambarbekalisher@gmail.com'], 'Password123!');
+    await ensureAdmins([{
+        email: 'eraliev.dias@gmail.com',
+        name: "Диас",
+        surname: "Ералиев"
+    }, {
+        email: 'kambarbekalisher@gmail.com',
+        name: "Алишер",
+        surname: "Камбарбек"
+    }], 'Password123!');
 
     // --- Summary ---
     console.log('\n=== Итог Импорта ===');

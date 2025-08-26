@@ -76,6 +76,7 @@ import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import AISchedule from './pages/AISchedule';
 import StaffCompositionPage from './pages/StaffCompositionPage';
+import { ToastProvider } from './providers/ToastProvider';
 
 const App: React.FC = () => {
   return (
@@ -84,6 +85,7 @@ const App: React.FC = () => {
         <AuthProvider>
           <ActivityProvider>
             <NotificationProvider>
+              <ToastProvider>
               <BrandingProvider>
                 <Routes>
                   <Route path="/login" element={<Login />} />
@@ -231,6 +233,7 @@ const App: React.FC = () => {
                   </Route>
                 </Routes>
               </BrandingProvider>
+            </ToastProvider>
             </NotificationProvider>
           </ActivityProvider>
         </AuthProvider>

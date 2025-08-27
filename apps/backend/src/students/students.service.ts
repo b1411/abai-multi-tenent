@@ -490,8 +490,9 @@ export class StudentsService {
     // Хешируем пароль
     const hashedPassword = await bcrypt.hash(createFullStudentDto.password, 12);
 
-    // Извлекаем данные для создания пользователя и студента
+    // Извлекаем данные для создания пользователя и студента. Поле password не входит в модель User; удаляем его из userData
     const { groupId, classId, ...userData } = createFullStudentDto;
+    delete (userData as any).password;
 
     // Используем транзакцию для создания пользователя и студента
     const result = await this.prisma.$transaction(async (prisma) => {

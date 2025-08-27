@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FaUser, 
+import {
+  FaUser,
   FaUsers,
   FaSearch,
   FaFilter,
@@ -25,7 +25,7 @@ import TeacherSalaryRateForm from '../components/TeacherSalaryRateForm';
 const Teachers: React.FC = () => {
   const navigate = useNavigate();
   const { teachers, loading, error } = useTeachers();
-  
+
   // Состояния для UI
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
@@ -34,22 +34,22 @@ const Teachers: React.FC = () => {
   const [showSalaryRateForm, setShowSalaryRateForm] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [currentTeacherRate, setCurrentTeacherRate] = useState<any>(null);
-  const [teacherStats, setTeacherStats] = useState<{[key: number]: any}>({});
+  const [teacherStats, setTeacherStats] = useState<{ [key: number]: any }>({});
 
   // Фильтрация преподавателей
   const filteredTeachers = useMemo(() => {
     return teachers.filter(teacher => {
-      const matchesSearch = 
+      const matchesSearch =
         teacher.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         teacher.user.surname.toLowerCase().includes(searchQuery.toLowerCase()) ||
         teacher.user.email.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesDepartment = selectedDepartment === 'all' || 
+
+      const matchesDepartment = selectedDepartment === 'all' ||
         (teacher as any).department === selectedDepartment;
-      
-      const matchesCategory = selectedCategory === 'all' || 
+
+      const matchesCategory = selectedCategory === 'all' ||
         (teacher as any).category === selectedCategory;
-      
+
       return matchesSearch && matchesDepartment && matchesCategory;
     });
   }, [teachers, searchQuery, selectedDepartment, selectedCategory]);
@@ -64,7 +64,7 @@ const Teachers: React.FC = () => {
         avgSalary: history.length > 0 ? history.reduce((sum, s) => sum + s.totalNet, 0) / history.length : 0,
         lastSalary: history.length > 0 ? history[0] : null
       };
-      
+
       setTeacherStats(prev => ({
         ...prev,
         [teacherId]: stats
@@ -111,11 +111,11 @@ const Teachers: React.FC = () => {
       } else {
         await salaryService.createTeacherSalaryRate(selectedTeacher.id, rateData);
       }
-      
+
       setShowSalaryRateForm(false);
       setSelectedTeacher(null);
       setCurrentTeacherRate(null);
-      
+
       alert('Ставка преподавателя успешно сохранена!');
     } catch (error) {
       console.error('Ошибка при сохранении ставки:', error);
@@ -154,12 +154,6 @@ const Teachers: React.FC = () => {
           >
             <FaFilter className="mr-2" />
             Фильтры
-          </button>
-          <button
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
-          >
-            <FaPlus className="mr-2" />
-            Добавить преподавателя
           </button>
         </div>
       </div>
@@ -205,7 +199,7 @@ const Teachers: React.FC = () => {
           </div>
           <div className="mt-2">
             <div className="text-xl sm:text-2xl font-bold text-orange-600">
-              {teachers.length > 0 
+              {teachers.length > 0
                 ? Math.round(teachers.reduce((sum, t) => sum + ((t as any).experience || 0), 0) / teachers.length)
                 : 0
               } лет
@@ -266,7 +260,7 @@ const Teachers: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredTeachers.map((teacher) => {
           const stats = teacherStats[teacher.id];
-          
+
           return (
             <div key={teacher.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
               {/* Заголовок карточки */}
@@ -306,7 +300,7 @@ const Teachers: React.FC = () => {
                   <FaEnvelope className="text-gray-400 w-4 h-4" />
                   <span className="text-gray-600 truncate">{teacher.user.email}</span>
                 </div>
-                
+
                 {/* Отдел преподавателя */}
                 {(teacher as any).department && (
                   <div className="flex items-center gap-2 text-sm">
@@ -316,7 +310,7 @@ const Teachers: React.FC = () => {
                     </span>
                   </div>
                 )}
-                
+
                 {/* Категория преподавателя */}
                 {(teacher as any).category && (
                   <div className="flex items-center gap-2 text-sm">
@@ -343,7 +337,7 @@ const Teachers: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {stats.lastSalary && (
                     <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                       <div className="text-xs text-gray-500 mb-1">Последняя выплата</div>

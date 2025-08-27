@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { studentService, CreateFullStudentData } from '../services/studentService';
 import { useAuth } from '../hooks/useAuth';
+import { groupService } from '../services/groupService';
 
 interface Group {
   id: number;
@@ -37,18 +38,11 @@ export const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
 
   const loadGroups = async () => {
     try {
-      // Предполагаем, что у нас есть сервис для получения групп
-      // const groupsData = await groupService.getAllGroups();
-      // setGroups(groupsData);
-      
-      // Временно добавим тестовые данные
-      setGroups([
-        { id: 1, name: 'Группа А', courseNumber: 1 },
-        { id: 2, name: 'Группа Б', courseNumber: 1 },
-        { id: 3, name: 'Группа В', courseNumber: 2 },
-      ]);
+      const groupsData = await groupService.getAllGroups();
+      setGroups(groupsData as any);
     } catch (error) {
       console.error('Ошибка загрузки групп:', error);
+      setGroups([]);
     }
   };
 
@@ -137,7 +131,7 @@ export const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
   };
 
   // Проверяем права доступа
-  if (!user || !['ADMIN', 'TEACHER'].includes(user.role)) {
+  if (!user || !['ADMIN', 'TEACHER', 'HR'].includes(user.role)) {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-700">У вас нет прав для создания студентов</p>

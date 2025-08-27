@@ -168,11 +168,21 @@ class ApiClient {
     return response.data;
   }
 
-  async postFormData<T>(url: string, formData: FormData): Promise<T> {
+  async postFormData<T>(url: string, formData: FormData, onUploadProgress?: (percent: number) => void): Promise<T> {
     const response: AxiosResponse<T> = await this.client.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress: (e) => {
+        if (onUploadProgress && e.total) {
+          const percent = Math.round((e.loaded * 100) / e.total);
+            try {
+              onUploadProgress(percent);
+            } catch (_) {
+              // ignore callback errors
+            }
+        }
+      }
     });
     return response.data;
   }

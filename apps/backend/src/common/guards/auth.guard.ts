@@ -32,7 +32,26 @@ export class AuthGuard implements CanActivate {
     }
 
     private extractTokenFromHeader(request: Request): string | undefined {
-        const [type, token] = request.headers.authorization?.split(' ') ?? [];
-        return type === 'Bearer' ? token : undefined;
+        // 1. Authorization header
+        const authHeader = request.headers.authorization;
+        if (authHeader) {
+            const [type, token] = authHeader.split(' ');
+            if (type === 'Bearer' && token) return token;
+        }
+
+        // 2. Query string (для SSE EventSource без кастомных заголовков)
+        const qsToken = (request.query['access_token'] || request.query['token']) as string | undefined;
+        if (qsToken) return qsToken;
+
+        // 3. Cookie (опционально)
+        const cookieAny: any = (request as any).cookies;
+        if (cookieAny?.Authorization) {
+            const cookieVal: string = cookieAny.Authorization;
+            if (cookieVal.startsWith('Bearer ')) {
+                return cookieVal.slice(7);
+            }
+        }
+
+        return undefined;
     }
 }

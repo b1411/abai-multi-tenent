@@ -14,7 +14,8 @@ if (!dbUrl) {
     process.exit(1);
 }
 console.log('Подключение к БД:', dbUrl.replace(/:[^:@/]+@/, ':****@'));
-const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+// const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+const prisma = new PrismaClient();
 
 /**
  * ВАЖНО: теперь

@@ -43,7 +43,14 @@ export const useStudyPlans = (initialFilters: StudyPlanFilters = {}, useStudentM
   };
 
   const updateFilters = (newFilters: Partial<StudyPlanFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
+    setFilters(prev => {
+      const merged = { ...prev, ...newFilters };
+      // Сбрасываем на первую страницу только если явно не меняем page
+      if (!Object.prototype.hasOwnProperty.call(newFilters, 'page')) {
+        merged.page = 1;
+      }
+      return merged;
+    });
   };
 
   const changePage = (page: number) => {

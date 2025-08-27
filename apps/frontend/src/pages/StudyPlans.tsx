@@ -9,6 +9,7 @@ import { studyPlanService } from '../services/studyPlanService';
 import StudyPlanForm, { StudyPlanFormData } from '../components/StudyPlanForm';
 import KtpTreeView from '../components/KtpTreeView';
 import { ktpService } from '../services/ktpService';
+import StudyPlanImportModal from '../components/StudyPlanImportModal';
 
 const StudyPlansPage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const StudyPlansPage: React.FC = () => {
   const [ktpData, setKtpData] = useState<any>(null);
   const [ktpLoading, setKtpLoading] = useState(false);
   const [isLoadingKtp, setIsLoadingKtp] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const {
     studyPlans,
@@ -146,14 +148,24 @@ const StudyPlansPage: React.FC = () => {
         {/* Мобильные кнопки */}
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           {(hasRole('ADMIN') || hasRole('TEACHER')) && (
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="w-full sm:w-auto px-3 md:px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center button-hover text-sm md:text-base"
-            >
-              <FaPlus className="mr-2 text-xs md:text-sm" />
-              <span className="hidden sm:inline">Создать учебный план</span>
-              <span className="sm:hidden">Создать план</span>
-            </button>
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto space-y-2 sm:space-y-0 sm:space-x-2">
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center button-hover text-sm md:text-base"
+              >
+                <FaPlus className="mr-2 text-xs md:text-sm" />
+                <span className="hidden sm:inline">Создать учебный план</span>
+                <span className="sm:hidden">Создать план</span>
+              </button>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="w-full sm:w-auto px-3 md:px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center justify-center button-hover text-sm md:text-base"
+              >
+                <FaPlus className="mr-2 text-xs md:text-sm" />
+                <span className="hidden sm:inline">Импорт</span>
+                <span className="sm:hidden">Импорт</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -739,6 +751,17 @@ const StudyPlansPage: React.FC = () => {
           onClose={handleCloseEditForm}
           onSubmit={handleUpdateStudyPlan}
           loading={formLoading}
+        />
+      )}
+
+      {showImportModal && (
+        <StudyPlanImportModal
+          onClose={() => setShowImportModal(false)}
+          onImported={(r) => {
+            setShowImportModal(false);
+            updateFilters({ ...filters, page: 1 });
+            navigate(`/lessons?studyPlanId=${r.studyPlanId}`);
+          }}
         />
       )}
     </div>

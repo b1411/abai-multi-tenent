@@ -4,6 +4,26 @@ import { scheduleGenerationSchema } from './schemas/schedule-generation.schema';
 import * as pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 
+export interface KtpImportedStructure {
+  courseName: string;
+  description?: string;
+  sections?: {
+    title?: string;
+    description?: string;
+    lessons?: {
+      title?: string;
+      description?: string;
+      duration?: number;
+      week?: number;
+      date?: string;
+      objectives?: string[];
+      methods?: string[];
+      homework?: string | null;
+      materials?: string[];
+    }[];
+  }[];
+}
+
 /**
  * Чистая минимальная версия AiAssistantService:
  *  - optimizeScheduleDraft (новый AI flow)
@@ -119,6 +139,85 @@ export class AiAssistantService {
     const t3 = data?.content?.[0]?.text; if (typeof t3 === 'string') return t3;
     const t4 = data?.choices?.[0]?.message?.content; if (typeof t4 === 'string') return t4;
     return JSON.stringify(data);
+  }
+
+  /**
+   * Парсинг КТП с жёстким json_schema (structured output) чтобы исключить "рассказочный" ответ.
+   */
+  async parseKtpRawText(raw: string): Promise<KtpImportedStructure> {
+    this.ensureKey();
+
+    // JSON Schema для строгого ответа
+    const ktpImportJsonSchema = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['courseName', 'sections'],
+      properties: {
+        courseName: { type: 'string', minLength: 1 },
+        description: { type: 'string' },
+        sections: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['title', 'lessons'],
+            properties: {
+              title: { type: 'string', minLength: 1 },
+              description: { type: 'string' },
+              lessons: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['title'],
+                  properties: {
+                    title: { type: 'string', minLength: 1 },
+                    description: { type: 'string' },
+                    duration: { type: 'number' },
+                    week: { type: 'number' },
+                    date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+                    objectives: { type: 'array', items: { type: 'string' } },
+                    methods: { type: 'array', items: { type: 'string' } },
+                    homework: { type: 'string' },
+                    materials: { type: 'array', items: { type: 'string' } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const systemPrompt = 'Ты извлекаешь структуру КТП. Возвращай СТРОГО JSON соответствующий заданной json_schema. Никакого текста вне JSON.';
+    const userPrompt = `ТЕКСТ КТП (усечён до 45k симв):\n${raw.substring(0, 45000)}`;
+
+    // Строгое структурированное получение
+    const structured = await this.postOpenAIResponseWithSchema<KtpImportedStructure>({
+      instructions: systemPrompt,
+      input: userPrompt,
+      schemaName: 'ktp_import',
+      schema: ktpImportJsonSchema,
+      temperature: 0
+    });
+
+    // Нормализация и защитные правки
+    if (!structured.courseName) structured.courseName = 'Imported Plan';
+    if (!Array.isArray(structured.sections)) structured.sections = [];
+
+    structured.sections.forEach((s) => {
+      if (!Array.isArray(s.lessons)) s.lessons = [];
+      s.lessons.forEach((l, idx) => {
+        if (!l.duration || l.duration <= 0) l.duration = 2;
+        if (!l.week || l.week <= 0) l.week = Math.floor(idx / 2) + 1;
+        // Валидация даты (если модель напутала формат — убираем)
+        if (l.date && !/^\d{4}-\d{2}-\d{2}$/.test(l.date)) {
+          l.date = undefined;
+        }
+      });
+    });
+
+    return structured;
   }
 
   private sanitizeJsonText(text: string) { let t = text.trim(); if (t.startsWith('```')) t = t.replace(/^```[a-zA-Z]*\n?/, '').replace(/```\s*$/, ''); return t.trim(); }

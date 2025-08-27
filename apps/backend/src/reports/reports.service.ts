@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { getCurrentAcademicQuarterRange } from '../common/academic-period.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportType, GenerateReportDto } from './dto/report-filter.dto';
 import {
@@ -1200,8 +1201,11 @@ export class ReportsService {
   private getDefaultStartDate(period?: string): Date {
     const now = new Date();
     switch (period) {
-      case 'QUARTERLY':
-        return new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      case 'QUARTERLY': {
+        // Используем учебные четверти
+        const q = getCurrentAcademicQuarterRange(now);
+        return q.start;
+      }
       case 'YEARLY':
         return new Date(now.getFullYear(), 0, 1);
       case 'MONTHLY':

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeacherWorkedHoursService } from '../teachers/teacher-worked-hours.service';
+import { getAcademicQuarterRanges } from '../common/academic-period.util';
 import { CreateWorkloadDto } from './dto/create-workload.dto';
 import { UpdateWorkloadDto } from './dto/update-workload.dto';
 import { WorkloadFilterDto } from './dto/workload-filter.dto';
@@ -75,11 +76,6 @@ export class WorkloadService {
       search,
       academicYear,
       teacherId,
-      period,
-      periodValue,
-      semester,
-      startDate,
-      endDate,
       year
     } = filter;
     const skip = (page - 1) * limit;
@@ -261,7 +257,7 @@ export class WorkloadService {
   }
 
   async update(id: number, updateWorkloadDto: UpdateWorkloadDto) {
-    const existingWorkload = await this.findOne(id);
+    await this.findOne(id);
 
     const {
       monthlyHours,
@@ -273,7 +269,7 @@ export class WorkloadService {
     } = updateWorkloadDto;
 
     // Update main workload data
-    const updatedWorkload = await this.prisma.teacherWorkload.update({
+    await this.prisma.teacherWorkload.update({
       where: { id },
       data: workloadData,
       include: this.getIncludeOptions(),
@@ -455,44 +451,54 @@ export class WorkloadService {
     });
   }
 
-  // Пересчет квартальных данных
+  // Пересчет квартальных данных (Академические четверти)
   private async recalculateQuarterlyHours(teacherWorkloadId: number) {
     const monthlyHours = await this.prisma.monthlyWorkload.findMany({
       where: { teacherWorkloadId },
     });
 
-    const quarterlyData = new Map<number, { standard: number; actual: number }>();
+    // Map: quarterIndex -> { standard, actual, academicYearStartYear }
+    const quarterlyData = new Map<number, { standard: number; actual: number; academicYearStartYear: number }>();
 
-    // Инициализируем кварталы
-    for (let quarter = 1; quarter <= 4; quarter++) {
-      quarterlyData.set(quarter, { standard: 0, actual: 0 });
-    }
-
-    // Группируем по кварталам
     monthlyHours.forEach(mh => {
-      const quarter = Math.ceil(mh.month / 3);
-      const current = quarterlyData.get(quarter);
-      current.standard += mh.standardHours;
-      current.actual += mh.actualHours;
+      // Берем середину месяца как репрезентативную дату
+      const date = new Date(mh.year, mh.month - 1, 15);
+      const { quarters, academicYearStartYear } = getAcademicQuarterRanges(date);
+      const q = quarters.find(q => date >= q.start && date <= q.end);
+      if (!q) {
+        // Месяц вне учебных четвертей (лето/каникулы) — пропускаем
+        return;
+      }
+      const existing = quarterlyData.get(q.index);
+      if (existing) {
+        existing.standard += mh.standardHours;
+        existing.actual += mh.actualHours;
+      } else {
+        quarterlyData.set(q.index, {
+          standard: mh.standardHours,
+            actual: mh.actualHours,
+            academicYearStartYear,
+        });
+      }
     });
 
-    // Удаляем старые данные
     await this.prisma.quarterlyWorkload.deleteMany({
       where: { teacherWorkloadId },
     });
 
-    // Создаем новые квартальные записи
     const quarterlyRecords = Array.from(quarterlyData.entries()).map(([quarter, data]) => ({
       teacherWorkloadId,
       quarter,
-      year: new Date().getFullYear(),
+      year: data.academicYearStartYear,
       standardHours: Math.round(data.standard),
       actualHours: Math.round(data.actual),
     }));
 
-    await this.prisma.quarterlyWorkload.createMany({
-      data: quarterlyRecords,
-    });
+    if (quarterlyRecords.length > 0) {
+      await this.prisma.quarterlyWorkload.createMany({
+        data: quarterlyRecords,
+      });
+    }
   }
 
   // Автоматический расчет нагрузки из расписания используя TeacherWorkedHoursService
@@ -580,7 +586,7 @@ export class WorkloadService {
   }
 
   async getAnalytics(filter: WorkloadFilterDto) {
-    const { academicYear, period = 'year', periodValue } = filter;
+    const { academicYear, period = 'year' } = filter;
     const currentYear = academicYear ? parseInt(academicYear.split('-')[0]) : new Date().getFullYear();
 
     // Получаем всех преподавателей
@@ -696,18 +702,21 @@ export class WorkloadService {
         }, [] as any[])
         .sort((a, b) => a.period - b.period);
     } else if (period === 'quarter') {
-      // Группируем месячные данные по кварталам
+      // Академические четверти
       const monthlyTrends = realStats
         .flatMap(stats => stats.monthlyData)
         .reduce((acc, mh) => {
-          const quarter = Math.ceil(mh.month / 3);
-          const existing = acc.find(item => item.period === quarter);
+          const date = new Date(mh.year, mh.month - 1, 15);
+          const { quarters } = getAcademicQuarterRanges(date);
+          const q = quarters.find(q => date >= q.start && date <= q.end);
+          if (!q) return acc; // месяц вне четверти
+          const existing = acc.find(item => item.period === q.index);
           if (existing) {
             existing.standardHours += Number(mh.scheduledHours);
             existing.actualHours += Number(mh.workedHours);
           } else {
             acc.push({
-              period: quarter,
+              period: q.index,
               standardHours: Number(mh.scheduledHours),
               actualHours: Number(mh.workedHours),
             });
@@ -727,7 +736,11 @@ export class WorkloadService {
 
   async exportWorkloads(filter: WorkloadFilterDto, format: 'xlsx' | 'csv' | 'pdf' = 'xlsx'): Promise<Buffer> {
     // Получаем данные без пагинации
-    const { page, limit, ...filters } = filter;
+    const filters = {
+      search: filter.search,
+      academicYear: filter.academicYear,
+      teacherId: filter.teacherId,
+    };
 
     const where: any = {};
 
@@ -995,22 +1008,24 @@ export class WorkloadService {
     });
   }
 
-  // Генерация квартальных данных из месячных
+  // Генерация квартальных данных из месячных (академические четверти)
   private generateQuarterlyFromMonthly(monthlyHours: any[]): any[] {
-    const quarterlyData = new Map<number, { standardHours: number; actualHours: number; year: number }>();
+    const quarterlyData = new Map<number, { standardHours: number; actualHours: number; academicYearStartYear: number }>();
 
     monthlyHours.forEach(mh => {
-      const quarter = Math.ceil(mh.month / 3);
-      const existing = quarterlyData.get(quarter);
-
+      const date = new Date(mh.year, mh.month - 1, 15);
+      const { quarters, academicYearStartYear } = getAcademicQuarterRanges(date);
+      const q = quarters.find(q => date >= q.start && date <= q.end);
+      if (!q) return; // месяц вне четверти
+      const existing = quarterlyData.get(q.index);
       if (existing) {
         existing.standardHours += mh.standardHours;
         existing.actualHours += mh.actualHours;
       } else {
-        quarterlyData.set(quarter, {
+        quarterlyData.set(q.index, {
           standardHours: mh.standardHours,
           actualHours: mh.actualHours,
-          year: mh.year,
+          academicYearStartYear,
         });
       }
     });
@@ -1018,7 +1033,7 @@ export class WorkloadService {
     return Array.from(quarterlyData.entries()).map(([quarter, data]) => ({
       id: quarter,
       quarter,
-      year: data.year,
+      year: data.academicYearStartYear,
       standardHours: data.standardHours,
       actualHours: data.actualHours,
       createdAt: new Date().toISOString(),
@@ -1119,7 +1134,7 @@ export class WorkloadService {
     }
   }
 
-  async getRealTimeStats(filter: WorkloadFilterDto) {
+  async getRealTimeStats() {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
 
@@ -1250,5 +1265,13 @@ export class WorkloadService {
       },
       additionalActivities: true,
     };
+  }
+
+  // Хелпер: получить индекс академической четверти и стартовый год учебного года
+  private getAcademicQuarterInfo(date: Date): { index: number; academicYearStartYear: number } {
+    const { quarters, academicYearStartYear } = getAcademicQuarterRanges(date);
+    const q = quarters.find(q => date >= q.start && date <= q.end);
+    if (!q) return { index: -1, academicYearStartYear };
+    return { index: q.index, academicYearStartYear };
   }
 }

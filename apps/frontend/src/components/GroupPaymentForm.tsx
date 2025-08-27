@@ -55,7 +55,7 @@ const RECURRENCE_OPTIONS = [
   { value: PaymentRecurrence.ONCE, label: 'Однократно' },
   { value: PaymentRecurrence.WEEKLY, label: 'Еженедельно' },
   { value: PaymentRecurrence.MONTHLY, label: 'Ежемесячно' },
-  { value: PaymentRecurrence.QUARTERLY, label: 'Ежеквартально' },
+  { value: PaymentRecurrence.QUARTERLY, label: 'По акад. четверти' },
   { value: PaymentRecurrence.YEARLY, label: 'Ежегодно' }
 ];
 

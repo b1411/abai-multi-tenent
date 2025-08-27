@@ -102,6 +102,21 @@ function getCommonPassword(): string {
     return COMMON_PASSWORD;
 }
 
+function capitalizeFioPart(str: string): string {
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .split(/([\s-]+)/)
+        .map(part => {
+            const first = part.charAt(0);
+            if (/[a-zа-яё]/i.test(first)) {
+                return first.toUpperCase() + part.slice(1);
+            }
+            return part;
+        })
+        .join('');
+}
+
 function normalizeStudent(s: StudentJson): NormalizedStudent | null {
     if (!s.Email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.Email)) {
         console.warn(`Пропуск записи: некорректный email '${s.Email}'`);
@@ -119,9 +134,9 @@ function normalizeStudent(s: StudentJson): NormalizedStudent | null {
 
     return {
         email: s.Email.trim().toLowerCase(),
-        surname: (s['Фамилия'] || '').trim() || 'Unknown',
-        name: (s['Имя'] || '').trim() || 'Unknown',
-        middlename: (s['Отчество'] || '').trim() || null,
+        surname: capitalizeFioPart((s['Фамилия'] || '').trim()) || 'Unknown',
+        name: capitalizeFioPart((s['Имя'] || '').trim()) || 'Unknown',
+        middlename: capitalizeFioPart((s['Отчество'] || '').trim()) || null,
         phone: normalizePhone(s['Телефон']),
         birthDate: normalizeDate(s['ДатаРождения']),
         rawGroupNumber: groupNumberRaw,
@@ -139,9 +154,9 @@ function normalizeTeacher(t: TeacherJson): NormalizedTeacher | null {
     }
     return {
         email: t.Email.trim().toLowerCase(),
-        surname: (t['Фамилия'] || '').trim() || 'Unknown',
-        name: (t['Имя'] || '').trim() || 'Unknown',
-        middlename: (t['Отчество'] || '').trim() || null,
+        surname: capitalizeFioPart((t['Фамилия'] || '').trim()) || 'Unknown',
+        name: capitalizeFioPart((t['Имя'] || '').trim()) || 'Unknown',
+        middlename: capitalizeFioPart((t['Отчество'] || '').trim()) || null,
         phone: normalizePhone(t['Телефон']),
         birthDate: normalizeDate(t['ДатаРождения']),
         password: (t['Пароль'] || '').trim() || 'Teacher123!'

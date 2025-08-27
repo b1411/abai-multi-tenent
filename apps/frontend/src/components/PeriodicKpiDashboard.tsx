@@ -5,6 +5,7 @@ import { CalendarIcon, TrophyIcon, SchoolIcon, BookOpenIcon, UsersIcon, Briefcas
 import { Badge } from './ui/Badge';
 import { Select } from './ui/Select';
 import { kpiService } from '../services/kpiService';
+import { getAcademicQuarterForDate } from '../utils/academicQuarter';
 
 interface PeriodicKpiScore {
   teacherId: number;
@@ -98,14 +99,20 @@ const PeriodicKpiDashboard: React.FC = () => {
 
   const getPeriodDates = (period: string) => {
     const now = new Date();
-    const start = new Date();
-    
+
+    if (period === 'quarter') {
+      const { start, end } = getAcademicQuarterForDate(now);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    const start = new Date(now);
+
     switch (period) {
       case 'month':
         start.setMonth(now.getMonth() - 1);
-        break;
-      case 'quarter':
-        start.setMonth(now.getMonth() - 3);
         break;
       case 'semester':
         start.setMonth(now.getMonth() - 6);
@@ -420,7 +427,7 @@ const PeriodicKpiDashboard: React.FC = () => {
             className="w-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="month">Месяц</option>
-            <option value="quarter">Квартал</option>
+            <option value="quarter">Акад. четверть</option>
             <option value="semester">Семестр</option>
             <option value="year">Год</option>
           </select>

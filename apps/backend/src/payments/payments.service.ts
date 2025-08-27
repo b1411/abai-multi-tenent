@@ -8,6 +8,7 @@ import { PaymentFilterDto } from './dto/payment-filter.dto';
 import { GenerateInvoiceDto, GenerateSummaryInvoiceDto } from './dto/invoice-generation.dto';
 import { InvoiceGeneratorService } from './invoice-generator.service';
 import { Payment as PaymentDto } from './dto/payment.dto';
+import { getCurrentAcademicQuarterRange, getAcademicYearStartYear, getNextAcademicQuarterStart } from '../common/academic-period.util';
 
 @Injectable()
 export class PaymentsService {
@@ -701,9 +702,15 @@ export class PaymentsService {
         case PaymentRecurrence.MONTHLY:
           nextDate.setMonth(startDate.getMonth() + i);
           break;
-        case PaymentRecurrence.QUARTERLY:
-          nextDate.setMonth(startDate.getMonth() + (i * 3));
+        case PaymentRecurrence.QUARTERLY: {
+          // Академические четверти
+          let iterDate = new Date(startDate);
+          for (let step = 0; step < i; step++) {
+            iterDate = getNextAcademicQuarterStart(iterDate);
+          }
+          nextDate.setTime(iterDate.getTime());
           break;
+        }
         case PaymentRecurrence.YEARLY:
           nextDate.setFullYear(startDate.getFullYear() + i);
           break;
@@ -734,12 +741,13 @@ export class PaymentsService {
     return labels[recurrence] || 'Однократно';
   }
 
-  // Формируем период бюджета в формате "YYYY QN"
+  // Формируем период бюджета теперь по академическим четвертям (год = год начала учебного года)
   private getBudgetPeriod(date: Date): string {
     const d = new Date(date);
-    const year = d.getFullYear();
-    const quarter = Math.floor(d.getMonth() / 3) + 1;
-    return `${year} Q${quarter}`;
+    const aq = getCurrentAcademicQuarterRange(d);
+    const ay = getAcademicYearStartYear(d);
+    // Формат оставляем "YYYY QN", где YYYY = год сентября учебного года
+    return `${ay} Q${aq.index}`;
   }
 
   // Создание/обновление бюджетной статьи для планового и фактического дохода

@@ -202,7 +202,7 @@ const FinancistDashboard: React.FC = () => {
             <div className="flex items-center p-3 bg-blue-50 rounded-lg">
               <Calendar className="h-5 w-5 text-blue-600 mr-3" />
               <div>
-                <p className="font-medium text-gray-900">Отчет за квартал</p>
+                <p className="font-medium text-gray-900">Отчет за акад. четверть</p>
                 <p className="text-sm text-gray-600">Требует подготовки</p>
               </div>
             </div>

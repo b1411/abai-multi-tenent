@@ -213,8 +213,8 @@ export class WorkloadController {
   @Get('real-time-stats')
   @ApiOperation({ summary: 'Get real-time workload statistics' })
   @ApiResponse({ status: 200, description: 'Real-time statistics retrieved successfully' })
-  getRealTimeStats(@Query() filter: WorkloadFilterDto) {
-    return this.workloadService.getRealTimeStats(filter);
+  getRealTimeStats() {
+    return this.workloadService.getRealTimeStats();
   }
 
   // Эндпоинты для WorkloadV2

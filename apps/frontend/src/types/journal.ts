@@ -3,7 +3,7 @@ export interface LessonResult {
   studentId: number;
   lessonId: number;
   lessonScore?: number;
-  lessonScoreComment?: string;
+  lessonScorecomment?: string;
   homeworkScore?: number;
   homeworkScoreComment?: string;
   attendance?: boolean;
@@ -97,7 +97,7 @@ export interface GroupJournal {
       studentId: number;
       lessonId: number;
       lessonScore?: number;
-      lessonScoreComment?: string;
+      lessonScorecomment?: string;
       homeworkScore?: number;
       homeworkScoreComment?: string;
       attendance?: boolean;

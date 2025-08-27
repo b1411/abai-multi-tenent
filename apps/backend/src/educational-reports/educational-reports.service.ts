@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { getAcademicQuarterRanges, getCurrentAcademicQuarterRange } from '../common/academic-period.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { 
   EducationalReportFiltersDto, 
@@ -527,6 +528,16 @@ export class EducationalReportsService {
 
     const now = new Date();
     const currentYear = now.getFullYear();
+
+    // Централизованные границы учебных четвертей
+    const { quarters } = getAcademicQuarterRanges(now);
+    const q1Start = quarters[0].start; const q1End = quarters[0].end;
+    const q2Start = quarters[1].start; const q2End = quarters[1].end;
+    const q3Start = quarters[2].start; const q3End = quarters[2].end;
+    const q4Start = quarters[3].start; const q4End = quarters[3].end;
+
+    // Доп. каникулы для 1-х классов: 09.02–15.02 (можно добавить логику при необходимости)
+
     let start: Date;
     let end: Date;
 
@@ -546,29 +557,27 @@ export class EducationalReportsService {
       
       // ============ ШКОЛЬНЫЕ ЧЕТВЕРТИ ============
       case ReportPeriod.SCHOOL_QUARTER_1: {
-        // 1-я четверть: 1 сентября - 31 октября
-        start = new Date(currentYear, 8, 1);  // сентябрь
-        end = new Date(currentYear, 9, 31, 23, 59, 59);  // октябрь
+        // 1-я учебная четверть: 02.09 – 26.10 (утверждено)
+        start = q1Start;
+        end = q1End;
         break;
       }
       case ReportPeriod.SCHOOL_QUARTER_2: {
-        // 2-я четверть: 1 ноября - 31 декабря  
-        start = new Date(currentYear, 10, 1);  // ноябрь
-        end = new Date(currentYear, 11, 31, 23, 59, 59);  // декабрь
+        // 2-я учебная четверть: 03.11 – 28.12
+        start = q2Start;
+        end = q2End;
         break;
       }
       case ReportPeriod.SCHOOL_QUARTER_3: {
-        // 3-я четверть: 9 января - 31 марта (следующего года)
-        const schoolYear = now.getMonth() >= 8 ? currentYear : currentYear - 1;
-        start = new Date(schoolYear + 1, 0, 9);  // январь следующего года
-        end = new Date(schoolYear + 1, 2, 31, 23, 59, 59);  // март следующего года
+        // 3-я учебная четверть: 08.01 – 18.03
+        start = q3Start;
+        end = q3End;
         break;
       }
       case ReportPeriod.SCHOOL_QUARTER_4: {
-        // 4-я четверть: 1 апреля - 31 мая
-        const schoolYear = now.getMonth() >= 8 ? currentYear : currentYear - 1;
-        start = new Date(schoolYear + 1, 3, 1);  // апрель
-        end = new Date(schoolYear + 1, 4, 31, 23, 59, 59);  // май
+        // 4-я учебная четверть: 30.03 – 25.05
+        start = q4Start;
+        end = q4End;
         break;
       }
 
@@ -633,10 +642,10 @@ export class EducationalReportsService {
 
       // ============ LEGACY ПОДДЕРЖКА ============
       case ReportPeriod.QUARTER: {
-        // Старая логика четверти (календарный квартал)
-        const quarter = Math.floor(now.getMonth() / 3);
-        start = new Date(currentYear, quarter * 3, 1);
-        end = new Date(currentYear, quarter * 3 + 3, 0, 23, 59, 59);
+        // Переведено на учебную четверть (академическая)
+        const currentQ = getCurrentAcademicQuarterRange(now);
+        start = currentQ.start;
+        end = currentQ.end;
         break;
       }
       case ReportPeriod.SEMESTER: {
@@ -654,29 +663,9 @@ export class EducationalReportsService {
       }
 
       default: {
-        // По умолчанию - текущая школьная четверть
-        const month = now.getMonth();
-        if (month >= 8 && month <= 9) {
-          // 1-я четверть
-          start = new Date(currentYear, 8, 1);
-          end = new Date(currentYear, 9, 31, 23, 59, 59);
-        } else if (month >= 10 && month <= 11) {
-          // 2-я четверть
-          start = new Date(currentYear, 10, 1);
-          end = new Date(currentYear, 11, 31, 23, 59, 59);
-        } else if (month >= 0 && month <= 2) {
-          // 3-я четверть
-          start = new Date(currentYear, 0, 9);
-          end = new Date(currentYear, 2, 31, 23, 59, 59);
-        } else if (month >= 3 && month <= 4) {
-          // 4-я четверть
-          start = new Date(currentYear, 3, 1);
-          end = new Date(currentYear, 4, 31, 23, 59, 59);
-        } else {
-          // Летние каникулы - берем 4-ю четверть
-          start = new Date(currentYear, 3, 1);
-          end = new Date(currentYear, 4, 31, 23, 59, 59);
-        }
+        const currentQ = getCurrentAcademicQuarterRange(now);
+        start = currentQ.start;
+        end = currentQ.end;
       }
     }
 

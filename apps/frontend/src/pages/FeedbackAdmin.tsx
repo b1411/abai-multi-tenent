@@ -638,7 +638,7 @@ const CreateTemplateModal: React.FC<{
               >
                 <option value="WEEKLY">Еженедельно</option>
                 <option value="MONTHLY">Ежемесячно</option>
-                <option value="QUARTERLY">Ежеквартально</option>
+                <option value="QUARTERLY">По акад. четверти</option>
                 <option value="SEMESTER">Каждый семестр</option>
                 <option value="YEARLY">Ежегодно</option>
               </select>
@@ -866,7 +866,7 @@ const EditTemplateModal: React.FC<{
               >
                 <option value="WEEKLY">Еженедельно</option>
                 <option value="MONTHLY">Ежемесячно</option>
-                <option value="QUARTERLY">Ежеквартально</option>
+                <option value="QUARTERLY">По акад. четверти</option>
                 <option value="SEMESTER">Каждый семестр</option>
                 <option value="YEARLY">Ежегодно</option>
               </select>

@@ -14,6 +14,7 @@ import {
 import { financeService } from '../services/financeService';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
+import { getAcademicQuarterForDate } from '../utils/academicQuarter';
 
 const Budget: React.FC = () => {
   const { user } = useAuth();
@@ -21,15 +22,16 @@ const Budget: React.FC = () => {
   const [analytics, setAnalytics] = useState<BudgetAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const defaultQuarterInfo = getAcademicQuarterForDate(new Date());
   const [filters, setFilters] = useState<BudgetFilters>({
-    period: '2024 Q4',
+    period: `${defaultQuarterInfo.academicYearStartYear} Q${defaultQuarterInfo.index}`,
     type: '',
     category: '',
     status: '',
     responsible: ''
   });
-  const [selectedYear, setSelectedYear] = useState('2024');
-  const [selectedQuarter, setSelectedQuarter] = useState('Q4');
+  const [selectedYear, setSelectedYear] = useState(defaultQuarterInfo.academicYearStartYear.toString());
+  const [selectedQuarter, setSelectedQuarter] = useState(`Q${defaultQuarterInfo.index}`);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
 
@@ -194,18 +196,18 @@ const Budget: React.FC = () => {
 
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Квартал
+              Акад. четверть
             </label>
             <select
               value={selectedQuarter}
               onChange={(e) => setSelectedQuarter(e.target.value)}
               className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">Все кварталы</option>
-              <option value="Q1">Q1 (янв-мар)</option>
-              <option value="Q2">Q2 (апр-июн)</option>
-              <option value="Q3">Q3 (июл-сен)</option>
-              <option value="Q4">Q4 (окт-дек)</option>
+              <option value="">Все четверти</option>
+              <option value="Q1">Q1 (02.09–26.10)</option>
+              <option value="Q2">Q2 (03.11–28.12)</option>
+              <option value="Q3">Q3 (08.01–18.03)</option>
+              <option value="Q4">Q4 (30.03–25.05)</option>
             </select>
           </div>
 
@@ -563,6 +565,7 @@ interface BudgetItemModalProps {
 }
 
 const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose }) => {
+  const modalQuarterInfo = getAcademicQuarterForDate(new Date());
   const [formData, setFormData] = useState<CreateBudgetItemDto>({
     name: item?.name || '',
     type: item?.type || 'INCOME',
@@ -570,7 +573,7 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
     plannedAmount: item?.plannedAmount || 0,
     actualAmount: item?.actualAmount || 0,
     currency: item?.currency || 'KZT',
-    period: item?.period || '2024 Q4',
+    period: item?.period || `${modalQuarterInfo.academicYearStartYear} Q${modalQuarterInfo.index}`,
     responsible: item?.responsible || '',
     status: item?.status || 'ACTIVE',
     description: item?.description || ''
@@ -579,16 +582,16 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
   // Извлекаем год и квартал из периода для отдельных селекторов
   const [formYear, setFormYear] = useState(() => {
     if (item?.period) {
-      return item.period.split(' ')[0] || '2024';
+      return item.period.split(' ')[0] || modalQuarterInfo.academicYearStartYear.toString();
     }
-    return '2024';
+    return modalQuarterInfo.academicYearStartYear.toString();
   });
 
   const [formQuarter, setFormQuarter] = useState(() => {
     if (item?.period) {
-      return item.period.split(' ')[1] || 'Q4';
+      return item.period.split(' ')[1] || `Q${modalQuarterInfo.index}`;
     }
-    return 'Q4';
+    return `Q${modalQuarterInfo.index}`;
   });
 
   // Обновляем период в formData при изменении года или квартала
@@ -703,17 +706,17 @@ const BudgetItemModal: React.FC<BudgetItemModalProps> = ({ item, onSave, onClose
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Квартал
+                  Акад. четверть
                 </label>
                 <select
                   value={formQuarter}
                   onChange={(e) => setFormQuarter(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="Q1">Q1 (янв-мар)</option>
-                  <option value="Q2">Q2 (апр-июн)</option>
-                  <option value="Q3">Q3 (июл-сен)</option>
-                  <option value="Q4">Q4 (окт-дек)</option>
+                  <option value="Q1">Q1 (02.09–26.10)</option>
+                  <option value="Q2">Q2 (03.11–28.12)</option>
+                  <option value="Q3">Q3 (08.01–18.03)</option>
+                  <option value="Q4">Q4 (30.03–25.05)</option>
                 </select>
               </div>
             </div>

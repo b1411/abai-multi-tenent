@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaDownload, FaEdit, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaDownload, FaEdit, FaTimes, FaPlus, FaTrash } from 'react-icons/fa';
 import { useStudyPlans, useAvailableData } from '../hooks/useStudyPlans';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate } from '../utils';
@@ -538,16 +538,38 @@ const StudyPlansPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col animate-fadeIn">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-800">Календарно-тематическое планирование</h2>
-              <button
-                onClick={() => {
-                  setShowKtpModal(false);
-                  setSelectedPlan(null);
-                  setKtpData(null);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors button-hover"
-              >
-                <FaTimes className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-2">
+                {ktpData && (hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user.id === user?.id)) && (
+                  <button
+                    onClick={async () => {
+                      if (!ktpData) return;
+                      if (!confirm('Удалить КТП?')) return;
+                      try {
+                        await ktpService.deleteKtp(ktpData.id);
+                        setKtpData(null);
+                      } catch (e) {
+                        console.error('Error deleting KTP:', e);
+                        alert('Ошибка при удалении КТП');
+                      }
+                    }}
+                    className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm flex items-center gap-2"
+                    title="Удалить КТП"
+                  >
+                    <FaTrash className="w-4 h-4" />
+                    Удалить
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowKtpModal(false);
+                    setSelectedPlan(null);
+                    setKtpData(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors button-hover"
+                >
+                  <FaTimes className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
             <div className="flex-1 p-6 overflow-auto">
               {ktpLoading ? (

@@ -47,7 +47,7 @@ const GradeModal: React.FC<GradeModalProps> = ({
     onSave
 }) => {
     const [lessonScore, setLessonScore] = useState(initialResult?.lessonScore || '');
-    const [lessonScoreComment, setLessonScoreComment] = useState(initialResult?.lessonScoreComment || '');
+    const [lessonScoreComment, setLessonScoreComment] = useState(initialResult?.lessonScorecomment || '');
     const [homeworkScore, setHomeworkScore] = useState(initialResult?.homeworkScore || '');
     const [homeworkScoreComment, setHomeworkScoreComment] = useState(initialResult?.homeworkScoreComment || '');
     const [attendance, setAttendance] = useState<boolean | undefined>(initialResult?.attendance);
@@ -290,8 +290,8 @@ const GradeInfoModal: React.FC<GradeInfoModalProps> = ({
                                             {journalService.getGradeText(result.lessonScore)}
                                         </span>
                                     </div>
-                                    {result.lessonScoreComment && (
-                                        <p className="text-xs sm:text-sm text-gray-600 mt-2 break-words">{result.lessonScoreComment}</p>
+                                    {result.lessonScorecomment && (
+                                        <p className="text-xs sm:text-sm text-gray-600 mt-2 break-words">{result.lessonScorecomment}</p>
                                     )}
                                 </div>
                             )}
@@ -696,17 +696,26 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
 
         const averageGrade = grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
 
+        const titleLines: string[] = [];
+        if (result.lessonScore) titleLines.push(`Урок: ${result.lessonScore}`);
+        if (result.homeworkScore) titleLines.push(`ДЗ: ${result.homeworkScore}`);
+        titleLines.push(`Средний: ${averageGrade.toFixed(1)}`);
+        if (result.lessonScorecomment) titleLines.push(`Комментарий: ${result.lessonScorecomment}`);
+        const title = titleLines.join('\n');
+
         return (
             <button
                 onClick={() => handleGradeClick(studentId, lessonId)}
-                className={`w-12 h-12 rounded-full text-white font-medium hover:opacity-90 transition-opacity ${journalService.getGradeColor(averageGrade)}`}
-                title={`
-          ${result.lessonScore ? `Урок: ${result.lessonScore}` : ''}
-          ${result.homeworkScore ? `ДЗ: ${result.homeworkScore}` : ''}
-          Средний: ${averageGrade.toFixed(1)}
-        `.trim()}
+                className={`relative w-12 h-12 rounded-full text-white font-medium hover:opacity-90 transition-opacity ${journalService.getGradeColor(averageGrade)}`}
+                title={title}
             >
                 {averageGrade.toFixed(1)}
+                {result.lessonScorecomment && (
+                    <span
+                        className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500"
+                        title="Есть комментарий к оценке"
+                    />
+                )}
             </button>
         );
     };

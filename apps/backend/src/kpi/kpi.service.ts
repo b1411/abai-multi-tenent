@@ -4,6 +4,7 @@ import { FeedbackAggregationService } from './feedback-aggregation.service';
 import { KpiFilterDto } from './dto/kpi-filter.dto';
 import * as ExcelJS from 'exceljs';
 import * as PDFDocument from 'pdfkit';
+import { getAcademicQuarterByIndex, getNextAcademicQuarterStart } from '../common/academic-period.util';
 import {
   KpiOverviewResponseDto,
   TeacherKpiResponseDto,
@@ -1300,15 +1301,8 @@ export class KpiService {
         nextUpdate.setHours(4, 0, 0, 0);
         break;
       case 'quarterly': {
-        const currentQuarter = Math.floor(nextUpdate.getMonth() / 3);
-        const nextQuarterMonth = (currentQuarter + 1) * 3;
-        if (nextQuarterMonth >= 12) {
-          nextUpdate.setFullYear(nextUpdate.getFullYear() + 1);
-          nextUpdate.setMonth(0);
-        } else {
-          nextUpdate.setMonth(nextQuarterMonth);
-        }
-        nextUpdate.setDate(1);
+        const nextStart = getNextAcademicQuarterStart(now);
+        nextUpdate.setTime(nextStart.getTime());
         nextUpdate.setHours(5, 0, 0, 0);
         break;
       }
@@ -3114,9 +3108,8 @@ export class KpiService {
         return { start, end };
       }
       if (filter.quarter) {
-        const start = new Date(filter.year, (filter.quarter - 1) * 3, 1);
-        const end = new Date(filter.year, filter.quarter * 3, 0);
-        return { start, end };
+        const aq = getAcademicQuarterByIndex(filter.quarter as 1 | 2 | 3 | 4, filter.year);
+        return { start: aq.start, end: aq.end };
       }
       return {
         start: new Date(filter.year, 0, 1),

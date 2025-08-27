@@ -450,7 +450,7 @@ const KpiSettingsModal: React.FC<KpiSettingsModalProps> = ({
                       <option value="daily">Ежедневно</option>
                       <option value="weekly">Еженедельно</option>
                       <option value="monthly">Ежемесячно</option>
-                      <option value="quarterly">Ежеквартально</option>
+                      <option value="quarterly">По акад. четверти</option>
                     </select>
                   </div>
                 </div>

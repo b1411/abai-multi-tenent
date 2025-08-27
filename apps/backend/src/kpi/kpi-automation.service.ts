@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KpiService } from './kpi.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { getAcademicQuarterRanges, getNextAcademicQuarterStart } from '../common/academic-period.util';
 
 @Injectable()
 export class KpiAutomationService {
@@ -79,13 +80,16 @@ export class KpiAutomationService {
                 // Запускаем 1 числа каждого месяца в 4:00
                 return dayOfMonth === 1 && hour === 4;
 
-            case 'quarterly':
-                // Запускаем в первый день квартала в 5:00
-                {
-                    const month = now.getMonth() + 1; // 1-12
-                    const isFirstDayOfQuarter = dayOfMonth === 1 && (month === 1 || month === 4 || month === 7 || month === 10);
-                    return isFirstDayOfQuarter && hour === 5;
-                }
+            case 'quarterly': {
+                // Академические четверти: проверяем даты старта учебных четвертей
+                const { quarters } = getAcademicQuarterRanges(now);
+                const isQuarterStart = quarters.some(q =>
+                    now.getFullYear() === q.start.getFullYear() &&
+                    now.getMonth() === q.start.getMonth() &&
+                    now.getDate() === q.start.getDate()
+                );
+                return isQuarterStart && hour === 5;
+            }
 
             default:
                 return false;
@@ -124,7 +128,7 @@ export class KpiAutomationService {
                     const overallScore = this.kpiService['calculateOverallScore'](metrics, settings.settings);
 
                     // Сохраняем результаты (в реальном приложении - в таблицу KpiSnapshot)
-                    await this.saveKpiSnapshot(teacher.id, {
+                    this.saveKpiSnapshot(teacher.id, {
                         teachingQuality: metrics.teachingQuality,
                         studentSatisfaction: metrics.studentSatisfaction,
                         classAttendance: metrics.classAttendance,
@@ -153,7 +157,7 @@ export class KpiAutomationService {
             this.logger.log(`Автоматическое обновление KPI завершено: успешно ${successCount}, ошибок ${errorCount}, время ${processingTime}ms`);
 
             // Сохраняем статистику обновления
-            await this.saveUpdateStatistics({
+            this.saveUpdateStatistics({
                 totalTeachers: teachers.length,
                 successfulUpdates: successCount,
                 failedUpdates: errorCount,
@@ -169,7 +173,7 @@ export class KpiAutomationService {
     /**
      * Сохраняет снимок KPI
      */
-    private async saveKpiSnapshot(teacherId: number, metrics: any) {
+    private saveKpiSnapshot(teacherId: number, metrics: any) {
         // В реальном приложении здесь должно быть сохранение в таблицу KpiSnapshot
         this.logger.debug(`Сохранение KPI для преподавателя ${teacherId}: общий балл ${metrics.overallScore}`);
 
@@ -219,7 +223,7 @@ export class KpiAutomationService {
     /**
      * Сохраняет статистику обновления
      */
-    private async saveUpdateStatistics(stats: any) {
+    private saveUpdateStatistics(stats: any) {
         // В реальном приложении здесь должно быть сохранение в таблицу статистики
         this.logger.log('Статистика обновления KPI:', stats);
 
@@ -249,7 +253,7 @@ export class KpiAutomationService {
             const result = await this.kpiService.manualKpiRecalculation();
 
             // Сохраняем статистику ручного обновления
-            await this.saveUpdateStatistics({
+            this.saveUpdateStatistics({
                 ...result.statistics,
                 updateType: 'manual',
                 triggeredBy,
@@ -303,15 +307,8 @@ export class KpiAutomationService {
                 next.setHours(4, 0, 0, 0);
                 break;
             case 'quarterly': {
-                const currentQuarter = Math.floor(next.getMonth() / 3);
-                const nextQuarterMonth = (currentQuarter + 1) * 3;
-                if (nextQuarterMonth >= 12) {
-                    next.setFullYear(next.getFullYear() + 1);
-                    next.setMonth(0);
-                } else {
-                    next.setMonth(nextQuarterMonth);
-                }
-                next.setDate(1);
+                const nextStart = getNextAcademicQuarterStart(now);
+                next.setTime(nextStart.getTime());
                 next.setHours(5, 0, 0, 0);
                 break;
             }

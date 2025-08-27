@@ -496,42 +496,69 @@ export class KtpService {
       throw new NotFoundException(`Учебный план с ID ${studyPlanId} не найден`);
     }
 
-    // Проверяем, нет ли уже КТП для этого учебного плана
+    // Проверяем существующее КТП (включая soft-deleted)
     const existingKtp = await this.prisma.curriculumPlan.findUnique({
       where: { studyPlanId }
     });
 
-    if (existingKtp) {
+    // Генерируем структуру
+    const sections = this.generateSectionsFromLessons(studyPlan.lessons, studyPlan.name);
+    const totalLessons = studyPlan.lessons.length;
+
+    // Если есть активное (не удалено) — блокируем
+    if (existingKtp && !existingKtp.deletedAt) {
       throw new Error(`КТП для учебного плана ${studyPlanId} уже существует`);
     }
 
-    // Улучшенная логика группировки уроков в разделы
-    const sections = this.generateSectionsFromLessons(studyPlan.lessons, studyPlan.name);
-
-    const totalLessons = studyPlan.lessons.length;
-    const ktp = await this.prisma.curriculumPlan.create({
-      data: {
-        studyPlanId,
-        totalLessons,
-        plannedLessons: sections as any,
-        actualLessons: [],
-        completionRate: 0
-      },
-      include: {
-        studyPlan: {
-          include: {
-            teacher: {
-              include: {
-                user: true
+    let ktp;
+    if (existingKtp && existingKtp.deletedAt) {
+      // Переиспользуем soft-deleted запись (уникальный studyPlanId не позволяет создать новую)
+      ktp = await this.prisma.curriculumPlan.update({
+        where: { id: existingKtp.id },
+        data: {
+          deletedAt: null,
+          totalLessons,
+            // Полностью перезаписываем план
+          plannedLessons: sections as any,
+          actualLessons: [],
+          completionRate: 0
+        },
+        include: {
+          studyPlan: {
+            include: {
+              teacher: {
+                include: { user: true }
               }
             }
           }
         }
-      }
-    });
+      });
+    } else {
+      // Создаем новое
+      ktp = await this.prisma.curriculumPlan.create({
+        data: {
+          studyPlanId,
+          totalLessons,
+          plannedLessons: sections as any,
+          actualLessons: [],
+          completionRate: 0
+        },
+        include: {
+          studyPlan: {
+            include: {
+              teacher: {
+                include: { user: true }
+              }
+            }
+          }
+        }
+      });
+    }
 
     return {
-      message: 'КТП успешно сгенерирован на основе учебного плана',
+      message: existingKtp && existingKtp.deletedAt
+        ? 'КТП восстановлен и перегенерирован на основе учебного плана'
+        : 'КТП успешно сгенерирован на основе учебного плана',
       ktp: this.transformKtpData(ktp)
     };
   }

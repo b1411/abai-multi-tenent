@@ -710,7 +710,7 @@ const KtpTreeView: React.FC<KtpTreeViewProps> = ({ ktpId, ktpData: initialKtpDat
               )}
             </div>
 
-            {canEdit && (
+            {canEdit && !ktpData?.id && (
               <button
                 onClick={handleGenerateFromStudyPlan}
                 className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"

@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { KpiService } from './kpi.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { getAcademicQuarterRanges, getCurrentAcademicQuarterRange, getAcademicYearStartYear } from '../common/academic-period.util';
 
 @Injectable()
 export class KpiSchedulerService {
@@ -10,9 +11,9 @@ export class KpiSchedulerService {
 
   constructor(
     private readonly kpiService: KpiService,
-  private readonly prisma: PrismaService,
-  private readonly notificationsService: NotificationsService,
-  ) {}
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) { }
 
   /**
    * Ежедневное обновление KPI в 2:00 утра
@@ -20,10 +21,10 @@ export class KpiSchedulerService {
   @Cron('0 2 * * *')
   async handleDailyKpiUpdate() {
     this.logger.log('Начинаем ежедневное обновление KPI...');
-    
+
     try {
       const settings = await this.kpiService.getSettings();
-      
+
       if (settings.settings.calculationPeriod === 'daily') {
         await this.updateAllTeachersKpi();
         this.logger.log('Ежедневное обновление KPI завершено успешно');
@@ -39,10 +40,10 @@ export class KpiSchedulerService {
   @Cron('0 3 * * 1')
   async handleWeeklyKpiUpdate() {
     this.logger.log('Начинаем еженедельное обновление KPI...');
-    
+
     try {
       const settings = await this.kpiService.getSettings();
-      
+
       if (settings.settings.calculationPeriod === 'weekly') {
         await this.updateAllTeachersKpi();
         this.logger.log('Еженедельное обновление KPI завершено успешно');
@@ -58,13 +59,13 @@ export class KpiSchedulerService {
   @Cron('0 4 1 * *')
   async handleMonthlyKpiUpdate() {
     this.logger.log('Начинаем ежемесячное обновление KPI...');
-    
+
     try {
       const settings = await this.kpiService.getSettings();
-      
+
       if (settings.settings.calculationPeriod === 'monthly') {
         await this.updateAllTeachersKpi();
-        await this.createMonthlySnapshot();
+        this.createMonthlySnapshot();
         this.logger.log('Ежемесячное обновление KPI завершено успешно');
       }
     } catch (error) {
@@ -73,22 +74,31 @@ export class KpiSchedulerService {
   }
 
   /**
-   * Ежеквартальное обновление KPI в первый день квартала в 5:00 утра
+   * Ежеквартальное (учебные четверти) обновление KPI: проверка ЕЖЕДНЕВНО в 5:00 на старт учебной четверти
    */
-  @Cron('0 5 1 */3 *')
+  @Cron('0 5 * * *')
   async handleQuarterlyKpiUpdate() {
-    this.logger.log('Начинаем ежеквартальное обновление KPI...');
-    
+    this.logger.log('Проверка необходимости ежеквартального (учебного) обновления KPI...');
+
     try {
       const settings = await this.kpiService.getSettings();
-      
       if (settings.settings.calculationPeriod === 'quarterly') {
-        await this.updateAllTeachersKpi();
-        await this.createQuarterlySnapshot();
-        this.logger.log('Ежеквартальное обновление KPI завершено успешно');
+        const today = new Date();
+        const { quarters } = getAcademicQuarterRanges(today);
+        const isQuarterStart = quarters.some(q =>
+          today.getFullYear() === q.start.getFullYear() &&
+          today.getMonth() === q.start.getMonth() &&
+          today.getDate() === q.start.getDate()
+        );
+        if (isQuarterStart) {
+          this.logger.log('Начинаем ежеквартальное (учебное) обновление KPI (старт учебной четверти)');
+          await this.updateAllTeachersKpi();
+          this.createQuarterlySnapshot();
+          this.logger.log('Ежеквартальное (учебное) обновление KPI завершено успешно');
+        }
       }
     } catch (error) {
-      this.logger.error('Ошибка при ежеквартальном обновлении KPI:', error);
+      this.logger.error('Ошибка при ежеквартальном (учебном) обновлении KPI:', error);
     }
   }
 
@@ -120,7 +130,7 @@ export class KpiSchedulerService {
         const overallScore = this.kpiService['calculateOverallScore'](metrics, settings.settings);
 
         // Сохраняем в таблицу KPI снимков
-        await this.saveKpiSnapshot(teacher.id, {
+        this.saveKpiSnapshot(teacher.id, {
           teachingQuality: metrics.teachingQuality,
           studentSatisfaction: metrics.studentSatisfaction,
           classAttendance: metrics.classAttendance,
@@ -144,7 +154,7 @@ export class KpiSchedulerService {
   /**
    * Сохраняет снимок KPI в базу данных
    */
-  private async saveKpiSnapshot(teacherId: number, metrics: any) {
+  private saveKpiSnapshot(teacherId: number, metrics: any) {
     // В реальном приложении здесь должна быть таблица для хранения исторических данных KPI
     // Пока логируем для демонстрации
     this.logger.debug(`Сохранение KPI для преподавателя ${teacherId}:`, {
@@ -206,7 +216,7 @@ export class KpiSchedulerService {
   /**
    * Создает месячный снимок для отчетности
    */
-  private async createMonthlySnapshot() {
+  private createMonthlySnapshot() {
     const currentDate = new Date();
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth(); // Предыдущий месяц
@@ -220,12 +230,12 @@ export class KpiSchedulerService {
   /**
    * Создает квартальный снимок для отчетности
    */
-  private async createQuarterlySnapshot() {
+  private createQuarterlySnapshot() {
     const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const quarter = Math.floor(currentDate.getMonth() / 3);
+    const aq = getCurrentAcademicQuarterRange(currentDate);
+    const ay = getAcademicYearStartYear(currentDate);
 
-    this.logger.log(`Создание квартального снимка KPI за Q${quarter}/${year}`);
+    this.logger.log(`Создание квартального (учебного) снимка KPI за AQ${aq.index} (учебный год ${ay})`);
 
     // Здесь можно создать агрегированные данные за квартал
   }
@@ -235,7 +245,7 @@ export class KpiSchedulerService {
    */
   async manualKpiUpdate() {
     this.logger.log('Запущен ручной пересчет KPI...');
-    
+
     try {
       await this.updateAllTeachersKpi();
       this.logger.log('Ручной пересчет KPI завершен успешно');

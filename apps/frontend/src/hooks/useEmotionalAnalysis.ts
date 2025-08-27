@@ -88,7 +88,7 @@ export function useEmotionalAnalysis() {
   const periodOptions: Array<{ label: string; value: 'week' | 'month' | 'quarter' | 'year' }> = [
     { label: 'Неделя', value: 'week' },
     { label: 'Месяц', value: 'month' },
-    { label: 'Квартал', value: 'quarter' },
+    { label: 'Акад. четверть', value: 'quarter' },
   ];
 
   /**

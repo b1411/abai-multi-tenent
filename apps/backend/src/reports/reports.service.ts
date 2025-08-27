@@ -976,107 +976,306 @@ export class ReportsService {
   }
 
   private async generateCashflowReport(startDate: Date, endDate: Date): Promise<CashflowData[]> {
-    const budgetItems = await this.prisma.budgetItem.findMany({
+    // 1. Доходы: берем ТОЛЬКО из платежей (во избежание двойного учета с бюджетными INCOME)
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        OR: [
+          { paymentDate: { gte: startDate, lte: endDate } },
+          {
+            AND: [
+              { paymentDate: null },
+              { createdAt: { gte: startDate, lte: endDate } }
+            ]
+          }
+        ],
+        deletedAt: null,
+        status: { in: ['paid', 'partial'] }
+      },
+    });
+
+    // 2. Расходы: берем из бюджетных статей типа EXPENSE (actual если есть, иначе planned)
+    const expenseItems = await this.prisma.budgetItem.findMany({
       where: {
         createdAt: { gte: startDate, lte: endDate },
         deletedAt: null,
+        type: 'EXPENSE'
       },
     });
 
-    const payments = await this.prisma.payment.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-      },
-    });
-
-    const monthlyData: { [key: string]: CashflowData } = {};
+    const monthlyData: Record<string, CashflowData> = {};
     let cumulativeFlow = 0;
 
-    budgetItems.forEach(item => {
+    // Инициализация helper
+    const ensureMonth = (month: string) => {
+      if (!monthlyData[month]) {
+        monthlyData[month] = {
+          period: month,
+          income: 0,
+          expense: 0,
+          netFlow: 0,
+          cumulativeFlow: 0
+        };
+      }
+    };
+
+    // Доходы из платежей
+    for (const p of payments) {
+      const baseDate = p.paymentDate ?? p.createdAt;
+      const month = baseDate.toISOString().substring(0, 7);
+      ensureMonth(month);
+      if (p.status === 'paid') {
+        monthlyData[month].income += (p.paidAmount ?? p.amount ?? 0);
+      } else if (p.status === 'partial') {
+        monthlyData[month].income += (p.paidAmount ?? 0);
+      }
+    }
+
+    // Расходы из бюджетных статей (actualAmount может быть 0 как валидное значение)
+    for (const item of expenseItems) {
       const month = item.createdAt.toISOString().substring(0, 7);
-      if (!monthlyData[month]) {
-        monthlyData[month] = {
-          period: month,
-          income: 0,
-          expense: 0,
-          netFlow: 0,
-          cumulativeFlow: 0,
-        };
-      }
+      ensureMonth(month);
+      const amount = (item.actualAmount !== null && item.actualAmount !== undefined)
+        ? item.actualAmount
+        : item.plannedAmount;
+      monthlyData[month].expense += amount;
+    }
 
-      const amount = item.actualAmount || item.plannedAmount;
-      if (item.type === 'INCOME') {
-        monthlyData[month].income += amount;
-      } else {
-        monthlyData[month].expense += amount;
-      }
-    });
-
-    payments.forEach(payment => {
-      const month = payment.createdAt.toISOString().substring(0, 7);
-      if (!monthlyData[month]) {
-        monthlyData[month] = {
-          period: month,
-          income: 0,
-          expense: 0,
-          netFlow: 0,
-          cumulativeFlow: 0,
-        };
-      }
-      monthlyData[month].income += payment.amount;
-    });
-
+    // Подсчет итогов и накопительного потока
     return Object.values(monthlyData)
       .sort((a, b) => a.period.localeCompare(b.period))
-      .map(data => {
-        data.netFlow = data.income - data.expense;
-        cumulativeFlow += data.netFlow;
-        data.cumulativeFlow = cumulativeFlow;
-        return data;
+      .map(row => {
+        row.netFlow = row.income - row.expense;
+        cumulativeFlow += row.netFlow;
+        row.cumulativeFlow = cumulativeFlow;
+        return row;
       });
   }
 
   private async generatePerformanceReport(startDate: Date, endDate: Date): Promise<PerformanceMetrics> {
-    const currentPeriodPayments = await this.prisma.payment.findMany({
-      where: { createdAt: { gte: startDate, lte: endDate } },
+    // Платежи текущего периода
+    const currentPayments = await this.prisma.payment.findMany({
+      where: {
+        OR: [
+          { paymentDate: { gte: startDate, lte: endDate } },
+          {
+            AND: [
+              { paymentDate: null },
+              { createdAt: { gte: startDate, lte: endDate } }
+            ]
+          }
+        ],
+        deletedAt: null
+      },
     });
 
+    // Платежи прошлого года (аналогичный диапазон)
     const prevStartDate = new Date(startDate);
     prevStartDate.setFullYear(prevStartDate.getFullYear() - 1);
     const prevEndDate = new Date(endDate);
     prevEndDate.setFullYear(prevEndDate.getFullYear() - 1);
 
-    const previousPeriodPayments = await this.prisma.payment.findMany({
-      where: { createdAt: { gte: prevStartDate, lte: prevEndDate } },
+    const previousPayments = await this.prisma.payment.findMany({
+      where: {
+        OR: [
+          { paymentDate: { gte: prevStartDate, lte: prevEndDate } },
+            {
+              AND: [
+                { paymentDate: null },
+                { createdAt: { gte: prevStartDate, lte: prevEndDate } }
+              ]
+            }
+        ],
+        deletedAt: null
+      },
     });
 
-    const currentRevenue = currentPeriodPayments.reduce((sum, p) => sum + p.amount, 0);
-    const previousRevenue = previousPeriodPayments.reduce((sum, p) => sum + p.amount, 0);
+    const paidExtractor = (p: any) => {
+      if (p.status === 'paid') return p.paidAmount ?? p.amount ?? 0;
+      if (p.status === 'partial') return p.paidAmount ?? 0;
+      return 0;
+    };
+
+    const currentRevenue = currentPayments
+      .filter(p => ['paid','partial'].includes(p.status))
+      .reduce((s, p) => s + paidExtractor(p), 0);
+    const previousRevenue = previousPayments
+      .filter(p => ['paid','partial'].includes(p.status))
+      .reduce((s, p) => s + paidExtractor(p), 0);
+    const totalDue = currentPayments.reduce((s, p) => s + (p.amount ?? 0), 0);
+
+    // Бюджетные статьи (для контроля расходов и точности бюджета)
+    const budgetItems = await this.prisma.budgetItem.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        deletedAt: null
+      }
+    });
+
+    const plannedExpense = budgetItems
+      .filter(i => i.type === 'EXPENSE')
+      .reduce((s, i) => s + i.plannedAmount, 0);
+    const actualExpense = budgetItems
+      .filter(i => i.type === 'EXPENSE')
+      .reduce((s, i) => s + (i.actualAmount !== null && i.actualAmount !== undefined ? i.actualAmount : i.plannedAmount), 0);
+
+    const plannedTotal = budgetItems.reduce((s, i) => s + i.plannedAmount, 0);
+    const actualTotal = budgetItems.reduce((s, i) => s + (i.actualAmount !== null && i.actualAmount !== undefined ? i.actualAmount : i.plannedAmount), 0);
 
     const revenueGrowth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+    const collectionRate = totalDue > 0 ? (currentRevenue / totalDue) * 100 : 0;
+
+    // expenseControl: чем ближе actual к planned или ниже - тем выше (если перерасход, штраф)
+    const expenseControl = plannedExpense > 0
+      ? Math.max(0, (1 - Math.max(0, (actualExpense - plannedExpense)) / plannedExpense)) * 100
+      : 0;
+
+    // budgetAccuracy: симметричная точность (штраф и за перерасход и за недоиспользование)
+    const budgetAccuracy = plannedTotal > 0
+      ? (1 - Math.abs(actualTotal - plannedTotal) / plannedTotal) * 100
+      : 0;
+
+    // Текущая ликвидность (упрощенно): отношение накопленного положительного денежного потока к расходам
+    const cashflowRows = await this.generateCashflowReport(startDate, endDate);
+    const lastCumulative = cashflowRows.length ? cashflowRows[cashflowRows.length - 1].cumulativeFlow : 0;
+    const liquidityRatio = actualExpense > 0 ? lastCumulative / actualExpense : 0;
+
+    const profitMargin = currentRevenue > 0
+      ? ((currentRevenue - actualExpense) / currentRevenue) * 100
+      : 0;
 
     return {
       revenueGrowth,
-      expenseControl: 85,
-      budgetAccuracy: 92,
-      collectionRate: 95,
-      liquidityRatio: 1.2,
-      profitMargin: 15,
+      expenseControl,
+      budgetAccuracy,
+      collectionRate,
+      liquidityRatio,
+      profitMargin
     };
   }
 
-  private generateForecastReport(_startDate: Date, _endDate: Date): Promise<ForecastData[]> {
-    void _startDate;
-    void _endDate;
-    // Простая реализация прогноза
-    return Promise.resolve([]);
+  private async generateForecastReport(startDate: Date, endDate: Date): Promise<ForecastData[]> {
+    // Берем исторический период (6 месяцев до startDate) для средней
+    const historyStart = new Date(startDate);
+    historyStart.setMonth(historyStart.getMonth() - 6);
+
+    const historicalPayments = await this.prisma.payment.findMany({
+      where: {
+        OR: [
+          { paymentDate: { gte: historyStart, lte: startDate } },
+          {
+            AND: [
+              { paymentDate: null },
+              { createdAt: { gte: historyStart, lte: startDate } }
+            ]
+          }
+        ],
+        deletedAt: null,
+        status: { in: ['paid','partial'] }
+      }
+    });
+
+    const paidExtractor = (p: any) => {
+      if (p.status === 'paid') return p.paidAmount ?? p.amount ?? 0;
+      if (p.status === 'partial') return p.paidAmount ?? 0;
+      return 0;
+    };
+
+    const byMonth: Record<string, { income: number }> = {};
+    for (const p of historicalPayments) {
+      const baseDate = p.paymentDate ?? p.createdAt;
+      const k = baseDate.toISOString().substring(0, 7);
+      if (!byMonth[k]) byMonth[k] = { income: 0 };
+      byMonth[k].income += paidExtractor(p);
+    }
+
+    const incomes = Object.values(byMonth).map(v => v.income);
+    const avgIncome = incomes.length ? incomes.reduce((a,b)=>a+b,0) / incomes.length : 0;
+
+    // Средний расход за тот же период (по бюджетным EXPENSE)
+    const historicalExpenses = await this.prisma.budgetItem.findMany({
+      where: {
+        createdAt: { gte: historyStart, lte: startDate },
+        deletedAt: null,
+        type: 'EXPENSE'
+      }
+    });
+    const avgExpense = historicalExpenses.length
+      ? historicalExpenses.reduce((s,i)=> s + (i.actualAmount !== null && i.actualAmount !== undefined ? i.actualAmount : i.plannedAmount),0) / 6
+      : 0;
+
+    // Генерация помесячно до endDate
+    const forecast: ForecastData[] = [];
+    const cursor = new Date(startDate);
+    while (cursor <= endDate) {
+      const periodKey = cursor.toISOString().substring(0,7);
+      const monthIndex = forecast.length;
+
+      // Простые сценарии
+      const projectedIncome = avgIncome * (1 + 0.01 * monthIndex); // легкий рост 1% в месяц
+      const projectedExpense = avgExpense * (1 + 0.005 * monthIndex);
+
+      const balance = projectedIncome - projectedExpense;
+      const optimistic = balance * 1.15;
+      const pessimistic = balance * 0.85;
+      const realistic = balance;
+
+      forecast.push({
+        period: periodKey,
+        projected: {
+          income: Math.round(projectedIncome),
+          expense: Math.round(projectedExpense),
+          balance: Math.round(balance)
+        },
+        confidence: 0.6,
+        scenarios: {
+          optimistic: Math.round(optimistic),
+          realistic: Math.round(realistic),
+          pessimistic: Math.round(pessimistic)
+        }
+      });
+
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return forecast;
   }
 
-  private generateVarianceReport(_startDate: Date, _endDate: Date): Promise<VarianceAnalysis[]> {
-    void _startDate;
-    void _endDate;
-    // Простая реализация анализа отклонений
-    return Promise.resolve([]);
+  private async generateVarianceReport(startDate: Date, endDate: Date): Promise<VarianceAnalysis[]> {
+    const items = await this.prisma.budgetItem.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        deletedAt: null
+      }
+    });
+
+    // Агрегируем по category + type
+    const agg: Record<string, { planned: number; actual: number }> = {};
+    for (const i of items) {
+      const key = `${i.type}:${i.category}`;
+      if (!agg[key]) agg[key] = { planned: 0, actual: 0 };
+      agg[key].planned += i.plannedAmount;
+      agg[key].actual += (i.actualAmount !== null && i.actualAmount !== undefined) ? i.actualAmount : i.plannedAmount;
+    }
+
+    const result: VarianceAnalysis[] = Object.entries(agg).map(([key, v]) => {
+      const [type, category] = key.split(':');
+      const variance = v.actual - v.planned;
+      const variancePercent = v.planned !== 0 ? (variance / v.planned) * 100 : 0;
+      let status: VarianceAnalysis['status'] = 'neutral';
+      if (variancePercent > 5) status = 'unfavorable';
+      else if (variancePercent < -5) status = 'favorable';
+
+      return {
+        category: `${type}_${category}`,
+        planned: v.planned,
+        actual: v.actual,
+        variance,
+        variancePercent,
+        status
+      };
+    });
+
+    return result.sort((a,b)=> Math.abs(b.variancePercent) - Math.abs(a.variancePercent));
   }
 
   private generateBudgetAnalysisReport(_startDate: Date, _endDate: Date): Promise<any> {
@@ -1085,30 +1284,182 @@ export class ReportsService {
     return Promise.resolve({});
   }
 
-  private generateIncomeStatementReport(startDate: Date, endDate: Date): Promise<IncomeStatementData> {
-    return Promise.resolve({
-      period: this.formatPeriod(startDate, endDate),
-      revenue: { tuition: 0, grants: 0, donations: 0, other: 0, total: 0 },
-      expenses: { salaries: 0, infrastructure: 0, utilities: 0, materials: 0, equipment: 0, other: 0, total: 0 },
-      netIncome: 0,
+  private async generateIncomeStatementReport(startDate: Date, endDate: Date): Promise<IncomeStatementData> {
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        OR: [
+          { paymentDate: { gte: startDate, lte: endDate } },
+          {
+            AND: [
+              { paymentDate: null },
+              { createdAt: { gte: startDate, lte: endDate } }
+            ]
+          }
+        ],
+        deletedAt: null,
+        status: { in: ['paid','partial'] }
+      }
     });
+
+    const paidExtractor = (p: any) => {
+      if (p.status === 'paid') return p.paidAmount ?? p.amount ?? 0;
+      if (p.status === 'partial') return p.paidAmount ?? 0;
+      return 0;
+    };
+
+    let tuition = 0, other = 0;
+    for (const p of payments) {
+      const val = paidExtractor(p);
+      if (p.serviceType === 'tuition') tuition += val;
+      else other += val;
+    }
+
+    // Бюджетные расходы по категориям
+    const expenseItems = await this.prisma.budgetItem.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        deletedAt: null,
+        type: 'EXPENSE'
+      }
+    });
+
+    const expenseBuckets = {
+      salaries: 0,
+      infrastructure: 0,
+      utilities: 0,
+      materials: 0,
+      equipment: 0,
+      other: 0
+    };
+
+    for (const e of expenseItems) {
+      const amount = (e.actualAmount !== null && e.actualAmount !== undefined) ? e.actualAmount : e.plannedAmount;
+      const cat = e.category.toLowerCase();
+      if (cat.includes('зарп') || cat.includes('salary') || cat.includes('staff')) expenseBuckets.salaries += amount;
+      else if (cat.includes('инфра') || cat.includes('infra') || cat.includes('аренда') || cat.includes('rent')) expenseBuckets.infrastructure += amount;
+      else if (cat.includes('коммун') || cat.includes('util') || cat.includes('свет') || cat.includes('элект')) expenseBuckets.utilities += amount;
+      else if (cat.includes('матер') || cat.includes('material') || cat.includes('канцел')) expenseBuckets.materials += amount;
+      else if (cat.includes('оборуд') || cat.includes('equip')) expenseBuckets.equipment += amount;
+      else expenseBuckets.other += amount;
+    }
+
+    const revenueTotal = tuition + other; // grants/donations отсутствуют в данных
+    const expensesTotal = Object.values(expenseBuckets).reduce((a,b)=>a+b,0);
+    const netIncome = revenueTotal - expensesTotal;
+
+    return {
+      period: this.formatPeriod(startDate, endDate),
+      revenue: {
+        tuition,
+        grants: 0,
+        donations: 0,
+        other,
+        total: revenueTotal
+      },
+      expenses: {
+        salaries: expenseBuckets.salaries,
+        infrastructure: expenseBuckets.infrastructure,
+        utilities: expenseBuckets.utilities,
+        materials: expenseBuckets.materials,
+        equipment: expenseBuckets.equipment,
+        other: expenseBuckets.other,
+        total: expensesTotal
+      },
+      netIncome
+    };
   }
 
-  private generateBalanceSheetReport(startDate: Date, endDate: Date): Promise<BalanceSheetData> {
-    return Promise.resolve({
+  private async generateBalanceSheetReport(startDate: Date, endDate: Date): Promise<BalanceSheetData> {
+    // Используем кэш-флоу для оценки денежных средств
+    const cashflow = await this.generateCashflowReport(startDate, endDate);
+    const cash = cashflow.length ? cashflow[cashflow.length - 1].cumulativeFlow : 0;
+
+    // Дебиторка: сумма неоплаченных (unpaid, overdue) платежей в периоде (по dueDate)
+    const receivablesPayments = await this.prisma.payment.findMany({
+      where: {
+        dueDate: { gte: startDate, lte: endDate },
+        deletedAt: null,
+        status: { in: ['unpaid','overdue'] }
+      }
+    });
+    const receivables = receivablesPayments.reduce((s,p)=> s + (p.amount ?? 0),0);
+
+    // Простейшие фиксированные активы (можно расширить позже) — агрегируем по budgetItem категориям
+    const fixedItems = await this.prisma.budgetItem.findMany({
+      where: {
+        createdAt: { lte: endDate },
+        deletedAt: null,
+        type: 'EXPENSE'
+      }
+    });
+
+    let equipment = 0;
+    let buildings = 0;
+    let otherFixed = 0;
+    for (const it of fixedItems) {
+      const amt = (it.actualAmount !== null && it.actualAmount !== undefined) ? it.actualAmount : it.plannedAmount;
+      const cat = it.category.toLowerCase();
+      if (cat.includes('оборуд') || cat.includes('equip')) equipment += amt;
+      else if (cat.includes('здание') || cat.includes('building') || cat.includes('аренда')) buildings += amt;
+      else otherFixed += 0; // не капитализируем прочие пока
+    }
+
+    const currentAssetsTotal = cash + receivables + 0; // inventory = 0
+    const fixedAssetsTotal = equipment + buildings + otherFixed;
+    const assetsTotal = currentAssetsTotal + fixedAssetsTotal;
+
+    // Пассивы (нет явных обязательств, ставим 0 пока)
+    const currentLiabilities = 0;
+    const shortTermDebt = 0;
+    const otherCurrent = 0;
+    const longLoans = 0;
+    const otherLong = 0;
+    const currentLiabilitiesTotal = currentLiabilities + shortTermDebt + otherCurrent;
+    const longTermLiabilitiesTotal = longLoans + otherLong;
+    const liabilitiesTotal = currentLiabilitiesTotal + longTermLiabilitiesTotal;
+
+    // Капитал = Активы - Обязательства
+    const retainedEarnings = assetsTotal - liabilitiesTotal;
+    const capital = 0;
+    const equityTotal = capital + retainedEarnings;
+
+    return {
       period: this.formatPeriod(startDate, endDate),
       assets: {
-        current: { cash: 0, receivables: 0, inventory: 0, total: 0 },
-        fixed: { equipment: 0, buildings: 0, other: 0, total: 0 },
-        total: 0,
+        current: {
+          cash,
+          receivables,
+          inventory: 0,
+          total: currentAssetsTotal
+        },
+        fixed: {
+          equipment,
+          buildings,
+          other: otherFixed,
+          total: fixedAssetsTotal
+        },
+        total: assetsTotal
       },
       liabilities: {
-        current: { payables: 0, shortTermDebt: 0, other: 0, total: 0 },
-        longTerm: { loans: 0, other: 0, total: 0 },
-        total: 0,
+        current: {
+          payables: currentLiabilities,
+          shortTermDebt,
+          other: otherCurrent,
+          total: currentLiabilitiesTotal
+        },
+        longTerm: {
+          loans: longLoans,
+          other: otherLong,
+          total: longTermLiabilitiesTotal
+        },
+        total: liabilitiesTotal
       },
-      equity: { capital: 0, retainedEarnings: 0, total: 0 },
-    });
+      equity: {
+        capital,
+        retainedEarnings,
+        total: equityTotal
+      }
+    };
   }
 
   private async generateWorkloadAnalysisReport(startDate: Date, endDate: Date): Promise<WorkloadAnalysisData> {

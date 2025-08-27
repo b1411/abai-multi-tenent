@@ -88,6 +88,7 @@ const Reports: React.FC = () => {
   const yearStartISO = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
   const [reportStartDate, setReportStartDate] = useState<string>(yearStartISO);
   const [reportEndDate, setReportEndDate] = useState<string>(todayISO);
+  const [generateType, setGenerateType] = useState<keyof typeof reportTypeLabels>('PERFORMANCE');
 
   // Загрузка данных
   useEffect(() => {
@@ -535,35 +536,47 @@ const Reports: React.FC = () => {
           </button>
         </div>
         <div className="flex flex-col space-y-2 sm:flex-row sm:items-end sm:space-x-3 sm:space-y-0">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-2 space-y-2 sm:space-y-0">
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Начало</label>
-              <input
-                type="date"
-                value={reportStartDate}
-                onChange={(e) => setReportStartDate(e.target.value)}
-                className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-full"
-                max={reportEndDate}
-              />
+            <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-2 space-y-2 sm:space-y-0">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Начало</label>
+                <input
+                  type="date"
+                  value={reportStartDate}
+                  onChange={(e) => setReportStartDate(e.target.value)}
+                  className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-full"
+                  max={reportEndDate}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Конец</label>
+                <input
+                  type="date"
+                  value={reportEndDate}
+                  onChange={(e) => setReportEndDate(e.target.value)}
+                  className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-full"
+                  min={reportStartDate}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Тип отчета</label>
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-full"
+                  value={generateType}
+                  onChange={(e) => setGenerateType(e.target.value as keyof typeof reportTypeLabels)}
+                >
+                  {Object.entries(reportTypeLabels).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Конец</label>
-              <input
-                type="date"
-                value={reportEndDate}
-                onChange={(e) => setReportEndDate(e.target.value)}
-                className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-full"
-                min={reportStartDate}
-              />
-            </div>
-          </div>
           <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0">
             <button
               className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center transition-colors ${
                 invalidRange ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
               disabled={invalidRange}
-              onClick={() => handleGenerateReport('PERFORMANCE')}
+              onClick={() => handleGenerateReport(generateType)}
             >
               <BarChart3 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Сгенерировать отчет</span>

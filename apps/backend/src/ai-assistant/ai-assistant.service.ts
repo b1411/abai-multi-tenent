@@ -163,7 +163,7 @@ export class AiAssistantService {
     const ktpImportJsonSchema = {
       type: 'object',
       additionalProperties: false,
-      required: ['courseName', 'sections'],
+      required: ['courseName', 'description', 'sections'],
       properties: {
         courseName: { type: 'string', minLength: 1 },
         description: { type: 'string' },
@@ -172,7 +172,7 @@ export class AiAssistantService {
           items: {
             type: 'object',
             additionalProperties: false,
-            required: ['title', 'lessons'],
+            required: ['title', 'description', 'lessons'],
             properties: {
               title: { type: 'string', minLength: 1 },
               description: { type: 'string' },
@@ -181,7 +181,7 @@ export class AiAssistantService {
                 items: {
                   type: 'object',
                   additionalProperties: false,
-                  required: ['title'],
+                  required: ['title', 'description', 'duration', 'week', 'date', 'objectives', 'methods', 'homework', 'materials'],
                   properties: {
                     title: { type: 'string', minLength: 1 },
                     description: { type: 'string' },

@@ -222,9 +222,35 @@ export class AiAssistantService {
       s.lessons.forEach((l, idx) => {
         if (!l.duration || l.duration <= 0) l.duration = 2;
         if (!l.week || l.week <= 0) l.week = Math.floor(idx / 2) + 1;
-        // Валидация даты (если модель напутала формат — убираем)
-        if (l.date && !/^\d{4}-\d{2}-\d{2}$/.test(l.date)) {
-          l.date = undefined;
+        // Нормализация даты: всегда используем текущий год.
+        // Поддерживаем: ISO ("YYYY-MM-DD") и частичные форматы "DD-MM" / "DD.MM" / "DD/MM".
+        // Если формат не распознан — очищаем поле.
+        if (l.date) {
+          const isoMatch = String(l.date).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          const currentYear = new Date().getFullYear();
+          if (isoMatch) {
+            // Заменяем год на текущий, сохраняем месяц и день
+            const mm = isoMatch[2];
+            const dd = isoMatch[3];
+            l.date = `${currentYear}-${mm}-${dd}`;
+          } else {
+            const m = String(l.date).trim().match(new RegExp('(\\d{1,2})[./-](\\d{1,2})'));
+            if (m) {
+              let d = parseInt(m[1], 10);
+              let mo = parseInt(m[2], 10);
+              // эвристика: если вторая часть > 12 и первая <= 12 — возможно порядок месяц-день, поменяем
+              if (mo > 12 && d <= 12) { const tmp = d; d = mo; mo = tmp; }
+              if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12) {
+                const dd = String(d).padStart(2, '0');
+                const mm = String(mo).padStart(2, '0');
+                l.date = `${currentYear}-${mm}-${dd}`;
+              } else {
+                l.date = undefined;
+              }
+            } else {
+              l.date = undefined;
+            }
+          }
         }
       });
     });

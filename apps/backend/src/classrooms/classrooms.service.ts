@@ -309,7 +309,7 @@ export class ClassroomsService {
       createdBy: userId,
     }).catch(err => {
       // Логируем, но не прерываем создание бронирования
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to send booking notification', err);
     });
 

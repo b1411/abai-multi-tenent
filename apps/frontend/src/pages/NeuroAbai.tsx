@@ -1,6 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { neuroAbaiService } from '../services/neuroAbaiService';
+import AISuggestionModal from '../components/AISuggestionModal';
 import { Paperclip, Send, X, FileText, Bot, User, ChevronDown } from 'lucide-react';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,58 +17,54 @@ interface FileUploadAreaProps {
   disabled: boolean;
 }
 
-// Message loading animation component
 function MessageLoading() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="text-gray-600">
-      <circle cx="4" cy="12" r="2" fill="currentColor">
-        <animate id="spinner_qFRN" begin="0;spinner_OcgL.end+0.25s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+    <svg width="28" height="18" viewBox="0 0 40 12" xmlns="http://www.w3.org/2000/svg" className="text-gray-500">
+      <circle cx="6" cy="6" r="4" fill="currentColor">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="1s" repeatCount="indefinite" />
       </circle>
-      <circle cx="12" cy="12" r="2" fill="currentColor">
-        <animate begin="spinner_qFRN.begin+0.1s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+      <circle cx="20" cy="6" r="4" fill="currentColor" className="opacity-60">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="1s" begin="0.2s" repeatCount="indefinite" />
       </circle>
-      <circle cx="20" cy="12" r="2" fill="currentColor">
-        <animate id="spinner_OcgL" begin="spinner_qFRN.begin+0.2s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33" />
+      <circle cx="34" cy="6" r="4" fill="currentColor" className="opacity-40">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="1s" begin="0.4s" repeatCount="indefinite" />
       </circle>
     </svg>
   );
 }
 
-function ChatBubble({ variant = "received", children }: { variant?: 'sent' | 'received'; children: React.ReactNode }) {
+function ChatBubble({ variant = 'received', children }: { variant?: 'sent' | 'received'; children: React.ReactNode }) {
   return (
-    <div className={`flex items-start gap-3 mb-4 ${variant === "sent" ? "flex-row-reverse" : ""}`}>
+    <div className={`flex items-start gap-3 mb-3 ${variant === 'sent' ? 'flex-row-reverse' : ''}`}>
       {children}
     </div>
   );
 }
 
-function ChatBubbleAvatar({ variant = "received" }: { variant?: 'sent' | 'received' }) {
+function ChatAvatar({ variant = 'received' }: { variant?: 'sent' | 'received' }) {
   return (
-    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-      variant === "sent" ? "bg-blue-500 text-white" : "bg-gray-200 text-blue-500"
+    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+      variant === 'sent' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-blue-600'
     }`}>
-      {variant === "sent" ? <User size={16} /> : <Bot size={16} />}
+      {variant === 'sent' ? <User size={16} /> : <Bot size={16} />}
     </div>
   );
 }
 
-function ChatBubbleMessage({ 
-  variant = "received", 
-  isLoading, 
-  children 
-}: { 
-  variant?: 'sent' | 'received'; 
-  isLoading?: boolean; 
-  children?: React.ReactNode;
-}) {
+function ChatMessage({ variant = 'received', isLoading, children, html }:
+  { variant?: 'sent' | 'received'; isLoading?: boolean; children?: React.ReactNode; html?: string | null }) {
+  const bubbleClasses = variant === 'sent' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-900';
+  const htmlClasses = variant === 'sent'
+    ? 'whitespace-pre-wrap break-words prose prose-invert text-white'
+    : 'whitespace-pre-wrap break-words prose text-gray-900';
+
   return (
-    <div className={`rounded-lg p-2 sm:p-3 max-w-[85%] sm:max-w-[80%] text-sm sm:text-base ${
-      variant === "sent" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-900"
-    }`}>
+    <div className={`rounded-lg p-3 text-sm max-w-[78%] ${bubbleClasses}`}>
       {isLoading ? (
-        <div className="flex items-center space-x-2">
-          <MessageLoading />
-        </div>
+        <MessageLoading />
+      ) : html ? (
+        // render sanitized HTML inside same bubble wrapper; use prose-invert for dark bubble
+        <div className={htmlClasses} dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
         <div className="whitespace-pre-wrap break-words">{children}</div>
       )}
@@ -77,88 +76,45 @@ function FileUploadArea({ files, onFileChange, onRemoveFile, disabled }: FileUpl
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
+  const handleDrag = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
     if (disabled) return;
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer.files && e.dataTransfer.files.length) {
       const fakeEvent = { target: { files: e.dataTransfer.files } } as unknown as React.ChangeEvent<HTMLInputElement>;
       onFileChange(fakeEvent);
     }
-  }, [onFileChange, disabled]);
-
-  const handleClick = () => {
-    if (!disabled && fileInputRef.current) fileInputRef.current.click();
-  };
+  }, [disabled, onFileChange]);
 
   return (
-    <div className="mt-2 sm:mt-4">
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        onChange={onFileChange}
-        disabled={disabled}
-        className="hidden"
-      />
+    <div>
+      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFileChange} disabled={disabled} />
       <div
-        onClick={handleClick}
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-1 sm:gap-2 rounded-lg border-2 border-dashed p-3 sm:p-4 transition-colors ${
-          isDragging 
-            ? "border-blue-500/50 bg-blue-500/5" 
-            : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        onClick={() => !disabled && fileInputRef.current?.click()}
+        onDragOver={handleDrag} onDragEnter={() => setIsDragging(true)} onDragLeave={() => setIsDragging(false)} onDrop={handleDrop}
+        className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-dashed border-gray-200 bg-white'}`}
       >
-        <div className="rounded-full bg-white p-1.5 sm:p-2 shadow-sm">
-          <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-        </div>
-        <div className="text-center">
-          <p className="text-xs sm:text-sm font-medium">Нажмите для выбора файлов</p>
-          <p className="text-xs text-gray-400 hidden sm:block">или перетащите файлы сюда</p>
+        <div className="rounded-md bg-white p-2 shadow-sm"><Paperclip className="text-gray-500" /></div>
+        <div className="text-xs">
+          <div className="font-medium">Загрузить файл</div>
+          <div className="text-gray-400">или перетащите сюда</div>
         </div>
       </div>
+
       {files.length > 0 && (
-        <div className="mt-2 sm:mt-3 space-y-1 sm:space-y-2">
-          <p className="text-xs sm:text-sm font-medium">Выбранные файлы:</p>
-          <div className="space-y-1 sm:space-y-2">
-            {files.map((file, index) => (
-              <div key={index} className="flex items-center justify-between rounded-md bg-gray-100 p-2 text-xs sm:text-sm">
-                <div className="flex items-center gap-2 truncate min-w-0">
-                  <FileText size={14} className="sm:w-4 sm:h-4 shrink-0 text-gray-400" />
-                  <span className="truncate">{file.name}</span>
-                </div>
-                <button
-                  onClick={() => onRemoveFile(index)}
-                  className="ml-2 rounded-full p-1 hover:bg-white shrink-0"
-                  disabled={disabled}
-                >
-                  <X size={12} className="sm:w-3.5 sm:h-3.5" />
-                </button>
+        <div className="mt-2 space-y-2">
+          {files.map((f, i) => (
+            <div key={i} className="flex items-center justify-between rounded px-3 py-2 bg-gray-50">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText size={14} className="text-gray-400" />
+                <span className="truncate text-sm">{f.name}</span>
               </div>
-            ))}
-          </div>
+              <button onClick={() => onRemoveFile(i)} disabled={disabled} className="p-1 rounded hover:bg-gray-100">
+                <X size={14} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -179,146 +135,396 @@ export default function NeuroAbai() {
   const [scenario, setScenario] = useState(SCENARIOS[0].value);
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<any>(null);
+  const [applying, setApplying] = useState(false);
+  const [curriculumPlanId, setCurriculumPlanId] = useState<string>('');
+  const [actionsMap, setActionsMap] = useState<Record<number, any[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const openModal = (s: any) => { setSelectedSuggestion(s); setModalOpen(true); };
+  const closeModal = () => { setModalOpen(false); setSelectedSuggestion(null); };
+
+  const handleCreateSuggestion = async () => {
+    if (!curriculumPlanId) { alert('Укажите curriculumPlanId'); return; }
+    try {
+      setLoading(true);
+      const created = await neuroAbaiService.createSuggestion({ curriculumPlanId: Number(curriculumPlanId), message: input, files });
+      const full = await neuroAbaiService.getSuggestion(created.id);
+      openModal(full);
+      setFiles([]); setInput('');
+    } catch (e) {
+      console.error(e); alert('Ошибка создания предложения');
+    } finally { setLoading(false); }
+  };
+
+  const handleApplySuggestion = async () => {
+    if (!selectedSuggestion) return;
+    try {
+      setApplying(true);
+      await neuroAbaiService.applySuggestion(selectedSuggestion.id);
+      const refreshed = await neuroAbaiService.getSuggestion(selectedSuggestion.id);
+      setSelectedSuggestion(refreshed);
+    } catch (e) {
+      console.error(e); alert('Ошибка при применении');
+    } finally {
+      setApplying(false);
+    }
   };
 
   const handleSend = async () => {
     if (!input && files.length === 0) return;
+    const text = input || 'Файл отправлен без сообщения';
+    const filesToSend = files;
 
-    const userMessage = input || 'Файл отправлен без сообщения';
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    // prepare conversation history to send to backend (includes prior messages + this user message)
+    const convo: Message[] = [
+      ...messages,
+      { role: 'user', content: text }
+    ];
+
+    // optimistically add user message to UI
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
     setLoading(true);
     setInput('');
-    setTimeout(scrollToBottom, 100);
 
     try {
-      const response = await neuroAbaiService.sendMessage({
-        message: input,
-        scenario,
-        files
+      // send full conversation + files
+      const res = await neuroAbaiService.sendMessage({ messages: convo, scenario, files: filesToSend });
+
+      // append assistant message and capture its index
+      setMessages(prev => {
+        const newMessages = [...prev, ({ role: 'assistant', content: res || 'Нет ответа' } as Message)];
+        const idx = newMessages.length - 1;
+
+        // asynchronously request structured action proposals using the same convo and files
+        (async () => {
+          try {
+            const ga = await neuroAbaiService.generateActions({ messages: convo, context: { scenario }, files: filesToSend });
+            if (ga?.actions && Array.isArray(ga.actions) && ga.actions.length > 0) {
+              setActionsMap(prevMap => ({ ...prevMap, [idx]: ga.actions }));
+            } else if (ga?.raw) {
+              const parsed = parseActionsFromContent(ga.raw);
+              if (parsed.length > 0) setActionsMap(prevMap => ({ ...prevMap, [idx]: parsed }));
+            }
+          } catch (err) {
+            console.warn('generateActions failed', err);
+          }
+        })();
+
+        return newMessages;
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: response || 'Нет ответа' }]);
+
       setFiles([]);
-      setTimeout(scrollToBottom, 100);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Ошибка при отправке запроса.' }]);
-      setTimeout(scrollToBottom, 100);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    } catch (e) {
+      console.error(e);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Ошибка при отправке' }]);
     } finally {
       setLoading(false);
     }
   };
 
+  // parse structured action proposals from assistant message content
+  const parseActionsFromContent = (content: string) => {
+    try {
+      const jsonBlock = content.match(/```json([\s\S]*?)```/);
+      const payload = jsonBlock ? jsonBlock[1] : null;
+      const raw = payload ? payload : (content.match(/(\{[\s\S]*\})/)?.[1] ?? null);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw.trim());
+      // Если модель вернула объект { actions: [...] } — вернуть actions
+      if (parsed?.actions && Array.isArray(parsed.actions)) return parsed.actions;
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (e) {
+      console.warn('parseActionsFromContent error', e);
+    }
+    return [];
+  };
+
+  const [currentAction, setCurrentAction] = useState<any>(null);
+  const [currentActionMessageIndex, setCurrentActionMessageIndex] = useState<number | null>(null);
+  const [actionPreviewLoading, setActionPreviewLoading] = useState(false);
+  const [actionExecLoading, setActionExecLoading] = useState(false);
+  const [actionPreviewResult, setActionPreviewResult] = useState<any>(null);
+
+  const handleActionClick = (action: any, idx: number) => {
+    setCurrentAction(action);
+    setCurrentActionMessageIndex(idx);
+    setActionPreviewResult(null);
+  };
+
+  const MAX_PREVIEW_LENGTH = 300;
+
+  const extractPlainMessageFromResponse = (res: any) => {
+    if (!res) return '';
+    // string
+    if (typeof res === 'string') {
+      // keep string as-is
+    } else if (res.preview) {
+      const p = res.preview;
+      if (p.chatReply && typeof p.chatReply === 'object' && p.chatReply.message) return String(p.chatReply.message);
+      if (p.chatReply && typeof p.chatReply === 'string') return String(p.chatReply);
+      if (p.message) return String(p.message);
+      if (p.chatReply) return typeof p.chatReply === 'string' ? p.chatReply : JSON.stringify(p.chatReply);
+      if (p.tool && p.tool.description) return `${p.tool.name ?? 'Tool'}: ${p.tool.description}`;
+    } else if (res.chatReply && res.chatReply.message) {
+      return String(res.chatReply.message);
+    } else if (res.message) {
+      return String(res.message);
+    } else if (typeof res === 'object') {
+      try { res = JSON.stringify(res); } catch { res = String(res); }
+    } else {
+      res = String(res);
+    }
+
+    // At this point res might be a stringified object or original string
+    let text = String(res);
+    // remove fenced code blocks and inline backticks
+    text = text.replace(/```[\s\S]*?```/g, '').replace(/`+/g, '');
+    // collapse whitespace and newlines into spaces
+    text = text.replace(/\s+/g, ' ').trim();
+    if (text.length > MAX_PREVIEW_LENGTH) text = text.slice(0, MAX_PREVIEW_LENGTH).trim() + '...';
+    return text;
+  };
+
+  const handleActionPreview = async (action: any) => {
+    // For chatReply show local preview without backend
+    if (action.type === 'chatReply' || (!action.actionId && action.message)) {
+      setActionPreviewResult({ message: extractPlainMessageFromResponse(action.message ?? action.argsPreview?.message ?? '') });
+      return;
+    }
+    setActionPreviewLoading(true);
+    try {
+      const res = await neuroAbaiService.agentAction(action.actionId || action.id, action.argsPreview || action.args || {}, true);
+      setActionPreviewResult({ message: extractPlainMessageFromResponse(res) });
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка предпросмотра');
+    } finally {
+      setActionPreviewLoading(false);
+    }
+  };
+
+  const handleActionExecute = async (action: any) => {
+    if (!confirm('Выполнить действие?')) return;
+    setActionExecLoading(true);
+    try {
+      // chatReply: insert assistant message immediately
+      if (action.type === 'chatReply' || (!action.actionId && action.message)) {
+        const assistantMsg = extractPlainMessageFromResponse(action.message ?? action.argsPreview?.message ?? '');
+        if (assistantMsg) {
+          setMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);
+        } else {
+          setMessages(prev => [...prev, { role: 'assistant', content: 'Готовый ответ отправлен.' }]);
+        }
+        setCurrentAction(null);
+        setCurrentActionMessageIndex(null);
+        setActionPreviewResult(null);
+        setActionExecLoading(false);
+        return;
+      }
+
+      // tool execution
+      const res = await neuroAbaiService.agentAction(action.actionId || action.id, action.argsPreview || action.args || {}, false);
+      const contentToInsert = extractPlainMessageFromResponse(res) || 'Действие выполнено';
+      setMessages(prev => [...prev, { role: 'assistant', content: contentToInsert }]);
+      setCurrentAction(null);
+      setCurrentActionMessageIndex(null);
+      setActionPreviewResult(null);
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка выполнения');
+    } finally {
+      setActionExecLoading(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(Array.from(e.target.files));
-    }
+    if (e.target.files) setFiles(Array.from(e.target.files));
   };
-
-  const handleRemoveFile = (index: number) => {
-    setFiles(files.filter((_, i) => i !== index));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  const handleRemoveFile = (i: number) => setFiles(fs => fs.filter((_, idx) => idx !== i));
 
   return (
-    <div className="h-full bg-gray-50 flex flex-col">
-      {/* Заголовок */}
-      <div className="bg-white shadow-sm border-b px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Neuro Abai</h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Интеллектуальный помощник для учителей
-        </p>
-      </div>
-
-      {/* Основной контент */}
-      <div className="flex-1 flex flex-col mx-auto w-full max-w-4xl p-2 sm:p-4">
-        <div className="flex-1 flex flex-col overflow-hidden rounded-lg sm:rounded-xl border bg-white shadow-lg">
-          {/* Выбор сценария */}
-          <div className="border-b p-3 sm:p-4 flex-shrink-0">
-            <h2 className="text-center text-lg sm:text-xl font-bold text-blue-600 mb-3 sm:mb-4">Fizmat AI Ala</h2>
-            <div className="relative">
-              <select
-                value={scenario}
-                onChange={e => setScenario(e.target.value)}
-                className="w-full appearance-none rounded-lg border bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                {SCENARIOS.map(s => (
-                  <option key={s.label} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            </div>
+    <div className="h-full flex bg-gradient-to-b from-white to-gray-50 p-6">
+      <div className="mx-auto w-full max-w-6xl grid grid-cols-12 gap-6">
+        {/* Left: chat */}
+        <div className="col-span-8 flex flex-col bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="px-5 py-4 border-b">
+            <h2 className="text-lg font-semibold text-gray-800">Neuro Abai — Помощник учителя</h2>
+            <p className="text-sm text-gray-500 mt-1">Общайтесь с ИИ или генерируйте предложения для КТП</p>
           </div>
 
-          {/* Область чата */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50 min-h-0">
-            {messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center text-gray-400 px-4">
-                <Bot size={36} className="sm:w-12 sm:h-12 mb-4 text-blue-500" />
-                <h3 className="text-base sm:text-lg font-medium">Начните диалог с Neuro Abai</h3>
-                <p className="mt-2 text-xs sm:text-sm">Задайте вопрос или загрузите файл для анализа</p>
+          <div className="flex-1 p-5 overflow-y-auto space-y-3 bg-gray-50">
+            {messages.length === 0 && (
+              <div className="flex h-full items-center justify-center text-center text-gray-400 py-10">
+                <div>
+                  <Bot size={48} className="mx-auto text-blue-600 mb-3" />
+                  <div className="text-sm font-medium">Начните диалог</div>
+                  <div className="text-xs text-gray-400 mt-1">Напишите сообщение или загрузите файл</div>
+                </div>
               </div>
-            ) : (
-              messages.map((msg, idx) => (
-                <ChatBubble key={idx} variant={msg.role === 'user' ? 'sent' : 'received'}>
-                  <ChatBubbleAvatar variant={msg.role === 'user' ? 'sent' : 'received'} />
-                  <ChatBubbleMessage variant={msg.role === 'user' ? 'sent' : 'received'}>
-                    {msg.content}
-                  </ChatBubbleMessage>
-                </ChatBubble>
-              ))
             )}
+
+            {messages.map((m, idx) => {
+              const content = m.content || '';
+              const rendered = m.role === 'assistant' ? DOMPurify.sanitize((marked.parse(content) as string)) : null;
+              const actionsFromContent = m.role === 'assistant' ? parseActionsFromContent(content) : [];
+              const actions = actionsMap[idx] && Array.isArray(actionsMap[idx]) && actionsMap[idx].length > 0
+                ? actionsMap[idx]
+                : actionsFromContent;
+
+              return (
+                <ChatBubble key={idx} variant={m.role === 'user' ? 'sent' : 'received'}>
+                  <ChatAvatar variant={m.role === 'user' ? 'sent' : 'received'} />
+                  <div className="flex-1">
+                    <ChatMessage
+                      variant={m.role === 'user' ? 'sent' : 'received'}
+                      html={m.role === 'assistant' ? rendered : null}
+                    >
+                      {m.role === 'assistant' ? null : content}
+                    </ChatMessage>
+
+                    {actions.length > 0 && (
+                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {actions.map((a: any, i: number) => {
+                          const rawMsg = a.message ?? a.argsPreview?.message ?? '';
+                          const previewText = String(rawMsg).replace(/\s+/g, ' ').trim();
+                          const displayText = previewText.length > MAX_PREVIEW_LENGTH ? previewText.slice(0, MAX_PREVIEW_LENGTH) + '...' : previewText;
+                          return (
+                            <div key={i} className="p-3 bg-white rounded-md border flex flex-col">
+                              <div className="text-sm font-medium mb-1">{a.label || a.name || a.actionId || 'Действие'}</div>
+                              <div className="text-xs text-gray-700 mb-3 break-words">{displayText}</div>
+                              <div className="flex gap-2">
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      // вставить готовый запрос в поле ввода
+                                      setInput(a.message ?? a.argsPreview?.message ?? a.label ?? '');
+                                      setCurrentAction(null);
+                                      setCurrentActionMessageIndex(null);
+                                      setActionPreviewResult(null);
+                                    }}
+                                    className="text-xs px-3 py-1 rounded-md bg-blue-600 text-white"
+                                  >
+                                    Использовать
+                                  </button>
+
+                                  {a.type !== 'chatReply' && (
+                                  <>
+                                    <button
+                                      onClick={() => { handleActionClick(a, idx); handleActionPreview(a); }}
+                                      disabled={actionPreviewLoading}
+                                      className="text-xs px-3 py-1 rounded-md bg-yellow-500 text-white disabled:opacity-50"
+                                    >
+                                      {actionPreviewLoading ? 'Предпросмотр...' : 'Предпросмотр'}
+                                    </button>
+                                    <button
+                                      onClick={() => { handleActionClick(a, idx); handleActionExecute(a); }}
+                                      disabled={actionExecLoading}
+                                      className="text-xs px-3 py-1 rounded-md bg-green-600 text-white disabled:opacity-50"
+                                    >
+                                      {actionExecLoading ? 'Выполняется...' : 'Выполнить'}
+                                    </button>
+                                  </>
+                                  )}
+                                </>
+
+                                <button
+                                  onClick={() => { setCurrentAction(null); setCurrentActionMessageIndex(null); setActionPreviewResult(null); }}
+                                  className="text-xs px-3 py-1 rounded-md border"
+                                >
+                                  Отмена
+                                </button>
+                              </div>
+
+                              {currentAction && currentActionMessageIndex === idx &&
+                                ((currentAction.actionId || currentAction.id || currentAction.label) === (a.actionId || a.id || a.label)) &&
+                                actionPreviewResult?.message && (
+                                <div className="mt-2 text-xs text-gray-600">
+                                  <div className="font-medium">Предпросмотр:</div>
+                                  <div className="max-h-24 overflow-auto bg-white p-2 rounded text-gray-800 whitespace-pre-wrap">
+                                    {actionPreviewResult.message}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </ChatBubble>
+              );
+            })}
+
             {loading && (
               <ChatBubble variant="received">
-                <ChatBubbleAvatar variant="received" />
-                <ChatBubbleMessage variant="received" isLoading />
+                <ChatAvatar variant="received" />
+                <ChatMessage variant="received" isLoading />
               </ChatBubble>
             )}
+
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Область ввода */}
-          <div className="border-t p-3 sm:p-4 flex-shrink-0">
-            <div className="relative rounded-lg border bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
+          <div className="border-t p-4 bg-white">
+            <div className="flex gap-3 items-start">
               <textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 placeholder="Введите сообщение..."
-                className="min-h-[60px] sm:min-h-[80px] w-full resize-none rounded-lg border-0 bg-transparent p-2 sm:p-3 text-sm shadow-none focus:outline-none focus:ring-0"
-                onKeyDown={handleKeyDown}
+                className="flex-1 min-h-[64px] max-h-36 resize-none rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                 disabled={loading}
               />
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t p-2 gap-2">
-                <div className="flex-1 order-2 sm:order-1">
-                  <FileUploadArea
-                    files={files}
-                    onFileChange={handleFileChange}
-                    onRemoveFile={handleRemoveFile}
-                    disabled={loading}
-                  />
-                </div>
+              <div className="flex flex-col gap-2 w-44">
                 <button
                   onClick={handleSend}
                   disabled={loading || (!input && files.length === 0)}
-                  className="order-1 sm:order-2 sm:ml-auto flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-500 px-3 sm:px-4 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 text-sm"
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  <span className="hidden sm:inline">Отправить</span>
-                  <Send size={16} />
+                  <Send size={16} /> <span className="text-sm">Отправить</span>
                 </button>
+                <button
+                  onClick={() => { setInput(''); setFiles([]); }}
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-md border text-sm"
+                >
+                  Очистить
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <FileUploadArea files={files} onFileChange={handleFileChange} onRemoveFile={handleRemoveFile} disabled={loading} />
+              <div className="flex flex-col gap-2">
+                <div className="text-xs text-gray-500">Сценарий</div>
+                <div className="relative">
+                  <select value={scenario} onChange={e => setScenario(e.target.value)} className="w-full rounded-md border px-3 py-2 text-sm">
+                    {SCENARIOS.map(s => <option key={s.label} value={s.value}>{s.label}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-3 text-gray-400" />
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Right: controls */}
+        <aside className="col-span-4 flex flex-col gap-4">
+
+          <div className="bg-white rounded-lg p-4 shadow-md">
+            <h4 className="text-sm font-semibold text-gray-700">Статус и лог</h4>
+            <div className="mt-2 text-xs text-gray-500">Последние действия по предложениям будут отображаться в модальном окне после открытия.</div>
+            <div className="mt-3">
+              <button disabled className="text-xs text-gray-400">Показать логи (в разработке)</button>
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-500">Поддерживаемые роли: TEACHER, ADMIN</div>
+        </aside>
       </div>
+
+      <AISuggestionModal open={modalOpen} onClose={closeModal} suggestion={selectedSuggestion} onApply={handleApplySuggestion} applying={applying} />
     </div>
   );
 }

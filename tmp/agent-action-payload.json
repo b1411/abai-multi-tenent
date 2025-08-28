@@ -1,0 +1,5 @@
+{
+  "actionId": "summarizeKTP",
+  "args": { "fileName": "ktp_informatics_in_table.docx" },
+  "dryRun": true
+}

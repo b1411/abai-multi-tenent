@@ -133,6 +133,8 @@ model User {
   teacherComments StudentComment[] @relation("TeacherComments")
   responsibleClassrooms Classroom[] @relation("ResponsibleClassrooms")
   classroomBookingsCreated ClassroomBooking[] @relation("ClassroomBookingsCreated")
+  aiSuggestionsCreated AiSuggestion[] @relation("AiSuggestionAuthor")
+  aiSuggestionsApplied AiSuggestion[] @relation("AiSuggestionAppliedBy")
 }
 
 model Student {
@@ -2012,4 +2014,33 @@ model CurriculumPlan {
   deletedAt      DateTime?
 
   @@index([studyPlanId])
+  aiSuggestions AiSuggestion[]
+}
+
+model AiSuggestion {
+  id               Int            @id @default(autoincrement())
+  curriculumPlanId Int
+  curriculumPlan   CurriculumPlan @relation(fields: [curriculumPlanId], references: [id], onDelete: Cascade)
+  authorId         Int
+  author           User           @relation("AiSuggestionAuthor", fields: [authorId], references: [id])
+  suggestion       String         @db.Text
+  diff             Json?
+  status           String         @default("PENDING") // PENDING, APPLIED, REJECTED
+  metadata         Json?
+  createdAt        DateTime       @default(now())
+  appliedBy        Int?
+  appliedByUser    User?          @relation("AiSuggestionAppliedBy", fields: [appliedBy], references: [id])
+  appliedAt        DateTime?
+  auditLogs        AiSuggestionAudit[]
+}
+
+model AiSuggestionAudit {
+  id           Int          @id @default(autoincrement())
+  suggestionId Int
+  suggestion   AiSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  action       String       // CREATED, UPDATED, APPLIED, REJECTED
+  performedBy  Int?
+  note         String?
+  data         Json?
+  createdAt    DateTime     @default(now())
 }

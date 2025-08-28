@@ -1,0 +1,4 @@
+{
+  "message": "Пожалуйста, сгенерируй предложения действий для учителя по теме \"Уравнения\". Верни строго JSON с полем actions[], где каждый action имеет поля: type (\"chatReply\" или \"tool\"), label, description. Для type=\"tool\" добавь actionId и argsPreview. Только JSON в ответе.",
+  "context": { "topic": "Уравнения" }
+}

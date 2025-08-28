@@ -35,6 +35,6 @@ export class OpenAiZodClient {
       ],
       text: { format: zodTextFormat(SimpleScheduleZ, 'simple_schedule') }
     });
-    return res.output_parsed as SimpleScheduleZType;
+    return res.output_parsed;
   }
 }

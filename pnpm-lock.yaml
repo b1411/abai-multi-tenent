@@ -81,6 +81,9 @@ importers:
       '@vercel/blob':
         specifier: ^1.1.1
         version: 1.1.1
+      ajv:
+        specifier: '8'
+        version: 8.17.1
       bcryptjs:
         specifier: ^3.0.2
         version: 3.0.2

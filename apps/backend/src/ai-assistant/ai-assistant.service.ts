@@ -126,7 +126,7 @@ export class AiAssistantService {
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, instructions, input, temperature, response_format: { type: 'json_schema', json_schema: { name: schemaName, schema, strict: true } } })
+      body: JSON.stringify({ model, instructions, input, temperature, text: { format: { type: 'json_schema', json_schema: { name: schemaName, schema, strict: true } } } })
     });
     if (!res.ok) { const err = await res.text(); throw new Error(`OpenAI error ${res.status}: ${err}`); }
     const data = await res.json();

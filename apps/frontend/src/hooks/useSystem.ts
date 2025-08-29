@@ -230,10 +230,15 @@ export const useBranding = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Определяем домен (убираем порт)
+  const domain = typeof window !== 'undefined'
+    ? window.location.hostname.toLowerCase()
+    : undefined;
+
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await systemService.getBrandingSettings();
+      const response = await systemService.getBrandingSettings(domain);
       setSettings(response.data);
       setError(null);
     } catch (err) {
@@ -246,7 +251,7 @@ export const useBranding = () => {
   const updateSettings = async (newSettings: Partial<BrandingSettings>) => {
     try {
       setLoading(true);
-      const response = await systemService.updateBrandingSettings(newSettings);
+      const response = await systemService.updateBrandingSettings(newSettings, domain);
       setSettings(response.data);
       setError(null);
       return response.data;
@@ -261,10 +266,10 @@ export const useBranding = () => {
   const uploadLogo = async (file: File) => {
     try {
       const response = await systemService.uploadLogo(file);
-      if (settings) {
-        setSettings({ ...settings, logo: response.data.url });
-      }
-      return response.data.url;
+      // После загрузки сразу сохраняем доменный ключ
+      const url = response.data.url;
+      await updateSettings({ logo: url });
+      return url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки логотипа');
       throw err;
@@ -274,10 +279,9 @@ export const useBranding = () => {
   const uploadFavicon = async (file: File) => {
     try {
       const response = await systemService.uploadFavicon(file);
-      if (settings) {
-        setSettings({ ...settings, favicon: response.data.url });
-      }
-      return response.data.url;
+      const url = response.data.url;
+      await updateSettings({ favicon: url });
+      return url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки favicon');
       throw err;
@@ -286,7 +290,8 @@ export const useBranding = () => {
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domain]); // при смене домена (на всякий случай)
 
   return {
     settings,
@@ -295,7 +300,8 @@ export const useBranding = () => {
     updateSettings,
     uploadLogo,
     uploadFavicon,
-    refetch: fetchSettings
+    refetch: fetchSettings,
+    domain
   };
 };
 

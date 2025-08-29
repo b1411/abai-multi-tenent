@@ -482,9 +482,8 @@ export class SystemService {
     ];
   }
 
-  // Branding
-  async getBrandingSettings() {
-    // Базовые настройки по умолчанию
+  // Branding (доменная поддержка)
+  async getBrandingSettings(domain?: string) {
     const base = {
       schoolName: 'Fizmat AI Ala',
       logo: null as string | null,
@@ -495,42 +494,118 @@ export class SystemService {
       fontFamily: 'Inter',
     };
 
+    // Санитизируем домен (оставляем буквы, цифры, точку и дефис)
+    const sanitizedDomain = domain ? domain.replace(/[^a-zA-Z0-9.-]/g, '').toLowerCase() : null;
+    const isDomainMode = !!sanitizedDomain;
+    const prefix = isDomainMode ? `branding_${sanitizedDomain}_` : 'branding_';
+
     try {
-      // Ищем последний загруженный логотип и фавикон в таблице files
-      const [lastLogo, lastFavicon] = await Promise.all([
-        this.prisma.file.findFirst({
-          where: { deletedAt: null, OR: [
-            { name: { contains: 'logos/' } },
-            { url: { contains: '/logos/' } },
-          ] },
-          orderBy: { createdAt: 'desc' },
-        }),
-        this.prisma.file.findFirst({
-          where: { deletedAt: null, OR: [
-            { name: { contains: 'favicons/' } },
-            { url: { contains: '/favicons/' } },
-          ] },
-          orderBy: { createdAt: 'desc' },
-        }),
-      ]);
+      // Ключи для выбранного префикса
+      const settingKeys = [
+        `${prefix}schoolName`,
+        `${prefix}logo`,
+        `${prefix}favicon`,
+        `${prefix}primaryColor`,
+        `${prefix}secondaryColor`,
+        `${prefix}accentColor`,
+        `${prefix}fontFamily`,
+      ];
+
+      const stored = await this.prisma.systemSettings.findMany({
+        where: { key: { in: settingKeys } }
+      });
+
+      // Если доменные ключи не найдены и запрошен домен — fallback к глобальным без суффикса
+      if (isDomainMode && stored.length === 0) {
+        return this.getBrandingSettings();
+      }
+
+      const map: Record<string, string> = {};
+      for (const s of stored) {
+        map[s.key] = s.value;
+      }
+
+      // Извлекаем значения
+      let logo = map[`${prefix}logo`] || null;
+      let favicon = map[`${prefix}favicon`] || null;
+
+      // Fallback: если нет явно сохранённых, пробуем взять последние файлы (shared)
+      if (!logo || !favicon) {
+        const [lastLogo, lastFavicon] = await Promise.all([
+          logo ? null : this.prisma.file.findFirst({
+            where: {
+              deletedAt: null,
+              OR: [
+                { name: { contains: 'logos/' } },
+                { url: { contains: '/logos/' } },
+              ]
+            },
+            orderBy: { createdAt: 'desc' },
+          }),
+          favicon ? null : this.prisma.file.findFirst({
+            where: {
+              deletedAt: null,
+              OR: [
+                { name: { contains: 'favicons/' } },
+                { url: { contains: '/favicons/' } },
+              ]
+            },
+            orderBy: { createdAt: 'desc' },
+          }),
+        ]);
+        if (!logo && lastLogo?.url) logo = lastLogo.url;
+        if (!favicon && lastFavicon?.url) favicon = lastFavicon.url;
+      }
 
       return {
         ...base,
-        logo: lastLogo?.url ?? base.logo,
-        favicon: lastFavicon?.url ?? base.favicon,
+        schoolName: map[`${prefix}schoolName`] || base.schoolName,
+        primaryColor: map[`${prefix}primaryColor`] || base.primaryColor,
+        secondaryColor: map[`${prefix}secondaryColor`] || base.secondaryColor,
+        accentColor: map[`${prefix}accentColor`] || map[`${prefix}primaryColor`] || base.accentColor,
+        fontFamily: map[`${prefix}fontFamily`] || base.fontFamily,
+        logo,
+        favicon,
+        // Для фронта полезно знать какой домен применён
+        _domain: sanitizedDomain || null,
       };
-    } catch (e) {
-      // В случае ошибки возвращаем базовые значения
+    } catch {
       return base;
     }
   }
 
-  async updateBrandingSettings(settings: any) {
-    // В реальном приложении это будет сохраняться в базу данных
-    return {
-      ...await this.getBrandingSettings(),
-      ...settings,
+  async updateBrandingSettings(settings: any, domain?: string) {
+    const sanitizedDomain = domain ? domain.replace(/[^a-zA-Z0-9.-]/g, '').toLowerCase() : null;
+    const prefix = sanitizedDomain ? `branding_${sanitizedDomain}_` : 'branding_';
+
+    const keyMap: Record<string, string> = {
+      schoolName: `${prefix}schoolName`,
+      logo: `${prefix}logo`,
+      favicon: `${prefix}favicon`,
+      primaryColor: `${prefix}primaryColor`,
+      secondaryColor: `${prefix}secondaryColor`,
+      accentColor: `${prefix}accentColor`,
+      fontFamily: `${prefix}fontFamily`,
     };
+
+    try {
+      const ops = Object.entries(settings)
+        .filter(([k, v]) => v !== undefined && keyMap[k])
+        .map(([k, v]) =>
+          this.prisma.systemSettings.upsert({
+            where: { key: keyMap[k] },
+            update: { value: String(v), updatedAt: new Date() },
+            create: { key: keyMap[k], value: String(v) },
+          })
+        );
+      if (ops.length) {
+        await Promise.all(ops);
+      }
+    } catch (e) {
+      console.warn('Branding settings not persisted:', (e as Error).message);
+    }
+
+    return this.getBrandingSettings(sanitizedDomain || undefined);
   }
 
   // Integrations

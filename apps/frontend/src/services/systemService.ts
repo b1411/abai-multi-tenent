@@ -142,12 +142,14 @@ class SystemService {
   }
 
   // Branding
-  async getBrandingSettings(): Promise<ApiResponse<BrandingSettings>> {
-    return this.request('system/branding');
+  async getBrandingSettings(domain?: string): Promise<ApiResponse<BrandingSettings>> {
+    const endpoint = domain ? `system/branding?domain=${encodeURIComponent(domain)}` : 'system/branding';
+    return this.request(endpoint);
   }
 
-  async updateBrandingSettings(settings: Partial<BrandingSettings>): Promise<ApiResponse<BrandingSettings>> {
-    return this.request('system/branding', {
+  async updateBrandingSettings(settings: Partial<BrandingSettings>, domain?: string): Promise<ApiResponse<BrandingSettings>> {
+    const endpoint = domain ? `system/branding?domain=${encodeURIComponent(domain)}` : 'system/branding';
+    return this.request(endpoint, {
       method: 'PUT',
       body: JSON.stringify(settings),
     });

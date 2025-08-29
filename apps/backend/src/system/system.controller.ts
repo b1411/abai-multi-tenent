@@ -119,14 +119,14 @@ export class SystemController {
 
   // Branding
   @Get('branding')
-  async getBrandingSettings() {
-    const settings = await this.systemService.getBrandingSettings();
+  async getBrandingSettings(@Query('domain') domain?: string) {
+    const settings = await this.systemService.getBrandingSettings(domain);
     return { data: settings };
   }
 
   @Put('branding')
-  async updateBrandingSettings(@Body() settings: any) {
-    const updatedSettings = await this.systemService.updateBrandingSettings(settings);
+  async updateBrandingSettings(@Body() settings: any, @Query('domain') domain?: string) {
+    const updatedSettings = await this.systemService.updateBrandingSettings(settings, domain);
     return { data: updatedSettings };
   }
 

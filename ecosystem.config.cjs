@@ -10,15 +10,15 @@ module.exports = {
     apps: [
         {
             name: 'backend',
-            script: 'pnpm',
-            args: 'run start',
+            script: 'lerna',
+            args: 'run --scope backend start',
             env: { NODE_ENV: 'production' }
         },
         {
             name: 'frontend',
             cwd: 'apps/frontend',
-            script: 'pnpm',
-            args: 'run preview',
+            script: 'lerna',
+            args: 'run --scope frontend preview',
             env: { NODE_ENV: 'production' }
         }
     ]

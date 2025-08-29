@@ -10,16 +10,19 @@ module.exports = {
     apps: [
         {
             name: 'backend',
-            script: 'lerna',
-            args: 'run --scope backend start',
+            cwd: '/root/app', // <-- корень монорепо (поправь путь)
+            script: 'npx',
+            args: 'lerna run --scope backend start',
             env: { NODE_ENV: 'production' }
         },
         {
             name: 'frontend',
-            cwd: 'apps/frontend',
-            script: 'lerna',
-            args: 'run --scope frontend preview',
+            cwd: '/root/app', // <-- корень монорепо
+            script: 'npx',
+            // сначала build, затем preview на 8122
+            args: 'npx lerna run --scope frontend preview -- --port 8122',
             env: { NODE_ENV: 'production' }
         }
     ]
 };
+

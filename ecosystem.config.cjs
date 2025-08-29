@@ -5,20 +5,21 @@
  * Старт:
  *   pm2 start ecosystem.config.cjs
  */
+
 module.exports = {
-  apps: [
-    {
-      name: 'backend',
-      cwd: 'apps/backend',
-      script: 'dist/main.js',
-      env: { NODE_ENV: 'production' }
-    },
-    {
-      name: 'frontend',
-      cwd: 'apps/frontend',
-      script: 'pnpm',
-      args: 'run preview',
-      env: { NODE_ENV: 'production' }
-    }
-  ]
+    apps: [
+        {
+            name: 'backend',
+            script: 'pnpm',
+            args: 'run start',
+            env: { NODE_ENV: 'production' }
+        },
+        {
+            name: 'frontend',
+            cwd: 'apps/frontend',
+            script: 'pnpm',
+            args: 'run preview',
+            env: { NODE_ENV: 'production' }
+        }
+    ]
 };

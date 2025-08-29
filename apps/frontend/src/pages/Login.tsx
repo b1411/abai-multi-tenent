@@ -121,19 +121,21 @@ const Login: React.FC = () => {
 
       <div className="w-full max-w-xs sm:max-w-sm md:max-w-md relative z-10">
         <div className="flex justify-center mb-8">
-          <motion.img
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{
-              delay: 0.2,
-              type: 'spring',
-              stiffness: 100,
-              damping: 10
-            }}
-            src={branding?.logo || '/logo rfm.png'}
-            alt={branding?.schoolName || 'Логотип'}
-            className="w-32 h-32 object-contain"
-          />
+          {branding?.logo && (
+            <motion.img
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{
+                delay: 0.2,
+                type: 'spring',
+                stiffness: 100,
+                damping: 10
+              }}
+              src={branding.logo}
+              alt={branding.schoolName || 'Логотип'}
+              className="w-32 h-32 object-contain"
+            />
+          )}
         </div>
 
         <motion.div

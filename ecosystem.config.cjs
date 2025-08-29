@@ -20,7 +20,7 @@ module.exports = {
             cwd: '/root/app', // <-- корень монорепо
             script: 'npx',
             // сначала build, затем preview на 8122
-            args: 'npx lerna run --scope frontend preview -- --port 8122',
+            args: 'lerna run --scope frontend preview -- --port 8122',
             env: { NODE_ENV: 'production' }
         }
     ]

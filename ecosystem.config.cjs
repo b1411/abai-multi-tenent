@@ -20,7 +20,7 @@ module.exports = {
             cwd: '/root/app', // <-- корень монорепо
             script: 'pnpm',
             // сначала build, затем preview на 8122
-            args: '--filter frontend run build && --filter frontend run preview --port 8122',
+            args: '--filter frontend run preview --port 8122',
             env: { NODE_ENV: 'production' }
         }
     ]

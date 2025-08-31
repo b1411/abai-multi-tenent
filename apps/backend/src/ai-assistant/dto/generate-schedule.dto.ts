@@ -1,6 +1,6 @@
 import { IsString, IsArray, IsOptional, IsDateString, IsEnum, IsNumber, Min, Max, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty } from '@nestjs/swagger';
 
 export class WorkingHoursDto {
   @ApiProperty({ example: '08:00', description: 'Время начала рабочего дня' })
@@ -70,6 +70,7 @@ export enum GenerationType {
   OPTIMIZE = 'optimize'
 }
 
+@ApiExtraModels()
 export class GenerateScheduleDto {
   @ApiProperty({ example: '2024-09-01', description: 'Дата начала периода' })
   @IsDateString()

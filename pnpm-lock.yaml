@@ -292,6 +292,9 @@ importers:
       dompurify:
         specifier: ^3.2.6
         version: 3.2.6
+      dotenv:
+        specifier: ^17.2.1
+        version: 17.2.1
       face-api.js:
         specifier: ^0.22.2
         version: 0.22.2
@@ -4600,6 +4603,10 @@ packages:
 
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+    engines: {node: '>=12'}
+
+  dotenv@17.2.1:
+    resolution: {integrity: sha512-kQhDYKZecqnM0fCnzI5eIv5L4cAe/iRI+HqMbO/hbRdTAeXDG+M9FjipUxNfbARuEg4iHIbhnhs78BCHNbSxEQ==}
     engines: {node: '>=12'}
 
   duck@0.1.12:
@@ -14109,6 +14116,8 @@ snapshots:
   dotenv@16.4.7: {}
 
   dotenv@16.6.1: {}
+
+  dotenv@17.2.1: {}
 
   duck@0.1.12:
     dependencies:

@@ -43,12 +43,19 @@ import { ActivityMonitoringModule } from './activity-monitoring/activity-monitor
 import { EducationalReportsModule } from './educational-reports/educational-reports.module';
 import { EdoModule } from './edo/edo.module';
 import { MailModule } from './mail/mail.module';
+import path from 'path';
+
+const envFile = (() => {
+  const p = process.env.ENV_FILE; // например "envs/.env.client1" или "/root/app/.env.client1"
+  if (!p) return path.resolve(process.cwd(), '.env');
+  return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
+})();
 
 @Module({
   imports: [
     ConfigModule.forRoot({
+      envFilePath: envFile,
       isGlobal: true,
-      envFilePath: '.env',
     }),
     StudyPlansModule,
     AuthModule,
@@ -89,7 +96,6 @@ import { MailModule } from './mail/mail.module';
     LessonResultsModule,
     AiAssistantModule,
     MailModule,
-
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, JwtService],

@@ -10,8 +10,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  directUrl = env("DIRECT_URL")
+  url       = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -116,9 +117,9 @@ model User {
   eventReminders    EventReminder[]
 
   // Activity monitoring relations
-  sessions     UserSession[]
-  activityLogs ActivityLog[]
-  onlineStatus UserOnlineStatus?
+  sessions            UserSession[]
+  activityLogs        ActivityLog[]
+  onlineStatus        UserOnlineStatus?
   passwordResetTokens PasswordResetToken[]
 
   // EDO relations
@@ -129,12 +130,12 @@ model User {
   documentTemplates    DocumentTemplate[]
 
   // Student remarks relations
-  teacherRemarks  StudentRemark[]  @relation("TeacherRemarks")
-  teacherComments StudentComment[] @relation("TeacherComments")
-  responsibleClassrooms Classroom[] @relation("ResponsibleClassrooms")
+  teacherRemarks           StudentRemark[]    @relation("TeacherRemarks")
+  teacherComments          StudentComment[]   @relation("TeacherComments")
+  responsibleClassrooms    Classroom[]        @relation("ResponsibleClassrooms")
   classroomBookingsCreated ClassroomBooking[] @relation("ClassroomBookingsCreated")
-  aiSuggestionsCreated AiSuggestion[] @relation("AiSuggestionAuthor")
-  aiSuggestionsApplied AiSuggestion[] @relation("AiSuggestionAppliedBy")
+  aiSuggestionsCreated     AiSuggestion[]     @relation("AiSuggestionAuthor")
+  aiSuggestionsApplied     AiSuggestion[]     @relation("AiSuggestionAppliedBy")
 }
 
 model Student {
@@ -245,7 +246,7 @@ model Group {
 
   // Классный руководитель (куратор) - опционально
   curatorTeacherId Int?
-  curator          Teacher?      @relation(fields: [curatorTeacherId], references: [id])
+  curator          Teacher? @relation(fields: [curatorTeacherId], references: [id])
 }
 
 model StudyPlan {
@@ -455,7 +456,7 @@ model Notification {
 }
 
 model Classroom {
-  id            Int               @id @default(autoincrement())
+  id            Int                @id @default(autoincrement())
   name          String
   building      String
   floor         Int
@@ -481,9 +482,9 @@ enum ClassroomBookingStatus {
 }
 
 model ClassroomBooking {
-  id                String     @id @default(uuid())
+  id                String                 @id @default(uuid())
   classroomId       Int
-  classroom         Classroom  @relation(fields: [classroomId], references: [id])
+  classroom         Classroom              @relation(fields: [classroomId], references: [id])
   date              DateTime
   startTime         String
   endTime           String
@@ -493,9 +494,9 @@ model ClassroomBooking {
   description       String?
   status            ClassroomBookingStatus @default(PENDING)
   createdById       Int
-  createdBy         User       @relation("ClassroomBookingsCreated", fields: [createdById], references: [id])
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdBy         User                   @relation("ClassroomBookingsCreated", fields: [createdById], references: [id])
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
   deletedAt         DateTime?
 
   @@index([classroomId, date])
@@ -541,13 +542,13 @@ model Schedule {
   lesson   Lesson? @relation(fields: [lessonId], references: [id])
 
   // Время проведения
-  dayOfWeek Int // 1-7: понедельник-воскресенье
-  startTime String // HH:MM
-  endTime   String // HH:MM
-  date      DateTime? // Конкретная дата (если привязан к уроку)
+  dayOfWeek    Int // 1-7: понедельник-воскресенье
+  startTime    String // HH:MM
+  endTime      String // HH:MM
+  date         DateTime? // Конкретная дата (если привязан к уроку)
   // Диапазон повторения (для weekly/biweekly)
-  startDate DateTime? // Дата начала периода повторения
-  endDate   DateTime? // Дата окончания периода повторения
+  startDate    DateTime? // Дата начала периода повторения
+  endDate      DateTime? // Дата окончания периода повторения
   periodPreset String? // Пресет периода (quarter, half_year, year)
 
   // Тип и статус расписания
@@ -1644,9 +1645,9 @@ model ActivityLog {
   entityId   String? // ID сущности
 
   // Результат
-  success      Boolean @default(true)
-  errorMessage String? @db.Text
-  createdAt   DateTime @default(now())
+  success      Boolean  @default(true)
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([type, createdAt])
@@ -1658,15 +1659,15 @@ model ActivityLog {
 // --- Password Recovery ---
 
 model PasswordResetToken {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   ipAddress String?
-  userAgent String?  @db.Text
+  userAgent String?   @db.Text
 
   @@index([userId])
   @@index([expiresAt])
@@ -2002,34 +2003,34 @@ model StudentAdmission {
 
 // КТП (Календарно-тематическое планирование)
 model CurriculumPlan {
-  id             Int       @id @default(autoincrement())
-  studyPlanId    Int       @unique
-  studyPlan      StudyPlan @relation(fields: [studyPlanId], references: [id])
+  id             Int            @id @default(autoincrement())
+  studyPlanId    Int            @unique
+  studyPlan      StudyPlan      @relation(fields: [studyPlanId], references: [id])
   totalLessons   Int
   plannedLessons Json // [{week: 1, topic: "Тема", hours: 2}]
   actualLessons  Json? // [{week: 1, completed: true, date: "2025-01-01"}]
-  completionRate Float     @default(0) // Процент выполнения КТП
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  completionRate Float          @default(0) // Процент выполнения КТП
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   deletedAt      DateTime?
+  aiSuggestions  AiSuggestion[]
 
   @@index([studyPlanId])
-  aiSuggestions AiSuggestion[]
 }
 
 model AiSuggestion {
-  id               Int            @id @default(autoincrement())
+  id               Int                 @id @default(autoincrement())
   curriculumPlanId Int
-  curriculumPlan   CurriculumPlan @relation(fields: [curriculumPlanId], references: [id], onDelete: Cascade)
+  curriculumPlan   CurriculumPlan      @relation(fields: [curriculumPlanId], references: [id], onDelete: Cascade)
   authorId         Int
-  author           User           @relation("AiSuggestionAuthor", fields: [authorId], references: [id])
-  suggestion       String         @db.Text
+  author           User                @relation("AiSuggestionAuthor", fields: [authorId], references: [id])
+  suggestion       String              @db.Text
   diff             Json?
-  status           String         @default("PENDING") // PENDING, APPLIED, REJECTED
+  status           String              @default("PENDING") // PENDING, APPLIED, REJECTED
   metadata         Json?
-  createdAt        DateTime       @default(now())
+  createdAt        DateTime            @default(now())
   appliedBy        Int?
-  appliedByUser    User?          @relation("AiSuggestionAppliedBy", fields: [appliedBy], references: [id])
+  appliedByUser    User?               @relation("AiSuggestionAppliedBy", fields: [appliedBy], references: [id])
   appliedAt        DateTime?
   auditLogs        AiSuggestionAudit[]
 }
@@ -2038,7 +2039,7 @@ model AiSuggestionAudit {
   id           Int          @id @default(autoincrement())
   suggestionId Int
   suggestion   AiSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
-  action       String       // CREATED, UPDATED, APPLIED, REJECTED
+  action       String // CREATED, UPDATED, APPLIED, REJECTED
   performedBy  Int?
   note         String?
   data         Json?

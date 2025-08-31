@@ -19,7 +19,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.fizmat-school'   // <-- лежит в корне монорепо
+                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-school'   // <-- лежит в корне монорепо
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },
@@ -32,7 +32,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.fizmat-school'   // для твоего кастомного vite.config с dotenv (если используешь)
+                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-school'   // для твоего кастомного vite.config с dotenv (если используешь)
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },
@@ -46,7 +46,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.uib-college'
+                DOTENV_CONFIG_PATH: '/root/app/.env.uib-college'
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },
@@ -59,7 +59,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.uib-college'
+                DOTENV_CONFIG_PATH: '/root/app/.env.uib-college'
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },
@@ -73,7 +73,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.fizmat-academy'
+                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-academy'
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },
@@ -86,7 +86,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.fizmat-academy'
+                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-academy'
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },
@@ -100,7 +100,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.demo-abai'
+                DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai'
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },
@@ -113,7 +113,7 @@ module.exports = {
             node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '.env.demo-abai'
+                DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai'
             },
             exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
         },

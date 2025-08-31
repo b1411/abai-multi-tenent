@@ -3,9 +3,9 @@ import react from '@vitejs/plugin-react'
 import path from "path"
 import dotenv from "dotenv"
 
-const envFile = process.env.ENV_FILEPATH
-  ? path.resolve(process.cwd(), process.env.ENV_FILEPATH)
-  : undefined
+const envFile = process.env.DOTENV_CONFIG_PATH
+  ? path.resolve(process.cwd(), process.env.DOTENV_CONFIG_PATH)
+  : path.resolve(process.cwd(), '.env');
 
 if (envFile) {
   dotenv.config({ path: envFile })

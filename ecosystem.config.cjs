@@ -28,8 +28,6 @@ module.exports = {
             cwd: ROOT,
             script: 'pnpm',
             args: '--filter frontend run preview --host 0.0.0.0 --port 8221 --strictPort',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
                 DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-school'   // для твоего кастомного vite.config с dotenv (если используешь)
@@ -55,8 +53,6 @@ module.exports = {
             cwd: ROOT,
             script: 'pnpm',
             args: '--filter frontend run preview --host 0.0.0.0 --port 8222 --strictPort',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
                 DOTENV_CONFIG_PATH: '/root/app/.env.uib-college'
@@ -82,8 +78,6 @@ module.exports = {
             cwd: ROOT,
             script: 'pnpm',
             args: '--filter frontend run preview --host 0.0.0.0 --port 8223 --strictPort',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
                 DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-academy'
@@ -109,8 +103,6 @@ module.exports = {
             cwd: ROOT,
             script: 'pnpm',
             args: '--filter frontend run preview --host 0.0.0.0 --port 8224 --strictPort',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
             env: {
                 NODE_ENV: 'production',
                 DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai'

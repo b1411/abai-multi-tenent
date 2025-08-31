@@ -15,6 +15,7 @@ import dotenvExpand from 'dotenv-expand'
     const env = dotenv.config({ path: abs })
     dotenvExpand.expand(env)
     console.log('[vite] loaded env from', abs)
+    console.log('[vite] expanded env:', process.env.VITE_API_URL)
   } else {
     console.warn('[vite] DOTENV_CONFIG_PATH points to missing file:', abs)
   }

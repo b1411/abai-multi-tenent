@@ -79,13 +79,14 @@ import StaffCompositionPage from './pages/StaffCompositionPage';
 import { ToastProvider } from './providers/ToastProvider';
 
 const App: React.FC = () => {
+  console.log(import.meta.env)
+
   return (
     <Router>
-      
-        <AuthProvider>
-          <ActivityProvider>
-            <NotificationProvider>
-              <ToastProvider>
+      <AuthProvider>
+        <ActivityProvider>
+          <NotificationProvider>
+            <ToastProvider>
               <BrandingProvider>
                 <Routes>
                   <Route path="/login" element={<Login />} />
@@ -105,138 +106,138 @@ const App: React.FC = () => {
                       <Route index element={<Dashboard />} />
 
                       {/* News route */}
-                    <Route path="news" element={<News />} />
+                      <Route path="news" element={<News />} />
 
-                    {/* Study Plans routes */}
-                    <Route path="study-plans" element={<StudyPlansPage />} />
+                      {/* Study Plans routes */}
+                      <Route path="study-plans" element={<StudyPlansPage />} />
 
-                    {/* Lessons routes */}
-                    <Route path="lessons" element={<LessonsPage />} />
-                    <Route path="lessons/:id" element={<LessonDetailPage />} />
-                    <Route path="lessons/:id/materials" element={<LessonMaterialsPage />} />
+                      {/* Lessons routes */}
+                      <Route path="lessons" element={<LessonsPage />} />
+                      <Route path="lessons/:id" element={<LessonDetailPage />} />
+                      <Route path="lessons/:id/materials" element={<LessonMaterialsPage />} />
 
-                    {/* Homework routes */}
-                    <Route path="homework" element={<HomeworkPage />} />
-                    <Route path="homework/:id" element={<div>Homework Detail Page</div>} />
-                    <Route path="homework/:id/submissions" element={<HomeworkSubmissionsPage />} />
+                      {/* Homework routes */}
+                      <Route path="homework" element={<HomeworkPage />} />
+                      <Route path="homework/:id" element={<div>Homework Detail Page</div>} />
+                      <Route path="homework/:id/submissions" element={<HomeworkSubmissionsPage />} />
 
-                    {/* Schedule routes */}
-                    <Route path="schedule" element={<SchedulePage />} />
-                    <Route path="ai-schedule" element={<AISchedule />} />
-
-                    {/* Academic routes */}
-                    <Route path="academic">
-                      <Route path="academic-journal" element={<AcademicJournal />} />
+                      {/* Schedule routes */}
                       <Route path="schedule" element={<SchedulePage />} />
-                      <Route path="classrooms" element={<ClassroomsPage />} />
-                      <Route path="requests" element={<div>Booking Requests Page</div>} />
-                      <Route path="requests/new" element={<div>New Booking Request Page</div>} />
-                      <Route path="homework" element={<div>Homework Page</div>} />
-                    </Route>
+                      <Route path="ai-schedule" element={<AISchedule />} />
 
-                    {/* Standalone classrooms route */}
-                    <Route path="classrooms" element={<ClassroomsPage />} />
-
-                    {/* Educational Reports route */}
-                    <Route path="educational-reports" element={<EducationalReports />} />
-
-                    {/* Students routes */}
-                    <Route path="students" element={<StudentsPage />} />
-                    <Route path="students/emotional-analysis" element={<EmotionalAnalysisPage />} />
-                    <Route path="students/:id" element={<StudentDetailPage />} />
-                    <Route path="my-children" element={<MyChildren />} />
-                    <Route path="groups" element={<GroupsPage />} />
-                    <Route path="groups/:id" element={<GroupDetail />} />
-                    <Route path="performance" element={<PerformancePage />} />
-                    <Route path="loyalty" element={<LoyaltyPage />} />
-
-                    {/* Alumni routes */}
-                    <Route path="alumni" element={<AlumniList />} />
-                    <Route path="alumni/:id" element={<AlumniDetail />} />
-
-                    {/* JAS.LIFE route */}
-                    <Route path="jas-life" element={<JasLife />} />
-
-                    {/* Quiz routes */}
-                    <Route path="quiz/:quizId/statistics" element={<div>Quiz Statistics Page</div>} />
-
-                    {/* Teachers routes */}
-                    <Route path="teachers" element={<Teachers />} />
-                    <Route path="teachers/:teacherId" element={<TeacherProfile />} />
-                    <Route path="quiz/:quizId/take" element={<QuizTakingPage />} />
-                    <Route path="quiz/results" element={<QuizResultsPage />} />
-                    <Route path="quiz/attempt/:attemptId/result" element={<QuizAttemptResultPage />} />
-
-                    {/* HR routes */}
-                    <Route path="hr">
-                      <Route path="employees" element={<TeachersPage />} />
-                      <Route path="workload" element={<WorkloadPage />} />
-                      <Route path="kpi" element={<KPIPage />} />
-                      <Route path="vacation" element={<VacationsPage />} />
-                      <Route path="substitutions" element={<SubstitutionsPage />} />
-                      <Route path="fake-positions" element={<FakePositions />} />
-                      <Route path="staff-composition" element={<StaffCompositionPage />} />
-                    </Route>
-
-                    {/* Finance routes */}
-                    <Route path="finance">
-                      <Route path="payments" element={<PaymentsPage />} />
-                      <Route path="reports" element={<ReportsPage />} />
-                      <Route path="budget" element={<BudgetPage />} />
-                      <Route path="acl" element={<LoyaltyPage />} />
-                      <Route path="payroll" element={<SalariesPage />} />
-                      <Route path="salaries" element={<SalariesPage />} />
-                      <Route path="antifraud" element={<div>Anti-Fraud Page</div>} />
-                    </Route>
-
-                    {/* Applications routes */}
-                    <Route path="app">
-                      <Route path="chat" element={<ChatPage />} />
-                      <Route path="admin-chats" element={<AdminChats />} />
-                      <Route path="ai-chat" element={<AiChatPage />} />
-                      <Route path="calendar" element={<CalendarPage />} />
-                      <Route path="tasks" element={<TasksPage />} />
-                      <Route path="neuro-abai" element={<NeuroAbaiPage />} />
-                      <Route path="profile" element={<StudentProfile />} />
-
-                      {/* ERP routes */}
-                      <Route path="erp">
-                        <Route path="inventory" element={<Inventory />} />
-                        <Route path="inventory-analytics" element={<InventoryAnalytics />} />
-                        <Route path="supply" element={<Supply />} />
-                        <Route path="security" element={<Security />} />
+                      {/* Academic routes */}
+                      <Route path="academic">
+                        <Route path="academic-journal" element={<AcademicJournal />} />
+                        <Route path="schedule" element={<SchedulePage />} />
+                        <Route path="classrooms" element={<ClassroomsPage />} />
+                        <Route path="requests" element={<div>Booking Requests Page</div>} />
+                        <Route path="requests/new" element={<div>New Booking Request Page</div>} />
+                        <Route path="homework" element={<div>Homework Page</div>} />
                       </Route>
-                    </Route>
 
-                    {/* EDO routes */}
-                    <Route path="edo">
-                      <Route index element={<EdoPage />} />
-                      <Route path="create" element={<DocumentCreatePage />} />
-                      <Route path=":id" element={<DocumentDetailPage />} />
-                    </Route>
+                      {/* Standalone classrooms route */}
+                      <Route path="classrooms" element={<ClassroomsPage />} />
 
-                    {/* Settings routes */}
-                    <Route path="settings">
-                      <Route path="users" element={<UsersPage />} />
-                      <Route path="permissions" element={<PermissionsPage />} />
-                      <Route path="integrations" element={<IntegrationsPage />} />
-                      <Route path="branding" element={<BrandingPage />} />
-                      <Route path="feedback" element={<FeedbackAdmin />} />
-                      <Route path="system" element={<SystemSettings />} />
-                      <Route path="activity-monitoring" element={<ActivityMonitoring />} />
-                    </Route>
+                      {/* Educational Reports route */}
+                      <Route path="educational-reports" element={<EducationalReports />} />
 
-                    {/* Notifications route */}
-                    <Route path="notifications" element={<NotificationsPage />} />
-                    <Route path="*" element={<NotFound />} />
+                      {/* Students routes */}
+                      <Route path="students" element={<StudentsPage />} />
+                      <Route path="students/emotional-analysis" element={<EmotionalAnalysisPage />} />
+                      <Route path="students/:id" element={<StudentDetailPage />} />
+                      <Route path="my-children" element={<MyChildren />} />
+                      <Route path="groups" element={<GroupsPage />} />
+                      <Route path="groups/:id" element={<GroupDetail />} />
+                      <Route path="performance" element={<PerformancePage />} />
+                      <Route path="loyalty" element={<LoyaltyPage />} />
+
+                      {/* Alumni routes */}
+                      <Route path="alumni" element={<AlumniList />} />
+                      <Route path="alumni/:id" element={<AlumniDetail />} />
+
+                      {/* JAS.LIFE route */}
+                      <Route path="jas-life" element={<JasLife />} />
+
+                      {/* Quiz routes */}
+                      <Route path="quiz/:quizId/statistics" element={<div>Quiz Statistics Page</div>} />
+
+                      {/* Teachers routes */}
+                      <Route path="teachers" element={<Teachers />} />
+                      <Route path="teachers/:teacherId" element={<TeacherProfile />} />
+                      <Route path="quiz/:quizId/take" element={<QuizTakingPage />} />
+                      <Route path="quiz/results" element={<QuizResultsPage />} />
+                      <Route path="quiz/attempt/:attemptId/result" element={<QuizAttemptResultPage />} />
+
+                      {/* HR routes */}
+                      <Route path="hr">
+                        <Route path="employees" element={<TeachersPage />} />
+                        <Route path="workload" element={<WorkloadPage />} />
+                        <Route path="kpi" element={<KPIPage />} />
+                        <Route path="vacation" element={<VacationsPage />} />
+                        <Route path="substitutions" element={<SubstitutionsPage />} />
+                        <Route path="fake-positions" element={<FakePositions />} />
+                        <Route path="staff-composition" element={<StaffCompositionPage />} />
+                      </Route>
+
+                      {/* Finance routes */}
+                      <Route path="finance">
+                        <Route path="payments" element={<PaymentsPage />} />
+                        <Route path="reports" element={<ReportsPage />} />
+                        <Route path="budget" element={<BudgetPage />} />
+                        <Route path="acl" element={<LoyaltyPage />} />
+                        <Route path="payroll" element={<SalariesPage />} />
+                        <Route path="salaries" element={<SalariesPage />} />
+                        <Route path="antifraud" element={<div>Anti-Fraud Page</div>} />
+                      </Route>
+
+                      {/* Applications routes */}
+                      <Route path="app">
+                        <Route path="chat" element={<ChatPage />} />
+                        <Route path="admin-chats" element={<AdminChats />} />
+                        <Route path="ai-chat" element={<AiChatPage />} />
+                        <Route path="calendar" element={<CalendarPage />} />
+                        <Route path="tasks" element={<TasksPage />} />
+                        <Route path="neuro-abai" element={<NeuroAbaiPage />} />
+                        <Route path="profile" element={<StudentProfile />} />
+
+                        {/* ERP routes */}
+                        <Route path="erp">
+                          <Route path="inventory" element={<Inventory />} />
+                          <Route path="inventory-analytics" element={<InventoryAnalytics />} />
+                          <Route path="supply" element={<Supply />} />
+                          <Route path="security" element={<Security />} />
+                        </Route>
+                      </Route>
+
+                      {/* EDO routes */}
+                      <Route path="edo">
+                        <Route index element={<EdoPage />} />
+                        <Route path="create" element={<DocumentCreatePage />} />
+                        <Route path=":id" element={<DocumentDetailPage />} />
+                      </Route>
+
+                      {/* Settings routes */}
+                      <Route path="settings">
+                        <Route path="users" element={<UsersPage />} />
+                        <Route path="permissions" element={<PermissionsPage />} />
+                        <Route path="integrations" element={<IntegrationsPage />} />
+                        <Route path="branding" element={<BrandingPage />} />
+                        <Route path="feedback" element={<FeedbackAdmin />} />
+                        <Route path="system" element={<SystemSettings />} />
+                        <Route path="activity-monitoring" element={<ActivityMonitoring />} />
+                      </Route>
+
+                      {/* Notifications route */}
+                      <Route path="notifications" element={<NotificationsPage />} />
+                      <Route path="*" element={<NotFound />} />
                     </Route>
                   </Route>
                 </Routes>
               </BrandingProvider>
             </ToastProvider>
-            </NotificationProvider>
-          </ActivityProvider>
-        </AuthProvider>
+          </NotificationProvider>
+        </ActivityProvider>
+      </AuthProvider>
       <ToastContainer position="top-right" autoClose={5000} pauseOnHover theme="colored" />
     </Router>
   );

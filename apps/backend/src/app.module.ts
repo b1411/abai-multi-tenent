@@ -43,7 +43,7 @@ import { ActivityMonitoringModule } from './activity-monitoring/activity-monitor
 import { EducationalReportsModule } from './educational-reports/educational-reports.module';
 import { EdoModule } from './edo/edo.module';
 import { MailModule } from './mail/mail.module';
-import path from 'path';
+import * as path from 'node:path';
 
 const envFile = (() => {
   const p = process.env.ENV_FILE; // например "envs/.env.client1" или "/root/app/.env.client1"

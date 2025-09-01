@@ -14,9 +14,9 @@ function feCmd(distDir, port, envFileAbs) {
   return `
     export DOTENV_CONFIG_PATH=${envFileAbs} NODE_OPTIONS='-r dotenv/config';
     if [ "$FORCE_REBUILD" = "1" ] || [ ! -d ${distDir} ]; then
-      pnpm --filter frontend run build -- --outDir ${distDir};
+      pnpm --filter frontend exec vite build --outDir ${distDir};
     fi;
-    pnpm --filter frontend run preview -- --host 0.0.0.0 --port ${port} --strictPort --outDir ${distDir}
+    pnpm --filter frontend exec vite preview --host 0.0.0.0 --port ${port} --strictPort --outDir ${distDir}
   `.replace(/\n\s+/g, ' ').trim();
 }
 

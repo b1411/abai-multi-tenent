@@ -25,6 +25,7 @@
     "db:studio": "npx prisma studio",
     "db:push": "npx prisma db push",
     "db:seed": "tsx scripts/seed.ts",
+    "tenants:orchestrate": "tsx scripts/tenant-tools/orchestrate.ts",
     "db:create-emotional-templates": "tsx scripts/create-emotional-feedback-template.ts",
     "db:create-admin": "tsx scripts/create-admin-user.ts",
     "db:version": "npx prisma -v",

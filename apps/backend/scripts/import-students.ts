@@ -6,16 +6,14 @@ import { config } from 'dotenv';
 
 config({ path: '../../.env' });
 
-// Простой способ задать URL базы: впиши сюда. Если пусто, возьмёт DATABASE_URL из .env
-const DB_URL = 'prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19tenIwNE5MU0RuU1hPR2RDRlhHQ2kiLCJhcGlfa2V5IjoiMDFLMTJUSDA4RURCODBTVEI1RTVZVEpYNkciLCJ0ZW5hbnRfaWQiOiJjYmY2OTk4ZTJmMmQwODc2YTllZDI2ZjdkMjU1OTY0NWE0NmU2MzQ5MWVjZWMyYTUwOTllMzhjZGRiNjVhODM0IiwiaW50ZXJuYWxfc2VjcmV0IjoiZmQ5YzgwM2UtYWE0NC00NzQwLTkzZmEtNGVkNzJkNjU1ZDU3In0.9Fimq73RHYEBjNUnLKP7hGQ84tYRdjJ2_avlGpLY4ek';
-const dbUrl = DB_URL || process.env.DATABASE_URL;
+ // URL базы выбирается из DIRECT_URL (предпочтительно для multi-tenant) иначе DATABASE_URL
+const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!dbUrl) {
-    console.error('Не задан URL базы данных (заполните DB_URL или переменную окружения DATABASE_URL)');
+    console.error('Не задан URL базы данных (установите DIRECT_URL или DATABASE_URL)');
     process.exit(1);
 }
 console.log('Подключение к БД:', dbUrl.replace(/:[^:@/]+@/, ':****@'));
-// const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
 
 /**
  * ВАЖНО: теперь

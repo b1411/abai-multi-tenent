@@ -9,11 +9,15 @@ import { PrismaClient, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcryptjs';
 import { config } from "dotenv"
 
-config({
-    path: "../../.env.production"
-});
+config({ path: process.env.DOTENV_PATH || "../../.env.production" });
 
-console.log(process.env.DATABASE_URL)
+const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+if (!dbUrl) {
+    console.error("❌ No DIRECT_URL or DATABASE_URL provided");
+    process.exit(1);
+}
+const maskedDb = dbUrl.replace(/:\/\/([^:]+):([^@]+)@/, (_m, u) => `://${u}:****@`);
+console.log("Using DB URL", maskedDb);
 // const prisma = new PrismaClient({
 //     datasources: {
 //         db: {
@@ -22,7 +26,11 @@ console.log(process.env.DATABASE_URL)
 //     }
 // });
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+    datasources: {
+        db: { url: dbUrl }
+    }
+});
 
 const PASSWORD = 'password123';
 let passwordHash: string | null = null;

@@ -699,7 +699,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
         const titleLines: string[] = [];
         if (result.lessonScore) titleLines.push(`Урок: ${result.lessonScore}`);
         if (result.homeworkScore) titleLines.push(`ДЗ: ${result.homeworkScore}`);
-titleLines.push(`Средний: ${averageGrade.toFixed(2)}`);
+titleLines.push(`Средний: ${averageGrade}`);
         if (result.lessonScorecomment) titleLines.push(`Комментарий: ${result.lessonScorecomment}`);
         const title = titleLines.join('\n');
 
@@ -709,7 +709,7 @@ titleLines.push(`Средний: ${averageGrade.toFixed(2)}`);
                 className={`relative w-12 h-12 rounded-full text-white font-medium hover:opacity-90 transition-opacity ${journalService.getGradeColor(averageGrade)}`}
                 title={title}
             >
-{averageGrade.toFixed(2)}
+{averageGrade}
                 {result.lessonScorecomment && (
                     <span
                         className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500"

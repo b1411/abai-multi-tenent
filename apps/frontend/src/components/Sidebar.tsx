@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useBrandingContext } from '../contexts/BrandingContext';
 import { User } from '../types/api';
 import StudentProfileWidget from './StudentProfileWidget';
 import {
@@ -52,6 +53,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout, hasAnyRole } = useAuth();
+  const { branding } = useBrandingContext();
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({
     study: false,
     students: false,
@@ -219,9 +221,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       <div className="flex h-full flex-col">
         {/* Logo and close button */}
         <div className={`flex h-16 items-center ${collapsed ? 'px-2 justify-center' : 'justify-between px-4'} border-b border-gray-200`}>          
-          <div className="flex items-center space-x-2">
-            {!collapsed && <h1 className="text-xl font-bold text-primary">Fizmat.AI</h1>}
-            {collapsed && <h1 className="text-lg font-bold text-primary">A</h1>}
+          <div>
+            {collapsed ? (
+              branding?.logo ? (
+                <img
+                  src={branding.logo}
+                  alt={branding?.schoolName || 'AB.AI'}
+                  className="h-10 w-10 object-contain"
+                  draggable={false}
+                />
+              ) : (
+                <div className="text-lg font-bold text-primary">AB.AI</div>
+              )
+            ) : (
+              <div className="flex items-center space-x-2">
+                {branding?.logo && (
+                  <img
+                    src={branding.logo}
+                    alt={branding?.schoolName || 'AB.AI'}
+                    className="h-8 w-8 object-contain"
+                    draggable={false}
+                  />
+                )}
+                <h1 className="text-xl font-bold text-primary">{branding?.schoolName || 'AB.AI'}</h1>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-1">
             <button

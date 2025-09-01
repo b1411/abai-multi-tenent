@@ -1,113 +1,97 @@
 /**
- * PM2: один репо → 4 инстанса
- * Билд один раз:
- *   pnpm --filter backend run build && pnpm --filter frontend run build
+ * PM2: 4 backend + 4 frontend (каждый фронт: build → preview)
  * Старт:
  *   pm2 start ecosystem.config.cjs && pm2 save
+ *
+ * Принудительный ребилд фронта:
+ *   pm2 restart frontend-uib-college --update-env --env FORCE_REBUILD=1
  */
 
 const ROOT = '/root/app';
 
+// Однострочная команда для фронта: экспорт env → (опционально) build → preview
+function feCmd(distDir, port, envFileAbs) {
+  return `
+    export DOTENV_CONFIG_PATH=${envFileAbs} NODE_OPTIONS='-r dotenv/config';
+    if [ "$FORCE_REBUILD" = "1" ] || [ ! -d ${distDir} ]; then
+      pnpm --filter frontend run build -- --outDir ${distDir};
+    fi;
+    pnpm --filter frontend run preview -- --host 0.0.0.0 --port ${port} --strictPort --outDir ${distDir}
+  `.replace(/\n\s+/g, ' ').trim();
+}
+
 module.exports = {
-    apps: [
-        // =============== CLIENT 1 — fizmat-school ===============
-        {
-            name: 'backend-fizmat-school',
-            cwd: ROOT,
-            script: 'apps/backend/dist/src/main.js',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-school'   // <-- лежит в корне монорепо
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
-        {
-            name: 'frontend-fizmat-school',
-            cwd: ROOT,
-            script: 'pnpm',
-            args: '--filter frontend run preview --host 0.0.0.0 --port 8221 --strictPort',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-school'   // для твоего кастомного vite.config с dotenv (если используешь)
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
+  apps: [
+    // ==================== BACKENDS ====================
+    {
+      name: 'backend-fizmat-school',
+      cwd: ROOT,
+      script: 'apps/backend/dist/src/main.js',
+      interpreter: 'node',
+      node_args: '-r dotenv/config',
+      env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-school' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
+    },
+    {
+      name: 'backend-uib-college',
+      cwd: ROOT,
+      script: 'apps/backend/dist/src/main.js',
+      interpreter: 'node',
+      node_args: '-r dotenv/config',
+      env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.uib-college' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
+    },
+    {
+      name: 'backend-fizmat-academy',
+      cwd: ROOT,
+      script: 'apps/backend/dist/src/main.js',
+      interpreter: 'node',
+      node_args: '-r dotenv/config',
+      env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-academy' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
+    },
+    {
+      name: 'backend-demo',
+      cwd: ROOT,
+      script: 'apps/backend/dist/src/main.js',
+      interpreter: 'node',
+      node_args: '-r dotenv/config',
+      env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
+    },
 
-        // =============== CLIENT 2 — uib-college ===============
-        {
-            name: 'backend-uib-college',
-            cwd: ROOT,
-            script: 'apps/backend/dist/src/main.js',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.uib-college'
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
-        {
-            name: 'frontend-uib-college',
-            cwd: ROOT,
-            script: 'pnpm',
-            args: '--filter frontend run preview --host 0.0.0.0 --port 8222 --strictPort',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.uib-college'
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
-
-        // =============== CLIENT 3 — fizmat-academy ===============
-        {
-            name: 'backend-fizmat-academy',
-            cwd: ROOT,
-            script: 'apps/backend/dist/src/main.js',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-academy'
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
-        {
-            name: 'frontend-fizmat-academy',
-            cwd: ROOT,
-            script: 'pnpm',
-            args: '--filter frontend run preview --host 0.0.0.0 --port 8223 --strictPort',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-academy'
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
-
-        // =============== CLIENT 4 — demo-abai ===============
-        {
-            name: 'backend-demo',
-            cwd: ROOT,
-            script: 'apps/backend/dist/src/main.js',
-            interpreter: 'node',
-            node_args: '-r dotenv/config',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai'
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
-        {
-            name: 'frontend-demo',
-            cwd: ROOT,
-            script: 'pnpm',
-            args: '--filter frontend run preview --host 0.0.0.0 --port 8224 --strictPort',
-            env: {
-                NODE_ENV: 'production',
-                DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai'
-            },
-            exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
-        },
-    ]
+    // ==================== FRONTENDS (build → preview) ====================
+    {
+      name: 'frontend-fizmat-school',
+      cwd: ROOT,
+      script: 'bash',
+      args: ['-lc', feCmd('apps/frontend/dist-fizmat-school', 8221, '/root/app/.env.fizmat-school')],
+      env: { NODE_ENV: 'production' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 2000, max_memory_restart: '512M'
+    },
+    {
+      name: 'frontend-uib-college',
+      cwd: ROOT,
+      script: 'bash',
+      args: ['-lc', feCmd('apps/frontend/dist-uib-college', 8222, '/root/app/.env.uib-college')],
+      env: { NODE_ENV: 'production' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 2000, max_memory_restart: '512M'
+    },
+    {
+      name: 'frontend-fizmat-academy',
+      cwd: ROOT,
+      script: 'bash',
+      args: ['-lc', feCmd('apps/frontend/dist-fizmat-academy', 8223, '/root/app/.env.fizmat-academy')],
+      env: { NODE_ENV: 'production' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 2000, max_memory_restart: '512M'
+    },
+    {
+      name: 'frontend-demo',
+      cwd: ROOT,
+      script: 'bash',
+      args: ['-lc', feCmd('apps/frontend/dist-demo', 8224, '/root/app/.env.demo-abai')],
+      env: { NODE_ENV: 'production' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 2000, max_memory_restart: '512M'
+    },
+  ]
 };

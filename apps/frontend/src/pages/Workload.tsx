@@ -455,20 +455,20 @@ const WorkloadPage: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
-                                            {teacher.scheduledHours} ч.
+                                            {teacher.scheduledHours.toFixed(2)} ч.
                                         </td>
                                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {teacher.workedHours} ч.
+                                            {teacher.workedHours.toFixed(2)} ч.
                                         </td>
                                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden md:table-cell">
-                                            {teacher.substitutedHours} ч.
+                                            {teacher.substitutedHours.toFixed(2)} ч.
                                         </td>
                                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                         ${difference > 0 ? 'bg-green-100 text-green-800' :
                                                     difference < 0 ? 'bg-red-100 text-red-800' :
                                                         'bg-gray-100 text-gray-800'}`}>
-                                                {difference > 0 ? '+' : ''}{difference} ч.
+                                                {difference > 0 ? '+' : ''}{difference.toFixed(2)} ч.
                                             </span>
                                         </td>
                                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">

@@ -9,7 +9,7 @@ import { PrismaClient, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcryptjs';
 import { config } from "dotenv"
 
-config({ path: process.env.DOTENV_PATH || "../../.env.production" });
+config({ path: process.env.DOTENV_PATH || "../../.env" });
 
 const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!dbUrl) {

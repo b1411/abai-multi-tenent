@@ -350,7 +350,7 @@ const openEdit = () => {
             <div className="ml-5">
               <p className="text-sm font-medium text-gray-500">Средний балл</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {performance ? performance.averageGrade.toFixed(1) : '-'}
+                {performance ? performance.averageGrade.toFixed(2) : '-'}
               </p>
             </div>
           </div>

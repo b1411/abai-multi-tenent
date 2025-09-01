@@ -699,7 +699,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
         const titleLines: string[] = [];
         if (result.lessonScore) titleLines.push(`Урок: ${result.lessonScore}`);
         if (result.homeworkScore) titleLines.push(`ДЗ: ${result.homeworkScore}`);
-        titleLines.push(`Средний: ${averageGrade.toFixed(1)}`);
+titleLines.push(`Средний: ${averageGrade.toFixed(2)}`);
         if (result.lessonScorecomment) titleLines.push(`Комментарий: ${result.lessonScorecomment}`);
         const title = titleLines.join('\n');
 
@@ -709,7 +709,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                 className={`relative w-12 h-12 rounded-full text-white font-medium hover:opacity-90 transition-opacity ${journalService.getGradeColor(averageGrade)}`}
                 title={title}
             >
-                {averageGrade.toFixed(1)}
+{averageGrade.toFixed(2)}
                 {result.lessonScorecomment && (
                     <span
                         className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500"
@@ -793,7 +793,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                             <table className="w-full min-w-full">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="sticky left-0 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] border-r">
+<th className="sticky left-0 z-40 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] border-r">
                                             Студент
                                         </th>
                                         {lessons.map((lesson) => (
@@ -812,7 +812,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                                     {students.length > 0 ? (
                                         students.map((student) => (
                                             <tr key={student.id} className="hover:bg-gray-50">
-                                                <td className="sticky left-0 bg-white px-6 py-4 whitespace-nowrap border-r">
+<td className="sticky left-0 z-30 bg-white px-6 py-4 whitespace-nowrap border-r">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">
                                                             {student.user.surname} {student.user.name}

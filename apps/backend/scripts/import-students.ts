@@ -310,7 +310,9 @@ async function main() {
     // --- Teachers ---
     const teachersPath = path.resolve(__dirname, 'teachers.json');
     const teacherStats = { created: 0, skipped: 0, failed: 0, roleMismatch: 0 };
-    if (fs.existsSync(teachersPath)) {
+    if (process.env.SKIP_TEACHERS) {
+        console.log('Пропуск импорта преподавателей (SKIP_TEACHERS=1)');
+    } else if (fs.existsSync(teachersPath)) {
         try {
             const rawTeachers = JSON.parse(fs.readFileSync(teachersPath, 'utf-8')) as unknown;
             if (Array.isArray(rawTeachers)) {

@@ -1,6 +1,7 @@
 import { config as loadEnv } from 'dotenv';
 import { execSync } from 'child_process';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as bcrypt from 'bcryptjs';
 import { PrismaClient } from 'generated/prisma';
 
@@ -51,6 +52,25 @@ const tenants: TenantConfig[] = [
     adminPassword: 'Password123!'
   }
 ];
+
+// Фильтр: можно запустить для одного / нескольких тенантов:
+//   --tenant=uib-college
+//   --tenants=uib-college,fizmat-school
+const tenantArg = process.argv.find(a => a.startsWith('--tenant='))?.split('=')[1];
+const tenantsArg = process.argv.find(a => a.startsWith('--tenants='))?.split('=')[1];
+let selectedTenants = tenants;
+if (tenantsArg) {
+  const list = tenantsArg.split(',').map(s => s.trim()).filter(Boolean);
+  selectedTenants = tenants.filter(t => list.includes(t.name));
+} else if (tenantArg) {
+  selectedTenants = tenants.filter(t => t.name === tenantArg);
+}
+if (selectedTenants.length === 0) {
+  if (tenantArg || tenantsArg) {
+    console.error('Нет подходящих tenants для указанных аргументов');
+    process.exit(1);
+  }
+}
 
 function log(title: string, msg: string) {
   console.log(`[${title}] ${msg}`);
@@ -201,6 +221,42 @@ async function processTenant(t: TenantConfig) {
       runSeed(envOverride);
       break;
     case 'initAdmin':
+      // Специальная логика для uib-college: преобразовать college-students.json -> students.json и выполнить импорт перед созданием админа
+      if (t.name === 'uib-college') {
+        try {
+          const scriptsDir = path.join(__dirname, '..');
+            const collegePath = path.join(scriptsDir, 'college-students.json');
+            const studentsPath = path.join(scriptsDir, 'students.json');
+            if (fs.existsSync(collegePath)) {
+              const raw = JSON.parse(fs.readFileSync(collegePath, 'utf-8')) as any[];
+              if (Array.isArray(raw)) {
+                const transformed = raw.map(r => ({
+                  Email: (r['Почта'] || '').toString().trim(),
+                  "Фамилия": (r['Фамилия'] || '').toString().trim(),
+                  "Имя": (r['Имя'] || '').toString().trim(),
+                  "Отчество": (r['Отчество'] || '').toString().trim(),
+                  "Телефон": (r['Номер телефона'] == null ? '' : String(r['Номер телефона'])).trim(),
+                  "ДатаРождения": (r['Дата рождения'] || '').toString().trim(),
+                  // В college-students.json "Группа" = название группы, "Курс" = номер курса
+                  "Группа": (r['Курс'] == null ? '' : String(r['Курс'])).trim(), // номер курса (ожидается как строка числа)
+                  "Курс": (r['Группа'] || '').toString().trim(), // название группы
+                  "Пароль": '' // будет заменён скриптом import-students на общий пароль
+                }));
+                fs.writeFileSync(studentsPath, JSON.stringify(transformed, null, 2), 'utf-8');
+                log(t.name, `Сформирован students.json (${transformed.length}) из college-students.json`);
+                log(t.name, 'Запуск import-students (college, SKIP_TEACHERS=1)');
+                const importEnv = { ...envOverride, SKIP_TEACHERS: '1' };
+                runImport(importEnv);
+              } else {
+                log(t.name, 'college-students.json: ожидался массив');
+              }
+            } else {
+              log(t.name, 'college-students.json не найден — пропуск импорта студентов колледжа');
+            }
+        } catch (e:any) {
+          log(t.name, `Ошибка преобразования college-students.json: ${e.message || e}`);
+        }
+      }
       log(t.name, `Создание/проверка админа ${t.adminEmail}`);
       await ensureAdmin(process.env.DIRECT_URL || process.env.DATABASE_URL || primary, t.adminEmail, t.adminPassword);
       break;
@@ -210,7 +266,7 @@ async function processTenant(t: TenantConfig) {
 
 async function main() {
   const started = Date.now();
-  for (const tenant of tenants) {
+  for (const tenant of selectedTenants) {
     try {
       await processTenant(tenant);
     } catch (e) {

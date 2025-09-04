@@ -155,7 +155,35 @@ async function ensureCalendarEvent(title: string, date: Date, createdById: numbe
 
 async function ensureDashboardWidgets(userId: number, role: UserRole) {
     const existing = await prisma.dashboardWidget.findMany({ where: { userId } });
-    if (existing.length) return;
+
+    const widgetTitleMap: Record<string, string> = {
+        'system-stats': 'Статистика системы',
+        'finance-overview': 'Финансовый обзор',
+        'school-attendance': 'Посещаемость школы',
+        'news': 'Новости',
+        'teacher-schedule': 'Расписание учителя',
+        'grades': 'Оценки',
+        'assignments': 'Задания',
+        'schedule': 'Расписание',
+        'attendance': 'Посещаемость',
+        'child-schedule': 'Расписание ребенка',
+        'child-grades': 'Оценки ребенка',
+        'child-homework': 'Домашние задания',
+        'activity-monitoring': 'Активность',
+        'teacher-workload': 'Нагрузка учителей'
+    };
+
+    // Если виджеты уже существуют — обновим их заголовки (если еще английские) и выйдем
+    if (existing.length) {
+        for (const w of existing) {
+            const newTitle = widgetTitleMap[w.type];
+            if (newTitle && (w.title === w.type || !w.title)) {
+                await prisma.dashboardWidget.update({ where: { id: w.id }, data: { title: newTitle } });
+            }
+        }
+        return;
+    }
+
     const byRole: Record<UserRole, string[]> = {
         ADMIN: ['system-stats', 'finance-overview', 'school-attendance', 'news'],
         TEACHER: ['teacher-schedule', 'grades', 'assignments', 'news'],
@@ -164,9 +192,20 @@ async function ensureDashboardWidgets(userId: number, role: UserRole) {
         FINANCIST: ['finance-overview', 'news'],
         HR: ['activity-monitoring', 'teacher-workload', 'news']
     };
+
     let pos = 0;
     for (const type of byRole[role] || []) {
-        await prisma.dashboardWidget.create({ data: { userId, type, title: type, size: 'medium', position: { x: 0, y: pos }, order: pos, config: {} } });
+        await prisma.dashboardWidget.create({
+            data: {
+                userId,
+                type,
+                title: widgetTitleMap[type] || type,
+                size: 'medium',
+                position: { x: 0, y: pos },
+                order: pos,
+                config: {}
+            }
+        });
         pos++;
     }
 }

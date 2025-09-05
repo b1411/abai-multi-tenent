@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useEmotionalAnalysis } from '../hooks/useEmotionalAnalysis';
 import { useAuth } from '../hooks/useAuth';
 import { Spinner } from '../components/ui/Spinner';
+import { EMO_TREND_THRESHOLD } from '../constants/emotional';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -70,6 +71,31 @@ const EmotionalAnalysisPage: React.FC = () => {
       engagement: e.engagement
     }));
   }, [events]);
+
+  
+  const computeTrend = (series: (number | undefined)[]) => {
+    if (series.length < 2) return 'neutral';
+    const prev = series[series.length - 2];
+    const curr = series[series.length - 1];
+    if (prev == null || curr == null) return 'neutral';
+    const diff = curr - prev;
+    if (diff > EMO_TREND_THRESHOLD) return 'up';
+    if (diff < -EMO_TREND_THRESHOLD) return 'down';
+    return 'neutral';
+  };
+
+  const lastDiff = (curr?: number, prev?: number) => {
+    if (curr == null || prev == null) return null;
+    return curr - prev;
+  };
+
+  const moodTrend = computeTrend(trendData.map(d => d.mood));
+  const stressTrend = computeTrend(trendData.map(d => d.stress));
+  const engagementTrend = computeTrend(trendData.map(d => d.engagement));
+
+  const lastMoodDiff = lastDiff(trendData.at(-1)?.mood, trendData.at(-2)?.mood);
+  const lastStressDiff = lastDiff(trendData.at(-1)?.stress, trendData.at(-2)?.stress);
+  const lastEngagementDiff = lastDiff(trendData.at(-1)?.engagement, trendData.at(-2)?.engagement);
 
   if (!hasRole('ADMIN')) {
     return (
@@ -151,7 +177,14 @@ const EmotionalAnalysisPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Chart */}
             <div className="bg-white rounded-lg shadow-sm border p-5 flex flex-col">
-              <h3 className="text-sm font-medium text-gray-700 mb-4">Динамика показателей</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Динамика показателей</h3>
+              {trendData.length >= 2 && (
+                <div className="flex flex-wrap gap-4 mb-2 text-xs">
+                  <TrendBadge label="Настроение" trend={moodTrend} diff={lastMoodDiff} />
+                  <TrendBadge label="Стресс" trend={stressTrend} diff={lastStressDiff} />
+                  <TrendBadge label="Вовлеченность" trend={engagementTrend} diff={lastEngagementDiff} />
+                </div>
+              )}
               <div className="h-72">
                 {trendData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-gray-500 text-sm">Нет данных</div>
@@ -352,16 +385,19 @@ const EmotionalAnalysisPage: React.FC = () => {
 
 /* Components */
 
-const KpiMetricCard: React.FC<{ title: string; value?: number; customValue?: React.ReactNode; isPercent?: boolean }> = ({ title, value, customValue, isPercent = true }) => (
-  <div className="bg-white rounded-lg shadow-sm border p-5 flex flex-col">
-    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{title}</div>
-    {customValue ? customValue : value === undefined || value === null ? (
-      <div className="text-sm text-gray-400">—</div>
-    ) : (
-      <div className={`text-3xl font-semibold ${colorByValue(value)}`}>{value}{isPercent ? '%' : ''}</div>
-    )}
-  </div>
-);
+const KpiMetricCard: React.FC<{ title: string; value?: number; customValue?: React.ReactNode; isPercent?: boolean }> = ({ title, value, customValue, isPercent = true }) => {
+  const invalid = value === undefined || value === null || Number.isNaN(value) || !Number.isFinite(value as number);
+  return (
+    <div className="bg-white rounded-lg shadow-sm border p-5 flex flex-col">
+      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{title}</div>
+      {customValue ? customValue : invalid ? (
+        <div className="text-sm text-gray-400">—</div>
+      ) : (
+        <div className={`text-3xl font-semibold ${colorByValue(value!)}`}>{value}{isPercent ? '%' : ''}</div>
+      )}
+    </div>
+  );
+};
 
 // Legacy placeholder (not used directly now but kept for consistency if extended)
 const KpiCard: React.FC<{ title: string; value: number | string; extraValue?: any; raw?: any; bigValueOverride?: any }> = ({ title, value }) => (
@@ -374,14 +410,17 @@ const MetricBar: React.FC<{ label: string; value: number; color?: 'stress' | 'en
     : color === 'eng'
       ? 'bg-purple-500'
       : 'bg-green-500';
+  const invalid = value === null || value === undefined || Number.isNaN(value) || !Number.isFinite(value);
+  const shown = invalid ? '—' : `${value}%`;
+  const width = invalid ? 0 : value;
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm text-gray-500">{label}</span>
-        <span className="text-sm font-medium text-gray-900">{value}%</span>
+        <span className="text-sm font-medium text-gray-900">{shown}</span>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-1.5">
-        <div className={`h-1.5 rounded-full ${palette}`} style={{ width: `${value}%` }} />
+        <div className={`h-1.5 rounded-full ${palette}`} style={{ width: `${width}%` }} />
       </div>
     </div>
   );
@@ -393,19 +432,33 @@ const EventMetric: React.FC<{ label: string; value: number; color?: 'stress' | '
     : color === 'eng'
       ? 'bg-purple-500'
       : 'bg-green-500';
+  const invalid = value === null || value === undefined || Number.isNaN(value) || !Number.isFinite(value);
+  const shown = invalid ? '—' : `${value}%`;
+  const width = invalid ? 0 : value;
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
         <span className="text-gray-500">{label}</span>
-        <span className="font-medium text-gray-900">{value}%</span>
+        <span className="font-medium text-gray-900">{shown}</span>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-1">
-        <div className={`${palette} h-1 rounded-full`} style={{ width: `${value}%` }} />
+        <div className={`${palette} h-1 rounded-full`} style={{ width: `${width}%` }} />
       </div>
     </div>
   );
 };
-
+ 
+const TrendBadge: React.FC<{label:string;trend:string;diff:number|null}> = ({label, trend, diff}) => {
+  const color = trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-600';
+  const arrow = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
+  return (
+    <div className="flex items-center gap-1 px-2 py-1 rounded bg-gray-100">
+      <span className="font-medium">{label}</span>
+      <span className={`${color} font-semibold`}>{arrow}{diff != null ? Math.round(diff) : ''}</span>
+    </div>
+  );
+};
+ 
 const StudentDetailsContent: React.FC<{ data: any }> = ({ data }) => {
   const metricLabel: Record<string,string> = {
     mood: 'Настроение',

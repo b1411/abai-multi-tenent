@@ -4,10 +4,15 @@ import { CreateFeedbackTemplateDto } from './dto/create-feedback-template.dto';
 import { UpdateFeedbackTemplateDto } from './dto/update-feedback-template.dto';
 import { CreateFeedbackResponseDto } from './dto/create-feedback-response.dto';
 import { KpiService } from 'src/kpi/kpi.service';
+import { EventService, DomainEventType } from 'src/common/events/event.service';
 
 @Injectable()
 export class FeedbackService {
-  constructor(private readonly prisma: PrismaService, private readonly kpiService: KpiService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly kpiService: KpiService,
+    private readonly eventService: EventService,
+  ) { }
 
   // Шаблоны форм обратной связи
   async createTemplate(createTemplateDto: CreateFeedbackTemplateDto) {
@@ -36,7 +41,7 @@ export class FeedbackService {
       throw new Error('User not found');
     }
 
-    return await this.prisma.feedbackTemplate.findMany({
+    const templates = await this.prisma.feedbackTemplate.findMany({
       where: {
         role: user.role,
         isActive: true,
@@ -45,6 +50,24 @@ export class FeedbackService {
         priority: 'asc',
       },
     });
+
+    // Фильтрация для студентов: убираем персональные формы других студентов
+    if (user.role === 'STUDENT') {
+      const student = await this.prisma.student.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+
+      if (student) {
+        const ownDynamicName = `teacher_evaluation_student_${student.id}`;
+        return templates.filter(t => {
+          if (!t.name.startsWith('teacher_evaluation_student_')) return true;
+          return t.name === ownDynamicName;
+        });
+      }
+    }
+
+    return templates;
   }
 
   async getActiveTemplates() {
@@ -182,6 +205,28 @@ export class FeedbackService {
     if (responseDto.isCompleted) {
       await this.updateUserFeedbackStatus(userId);
       await this.integrateWithOtherModules(userId, response);
+
+      // Эмитим доменное событие для пересчёта KPI и эмоционального состояния
+      try {
+        const student = await this.prisma.student.findUnique({
+          where: { userId },
+          select: { id: true },
+        });
+
+        this.eventService.emit(DomainEventType.FEEDBACK_SUBMITTED, {
+          studentId: student?.id,
+          items: [{
+            templateId: response.templateId,
+            responseId: response.id,
+            aboutTeacherId: response.aboutTeacherId,
+            answers: response.answers,
+            period: response.period,
+            submittedAt: response.submittedAt,
+          }]
+        });
+      } catch (e) {
+        console.error('Failed to emit FEEDBACK_SUBMITTED event:', e);
+      }
     }
 
     return response;
@@ -207,13 +252,29 @@ export class FeedbackService {
     const currentPeriod = this.getCurrentPeriod();
 
     // Получаем обязательные шаблоны для роли пользователя
-    const mandatoryTemplates = await this.prisma.feedbackTemplate.findMany({
+    const mandatoryTemplatesRaw = await this.prisma.feedbackTemplate.findMany({
       where: {
         role: user.role,
         isActive: true,
         priority: { gt: 0 }, // Приоритет > 0 означает обязательную форму
       },
     });
+
+    // Фильтрация персональных шаблонов для студентов (оставляем только свой)
+    let mandatoryTemplates = mandatoryTemplatesRaw;
+    if (user.role === 'STUDENT') {
+      const student = await this.prisma.student.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+      if (student) {
+        const ownName = `teacher_evaluation_student_${student.id}`;
+        mandatoryTemplates = mandatoryTemplatesRaw.filter(t => {
+          if (!t.name.startsWith('teacher_evaluation_student_')) return true;
+          return t.name === ownName;
+        });
+      }
+    }
 
     // Проверяем, какие формы уже заполнены
     const completedResponses = await this.prisma.feedbackResponse.findMany({
@@ -273,12 +334,11 @@ export class FeedbackService {
       }
 
       // Интеграция с эмоциональным состоянием
-      if (answers.mood_today || answers.stress_level) {
-        await this.updateEmotionalState(userId, answers);
-      }
+      // (Удалено прямое обновление. Теперь обновление эмоционального состояния происходит только
+      // через событие FEEDBACK_SUBMITTED -> EmotionalStateSubscriber -> EmotionalStateService.recordBatch)
 
-  // Интеграция с KPI
-  await this.updateKPIMetrics({ aboutTeacherId: response.aboutTeacherId as number | undefined });
+      // Интеграция с KPI
+      await this.updateKPIMetrics({ aboutTeacherId: response.aboutTeacherId as number | undefined });
     } catch (error) {
       console.error('Error integrating with other modules:', error);
     }
@@ -304,92 +364,9 @@ export class FeedbackService {
     }
   }
 
-  private async updateEmotionalState(userId: number, answers: any) {
-    const student = await this.prisma.student.findUnique({
-      where: { userId },
-    });
-
-    if (student) {
-      // Получаем предыдущее состояние для расчета трендов
-      const previousState = await this.prisma.emotionalState.findUnique({
-        where: { studentId: student.id },
-      });
-
-      // Нормализуем значения к шкале 0-100
-      const normalizedMood = this.normalizeToScale(answers.mood_today || answers.overall_satisfaction, 100);
-      const normalizedConcentration = this.normalizeToScale(answers.concentration_level, 100);
-      const normalizedSocialization = this.normalizeToScale(answers.socialization_level, 100);
-      const normalizedMotivation = this.normalizeToScale(answers.motivation_level, 100);
-
-      // Рассчитываем тренды
-      const moodTrend = previousState ? this.calculateTrendChange(previousState.mood, normalizedMood) : 'neutral';
-      const concentrationTrend = previousState ? this.calculateTrendChange(previousState.concentration, normalizedConcentration) : 'neutral';
-      const socializationTrend = previousState ? this.calculateTrendChange(previousState.socialization, normalizedSocialization) : 'neutral';
-      const motivationTrend = previousState ? this.calculateTrendChange(previousState.motivation, normalizedMotivation) : 'neutral';
-
-      await this.prisma.emotionalState.upsert({
-        where: { studentId: student.id },
-        create: {
-          studentId: student.id,
-          mood: normalizedMood,
-          moodDesc: this.getMoodDescription(normalizedMood),
-          moodTrend: moodTrend as any,
-          concentration: normalizedConcentration,
-          concentrationDesc: this.getConcentrationDescription(normalizedConcentration),
-          concentrationTrend: concentrationTrend as any,
-          socialization: normalizedSocialization,
-          socializationDesc: this.getSocializationDescription(normalizedSocialization),
-          socializationTrend: socializationTrend as any,
-          motivation: normalizedMotivation,
-          motivationDesc: this.getMotivationDescription(normalizedMotivation),
-          motivationTrend: motivationTrend as any,
-        },
-        update: {
-          mood: normalizedMood,
-          moodDesc: this.getMoodDescription(normalizedMood),
-          moodTrend: moodTrend as any,
-          concentration: normalizedConcentration,
-          concentrationDesc: this.getConcentrationDescription(normalizedConcentration),
-          concentrationTrend: concentrationTrend as any,
-          socialization: normalizedSocialization,
-          socializationDesc: this.getSocializationDescription(normalizedSocialization),
-          socializationTrend: socializationTrend as any,
-          motivation: normalizedMotivation,
-          motivationDesc: this.getMotivationDescription(normalizedMotivation),
-          motivationTrend: motivationTrend as any,
-        },
-      });
-
-      // Создаем запись в истории эмоциональных состояний
-      this.createEmotionalStateHistory(student.id, answers);
-    }
-  }
-
   // Метод для создания записи в истории эмоциональных состояний
-  private createEmotionalStateHistory(studentId: number, answers: any) {
-    // История эмоциональных состояний автоматически сохраняется в FeedbackResponse
-    // Здесь можно добавить дополнительную логику обработки, например:
-    // - Уведомления при критических изменениях
-    // - Агрегация данных для аналитики
-    // - Интеграция с внешними системами мониторинга
-
-    // Пример: проверка на критические изменения настроения
-    if (answers.mood_today && answers.mood_today < 2) {
-      console.warn(`Critical mood level detected for student ${studentId}: ${answers.mood_today}`);
-      // Здесь можно добавить уведомление администрации или психолога
-    }
-
-    // Логирование для мониторинга
-    console.log(`Emotional state history updated for student ${studentId}`);
-  }
 
   // Метод для расчета изменения тренда
-  private calculateTrendChange(previousValue: number, currentValue: number): string {
-    const diff = currentValue - previousValue;
-    if (diff > 5) return 'up';
-    if (diff < -5) return 'down';
-    return 'neutral';
-  }
 
   private async updateKPIMetrics(response: { aboutTeacherId?: number }) {
     try {
@@ -674,202 +651,106 @@ export class FeedbackService {
 
   // Получение эмоционального состояния студента на основе фидбеков
   async getStudentEmotionalStateFromFeedbacks(studentId: number) {
-    // Находим студента по ID
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
       include: { user: true },
     });
+    if (!student) throw new Error('Student not found');
 
-    if (!student) {
-      throw new Error('Student not found');
-    }
+    const state = await this.prisma.emotionalState.findUnique({
+      where: { studentId },
+    });
 
-    // Получаем последние ответы на эмоциональные опросы
-    const recentResponses = await this.prisma.feedbackResponse.findMany({
+    // Последние snapshots истории
+    const history = await this.prisma.emotionalStateHistory.findMany({
+      where: { studentId },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+
+    // Teacher ratings (собираем последние 10 ответов с оценочными вопросами преподавателей)
+    const ratingResponses = await this.prisma.feedbackResponse.findMany({
       where: {
         userId: student.userId,
         isCompleted: true,
-      },
-      include: {
-        template: true,
+        submittedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
       },
       orderBy: { submittedAt: 'desc' },
-      take: 10,
+      take: 20,
     });
+    const teacherRatings = this.extractTeacherRatings(ratingResponses);
 
-    // Анализируем ответы для получения эмоционального состояния
-    const emotionalMetrics = this.analyzeEmotionalResponses(recentResponses);
+    const currentState = state
+      ? {
+        mood: { value: state.mood, description: this.getMoodDescription(state.mood), trend: state.moodTrend },
+        concentration: { value: state.concentration, description: this.getConcentrationDescription(state.concentration), trend: state.concentrationTrend },
+        socialization: { value: state.socialization, description: this.getSocializationDescription(state.socialization), trend: state.socializationTrend },
+        motivation: { value: state.motivation, description: this.getMotivationDescription(state.motivation), trend: state.motivationTrend },
+      }
+      : null;
 
-    // Извлекаем оценки преподавателей
-    const teacherRatings = this.extractTeacherRatings(recentResponses);
+    const recommendations = currentState
+      ? this.generateEmotionalRecommendations({
+        mood: { value: currentState.mood.value },
+        concentration: { value: currentState.concentration.value },
+        socialization: { value: currentState.socialization.value },
+        motivation: { value: currentState.motivation.value },
+      })
+      : [];
 
     return {
       studentId,
-      responses: recentResponses,
-      currentState: emotionalMetrics,
-      lastUpdated: recentResponses[0]?.submittedAt || null,
-      trends: this.calculateEmotionalTrends(recentResponses),
-      recommendations: emotionalMetrics ? this.generateEmotionalRecommendations(emotionalMetrics) : [],
+      currentState,
+      lastUpdated: state?.updatedAt || null,
+      history: history.map(h => ({
+        date: h.createdAt,
+        mood: h.mood,
+        concentration: h.concentration,
+        socialization: h.socialization,
+        motivation: h.motivation,
+        stress: h.stress,
+        engagement: h.engagement,
+        moodTrend: h.moodTrend,
+        concentrationTrend: h.concentrationTrend,
+        socializationTrend: h.socializationTrend,
+        motivationTrend: h.motivationTrend,
+      })),
       teacherRatings,
+      recommendations,
     };
   }
 
   // Получение истории эмоциональных ответов студента
   async getStudentEmotionalHistory(studentId: number, period?: string) {
+    // period пока игнорируем (можно фильтровать по createdAt)
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
-      include: { user: true },
+      select: { id: true },
     });
+    if (!student) throw new Error('Student not found');
 
-    if (!student) {
-      throw new Error('Student not found');
-    }
-
-    const where: any = {
-      userId: student.userId,
-      isCompleted: true,
-    };
-
-    if (period) {
-      where.period = period;
-    }
-
-    const responses = await this.prisma.feedbackResponse.findMany({
-      where,
-      include: {
-        template: true,
-      },
-      orderBy: { submittedAt: 'desc' },
+    const history = await this.prisma.emotionalStateHistory.findMany({
+      where: { studentId },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
     });
 
     return {
       studentId,
-      history: responses.map(response => ({
-        date: response.submittedAt,
-        period: response.period,
-        template: response.template.title,
-        emotionalData: this.extractEmotionalData(response.answers),
+      history: history.map(h => ({
+        date: h.createdAt,
+        mood: h.mood,
+        concentration: h.concentration,
+        socialization: h.socialization,
+        motivation: h.motivation,
+        stress: h.stress,
+        engagement: h.engagement,
+        moodTrend: h.moodTrend,
+        concentrationTrend: h.concentrationTrend,
+        socializationTrend: h.socializationTrend,
+        motivationTrend: h.motivationTrend,
       })),
-      period,
     };
-  }
-
-  // Анализ эмоциональных ответов
-  private analyzeEmotionalResponses(responses: any[]) {
-    const emotionalAnswers = responses.flatMap(response =>
-      this.extractEmotionalData(response.answers)
-    ).filter(data => data !== null);
-
-    if (emotionalAnswers.length === 0) {
-      return null; // Возвращаем null если нет данных
-    }
-
-    const avgMood = this.calculateAverage(emotionalAnswers, 'mood');
-    const avgConcentration = this.calculateAverage(emotionalAnswers, 'concentration');
-    const avgSocialization = this.calculateAverage(emotionalAnswers, 'socialization');
-    const avgMotivation = this.calculateAverage(emotionalAnswers, 'motivation');
-
-    return {
-      mood: {
-        value: avgMood,
-        description: this.getMoodDescription(avgMood),
-        trend: this.calculateTrend(emotionalAnswers, 'mood'),
-      },
-      concentration: {
-        value: avgConcentration,
-        description: this.getConcentrationDescription(avgConcentration),
-        trend: this.calculateTrend(emotionalAnswers, 'concentration'),
-      },
-      socialization: {
-        value: avgSocialization,
-        description: this.getSocializationDescription(avgSocialization),
-        trend: this.calculateTrend(emotionalAnswers, 'socialization'),
-      },
-      motivation: {
-        value: avgMotivation,
-        description: this.getMotivationDescription(avgMotivation),
-        trend: this.calculateTrend(emotionalAnswers, 'motivation'),
-      },
-    };
-  }
-
-  // Извлечение эмоциональных данных из ответов
-  private extractEmotionalData(answers: any) {
-    const emotional: any = {};
-
-    // Ищем эмоциональные вопросы в ответах
-  for (const [key, value] of Object.entries(answers as Record<string, unknown>)) {
-      if (key.includes('mood') || key.includes('настроение')) {
-        emotional.mood = this.normalizeToScale(value, 100);
-      }
-      if (key.includes('concentration') || key.includes('концентрация')) {
-        emotional.concentration = this.normalizeToScale(value, 100);
-      }
-      if (key.includes('social') || key.includes('общение')) {
-        emotional.socialization = this.normalizeToScale(value, 100);
-      }
-      if (key.includes('motivation') || key.includes('мотивация')) {
-        emotional.motivation = this.normalizeToScale(value, 100);
-      }
-      if (key.includes('satisfaction') || key.includes('удовлетворенность')) {
-        emotional.mood = this.normalizeToScale(value, 100);
-      }
-    }
-
-  return Object.keys(emotional as Record<string, unknown>).length > 0 ? emotional : null;
-  }
-
-  // Нормализация значений к шкале 0-100
-  private normalizeToScale(value: any, targetScale: number): number {
-    if (typeof value === 'number') {
-      if (value <= 5) {
-        // Шкала 1-5 к 0-100
-        return Math.round(((value - 1) / 4) * targetScale);
-      } else if (value <= 10) {
-        // Шкала 1-10 к 0-100
-        return Math.round(((value - 1) / 9) * targetScale);
-      } else {
-        // Уже на шкале 0-100
-        return Math.min(Math.max(value, 0), targetScale);
-      }
-    }
-    if (typeof value === 'boolean') {
-      return value ? targetScale : 0;
-    }
-    return 50; // Нейтральное значение по умолчанию
-  }
-
-  // Расчет среднего значения
-  private calculateAverage(data: any[], field: string): number {
-    const values = data.map(item => item[field]).filter(val => val !== undefined);
-    return values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 50;
-  }
-
-  // Расчет тренда
-  private calculateTrend(data: any[], field: string): 'up' | 'down' | 'neutral' {
-    const values = data.map(item => item[field]).filter(val => val !== undefined);
-    if (values.length < 2) return 'neutral';
-
-    const recent = values.slice(0, Math.ceil(values.length / 2));
-    const older = values.slice(Math.ceil(values.length / 2));
-
-    const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
-    const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
-
-    const diff = recentAvg - olderAvg;
-    if (diff > 5) return 'up';
-    if (diff < -5) return 'down';
-    return 'neutral';
-  }
-
-  // Расчет эмоциональных трендов
-  private calculateEmotionalTrends(responses: any[]) {
-    const timeline = responses.map(response => ({
-      date: response.submittedAt,
-      data: this.extractEmotionalData(response.answers),
-    })).filter(item => item.data).slice(0, 10);
-
-    return timeline;
   }
 
   // Генерация рекомендаций
@@ -916,7 +797,7 @@ export class FeedbackService {
     const teacherRatings: any[] = [];
 
     responses.forEach(response => {
-  Object.entries((response.answers || {}) as Record<string, unknown>).forEach(([questionId, answer]) => {
+      Object.entries((response.answers || {}) as Record<string, unknown>).forEach(([questionId, answer]) => {
         // Если это вопрос с оценкой преподавателей
         if (typeof answer === 'object' && answer !== null && !Array.isArray(answer)) {
           Object.entries(answer).forEach(([teacherId, rating]) => {
@@ -1006,7 +887,7 @@ export class FeedbackService {
         teachers.forEach((teacher) => {
           // Формируем полное имя преподавателя один раз для консистентности
           const teacherFullName = `${teacher.user.name} ${teacher.user.surname}`.trim();
-          
+
           // Вопрос о качестве объяснения материала
           questions.push({
             id: `teacher_${teacher.id}_clarity`,
@@ -1492,6 +1373,203 @@ export class FeedbackService {
         total,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  // Агрегированная эмоциональная сводка для фронтенда (без моков)
+  async getEmotionalOverview(days: number = 7) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Берём актуальные эмоциональные состояния студентов
+    const emotionalStates = await this.prisma.emotionalState.findMany({
+      where: {
+        updatedAt: {
+          gte: since,
+        },
+      },
+      include: {
+        student: {
+          include: {
+            group: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (emotionalStates.length === 0) {
+      return {
+        totalStudents: 0,
+        averages: {
+          mood: 0,
+          concentration: 0,
+          socialization: 0,
+          motivation: 0,
+          stress: 0,
+          engagement: 0,
+        },
+        groupStats: [],
+        timeline: [],
+      };
+    }
+
+    const deriveStress = (mood: number, motivation: number) =>
+      Math.max(0, Math.min(100, Math.round(100 - (mood + motivation) / 2)));
+    const deriveEngagement = (motivation: number, socialization: number) =>
+      Math.max(0, Math.min(100, Math.round((motivation + socialization) / 2)));
+
+    // Глобальные суммы
+    let sumMood = 0;
+    let sumConcentration = 0;
+    let sumSocial = 0;
+    let sumMotivation = 0;
+    let sumStress = 0;
+    let sumEngagement = 0;
+
+    // По группам
+    const groupMap = new Map<
+      string,
+      {
+        students: number;
+        mood: number;
+        concentration: number;
+        socialization: number;
+        motivation: number;
+        stress: number;
+        engagement: number;
+      }
+    >();
+
+    emotionalStates.forEach((st) => {
+      const g = st.student.group?.name || 'NO_GROUP';
+      if (!groupMap.has(g)) {
+        groupMap.set(g, {
+          students: 0,
+          mood: 0,
+          concentration: 0,
+          socialization: 0,
+          motivation: 0,
+          stress: 0,
+          engagement: 0,
+        });
+      }
+      const entry = groupMap.get(g)!;
+      entry.students += 1;
+      entry.mood += st.mood;
+      entry.concentration += st.concentration;
+      entry.socialization += st.socialization;
+      entry.motivation += st.motivation;
+      const stress = deriveStress(st.mood, st.motivation);
+      const engagement = deriveEngagement(st.motivation, st.socialization);
+      entry.stress += stress;
+      entry.engagement += engagement;
+
+      sumMood += st.mood;
+      sumConcentration += st.concentration;
+      sumSocial += st.socialization;
+      sumMotivation += st.motivation;
+      sumStress += stress;
+      sumEngagement += engagement;
+    });
+
+    const count = emotionalStates.length;
+
+    const averages = {
+      mood: Math.round(sumMood / count),
+      concentration: Math.round(sumConcentration / count),
+      socialization: Math.round(sumSocial / count),
+      motivation: Math.round(sumMotivation / count),
+      stress: Math.round(sumStress / count),
+      engagement: Math.round(sumEngagement / count),
+    };
+
+    const groupStats = Array.from(groupMap.entries()).map(
+      ([
+        group,
+        { students, mood, concentration, socialization, motivation, stress, engagement },
+      ]) => ({
+        group,
+        students,
+        averageMood: Math.round(mood / students),
+        averageStress: Math.round(stress / students),
+        averageEngagement: Math.round(engagement / students),
+        averageMotivation: Math.round(motivation / students),
+        averageConcentration: Math.round(concentration / students),
+        averageSocialization: Math.round(socialization / students),
+      }),
+    ).sort((a, b) => a.group.localeCompare(b.group));
+
+    // Таймлайн: агрегируем из EmotionalStateHistory (перенос с ответов на snapshots)
+    const history = await this.prisma.emotionalStateHistory.findMany({
+      where: {
+        createdAt: { gte: since },
+      },
+      select: {
+        createdAt: true,
+        mood: true,
+        motivation: true,
+        socialization: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    interface DayAgg {
+      moodSum: number;
+      moodCount: number;
+      motivationSum: number;
+      motivationCount: number;
+      socialSum: number;
+      socialCount: number;
+    }
+
+    const dayMap = new Map<string, DayAgg>();
+
+    history.forEach(snap => {
+      const day = snap.createdAt.toISOString().slice(0, 10);
+      if (!dayMap.has(day)) {
+        dayMap.set(day, {
+          moodSum: 0,
+          moodCount: 0,
+          motivationSum: 0,
+          motivationCount: 0,
+          socialSum: 0,
+          socialCount: 0,
+        });
+      }
+      const agg = dayMap.get(day)!;
+      if (typeof snap.mood === 'number') {
+        agg.moodSum += snap.mood;
+        agg.moodCount += 1;
+      }
+      if (typeof snap.motivation === 'number') {
+        agg.motivationSum += snap.motivation;
+        agg.motivationCount += 1;
+      }
+      if (typeof snap.socialization === 'number') {
+        agg.socialSum += snap.socialization;
+        agg.socialCount += 1;
+      }
+    });
+
+    const timeline = Array.from(dayMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, agg]) => {
+        const mood = agg.moodCount ? Math.round(agg.moodSum / agg.moodCount) : undefined;
+        const motivation = agg.motivationCount ? Math.round(agg.motivationSum / agg.motivationCount) : undefined;
+        const social = agg.socialCount ? Math.round(agg.socialSum / agg.socialCount) : undefined;
+        const engagement = motivation !== undefined && social !== undefined ? deriveEngagement(motivation, social) : undefined;
+        const stress = mood !== undefined && motivation !== undefined ? deriveStress(mood, motivation) : undefined;
+        return { date, mood, stress, engagement };
+      });
+
+    return {
+      totalStudents: count,
+      averages,
+      groupStats,
+      timeline,
+      since: since.toISOString(),
+      days,
     };
   }
 }

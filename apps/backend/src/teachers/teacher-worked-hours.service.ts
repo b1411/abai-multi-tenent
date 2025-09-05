@@ -87,7 +87,7 @@ export class TeacherWorkedHoursService {
     });
 
     console.log(`[TeacherWorkedHours] Найдено ${approvedVacations.length} утвержденных заявок на отпуск за период`);
-    
+
     // Логируем все найденные заявки на отпуск
     approvedVacations.forEach((vacation, index) => {
       console.log(`[TeacherWorkedHours] Заявка ${index + 1}:`);
@@ -154,15 +154,15 @@ export class TeacherWorkedHoursService {
       console.log(`[TeacherWorkedHours] substituteId в расписании: ${schedule.substituteId}`);
 
       // Проверяем, есть ли отпуск в эту дату
-      const teacherVacation = approvedVacations.find(v => 
+      const teacherVacation = approvedVacations.find(v =>
         v.teacherId === teacherId &&
-        scheduleDate >= new Date(v.startDate) && 
+        scheduleDate >= new Date(v.startDate) &&
         scheduleDate <= new Date(v.endDate)
       );
 
-      const substitutionVacation = approvedVacations.find(v => 
+      const substitutionVacation = approvedVacations.find(v =>
         v.substituteId === teacherId &&
-        scheduleDate >= new Date(v.startDate) && 
+        scheduleDate >= new Date(v.startDate) &&
         scheduleDate <= new Date(v.endDate)
       );
 
@@ -171,7 +171,7 @@ export class TeacherWorkedHoursService {
 
       if (schedule.teacherId === teacherId) {
         console.log(`[TeacherWorkedHours] >>> ЭТО ОСНОВНОЕ ЗАНЯТИЕ ПРЕПОДАВАТЕЛЯ ${teacherId}`);
-        
+
         // Всегда учитываем в запланированных часах (кроме отмененных)
         if (schedule.status !== 'CANCELLED') {
           scheduledHours += duration;
@@ -183,11 +183,11 @@ export class TeacherWorkedHoursService {
         // Если преподаватель в отпуске в этот день
         if (teacherVacation) {
           console.log(`[TeacherWorkedHours] !!! ПРЕПОДАВАТЕЛЬ В ОТПУСКЕ (${teacherVacation.type}) с ${new Date(teacherVacation.startDate).toLocaleDateString()} по ${new Date(teacherVacation.endDate).toLocaleDateString()}`);
-          
+
           // Отнимаем запланированные часы, так как преподаватель в отпуске
           scheduledHours -= duration;
           console.log(`[TeacherWorkedHours] - Отнимаем ${duration}ч от запланированных (отпуск). Итого запланированных: ${scheduledHours}ч`);
-          
+
           // Если есть замещающий преподаватель и занятие проведено
           if (teacherVacation.substituteId && schedule.status === 'COMPLETED') {
             // Часы замещены другим, но для этого преподавателя они не засчитываются
@@ -198,7 +198,7 @@ export class TeacherWorkedHoursService {
           }
         } else {
           console.log(`[TeacherWorkedHours] >>> Преподаватель НЕ в отпуске в эту дату`);
-          
+
           // Преподаватель не в отпуске, засчитываем в отработанные только завершенные занятия
           if (schedule.status === 'COMPLETED') {
             if (schedule.substituteId) {
@@ -216,7 +216,7 @@ export class TeacherWorkedHoursService {
         }
       } else if (schedule.substituteId === teacherId) {
         console.log(`[TeacherWorkedHours] >>> ЭТО ЗАМЕЩЕНИЕ ПРЕПОДАВАТЕЛЕМ ${teacherId} (основной преподаватель: ${schedule.teacherId})`);
-        
+
         // Теперь считаем часы замещающему преподавателю даже если нет заявки на отпуск
         if (schedule.status === 'COMPLETED') {
           substitutedHours += duration;
@@ -239,7 +239,7 @@ export class TeacherWorkedHoursService {
           v.substituteId === teacherId &&
           v.teacherId === schedule.teacherId &&
           scheduleDate >= new Date(v.startDate) &&
-            scheduleDate <= new Date(v.endDate)
+          scheduleDate <= new Date(v.endDate)
         );
         if (syntheticVacation) {
           console.log(`[TeacherWorkedHours] >>> СИНТЕТИЧЕСКОЕ ЗАМЕЩЕНИЕ (по vacation) преподавателем ${teacherId} за ${schedule.teacherId} без substituteId в расписании`);
@@ -271,7 +271,7 @@ export class TeacherWorkedHoursService {
 
     if (!hasAnyActivity) {
       console.log(`[TeacherWorkedHours] В месяце ${month}/${year} у преподавателя ${teacherId} нет занятий. Удаляем запись если она существует.`);
-      
+
       // Удаляем запись, если она существует (чтобы не засорять базу пустыми записями)
       await this.prisma.teacherWorkedHours.deleteMany({
         where: {
@@ -379,7 +379,7 @@ export class TeacherWorkedHoursService {
       // Если у занятия есть конкретная дата проведения
       if (schedule.date) {
         const scheduleDate = new Date(schedule.date);
-        
+
         // Проверяем, попадает ли дата в наш период
         if (scheduleDate >= startDate && scheduleDate <= endDate) {
           expandedSchedules.push({
@@ -388,7 +388,7 @@ export class TeacherWorkedHoursService {
             // Статус остается как в базе данных
           });
         }
-      } 
+      }
       // Если это периодическое занятие (есть день недели и периодичность)
       else if (schedule.dayOfWeek && schedule.repeat) {
         // Определяем эффективные границы с учетом startDate/endDate самой записи расписания
@@ -396,7 +396,7 @@ export class TeacherWorkedHoursService {
         let effectiveEnd = endDate;
         if (schedule.startDate) {
           const sd = new Date(schedule.startDate);
-            if (sd > effectiveStart) effectiveStart = sd;
+          if (sd > effectiveStart) effectiveStart = sd;
         }
         if (schedule.endDate) {
           const ed = new Date(schedule.endDate);
@@ -442,7 +442,7 @@ export class TeacherWorkedHoursService {
     const effectiveStart = new Date(startDate);
     const effectiveEnd = new Date(endDate);
     const now = new Date();
-    
+
     // Добавляем буфер времени - урок считается завершенным только через час после окончания
     const COMPLETION_BUFFER_HOURS = 1;
 
@@ -487,7 +487,7 @@ export class TeacherWorkedHoursService {
 
     // Определяем интервал в зависимости от периодичности
     let intervalDays = 7; // по умолчанию еженедельно
-    
+
     switch (schedule.repeat) {
       case 'weekly':
         intervalDays = 7;
@@ -502,20 +502,20 @@ export class TeacherWorkedHoursService {
           const isExcluded = excludedDates.some(excludedDate =>
             new Date(excludedDate).toDateString() === dateToCheck.toDateString()
           );
-          
+
           if (!isExcluded) {
             // Определяем статус на основе даты и времени с буфером
             const instanceDateTime = new Date(dateToCheck);
             const [hours, minutes] = schedule.endTime.split(':');
             instanceDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            
+
             // Добавляем буфер времени для завершения урока
             instanceDateTime.setHours(instanceDateTime.getHours() + COMPLETION_BUFFER_HOURS);
-            
+
             const status: 'COMPLETED' | 'SCHEDULED' = instanceDateTime < now ? 'COMPLETED' : 'SCHEDULED';
-            
+
             console.log(`[TeacherWorkedHours] Урок ${schedule.id} на ${dateToCheck.toLocaleDateString()} ${schedule.startTime}-${schedule.endTime}: статус ${status} (время окончания с буфером: ${instanceDateTime.toLocaleString()})`);
-            
+
             instances.push({
               date: new Date(dateToCheck),
               status,
@@ -541,14 +541,14 @@ export class TeacherWorkedHoursService {
         const instanceDateTime = new Date(dateToCheck);
         const [hours, minutes] = schedule.endTime.split(':');
         instanceDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
+
         // Добавляем буфер времени для завершения урока
         instanceDateTime.setHours(instanceDateTime.getHours() + COMPLETION_BUFFER_HOURS);
-        
+
         const status: 'COMPLETED' | 'SCHEDULED' = instanceDateTime < now ? 'COMPLETED' : 'SCHEDULED';
-        
+
         console.log(`[TeacherWorkedHours] Урок ${schedule.id} на ${dateToCheck.toLocaleDateString()} ${schedule.startTime}-${schedule.endTime}: статус ${status} (время окончания с буфером: ${instanceDateTime.toLocaleString()})`);
-        
+
         instances.push({
           date: new Date(dateToCheck),
           status,
@@ -585,7 +585,7 @@ export class TeacherWorkedHoursService {
 
     // Определяем интервал в зависимости от периодичности
     let intervalDays = 7; // по умолчанию еженедельно
-    
+
     switch (repeat) {
       case 'weekly':
         intervalDays = 7;
@@ -600,7 +600,7 @@ export class TeacherWorkedHoursService {
           const isExcluded = excludedDates.some(excludedDate =>
             new Date(excludedDate).toDateString() === dateToCheck.toDateString()
           );
-          
+
           if (!isExcluded) {
             dates.push(new Date(dateToCheck));
           }
@@ -864,10 +864,10 @@ export class TeacherWorkedHoursService {
     const start = new Date(`1970-01-01T${startTime}:00`);
     const end = new Date(`1970-01-01T${endTime}:00`);
     const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-    
+
     // Получаем актуальное значение академического часа из настроек
     const academicHourDuration = await this.systemService.getAcademicHourDuration();
-    
+
     // Конвертируем минуты в академические часы
     return durationMinutes / academicHourDuration;
   }
@@ -876,9 +876,8 @@ export class TeacherWorkedHoursService {
    * Получает настройку академического часа из базы данных
    * TODO: После создания миграции для SystemSettings включить этот код
    */
-  getAcademicHourDuration(): number {
+  async getAcademicHourDuration(): Promise<number> {
     // TODO: Временно используем константу, позже подключим SystemSettings
-    /*
     try {
       const setting = await this.prisma.systemSettings.findUnique({
         where: { key: 'academic_hour_duration' }
@@ -888,19 +887,17 @@ export class TeacherWorkedHoursService {
       console.warn('Не удалось загрузить настройку академического часа, используем значение по умолчанию:', this.ACADEMIC_HOUR_MINUTES);
       return this.ACADEMIC_HOUR_MINUTES;
     }
-    */
-    return this.ACADEMIC_HOUR_MINUTES;
   }
 
   /**
    * Рассчитывает продолжительность занятия в академических часах с учетом настроек
    */
-  calculateDurationWithSettings(startTime: string, endTime: string): number {
+  async calculateDurationWithSettings(startTime: string, endTime: string): Promise<number> {
     const start = new Date(`1970-01-01T${startTime}:00`);
     const end = new Date(`1970-01-01T${endTime}:00`);
     const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-    
-    const academicHourDuration = this.getAcademicHourDuration();
+
+    const academicHourDuration = await this.getAcademicHourDuration();
     return durationMinutes / academicHourDuration;
   }
 

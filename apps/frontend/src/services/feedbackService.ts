@@ -87,6 +87,35 @@ export type EmotionalStateResult = {
   teacherRatings: TeacherRatingEntry[];
 } | null;
 
+export interface EmotionalOverview {
+  totalStudents: number;
+  averages: {
+    mood: number;
+    concentration: number;
+    socialization: number;
+    motivation: number;
+    stress: number;
+    engagement: number;
+  };
+  groupStats: Array<{
+    group: string;
+    students: number;
+    averageMood: number;
+    averageStress: number;
+    averageEngagement: number;
+    averageMotivation?: number;
+    averageConcentration?: number;
+    averageSocialization?: number;
+  }>;
+  timeline: Array<{
+    date: string;
+    mood: number;
+    stress: number;
+    engagement: number;
+  }>;
+  since: string;
+  days: number;
+}
 
 class FeedbackService {
   // Проверка обязательных форм
@@ -120,7 +149,7 @@ class FeedbackService {
     if (templateId) params.append('templateId', templateId.toString());
     if (period) params.append('period', period);
 
-  return await apiClient.get<FeedbackStatistics>(`/feedback/analytics?${params.toString()}`);
+    return await apiClient.get<FeedbackStatistics>(`/feedback/analytics?${params.toString()}`);
   }
 
   // Шаблоны вопросов для разных ролей
@@ -159,7 +188,7 @@ class FeedbackService {
     const params = new URLSearchParams();
     if (period) params.append('period', period);
 
-  return await apiClient.get<FeedbackResponse[]>(`/feedback/templates/${id}/responses?${params.toString()}`);
+    return await apiClient.get<FeedbackResponse[]>(`/feedback/templates/${id}/responses?${params.toString()}`);
   }
 
   // Получение статистики
@@ -167,7 +196,7 @@ class FeedbackService {
     const params = new URLSearchParams();
     if (period) params.append('period', period);
 
-  return await apiClient.get<FeedbackStatistics>(`/feedback/statistics?${params.toString()}`);
+    return await apiClient.get<FeedbackStatistics>(`/feedback/statistics?${params.toString()}`);
   }
 
   // Сброс статуса обязательной формы
@@ -198,13 +227,13 @@ class FeedbackService {
     const latestResponse = responses[0]; // Предполагаем, что ответы отсортированы по дате
 
     // Извлекаем эмоциональные показатели из последнего ответа
-  const emotionalMetrics = this.extractEmotionalMetrics(latestResponse.answers);
-    
+    const emotionalMetrics = this.extractEmotionalMetrics(latestResponse.answers);
+
     // Анализируем тренды на основе исторических данных
-  const trends = this.analyzeTrends(responses);
-    
+    const trends = this.analyzeTrends(responses);
+
     // Генерируем рекомендации
-  const recommendations = this.generateRecommendations(emotionalMetrics, trends);
+    const recommendations = this.generateRecommendations(emotionalMetrics, trends);
 
     return {
       currentState: {
@@ -231,8 +260,8 @@ class FeedbackService {
       },
       lastUpdated: latestResponse.submittedAt,
       trends: this.formatTrendsData(responses),
-  recommendations: recommendations,
-  teacherRatings: this.extractTeacherRatings(responses)
+      recommendations: recommendations,
+      teacherRatings: this.extractTeacherRatings(responses)
     };
   }
 
@@ -352,7 +381,7 @@ class FeedbackService {
       });
     }
 
-  return recommendations;
+    return recommendations;
   }
 
   // Форматирование данных трендов для графика
@@ -430,7 +459,7 @@ class FeedbackService {
     page?: number;
     limit?: number;
   } = {}): Promise<{
-  data: AnonymizedResponse[];
+    data: AnonymizedResponse[];
     pagination: {
       page: number;
       limit: number;
@@ -444,7 +473,7 @@ class FeedbackService {
     params.append('page', (options.page || 1).toString());
     params.append('limit', (options.limit || 20).toString());
 
-  return await apiClient.get<{ data: AnonymizedResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/feedback/responses?${params.toString()}`);
+    return await apiClient.get<{ data: AnonymizedResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/feedback/responses?${params.toString()}`);
   }
 
   // Создание предустановленных шаблонов через новый API
@@ -460,6 +489,11 @@ class FeedbackService {
   // Создание комплексных KPI опросов для фидбек-системы
   async createKpiSurveys(): Promise<{ message: string }> {
     return await apiClient.post<{ message: string }>('/feedback/templates/create-kpi-surveys');
+  }
+
+  async getEmotionalOverview(days?: number): Promise<EmotionalOverview> {
+    const url = `/feedback/emotional/overview${days ? `?days=${days}` : ''}`;
+    return await apiClient.get<EmotionalOverview>(url);
   }
 }
 

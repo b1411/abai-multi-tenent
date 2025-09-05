@@ -68,6 +68,7 @@ import {
   PolarRadiusAxis,
   Radar
 } from 'recharts';
+import { EMO_TREND_THRESHOLD } from '../constants/emotional';
 
 const monthLabelsRu = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
@@ -826,23 +827,49 @@ const StudentDetail: React.FC = () => {
     return <FaArrowRight className="w-4 h-4 text-gray-400" />;
   };
 
-  // Мок данные для психоэмоционального состояния (по запросу)
-  const effectiveEmotional: EmotionalData = emotionalData?.currentState
-    ? emotionalData
-    : {
-      student: student.id,
-      currentState: {
-        mood: { value: 72, description: 'Хорошее настроение', trend: 'up' },
-        concentration: { value: 65, description: 'Хорошая концентрация', trend: 'stable' },
-        socialization: { value: 58, description: 'Нормальная социализация', trend: 'up' },
-        motivation: { value: 75, description: 'Высокая учебная мотивация', trend: 'up' },
-        lastUpdated: new Date().toISOString()
-      },
-      feedbackHistory: [],
-      trends: {},
-      recommendations: [],
-      source: 'feedback'
-    };
+  // Реальные данные (feedback -> legacy EmotionalState -> no_data)
+  const effectiveEmotional: EmotionalData =
+    emotionalData?.currentState
+      ? emotionalData
+      : student.EmotionalState
+        ? {
+            student: student.id,
+            currentState: {
+              mood: {
+                value: student.EmotionalState.mood,
+                description: student.EmotionalState.moodDesc,
+                trend: student.EmotionalState.moodTrend
+              },
+              concentration: {
+                value: student.EmotionalState.concentration,
+                description: student.EmotionalState.concentrationDesc,
+                trend: student.EmotionalState.concentrationTrend
+              },
+              socialization: {
+                value: student.EmotionalState.socialization,
+                description: student.EmotionalState.socializationDesc,
+                trend: student.EmotionalState.socializationTrend
+              },
+              motivation: {
+                value: student.EmotionalState.motivation,
+                description: student.EmotionalState.motivationDesc,
+                trend: student.EmotionalState.motivationTrend
+              },
+              lastUpdated: student.EmotionalState.updatedAt
+            },
+            feedbackHistory: [],
+            trends: {},
+            recommendations: [],
+            source: 'legacy'
+          }
+        : {
+            student: student.id,
+            currentState: null,
+            feedbackHistory: [],
+            trends: {},
+            recommendations: [],
+            source: 'no_data'
+          };
 
   const emotionalCurrent = effectiveEmotional.currentState;
   const emotionalUpdatedAt = emotionalCurrent?.lastUpdated
@@ -852,6 +879,64 @@ const StudentDetail: React.FC = () => {
       : null;
 
   const legacyEmotion = student.EmotionalState;
+
+  // Тренды по истории эмоционального состояния (без хуков после early return)
+  const emotionalHistory = effectiveEmotional.feedbackHistory || [];
+
+  const computeTrendDiff = (key: string) => {
+    if (emotionalHistory.length < 2) return { trend: 'neutral' as const, diff: null as number | null };
+    const prev = emotionalHistory[emotionalHistory.length - 2]?.[key];
+    const curr = emotionalHistory[emotionalHistory.length - 1]?.[key];
+    if (prev == null || curr == null || typeof prev !== 'number' || typeof curr !== 'number') {
+      return { trend: 'neutral' as const, diff: null as number | null };
+    }
+    const delta = curr - prev;
+    if (delta > EMO_TREND_THRESHOLD) return { trend: 'up' as const, diff: delta };
+    if (delta < -EMO_TREND_THRESHOLD) return { trend: 'down' as const, diff: delta };
+    return { trend: 'neutral' as const, diff: delta };
+  };
+
+  // Derived metrics calculators
+  const stressCalc = (e: any) => {
+    if (typeof e?.mood === 'number' && typeof e?.motivation === 'number') {
+      return 100 - ((e.mood + e.motivation) / 2);
+    }
+    return undefined;
+  };
+  const engagementCalc = (e: any) => {
+    if (typeof e?.socialization === 'number' && typeof e?.motivation === 'number') {
+      return (e.socialization + e.motivation) / 2;
+    }
+    return undefined;
+  };
+
+  const computeDerivedTrend = (calc: (e:any)=>number|undefined) => {
+    if (emotionalHistory.length < 2) return { trend: 'neutral' as const, diff: null as number | null };
+    const prev = calc(emotionalHistory[emotionalHistory.length - 2]);
+    const curr = calc(emotionalHistory[emotionalHistory.length - 1]);
+    if (prev == null || curr == null) return { trend: 'neutral' as const, diff: null as number | null };
+    const delta = curr - prev;
+    if (delta > EMO_TREND_THRESHOLD) return { trend: 'up' as const, diff: delta };
+    if (delta < -EMO_TREND_THRESHOLD) return { trend: 'down' as const, diff: delta };
+    return { trend: 'neutral' as const, diff: delta };
+  };
+
+  const { trend: moodTrend, diff: moodDiff } = computeTrendDiff('mood');
+  const { trend: concentrationTrend, diff: concentrationDiff } = computeTrendDiff('concentration');
+  const { trend: socializationTrend, diff: socializationDiff } = computeTrendDiff('socialization');
+  const { trend: motivationTrend, diff: motivationDiff } = computeTrendDiff('motivation');
+  const { trend: stressTrend, diff: stressDiff } = computeDerivedTrend(stressCalc);
+  const { trend: engagementTrend, diff: engagementDiff } = computeDerivedTrend(engagementCalc);
+
+  // Current derived metrics
+  const derivedStress = emotionalCurrent?.mood?.value != null && emotionalCurrent?.motivation?.value != null
+    ? 100 - ((emotionalCurrent.mood.value + emotionalCurrent.motivation.value) / 2)
+    : undefined;
+  const derivedEngagement = emotionalCurrent?.socialization?.value != null && emotionalCurrent?.motivation?.value != null
+    ? (emotionalCurrent.socialization.value + emotionalCurrent.motivation.value) / 2
+    : undefined;
+
+  const showTrends = emotionalHistory.length >= 2;
 
   // (hooks block moved above early returns)
 
@@ -949,54 +1034,56 @@ const StudentDetail: React.FC = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${effectiveEmotional?.source === 'feedback'
-                      ? 'bg-green-100 text-green-800'
-                      : effectiveEmotional?.source === 'legacy'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                    {effectiveEmotional?.source === 'feedback'
-                      ? 'Из фидбеков'
-                      : effectiveEmotional?.source === 'legacy'
-                        ? 'Старая система'
-                        : 'Источник не определён'}
-                  </span>
+                  {effectiveEmotional?.source === 'feedback' && (
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Из фидбеков
+                    </span>
+                  )}
                   {loadingData.emotional && <Spinner size="sm" />}
                 </div>
               </div>
+              {showTrends && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <TrendBadge label="Настроение" trend={moodTrend} diff={moodDiff} />
+                  <TrendBadge label="Концентрация" trend={concentrationTrend} diff={concentrationDiff} />
+                  <TrendBadge label="Социализация" trend={socializationTrend} diff={socializationDiff} />
+                  <TrendBadge label="Вовлеченность" trend={engagementTrend} diff={engagementDiff} />
+                </div>
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <EmotionMetricCard
                   title="Общее настроение"
-                  icon={<FaSmile className="w-6 h-6 text-yellow-500" />}
+                  icon={<FaSmile className="w-6 h-6 drop-shadow" />}
                   colorRing="from-yellow-400 to-yellow-600"
                   value={emotionalCurrent?.mood.value ?? legacyEmotion?.mood}
                   description={emotionalCurrent?.mood.description ?? legacyEmotion?.moodDesc}
-                  trend={emotionalCurrent?.mood.trend}
+                  trend={moodTrend}
                 />
                 <EmotionMetricCard
                   title="Концентрация"
-                  icon={<FaBrain className="w-6 h-6 text-purple-500" />}
+                  icon={<FaBrain className="w-6 h-6 drop-shadow" />}
                   colorRing="from-purple-400 to-purple-600"
                   value={emotionalCurrent?.concentration.value ?? legacyEmotion?.concentration}
                   description={emotionalCurrent?.concentration.description ?? legacyEmotion?.concentrationDesc}
-                  trend={emotionalCurrent?.concentration.trend}
+                  trend={concentrationTrend}
                 />
                 <EmotionMetricCard
                   title="Социализация"
-                  icon={<FaUsers className="w-6 h-6 text-blue-500" />}
+                  icon={<FaUsers className="w-6 h-6 drop-shadow" />}
                   colorRing="from-blue-400 to-blue-600"
                   value={emotionalCurrent?.socialization.value}
                   description={emotionalCurrent?.socialization.description}
-                  trend={emotionalCurrent?.socialization.trend}
+                  trend={socializationTrend}
                 />
+                
                 <EmotionMetricCard
-                  title="Учебная мотивация"
-                  icon={<FaBook className="w-6 h-6 text-green-500" />}
-                  colorRing="from-green-400 to-green-600"
-                  value={emotionalCurrent?.motivation.value}
-                  description={emotionalCurrent?.motivation.description}
-                  trend={emotionalCurrent?.motivation.trend}
+                  title="Вовлеченность"
+                  icon={<FaChartLine className="w-6 h-6 drop-shadow" />}
+                  colorRing="from-indigo-400 to-indigo-600"
+                  value={derivedEngagement != null ? Math.round(derivedEngagement) : undefined}
+                  description="Производная: avg(социализация, мотивация)"
+                  trend={engagementTrend}
                 />
               </div>
 
@@ -1009,13 +1096,19 @@ const StudentDetail: React.FC = () => {
                   <div style={{ height: 220 }} className="max-w-full overflow-x-auto">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
-                        data={(effectiveEmotional?.feedbackHistory ?? []).slice(-10).map(item => ({
-                          date: new Date(item.date).toLocaleDateString('ru-RU'),
-                          настроение: item.mood,
-                          концентрация: item.concentration,
-                          социализация: item.socialization,
-                          мотивация: item.motivation
-                        }))}
+                        data={(effectiveEmotional?.feedbackHistory ?? []).slice(-10).map(item => {
+                          const stressVal = stressCalc(item);
+                          const engagementVal = engagementCalc(item);
+                          return {
+                            date: new Date(item.date).toLocaleDateString('ru-RU'),
+                            настроение: item.mood,
+                            концентрация: item.concentration,
+                            социализация: item.socialization,
+                            мотивация: item.motivation,
+                            стресс: stressVal,
+                            вовлеченность: engagementVal
+                          };
+                        })}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" />
@@ -1025,7 +1118,7 @@ const StudentDetail: React.FC = () => {
                         <Line type="monotone" dataKey="настроение" stroke="#F59E0B" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="концентрация" stroke="#8B5CF6" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="социализация" stroke="#3B82F6" strokeWidth={2} dot={false} />
-                        <Line type="monotone" dataKey="мотивация" stroke="#10B981" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="вовлеченность" stroke="#9333EA" strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -2621,6 +2714,22 @@ const StudentDetail: React.FC = () => {
   );
 };
 
+const TrendBadge: React.FC<{label:string;trend:'up'|'down'|'neutral';diff:number|null}> = ({label, trend, diff}) => {
+  const color =
+    trend === 'up'
+      ? 'text-green-600'
+      : trend === 'down'
+        ? 'text-red-600'
+        : 'text-gray-600';
+  const arrow = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
+  return (
+    <span className="flex items-center gap-1 px-2 py-1 rounded bg-gray-100 text-xs">
+      <span className="font-medium">{label}</span>
+      <span className={`font-semibold ${color}`}>{arrow}{diff != null ? Math.round(diff) : ''}</span>
+    </span>
+  );
+};
+
 const EmotionMetricCard: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -2632,7 +2741,7 @@ const EmotionMetricCard: React.FC<{
   return (
     <div className="p-4 rounded-lg border bg-gradient-to-b from-white to-slate-50">
       <div className="flex items-center gap-3 mb-3">
-        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colorRing} flex items-center justify-center text-white`}>
+        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colorRing} flex items-center justify-center text-white ring-2 ring-black/10 shadow-md`}>
           {icon}
         </div>
         <div>

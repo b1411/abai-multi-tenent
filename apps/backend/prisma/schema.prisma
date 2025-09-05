@@ -153,6 +153,7 @@ model Student {
   HomeworkSubmission HomeworkSubmission[]
   quizAttempts       QuizAttempt[]
   EmotionalState     EmotionalState?
+  emotionalStateHistory EmotionalStateHistory[]
   Payment            Payment[]
   reviews            StudentReview[]
   repeatPurchases    RepeatPurchase[]
@@ -663,6 +664,7 @@ model ScheduleTemplate {
   deletedAt DateTime?
 }
 
+// Текущие агрегированные значения эмоционального состояния
 model EmotionalState {
   id                 Int      @id @default(autoincrement())
   student            Student  @relation(fields: [studentId], references: [id])
@@ -681,6 +683,28 @@ model EmotionalState {
   motivationTrend    String
   updatedAt          DateTime @updatedAt
   createdAt          DateTime @default(now())
+}
+
+// Исторические срезы эмоционального состояния (для графиков и трендов)
+model EmotionalStateHistory {
+  id                 Int      @id @default(autoincrement())
+  studentId          Int
+  submissionId       Int?     // FeedbackResponse.id (идемпотентность snapshot)
+  student            Student  @relation(fields: [studentId], references: [id])
+  mood               Int?
+  concentration      Int?
+  socialization      Int?
+  motivation         Int?
+  stress             Int?     // 0-100 (расчёт: 100 - avg(mood, motivation))
+  engagement         Int?     // 0-100 (расчёт: avg(motivation, socialization))
+  moodTrend          String?  // up/down/neutral относительно предыдущего snapshot
+  concentrationTrend String?
+  socializationTrend String?
+  motivationTrend    String?
+  createdAt          DateTime @default(now())
+
+  @@index([studentId, createdAt])
+  @@unique([studentId, submissionId])
 }
 
 // --- Vacation management ---

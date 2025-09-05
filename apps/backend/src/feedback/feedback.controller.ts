@@ -22,18 +22,21 @@ import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from 'generated/prisma';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('feedback')
 @UseGuards(AuthGuard, RolesGuard)
 export class FeedbackController {
-  constructor(private readonly feedbackService: FeedbackService) { }
+  constructor(
+    private readonly feedbackService: FeedbackService,
+    private readonly prisma: PrismaService,
+  ) { }
 
   // Создание шаблона (только для админов)
   @Post('templates')
   @Roles(UserRole.ADMIN, UserRole.HR)
   async createTemplate(
     @Body(ValidationPipe) createTemplateDto: CreateFeedbackTemplateDto,
-    @Request() req,
   ) {
     try {
       return await this.feedbackService.createTemplate(createTemplateDto);
@@ -57,7 +60,7 @@ export class FeedbackController {
   async getActiveTemplates() {
     try {
       return await this.feedbackService.getActiveTemplates();
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Ошибка при получении шаблонов',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -194,7 +197,7 @@ export class FeedbackController {
   ) {
     try {
       return await this.feedbackService.getTemplateResponses(id, period);
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Ошибка при получении ответов',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -223,7 +226,7 @@ export class FeedbackController {
   async getFeedbackStatistics(@Query('period') period?: string) {
     try {
       return await this.feedbackService.getFeedbackStatistics(period);
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Ошибка при получении статистики',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -256,7 +259,7 @@ export class FeedbackController {
         period: statistics.period,
         ...analytics,
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Ошибка при получении аналитики',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -266,11 +269,25 @@ export class FeedbackController {
 
   // Получение эмоционального состояния студента на основе фидбеков
   @Get('students/:studentId/emotional-state')
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
-  async getStudentEmotionalState(@Param('studentId', ParseIntPipe) studentId: number) {
+  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT)
+  async getStudentEmotionalState(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Request() req,
+  ) {
     try {
+      // Self-access restriction for students
+      if (req.user.role === UserRole.STUDENT) {
+        const selfStudent = await this.prisma.student.findUnique({
+          where: { userId: req.user.id },
+          select: { id: true },
+        });
+        if (!selfStudent || selfStudent.id !== studentId) {
+          throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+        }
+      }
       return await this.feedbackService.getStudentEmotionalStateFromFeedbacks(studentId);
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         'Ошибка при получении эмоционального состояния',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -280,14 +297,26 @@ export class FeedbackController {
 
   // Получение истории эмоциональных ответов студента
   @Get('students/:studentId/emotional-history')
-  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.HR, UserRole.TEACHER, UserRole.STUDENT)
   async getStudentEmotionalHistory(
     @Param('studentId', ParseIntPipe) studentId: number,
+    @Request() req,
     @Query('period') period?: string,
   ) {
     try {
+      // Self-access restriction for students
+      if (req?.user?.role === UserRole.STUDENT) {
+        const selfStudent = await this.prisma.student.findUnique({
+          where: { userId: req.user.id },
+          select: { id: true },
+        });
+        if (!selfStudent || selfStudent.id !== studentId) {
+          throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+        }
+      }
       return await this.feedbackService.getStudentEmotionalHistory(studentId, period);
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         'Ошибка при получении истории эмоционального состояния',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -311,9 +340,23 @@ export class FeedbackController {
         page: parseInt(page),
         limit: parseInt(limit),
       });
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Ошибка при получении ответов',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Эмоциональная сводка (агрегация без моков)
+  @Get('emotional/overview')
+  @Roles(UserRole.ADMIN, UserRole.HR)
+  async getEmotionalOverview(@Query('days') days?: string) {
+    try {
+      return await this.feedbackService.getEmotionalOverview(days ? parseInt(days) : 7);
+    } catch {
+      throw new HttpException(
+        'Ошибка при получении эмоциональной сводки',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

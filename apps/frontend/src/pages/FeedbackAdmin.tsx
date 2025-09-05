@@ -12,7 +12,7 @@ const FeedbackAdmin: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<FeedbackTemplate | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<FeedbackTemplate | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  type Statistics = { totalResponses: number; completionRate?: number; byRole?: Record<string, number>; period?: string } | null;
+  type Statistics = { totalResponses: number; completionRate?: number; responsesByRole?: Record<string, number>; period?: string } | null;
   const [statistics, setStatistics] = useState<Statistics>(null);
   const [activeTab, setActiveTab] = useState<'templates' | 'responses'>('templates');
   const toast = useToastContext();
@@ -26,7 +26,7 @@ const FeedbackAdmin: React.FC = () => {
     try {
       const [templatesData, statsData] = await Promise.all([
         feedbackService.getAllTemplates(),
-        feedbackService.getAnalytics(),
+        feedbackService.getStatistics(),
       ]);
       setTemplates(templatesData);
       setStatistics(statsData);
@@ -154,7 +154,7 @@ const FeedbackAdmin: React.FC = () => {
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
             <h3 className="text-sm sm:text-lg font-semibold text-gray-900">По ролям</h3>
             <div className="mt-1 sm:mt-2 space-y-1">
-              {Object.entries(statistics.byRole || {}).map(([role, count]) => (
+              {Object.entries(statistics.responsesByRole || {}).map(([role, count]) => (
                 <div key={role} className="flex justify-between text-xs sm:text-sm">
                   <span>{role}:</span>
                   <span className="font-semibold">{count as number}</span>

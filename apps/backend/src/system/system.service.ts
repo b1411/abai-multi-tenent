@@ -68,7 +68,7 @@ export class SystemService {
     }
 
     if (filter?.role) {
-      where.role = filter.role;
+      where.role = filter.role.toUpperCase();
     }
 
     const users = await this.prisma.user.findMany({
@@ -332,11 +332,11 @@ export class SystemService {
       throw new NotFoundException('Пользователь не найден');
     }
 
-  // Генерируем новый пароль
-  const newPassword = crypto.randomBytes(8).toString('hex');
-  // Хешируем пароль
-  const { hash } = await import('bcryptjs');
-  const hashedPassword = await hash(newPassword, 10);
+    // Генерируем новый пароль
+    const newPassword = crypto.randomBytes(8).toString('hex');
+    // Хешируем пароль
+    const { hash } = await import('bcryptjs');
+    const hashedPassword = await hash(newPassword, 10);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -721,12 +721,12 @@ export class SystemService {
     try {
       await this.prisma.systemSettings.upsert({
         where: { key: 'academic_hour_duration' },
-        update: { 
+        update: {
           value: minutes.toString(),
           updatedAt: new Date()
         },
-        create: { 
-          key: 'academic_hour_duration', 
+        create: {
+          key: 'academic_hour_duration',
           value: minutes.toString(),
           description: 'Продолжительность академического часа в минутах'
         }
@@ -743,7 +743,7 @@ export class SystemService {
       const settings = await this.prisma.systemSettings.findMany({
         orderBy: { key: 'asc' }
       });
-      
+
       return settings.map(setting => ({
         key: setting.key,
         value: setting.value,
@@ -765,12 +765,12 @@ export class SystemService {
     try {
       const updated = await this.prisma.systemSettings.upsert({
         where: { key },
-        update: { 
+        update: {
           value,
           updatedAt: new Date()
         },
-        create: { 
-          key, 
+        create: {
+          key,
           value,
           description: null
         }

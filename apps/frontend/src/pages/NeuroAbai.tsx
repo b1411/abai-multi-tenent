@@ -36,7 +36,7 @@ function MessageLoading() {
 
 function ChatBubble({ variant = 'received', children }: { variant?: 'sent' | 'received'; children: React.ReactNode }) {
   return (
-    <div className={`flex items-start gap-3 mb-3 ${variant === 'sent' ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex items-start gap-3 mb-2 ${variant === 'sent' ? 'flex-row-reverse' : ''}`}>
       {children}
     </div>
   );
@@ -56,11 +56,11 @@ function ChatMessage({ variant = 'received', isLoading, children, html }:
   { variant?: 'sent' | 'received'; isLoading?: boolean; children?: React.ReactNode; html?: string | null }) {
   const bubbleClasses = variant === 'sent' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-900';
   const htmlClasses = variant === 'sent'
-    ? 'whitespace-pre-wrap break-words prose prose-invert text-white'
-    : 'whitespace-pre-wrap break-words prose text-gray-900';
+    ? 'break-words prose prose-invert prose-sm leading-snug prose-p:my-1 prose-li:my-0 prose-ul:my-1 prose-ol:my-1 prose-headings:my-1 prose-blockquote:my-1 prose-hr:my-1 prose-table:my-1 prose-img:my-1 prose-pre:my-1 text-white'
+    : 'break-words prose prose-sm leading-snug prose-p:my-1 prose-li:my-0 prose-ul:my-1 prose-ol:my-1 prose-headings:my-1 prose-blockquote:my-1 prose-hr:my-1 prose-table:my-1 prose-img:my-1 prose-pre:my-1 text-gray-900';
 
   return (
-    <div className={`rounded-lg p-3 text-sm max-w-[78%] ${bubbleClasses}`}>
+    <div className={`rounded-lg p-3 text-sm max-w-[95%] ${bubbleClasses}`}>
       {isLoading ? (
         <MessageLoading />
       ) : html ? (
@@ -142,7 +142,7 @@ export default function NeuroAbai() {
   const [curriculumPlanId, setCurriculumPlanId] = useState<string>('');
   const [actionsMap, setActionsMap] = useState<Record<number, any[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const ENABLE_ACTIONS = false;
+  const ENABLE_ACTIONS = true;
 
   // ----- Chat history persistence (per scenario + curriculumPlanId) -----
   const storagePrefix = 'neuroAbai:chat';
@@ -208,9 +208,9 @@ export default function NeuroAbai() {
     }
   };
 
-  const handleSend = async () => {
-    if (!input && files.length === 0) return;
-    const text = input || 'Файл отправлен без сообщения';
+  const handleSend = async (overrideText?: string) => {
+    if (!overrideText && !input && files.length === 0) return;
+    const text = (overrideText ?? input) || 'Файл отправлен без сообщения';
     const filesToSend = files;
 
     // prepare conversation history to send to backend (includes prior messages + this user message)
@@ -486,16 +486,16 @@ export default function NeuroAbai() {
   const handleRemoveFile = (i: number) => setFiles(fs => fs.filter((_, idx) => idx !== i));
 
   return (
-    <div className="h-full flex bg-gradient-to-b from-white to-gray-50 p-6">
-      <div className="mx-auto w-full max-w-6xl grid grid-cols-12 gap-6">
+    <div className="h-screen overflow-hidden flex bg-gradient-to-b from-white to-gray-50 px-4 pb-4 pt-0">
+      <div className="mx-auto w-full max-w-none h-full min-h-0 grid grid-cols-12 gap-4">
         {/* Left: chat */}
-        <div className="col-span-8 flex flex-col bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-5 py-4 border-b">
+        <div className="col-span-12 md:col-span-10 lg:col-span-11 h-full flex flex-col min-h-0 bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-5 py-3 border-b shrink-0 sticky top-0 bg-white z-10">
             <h2 className="text-lg font-semibold text-gray-800">Neuro Abai — Помощник учителя</h2>
             <p className="text-sm text-gray-500 mt-1">Общайтесь с ИИ или генерируйте предложения для КТП</p>
           </div>
 
-          <div className="flex-1 p-5 overflow-y-auto space-y-3 bg-gray-50">
+          <div className="flex-1 min-h-0 p-5 overflow-y-auto space-y-2 bg-gray-50">
             {messages.length === 0 && (
               <div className="flex h-full items-center justify-center text-center text-gray-400 py-10">
                 <div>
@@ -536,10 +536,10 @@ export default function NeuroAbai() {
                           const previewText = String(rawMsg).replace(/\s+/g, ' ').trim();
                           const displayText = previewText.length > MAX_PREVIEW_LENGTH ? previewText.slice(0, MAX_PREVIEW_LENGTH) + '...' : previewText;
                           return (
-                            <div key={i} className="p-3 bg-white rounded-md border flex flex-col">
+                            <div key={i} className="p-3 bg-white rounded-md border flex flex-col max-w-full overflow-hidden">
                               <div className="text-sm font-medium mb-1">{a.label || a.name || a.actionId || 'Действие'}</div>
                               <div className="text-xs text-gray-700 mb-3 break-words">{displayText}</div>
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap gap-2 w-full items-stretch">
                                 <>
                                   <button
                                     onClick={() => {
@@ -549,7 +549,7 @@ export default function NeuroAbai() {
                                       setCurrentActionMessageIndex(null);
                                       setActionPreviewResult(null);
                                     }}
-                                    className="text-xs px-3 py-1 rounded-md bg-blue-600 text-white"
+                                    className="w-full sm:w-auto text-xs px-3 py-1 rounded-md bg-blue-600 text-white whitespace-nowrap"
                                   >
                                     Вставить в ввод
                                   </button>
@@ -559,16 +559,19 @@ export default function NeuroAbai() {
                                     <button
                                       onClick={() => { handleActionClick(a, idx); handleActionPreview(a); }}
                                       disabled={actionPreviewLoading}
-                                      className="text-xs px-3 py-1 rounded-md bg-yellow-500 text-white disabled:opacity-50"
+                                      className="w-full sm:w-auto text-xs px-3 py-1 rounded-md bg-yellow-500 text-white whitespace-nowrap disabled:opacity-50"
                                     >
                                       {actionPreviewLoading ? 'Предпросмотр...' : 'Предпросмотр'}
                                     </button>
                                     <button
-                                      onClick={() => { handleActionClick(a, idx); handleActionExecute(a); }}
-                                      disabled={actionExecLoading}
-                                      className="text-xs px-3 py-1 rounded-md bg-green-600 text-white disabled:opacity-50"
+                                      onClick={() => {
+                                        const label = a.label || a.name || a.actionId || 'Действие';
+                                        const msg = extractPlainMessageFromResponse(a.message ?? a.argsPreview?.message ?? '');
+                                        handleSend(`Выполнить: ${label}\n${msg}`);
+                                      }}
+                                      className="w-full sm:w-auto text-xs px-3 py-1 rounded-md bg-green-600 text-white whitespace-nowrap disabled:opacity-50"
                                     >
-                                      {actionExecLoading ? 'Выполняется...' : 'Выполнить'}
+                                      Выполнить
                                     </button>
                                   </>
                                   )}
@@ -576,7 +579,7 @@ export default function NeuroAbai() {
 
                                 <button
                                   onClick={() => { setCurrentAction(null); setCurrentActionMessageIndex(null); setActionPreviewResult(null); }}
-                                  className="text-xs px-3 py-1 rounded-md border"
+                                  className="w-full sm:w-auto text-xs px-3 py-1 rounded-md border whitespace-nowrap"
                                 >
                                   Отмена
                                 </button>
@@ -622,7 +625,7 @@ export default function NeuroAbai() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t p-4 bg-white">
+          <div className="border-t p-3 bg-white shrink-0 sticky bottom-0 z-10">
             <div className="flex gap-3 items-start">
               <textarea
                 value={input}
@@ -633,7 +636,7 @@ export default function NeuroAbai() {
               />
               <div className="flex flex-col gap-2 w-44">
                 <button
-                  onClick={handleSend}
+                  onClick={() => { void handleSend(); }}
                   disabled={loading || (!input && files.length === 0)}
                   className="flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
@@ -663,19 +666,6 @@ export default function NeuroAbai() {
           </div>
         </div>
 
-        {/* Right: controls */}
-        <aside className="col-span-4 flex flex-col gap-4">
-
-          <div className="bg-white rounded-lg p-4 shadow-md">
-            <h4 className="text-sm font-semibold text-gray-700">Статус и лог</h4>
-            <div className="mt-2 text-xs text-gray-500">Последние действия по предложениям будут отображаться в модальном окне после открытия.</div>
-            <div className="mt-3">
-              <button disabled className="text-xs text-gray-400">Показать логи (в разработке)</button>
-            </div>
-          </div>
-
-          <div className="text-xs text-gray-500">Поддерживаемые роли: TEACHER, ADMIN</div>
-        </aside>
       </div>
 
       <AISuggestionModal open={modalOpen} onClose={closeModal} suggestion={selectedSuggestion} onApply={handleApplySuggestion} applying={applying} />

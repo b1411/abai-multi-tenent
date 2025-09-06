@@ -167,18 +167,27 @@ class ScheduleService {
     }
   }
 
-  async getStudyPlans(params?: { search?: string; limit?: number }): Promise<StudyPlanOption[]> {
+  async getStudyPlans(params?: { search?: string; limit?: number; groupId?: number; teacherId?: number }): Promise<StudyPlanOption[]> {
     try {
       const queryParams = new URLSearchParams();
       if (params?.search) queryParams.append('search', params.search);
       if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.groupId) queryParams.append('groupId', params.groupId.toString());
+      if (params?.teacherId) queryParams.append('teacherId', params.teacherId.toString());
       queryParams.append('page', '1');
 
       const url = `/study-plans${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       const response = await apiClient.get<{ data: Array<{ id: number; name: string; description?: string; teacherId: number; group?: Array<{ id: number; name: string }> }>; meta: unknown }>(url);
 
-      return response.data.map(plan => {
-        const group = plan.group && plan.group.length > 0 ? plan.group[0] : undefined;
+      const rawPlans = response.data || [];
+      const filteredPlans = params?.groupId
+        ? rawPlans.filter(p => Array.isArray(p.group) && p.group.some(g => g.id === params.groupId))
+        : rawPlans;
+
+      return filteredPlans.map(plan => {
+        const group = Array.isArray(plan.group) && plan.group.length > 0
+          ? (params?.groupId ? (plan.group.find(g => g.id === params.groupId) || plan.group[0]) : plan.group[0])
+          : undefined;
         return {
           id: plan.id,
             name: plan.name,
@@ -194,8 +203,8 @@ class ScheduleService {
     }
   }
 
-  async searchStudyPlans(searchTerm: string): Promise<StudyPlanOption[]> {
-    return this.getStudyPlans({ search: searchTerm, limit: 50 });
+  async searchStudyPlans(searchTerm: string, groupId?: number): Promise<StudyPlanOption[]> {
+    return this.getStudyPlans({ search: searchTerm, limit: 50, groupId });
   }
   
   async getStudyPlanById(id: number): Promise<StudyPlanOption | null> {

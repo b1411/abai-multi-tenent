@@ -777,16 +777,30 @@ const SchedulePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
 
+  // При смене группы подгружаем учебные планы этой группы
+  useEffect(() => {
+    const currentGroupId = filters.groupId ? parseInt(filters.groupId, 10) : undefined;
+    setIsLoadingStudyPlans(true);
+    scheduleService
+      .getStudyPlans({ groupId: currentGroupId, limit: 1000 })
+      .then(plans => setStudyPlans(plans))
+      .catch(error => console.error('Ошибка при загрузке учебных планов по группе:', error))
+      .finally(() => setIsLoadingStudyPlans(false));
+  }, [filters.groupId]);
+
   // Загрузка данных для фильтров
   const loadFilterData = async () => {
     try {
       // Если в URL или фильтрах есть ID учебного плана, нужно загрузить информацию о нем
       const studyPlanId = searchParams.get('studyPlan') || filters.studyPlanId;
 
+      const groupIdParam = searchParams.get('group') || filters.groupId;
+      const groupIdNum = groupIdParam ? parseInt(groupIdParam, 10) : undefined;
+
       const [groupsData, teachersData, studyPlansData, classroomsData] = await Promise.all([
         scheduleService.getGroups(),
         scheduleService.getTeachers(),
-        scheduleService.getStudyPlans(),
+        scheduleService.getStudyPlans({ groupId: groupIdNum, limit: 1000 }),
         scheduleService.getClassrooms()
       ]);
 
@@ -1766,7 +1780,7 @@ const SchedulePage: React.FC = () => {
                       if (query.length >= 2) {
                         setIsLoadingStudyPlans(true);
                         studyPlanSearchTimeoutRef.current = setTimeout(() => {
-                          scheduleService.searchStudyPlans(query)
+                          scheduleService.searchStudyPlans(query, filters.groupId ? parseInt(filters.groupId) : undefined)
                             .then(plans => {
                               setStudyPlans(plans);
                               setIsLoadingStudyPlans(false);
@@ -1778,7 +1792,7 @@ const SchedulePage: React.FC = () => {
                         }, 300);
                       } else if (query.length === 0) {
                         setIsLoadingStudyPlans(true);
-                        scheduleService.getStudyPlans()
+                        scheduleService.getStudyPlans({ groupId: filters.groupId ? parseInt(filters.groupId) : undefined, limit: 1000 })
                           .then(plans => {
                             setStudyPlans(plans);
                             setIsLoadingStudyPlans(false);

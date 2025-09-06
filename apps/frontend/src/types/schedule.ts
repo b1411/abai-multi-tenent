@@ -65,6 +65,7 @@ export interface CreateScheduleDto {
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
   periodPreset?: 'quarter1' | 'quarter2' | 'quarter3' | 'quarter4' | 'half_year_1' | 'half_year_2' | 'year';
+  overwrite?: boolean;
 }
 
 export interface UpdateScheduleDto {

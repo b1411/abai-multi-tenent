@@ -219,7 +219,7 @@ const AIScheduleBuilder: React.FC = () => {
         studyPlanId?: number;
         groupId?: number;
         teacherId?: number;
-        classroomId?: number;
+        classroomId?: number | null;
         startTime?: string;
         endTime?: string;
         duration?: number;
@@ -368,7 +368,7 @@ const AIScheduleBuilder: React.FC = () => {
                         studyPlanId: cell.studyPlanId!,
                         groupId: cell.groupId!,
                         teacherId: cell.teacherId!,
-                        classroomId: cell.classroomId,
+                        classroomId: cell.classroomId ?? undefined,
                         dayOfWeek: dayNumber(dayIdx),
                         startTime: start!,
                         endTime: end || addMinutes(start!, cell.duration || 50)
@@ -436,7 +436,7 @@ const AIScheduleBuilder: React.FC = () => {
             `Стратегия: ${strategy}`,
             ...customConstraints
         ].join('\n');
-        const outputFormat = `# OutputFormat\nВерни JSON объект вида {\n  "lessons": [\n    {"day":1-5, "slot":1-8, "studyPlanId":number, "groupId":number, "teacherId":number, "classroomId":number, "recurrence":"weekly" }\n  ]\n}\nВсе занятия weekly (recurrence=weekly).`;
+        const outputFormat = `# OutputFormat\nВерни JSON объект вида {\n  "lessons": [\n    {"day":1-5, "slot":1-8, "studyPlanId":number, "groupId":number, "teacherId":number, "classroomId":number|null, "recurrence":"weekly"}\n  ]\n}\nТолько эти поля (additionalProperties=false). Используй только ID из контекста. Все занятия weekly (recurrence="weekly").`;
         return `# Teachers\n${teacherPart || '—'}\n\n# Groups\n${groupPart || '—'}\n\n# StudyPlans\n${planPart || '—'}\n\n# Classrooms\n${roomPart || '—'}\n\n# Constraints\n${constraintsPart}\n\n${outputFormat}`;
     }, [teachers, groups, studyPlans, classrooms, selectedTeacherIds, selectedGroupIds, selectedStudyPlanIds, selectedClassroomIds, workdayStart, workdayEnd, maxConsecutive, strategy, customConstraints]);
 

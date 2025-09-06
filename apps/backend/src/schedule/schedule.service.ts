@@ -11,8 +11,12 @@ export class ScheduleService {
     // Проверяем существование связанных сущностей
     await this.validateRelatedEntities(createScheduleDto);
 
-    // Проверяем конфликты расписания (по времени в рамках дня)
-    await this.checkScheduleConflicts(createScheduleDto);
+    // Конфликты: либо мягкое удаление при overwrite, либо проверка
+    if (createScheduleDto.overwrite) {
+      await this.softDeleteConflicts(createScheduleDto);
+    } else {
+      await this.checkScheduleConflicts(createScheduleDto);
+    }
 
     // Преобразуем DTO в правильный формат для Prisma
     const data: any = {
@@ -551,6 +555,78 @@ export class ScheduleService {
     }
   }
 
+  // Мягкое удаление конфликтующих записей при overwrite
+  private async softDeleteConflicts(dto: CreateScheduleDto): Promise<number> {
+    // Вычисляем границы периода
+    let startBound: Date | null = null;
+    let endBound: Date | null = null;
+
+    if (dto.periodPreset) {
+      const { startDate, endDate } = this.resolvePeriodPreset(dto.periodPreset);
+      startBound = startDate;
+      endBound = endDate;
+    } else if (dto.startDate && dto.endDate) {
+      startBound = new Date(dto.startDate);
+      endBound = new Date(dto.endDate);
+    } else if (dto.date) {
+      const d = new Date(dto.date);
+      startBound = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      endBound = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    // Условие пересечения по времени
+    const timeOverlap = {
+      OR: [
+        { AND: [{ startTime: { lte: dto.startTime } }, { endTime: { gt: dto.startTime } }] },
+        { AND: [{ startTime: { lt: dto.endTime } }, { endTime: { gte: dto.endTime } }] },
+        { AND: [{ startTime: { gte: dto.startTime } }, { endTime: { lte: dto.endTime } }] },
+      ],
+    } as any;
+
+    // Условие по участникам (учитель/группа/аудитория)
+    const participantOverlap = {
+      OR: [
+        { teacherId: dto.teacherId },
+        { groupId: dto.groupId },
+        ...(dto.classroomId ? [{ classroomId: dto.classroomId }] : []),
+      ],
+    } as any;
+
+    // Условие по периоду
+    let periodOverlap: any = {};
+    if (startBound && endBound) {
+      periodOverlap = {
+        OR: [
+          { date: { gte: startBound, lte: endBound } },
+          {
+            AND: [
+              { date: null },
+              { OR: [{ startDate: null }, { startDate: { lte: endBound } }] },
+              { OR: [{ endDate: null }, { endDate: { gte: startBound } }] },
+            ],
+          },
+        ],
+      };
+    }
+
+    const where: any = {
+      deletedAt: null,
+      dayOfWeek: dto.dayOfWeek,
+      ...timeOverlap,
+      AND: [
+        participantOverlap,
+        ...(startBound && endBound ? [periodOverlap] : []),
+      ],
+    };
+
+    const result = await this.prisma.schedule.updateMany({
+      where,
+      data: { deletedAt: new Date() },
+    });
+
+    return result.count;
+  }
+  
   // Метод для автоматического обновления статусов прошедших занятий
   async updatePastScheduleStatuses(): Promise<{ updated: number }> {
     // Используем часовой пояс Алматы (UTC+5)

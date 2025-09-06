@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsString, Min, Max, Matches, IsDateString, IsOptional, IsEnum } from 'class-validator';
+import { IsInt, IsString, Min, Max, Matches, IsDateString, IsOptional, IsEnum, IsBoolean } from 'class-validator';
 
 export class CreateScheduleDto {
   @ApiProperty({ description: 'ID учебного плана' })
@@ -119,4 +119,9 @@ export class CreateScheduleDto {
   @IsEnum(['weekly', 'biweekly', 'once'])
   @IsOptional()
   repeat?: 'weekly' | 'biweekly' | 'once';
+
+  @ApiPropertyOptional({ description: 'Перезаписывать конфликтующие записи', type: Boolean, default: false })
+  @IsOptional()
+  @IsBoolean()
+  overwrite?: boolean;
 }

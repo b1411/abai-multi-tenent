@@ -28,6 +28,9 @@ import {
 import { Button, Loading } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import ScheduleGrid from '../components/ScheduleGrid';
+import scheduleService from '../services/scheduleService';
+import apiClient from '../services/apiClient';
+import { GroupOption, ClassroomOption, TeacherOption, StudyPlanOption } from '../types/schedule';
 
 // Константы для праздников Казахстана
 const KAZAKHSTAN_HOLIDAYS_2024_2025: { [key: string]: string } = {
@@ -200,6 +203,7 @@ interface GeneratedLesson {
   startTime: string;
   endTime: string;
   subject: string;
+  studyPlanId: number;
   groupId: number;
   groupName: string;
   teacherId: number;
@@ -213,6 +217,10 @@ const AISchedulePage: React.FC = () => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+  const [studyPlans, setStudyPlans] = useState<StudyPlanOption[]>([]);
 
   // Состояния шагов
   const [quarterSettings, setQuarterSettings] = useState<QuarterSettings>({
@@ -250,6 +258,34 @@ const AISchedulePage: React.FC = () => {
 
   // Состояние для полноэкранного режима
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Загрузка реальных данных
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [g, c, t, spRaw] = await Promise.all([
+          scheduleService.getGroups(),
+          scheduleService.getClassrooms(),
+          scheduleService.getTeachers(),
+          scheduleService.getStudyPlans({ limit: 999 })
+        ]);
+        if (cancelled) return;
+        const spArray = Array.isArray(spRaw)
+          ? spRaw
+          : Array.isArray((spRaw as any)?.items)
+            ? (spRaw as any).items
+            : [];
+        setGroups(g);
+        setClassrooms(c);
+        setTeachers(t);
+        setStudyPlans(spArray as any);
+      } catch (_) {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Предустановленные пожелания педагогов
   const getDefaultTeacherPreferences = (teacherId: number): TeacherPreference[] => [
@@ -443,16 +479,97 @@ const AISchedulePage: React.FC = () => {
   };
 
   const getSelectedSubjects = () => {
-    return selectedGroups.reduce((subjects, groupId) => {
-      const groupSubjects = MOCK_SUBJECTS[groupId] || [];
-      return [...subjects, ...groupSubjects.map(s => ({ 
-        ...s, 
-        groupId, 
-        groupName: MOCK_GROUPS.find(g => g.id === groupId)?.name || '',
-        // Используем кастомные часы если они заданы
-        hoursPerWeek: customSubjectHours[`${groupId}-${s.id}`] || s.hoursPerWeek
-      }))];
-    }, [] as any[]);
+    const selectedGroupObjs = groups.filter(g => selectedGroups.includes(g.id));
+    const selectedGroupIds = new Set(selectedGroupObjs.map(g => g.id));
+    const selectedGroupNames = new Set(
+      selectedGroupObjs.map(g => (g.name || '').trim().toLowerCase())
+    );
+
+    const selected = (studyPlans as any[]).filter((sp: any) => {
+      // 1) Прямой groupId
+      const directGroupId: number | undefined =
+        typeof sp.groupId === 'number' ? sp.groupId : undefined;
+      if (directGroupId && selectedGroupIds.has(directGroupId)) return true;
+
+      // 2) Одиночный вложенный объект группы
+      if (sp.group && !Array.isArray(sp.group)) {
+        const nestedGroupId: number | undefined =
+          typeof sp.group?.id === 'number' ? sp.group.id : undefined;
+        if (nestedGroupId && selectedGroupIds.has(nestedGroupId)) return true;
+
+        const nameFromSingle = (sp.group?.name || '').trim().toLowerCase();
+        if (nameFromSingle && selectedGroupNames.has(nameFromSingle)) return true;
+      }
+
+      // 3) Массив групп от бэкенда
+      if (Array.isArray(sp.group) && sp.group.length) {
+        const hasById = sp.group.some((g: any) => typeof g?.id === 'number' && selectedGroupIds.has(g.id));
+        if (hasById) return true;
+
+        const hasByName = sp.group.some((g: any) => {
+          const nm = (g?.name || '').trim().toLowerCase();
+          return nm && selectedGroupNames.has(nm);
+        });
+        if (hasByName) return true;
+      }
+
+      // 4) Совпадение по groupName (fallback)
+      const nameFromPlan: string = (sp.groupName || '').trim().toLowerCase();
+      if (nameFromPlan && selectedGroupNames.has(nameFromPlan)) return true;
+
+      return false;
+    });
+
+    return selected.map((sp: any) => {
+      const t = teachers.find(tt => tt.id === sp.teacherId);
+
+      // Разрешаем корректный groupId/имя для карточки
+      let resolvedGroup: GroupOption | undefined;
+
+      if (typeof sp.groupId === 'number') {
+        resolvedGroup = groups.find(g => g.id === sp.groupId);
+      } else if (sp.group && !Array.isArray(sp.group) && typeof sp.group.id === 'number') {
+        resolvedGroup = groups.find(g => g.id === sp.group.id);
+      } else if (Array.isArray(sp.group) && sp.group.length) {
+        // берём первый совпавший по id, иначе по имени, иначе по groupName
+        resolvedGroup =
+          sp.group.map((g: any) => groups.find(gr => gr.id === g?.id)).find(Boolean) ||
+          sp.group.map((g: any) =>
+            groups.find(gr => (gr.name || '').trim().toLowerCase() === (g?.name || '').trim().toLowerCase())
+          ).find(Boolean) ||
+          (sp.groupName
+            ? groups.find(gr => (gr.name || '').trim().toLowerCase() === sp.groupName.trim().toLowerCase())
+            : undefined);
+      } else if (sp.groupName) {
+        resolvedGroup = groups.find(g => (g.name || '').trim().toLowerCase() === sp.groupName.trim().toLowerCase());
+      }
+
+      const resolvedGroupId =
+        resolvedGroup?.id ??
+        (typeof sp.groupId === 'number' ? sp.groupId : undefined) ??
+        (sp.group && !Array.isArray(sp.group) && typeof sp.group.id === 'number' ? sp.group.id : undefined) ??
+        (Array.isArray(sp.group)
+          ? (sp.group.find((g: any) => typeof g?.id === 'number')?.id as number | undefined)
+          : undefined);
+
+      const groupName =
+        resolvedGroup?.name ??
+        sp.groupName ??
+        (sp.group && !Array.isArray(sp.group) ? sp.group?.name : undefined) ??
+        (Array.isArray(sp.group) ? sp.group.find((g: any) => g?.name)?.name : undefined) ??
+        `Group#${resolvedGroupId ?? '—'}`;
+
+      return {
+        id: sp.id,
+        name: sp.name,
+        teacherId: sp.teacherId,
+        teacherName: t ? `${t.name} ${t.surname}` : `Teacher #${sp.teacherId}`,
+        groupId: resolvedGroupId,
+        groupName,
+        // Часы — только для интерфейса
+        hoursPerWeek: customSubjectHours[`${resolvedGroupId}-${sp.id}`] || 1
+      };
+    });
   };
 
   // Функции для работы с кастомизацией предметов
@@ -746,136 +863,169 @@ const AISchedulePage: React.FC = () => {
       }
     ];
 
-    demoSchedule.push(...demoLessons);
+    demoSchedule.push(...demoLessons.map(dl => ({ ...dl, studyPlanId: 0 })));
 
     return demoSchedule;
   };
 
-  const generateSchedule = () => {
+  const generateSchedule = async () => {
     setLoading(true);
-    
-    setTimeout(() => {
+    try {
+      // Формируем промпт для backend AI
+      const teacherPart = teachers.map(t => `${t.id}:${t.name} ${t.surname}`).join('\n');
+      const groupPart = groups
+        .filter(g => selectedGroups.includes(g.id))
+        .map(g => `${g.id}:${g.name} курс ${g.courseNumber ?? ''}`.trim())
+        .join('\n');
       const subjects = getSelectedSubjects();
-      const workingDays = getWorkingDaysCount();
-      
-      // Проверяем наличие данных
       if (subjects.length === 0) {
-        alert('Не выбраны предметы для составления расписания');
+        alert('Для выбранных групп нет учебных планов (StudyPlans). Добавьте учебные планы или выберите другие группы.');
         setLoading(false);
         return;
       }
-      
-      if (selectedClassrooms.length === 0) {
-        alert('Не выбраны аудитории для проведения занятий');
-        setLoading(false);
-        return;
+      const planPart = subjects.map(s => `${s.id}:${s.name} (group ${s.groupName})`).join('\n');
+      const roomPart = classrooms
+        .filter(c => selectedClassrooms.includes(c.id))
+        .map(c => `${c.id}:${c.name} (${c.type}) cap:${c.capacity}`)
+        .join('\n');
+
+      const constraintsPart = [
+        `Период: ${quarterSettings.startDate} - ${quarterSettings.endDate}`,
+        `Рабочие дни: ${quarterSettings.workingDays.join(',')}`,
+        `Рабочее время: ${scheduleConstraints.workingHours.start}-${scheduleConstraints.workingHours.end}`,
+        `Длительность урока: ${scheduleConstraints.lessonDuration} мин`,
+        `Перемена: ${scheduleConstraints.breakDuration} мин`,
+        `Макс уроков в день: ${scheduleConstraints.maxLessonsPerDay}`,
+        `Не ставить первым: ${scheduleConstraints.noFirstLessonSubjects.join(', ') || '—'}`,
+        `Не ставить последним: ${scheduleConstraints.noLastLessonSubjects.join(', ') || '—'}`
+      ].join('\n');
+
+      const outputFormat = `# OutputFormat
+Верни JSON строго по схеме:
+{
+  "lessons": [
+    { "day":1-5, "slot":1-8, "studyPlanId":number, "groupId":number, "teacherId":number, "classroomId":number|null, "recurrence":"weekly" }
+  ]
+}`;
+
+      const prompt = `# Teachers
+${teacherPart || '—'}
+
+# Groups
+${groupPart || '—'}
+
+# StudyPlans
+${planPart || '—'}
+
+# Classrooms
+${roomPart || '—'}
+
+# Constraints
+${constraintsPart}
+
+${outputFormat}`;
+
+      const resp = await apiClient.post<{ lessons: Array<{ day: number; slot: number; studyPlanId: number; groupId: number; teacherId: number; classroomId?: number | null; recurrence: 'weekly' }> }>('/ai-assistant/openai-responses', {
+        message: prompt,
+        scenario: 'schedule_generation_v1'
+      });
+
+      const weeklyLessons: { day: number; slot: number; studyPlanId: number; groupId: number; teacherId: number; classroomId: number | null; recurrence: 'weekly' }[] = Array.isArray((resp as any).lessons) ? (resp as any).lessons : [];
+
+      // Вспомогательные функции
+      const addMinutes = (time: string, minutes: number) => {
+        const [h, m] = time.split(':').map(Number);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        d.setMinutes(d.getMinutes() + minutes);
+        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      };
+      const slotToTime = (slot: number) => {
+        const base = scheduleConstraints.workingHours.start || '08:00';
+        const perSlot = scheduleConstraints.lessonDuration + scheduleConstraints.breakDuration;
+        const offset = (slot - 1) * perSlot;
+        const start = addMinutes(base, offset);
+        const end = addMinutes(start, scheduleConstraints.lessonDuration);
+        return { start, end };
+      };
+      const isHoliday = (dateStr: string) =>
+        !!KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] || quarterSettings.customHolidays.includes(dateStr);
+
+      const getAllWorkingDates = (): string[] => {
+        const start = new Date(quarterSettings.startDate);
+        const end = new Date(quarterSettings.endDate);
+        const dates: string[] = [];
+        const cur = new Date(start);
+        while (cur <= end) {
+          const dow0 = cur.getDay(); // 0..6
+          const dow = dow0 === 0 ? 7 : dow0; // 1..7
+          const ds = cur.toISOString().split('T')[0];
+          if (quarterSettings.workingDays.includes(dow) && !isHoliday(ds)) dates.push(ds);
+          cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+      };
+
+      const workingDates = getAllWorkingDates();
+      const byDayDates = new Map<number, string[]>();
+      for (let d = 1; d <= 7; d++) {
+        byDayDates.set(d, workingDates.filter(ds => {
+          const dow0 = new Date(ds).getDay();
+          const dow = dow0 === 0 ? 7 : dow0;
+          return dow === d;
+        }));
       }
 
-      // Создаем демонстрационное расписание с конфликтами для тестирования
-      const schedule: GeneratedLesson[] = generateDemoScheduleWithConflicts();
-      
-      // Улучшенный алгоритм генерации
-      let lessonId = 1;
-      
-      // Создаем пул рабочих дат
-      const workingDates = getAllWorkingDates();
-      
-      if (workingDates.length === 0) {
-        alert('Не найдены рабочие дни для составления расписания');
-        setLoading(false);
-        return;
-      }
-      
-      subjects.forEach(subject => {
-        // Рассчитываем количество уроков с учетом недель в четверти
-        const weeksInQuarter = Math.ceil(workingDays / quarterSettings.workingDays.length);
-        const totalLessons = Math.ceil(subject.hoursPerWeek * weeksInQuarter);
-        
-        // Получаем пожелания преподавателя
-        const teacherPrefs = getTeacherPreferences(subject.teacherId);
-        const activePrefs = teacherPrefs.filter(pref => pref.enabled);
-        
-        for (let i = 0; i < totalLessons; i++) {
-          let attempts = 0;
-          let lessonScheduled = false;
-          
-          while (!lessonScheduled && attempts < 50) {
-            const randomDate = getRandomDateForSubject(workingDates, subject, activePrefs);
-            const randomTime = getRandomTimeForSubject(subject, activePrefs);
-            const classroom = getBestClassroomForSubject(subject, activePrefs);
-            
-            if (randomDate && randomTime && classroom) {
-              // Проверяем конфликты
-              if (!hasConflict(schedule, randomDate, randomTime, subject.teacherId, classroom.id, subject.groupId)) {
-                schedule.push({
-                  id: `lesson-${lessonId++}`,
-                  date: randomDate,
-                  dayOfWeek: getDayName(new Date(randomDate).getDay()),
-                  startTime: randomTime.start,
-                  endTime: randomTime.end,
-                  subject: subject.name,
-                  groupId: subject.groupId,
-                  groupName: subject.groupName,
-                  teacherId: subject.teacherId,
-                  teacherName: subject.teacherName,
-                  classroomId: classroom.id,
-                  classroomName: classroom.name,
-                  weekNumber: getWeekNumber(randomDate)
-                });
-                lessonScheduled = true;
-              }
-            }
-            attempts++;
-          }
-          
-          // Если не удалось запланировать с ограничениями, добавляем без них
-          if (!lessonScheduled) {
-            const fallbackDate = workingDates[Math.floor(Math.random() * workingDates.length)];
-            const fallbackTime = generateRandomTime();
-            const fallbackClassroom = getRandomClassroom(subject.roomType);
-            
-            if (fallbackClassroom) {
-              schedule.push({
-                id: `lesson-${lessonId++}`,
-                date: fallbackDate,
-                dayOfWeek: getDayName(new Date(fallbackDate).getDay()),
-                startTime: fallbackTime.start,
-                endTime: fallbackTime.end,
-                subject: subject.name,
-                groupId: subject.groupId,
-                groupName: subject.groupName,
-                teacherId: subject.teacherId,
-                teacherName: subject.teacherName,
-                classroomId: fallbackClassroom.id,
-                classroomName: fallbackClassroom.name,
-                weekNumber: getWeekNumber(fallbackDate)
-              });
-            }
-          }
-        }
+      const result: GeneratedLesson[] = [];
+      weeklyLessons.forEach(l => {
+        const dates = byDayDates.get(l.day) || [];
+        dates.forEach(dateStr => {
+          const t = slotToTime(l.slot);
+          const teacher = teachers.find(tt => tt.id === l.teacherId);
+          const plan = studyPlans.find(sp => sp.id === l.studyPlanId);
+          const group = groups.find(g => g.id === l.groupId);
+          const room = l.classroomId ? classrooms.find(c => c.id === l.classroomId) : undefined;
+          result.push({
+            id: `ai-${l.day}-${l.slot}-${l.studyPlanId}-${dateStr}`,
+            date: dateStr,
+            dayOfWeek: getDayName(new Date(dateStr).getDay()),
+            startTime: t.start,
+            endTime: t.end,
+            subject: plan?.name || `SP#${l.studyPlanId}`,
+            studyPlanId: l.studyPlanId,
+            groupId: group?.id || l.groupId,
+            groupName: group?.name || `Group#${l.groupId}`,
+            teacherId: teacher?.id || l.teacherId,
+            teacherName: teacher ? `${teacher.name} ${teacher.surname}` : `Teacher#${l.teacherId}`,
+            classroomId: room?.id,
+            classroomName: room?.name,
+            weekNumber: getWeekNumber(dateStr)
+          });
+        });
       });
-      
-      // Сортируем по датам и времени
-      schedule.sort((a, b) => {
-        const dateComparison = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateComparison === 0) {
-          return a.startTime.localeCompare(b.startTime);
-        }
-        return dateComparison;
+
+      // Сортировка
+      result.sort((a, b) => {
+        const dc = a.date.localeCompare(b.date);
+        if (dc !== 0) return dc;
+        return a.startTime.localeCompare(b.startTime);
       });
-      
-      setGeneratedSchedule(schedule);
+
+      setGeneratedSchedule(result);
       setScheduleStats({
-        totalLessons: schedule.length,
-        totalDays: workingDays,
-        averagePerDay: (schedule.length / workingDays).toFixed(1),
+        totalLessons: result.length,
+        totalDays: workingDates.length,
+        averagePerDay: (result.length / workingDates.length).toFixed(1),
         subjectsCount: subjects.length,
         teachersCount: [...new Set(subjects.map(s => s.teacherId))].length
       });
-      
-      setLoading(false);
       setCurrentStep(6);
-    }, 2000);
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка генерации расписания');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Вспомогательные функции для улучшенного алгоритма
@@ -968,7 +1118,7 @@ const AISchedulePage: React.FC = () => {
   };
 
   const getBestClassroomForSubject = (subject: any, activePrefs: TeacherPreference[]) => {
-    const selectedRooms = MOCK_CLASSROOMS.filter(room => 
+    const selectedRooms = classrooms.filter(room => 
       selectedClassrooms.includes(room.id)
     );
     
@@ -1048,7 +1198,7 @@ const AISchedulePage: React.FC = () => {
 
   const getRandomClassroom = (roomType: string) => {
     // Фильтруем только выбранные аудитории
-    const selectedRooms = MOCK_CLASSROOMS.filter(room => 
+    const selectedRooms = classrooms.filter(room => 
       selectedClassrooms.includes(room.id)
     );
     
@@ -1099,14 +1249,78 @@ const AISchedulePage: React.FC = () => {
     }
   };
 
+  // Готовим weekly-паттерны (уникальные day/time/ids) вместо разворота по датам
+  const getWeeklyPatterns = () => {
+    const map = new Map<string, {
+      studyPlanId: number;
+      groupId: number;
+      teacherId: number;
+      classroomId?: number;
+      dayOfWeek: number;
+      startTime: string;
+      endTime: string;
+    }>();
+
+    for (const lesson of generatedSchedule) {
+      const dow0 = new Date(lesson.date).getDay(); // 0..6
+      const dayOfWeek = dow0 === 0 ? 7 : dow0; // 1..7
+      const key = `${dayOfWeek}|${lesson.startTime}|${lesson.endTime}|${lesson.studyPlanId}|${lesson.groupId}|${lesson.teacherId}|${lesson.classroomId ?? ''}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          studyPlanId: lesson.studyPlanId,
+          groupId: lesson.groupId,
+          teacherId: lesson.teacherId,
+          classroomId: lesson.classroomId || undefined,
+          dayOfWeek,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime
+        });
+      }
+    }
+    return Array.from(map.values());
+  };
+
   const saveSchedule = async () => {
+    const patterns = getWeeklyPatterns();
+    if (!patterns.length) {
+      alert('Нет уроков для сохранения');
+      return;
+    }
     setLoading(true);
-    
-    // Имитация сохранения
-    setTimeout(() => {
-      setLoading(false);
-      alert(`Расписание успешно создано!\n\nСоздано уроков: ${generatedSchedule.length}\nПериод: ${quarterSettings.startDate} - ${quarterSettings.endDate}`);
-    }, 1500);
+    let created = 0;
+    const errors: string[] = [];
+
+    for (const p of patterns) {
+      try {
+        await scheduleService.create({
+          studyPlanId: p.studyPlanId,
+          groupId: p.groupId,
+          teacherId: p.teacherId,
+          classroomId: p.classroomId,
+          dayOfWeek: p.dayOfWeek,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          repeat: 'weekly',
+          startDate: quarterSettings.startDate,
+          endDate: quarterSettings.endDate,
+          // Укажем пресет четверти для ясности периода
+          periodPreset: (['quarter1', 'quarter2', 'quarter3', 'quarter4'] as const)[quarterSettings.quarterNumber - 1] as any,
+          // Просим бэкенд перезаписывать конфликтующие записи
+          overwrite: true
+        } as any);
+        created++;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Ошибка';
+        errors.push(`day ${p.dayOfWeek} ${p.startTime}-${p.endTime} g#${p.groupId} sp#${p.studyPlanId}: ${msg}`);
+      }
+    }
+
+    setLoading(false);
+    if (errors.length) {
+      alert(`Создано weekly-паттернов: ${created}. Ошибок: ${errors.length}\n` + errors.slice(0, 5).join('\n'));
+    } else {
+      alert(`Создано weekly-паттернов: ${created}`);
+    }
   };
 
   return (
@@ -1289,7 +1503,7 @@ const AISchedulePage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {MOCK_GROUPS.map(group => (
+                  {groups.map(group => (
                     <div
                       key={group.id}
                       className={`p-4 border rounded-lg cursor-pointer transition-all ${
@@ -1307,8 +1521,7 @@ const AISchedulePage: React.FC = () => {
                     >
                       <div className="text-center">
                         <div className="text-xl font-bold text-gray-900">{group.name}</div>
-                        <div className="text-sm text-gray-500">{group.courseNumber} класс</div>
-                        <div className="text-sm text-gray-500">{group.studentsCount} учеников</div>
+                        <div className="text-sm text-gray-500">{group.courseNumber ?? ''} класс</div>
                       </div>
                     </div>
                   ))}
@@ -1396,7 +1609,7 @@ const AISchedulePage: React.FC = () => {
 
                 {/* Группировка по корпусам */}
                 <div className="space-y-6">
-                  {Array.from(new Set(MOCK_CLASSROOMS.map(c => c.building))).map(building => (
+                  {Array.from(new Set(classrooms.map(c => c.building))).map(building => (
                     <div key={building}>
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-medium text-gray-900 flex items-center">
@@ -1404,12 +1617,12 @@ const AISchedulePage: React.FC = () => {
                           {building}
                         </h3>
                         <div className="text-sm text-gray-500">
-                          {MOCK_CLASSROOMS.filter(c => c.building === building && selectedClassrooms.includes(c.id)).length} из {MOCK_CLASSROOMS.filter(c => c.building === building).length} выбрано
+                          {classrooms.filter(c => c.building === building && selectedClassrooms.includes(c.id)).length} из {classrooms.filter(c => c.building === building).length} выбрано
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {MOCK_CLASSROOMS
+                        {classrooms
                           .filter(classroom => classroom.building === building)
                           .map(classroom => (
                             <div
@@ -1431,7 +1644,7 @@ const AISchedulePage: React.FC = () => {
                                 <div className="text-xl font-bold text-gray-900">{classroom.name}</div>
                                 <div className="text-sm text-gray-500 capitalize">{classroom.type}</div>
                                 <div className="text-sm text-gray-500">до {classroom.capacity} мест</div>
-                                <div className="text-xs text-gray-400 mt-1">{classroom.description}</div>
+                                {/* описание отсутствует в данных */}
                               </div>
                             </div>
                           ))
@@ -1448,8 +1661,8 @@ const AISchedulePage: React.FC = () => {
                       Выбранные аудитории ({selectedClassrooms.length})
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {Array.from(new Set(MOCK_CLASSROOMS.filter(c => selectedClassrooms.includes(c.id)).map(c => c.type))).map(type => {
-                        const count = MOCK_CLASSROOMS.filter(c => selectedClassrooms.includes(c.id) && c.type === type).length;
+                      {Array.from(new Set(classrooms.filter(c => selectedClassrooms.includes(c.id)).map(c => c.type))).map(type => {
+                        const count = classrooms.filter(c => selectedClassrooms.includes(c.id) && c.type === type).length;
                         return (
                           <div key={type} className="text-center p-3 bg-gray-50 rounded-lg">
                             <div className="text-lg font-bold text-blue-600">{count}</div>
@@ -1690,8 +1903,8 @@ const AISchedulePage: React.FC = () => {
                       <h4 className="font-medium text-gray-800 mb-2">Аудитории</h4>
                       <div className="text-gray-600">
                         <div>{selectedClassrooms.length} аудиторий</div>
-                        <div>{Array.from(new Set(MOCK_CLASSROOMS.filter(c => selectedClassrooms.includes(c.id)).map(c => c.building))).length} корпуса</div>
-                        <div>{Array.from(new Set(MOCK_CLASSROOMS.filter(c => selectedClassrooms.includes(c.id)).map(c => c.type))).length} типов</div>
+                        <div>{Array.from(new Set(classrooms.filter(c => selectedClassrooms.includes(c.id)).map(c => c.building))).length} корпуса</div>
+                        <div>{Array.from(new Set(classrooms.filter(c => selectedClassrooms.includes(c.id)).map(c => c.type))).length} типов</div>
                       </div>
                     </div>
                     
@@ -1793,13 +2006,15 @@ const AISchedulePage: React.FC = () => {
                   <ScheduleGrid
                     lessons={generatedSchedule}
                     onUpdateLessons={(updatedLessons) => {
-                      // Преобразуем ScheduleLesson[] обратно в GeneratedLesson[]
+                      // Преобразуем ScheduleLesson[] обратно в GeneratedLesson[] и восстанавливаем studyPlanId
+                      const idToStudyPlan = new Map(generatedSchedule.map(l => [l.id, l.studyPlanId]));
                       const convertedLessons = updatedLessons.map(lesson => ({
                         ...lesson,
+                        studyPlanId: (lesson as any).studyPlanId ?? idToStudyPlan.get(lesson.id) ?? 0,
                         dayOfWeek: getDayName(new Date(lesson.date).getDay()),
                         weekNumber: getWeekNumber(lesson.date)
                       }));
-                      setGeneratedSchedule(convertedLessons);
+                      setGeneratedSchedule(convertedLessons as GeneratedLesson[]);
                     }}
                     quarterSettings={{
                       startDate: quarterSettings.startDate,
@@ -1807,6 +2022,7 @@ const AISchedulePage: React.FC = () => {
                       workingDays: quarterSettings.workingDays,
                     }}
                     workingHours={scheduleConstraints.workingHours}
+                    slotStepMinutes={scheduleConstraints.lessonDuration + scheduleConstraints.breakDuration}
                   />
                 </div>
 
@@ -1848,10 +2064,10 @@ const AISchedulePage: React.FC = () => {
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
                       <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto mb-3" />
                       <h3 className="font-medium text-yellow-800 mb-2">Внимание!</h3>
-                      <p className="text-yellow-700 text-sm">
-                        Это действие создаст {generatedSchedule.length} записей в базе данных.
-                        Убедитесь, что расписание проверено и готово к использованию.
-                      </p>
+                        <p className="text-yellow-700 text-sm">
+                          Это действие создаст {getWeeklyPatterns().length} записей в базе данных (weekly-паттерны за выбранный период).
+                          Убедитесь, что расписание проверено и готово к использованию.
+                        </p>
                     </div>
 
                     <Button
@@ -1975,13 +2191,15 @@ const AISchedulePage: React.FC = () => {
                   <ScheduleGrid
                     lessons={generatedSchedule}
                     onUpdateLessons={(updatedLessons) => {
-                      // Преобразуем ScheduleLesson[] обратно в GeneratedLesson[]
+                      // Преобразуем ScheduleLesson[] обратно в GeneratedLesson[] и восстанавливаем studyPlanId
+                      const idToStudyPlan = new Map(generatedSchedule.map(l => [l.id, l.studyPlanId]));
                       const convertedLessons = updatedLessons.map(lesson => ({
                         ...lesson,
+                        studyPlanId: (lesson as any).studyPlanId ?? idToStudyPlan.get(lesson.id) ?? 0,
                         dayOfWeek: getDayName(new Date(lesson.date).getDay()),
                         weekNumber: getWeekNumber(lesson.date)
                       }));
-                      setGeneratedSchedule(convertedLessons);
+                      setGeneratedSchedule(convertedLessons as GeneratedLesson[]);
                     }}
                     quarterSettings={{
                       startDate: quarterSettings.startDate,
@@ -1989,6 +2207,7 @@ const AISchedulePage: React.FC = () => {
                       workingDays: quarterSettings.workingDays,
                     }}
                     workingHours={scheduleConstraints.workingHours}
+                    slotStepMinutes={scheduleConstraints.lessonDuration + scheduleConstraints.breakDuration}
                   />
                 </div>
               </div>
@@ -2135,7 +2354,7 @@ const AISchedulePage: React.FC = () => {
                           className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         />
                         <div className="text-sm text-gray-500">
-                          Стандартно: {MOCK_SUBJECTS[selectedSubject.groupId]?.find(s => s.id === selectedSubject.id)?.hoursPerWeek || selectedSubject.hoursPerWeek} ч/нед
+                          Настройка часов влияет только на представление
                         </div>
                       </div>
                     </div>

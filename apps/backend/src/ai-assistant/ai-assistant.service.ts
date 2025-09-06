@@ -6,6 +6,8 @@ import * as pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import { PrismaService } from '../prisma/prisma.service';
 import OpenAI from 'openai';
+import { simpleScheduleSchema } from './schemas/simple-schedule.schema';
+import { SimpleScheduleResponseDto } from './dto/simple-schedule-response.dto';
 
 export interface KtpImportedStructure {
   courseName: string;
@@ -83,6 +85,56 @@ export class AiAssistantService {
     ai.aiModel = 'gpt-4o-2024-08-06';
     ai.algorithmVersion = this.algorithmVersion;
     return ai;
+  }
+
+  async generateSimpleScheduleFromPrompt(prompt: string): Promise<SimpleScheduleResponseDto> {
+    this.ensureKey();
+    const instructions = `Ты — помощник по составлению недельного расписания колледжа.
+Возвращай СТРОГО JSON по заданной json_schema без лишнего текста.
+- Рабочая неделя: Пн(1) — Пт(5), слоты 1..8.
+- Все занятия recurrence=weekly.
+- Используй id, которые уже присутствуют во входном контексте (не придумывай новые).
+- Если ячейку нельзя заполнить из-за ограничений — просто пропусти её (не возвращай).
+`;
+    const ai = await this.postOpenAIResponseWithSchema<SimpleScheduleResponseDto>({
+      instructions,
+      input: prompt,
+      schemaName: 'simple_schedule',
+      schema: simpleScheduleSchema,
+      temperature: 0.2
+    });
+
+    // Нормализация/валидация результатов на всякий случай
+    const lessons = Array.isArray(ai?.lessons) ? ai.lessons : [];
+    const toNum = (v: any) => (typeof v === 'number' ? v : Number(v));
+    const cleaned = lessons
+      .map((l: any) => {
+        const day = Math.min(5, Math.max(1, toNum(l.day)));
+        const slot = Math.min(8, Math.max(1, toNum(l.slot)));
+        const studyPlanId = toNum(l.studyPlanId);
+        const groupId = toNum(l.groupId);
+        const teacherId = toNum(l.teacherId);
+        const classroomId = l.classroomId == null ? null : toNum(l.classroomId);
+        return {
+          day,
+          slot,
+          studyPlanId,
+          groupId,
+          teacherId,
+          classroomId,
+          recurrence: 'weekly' as const
+        };
+      })
+      .filter(
+        (x) =>
+          Number.isFinite(x.day) &&
+          Number.isFinite(x.slot) &&
+          Number.isFinite(x.studyPlanId) &&
+          Number.isFinite(x.groupId) &&
+          Number.isFinite(x.teacherId)
+      );
+
+    return { lessons: cleaned };
   }
 
   async processNeuroAbaiRequest(message: string, scenario: string, files?: Express.Multer.File[]): Promise<string> {

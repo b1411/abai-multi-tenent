@@ -37,7 +37,6 @@ export class AiAssistantController {
     return this.aiAssistantService.createEphemeralToken();
   }
 
-
   @Post('openai-responses')
   @UseInterceptors(FilesInterceptor('files'))
   @ApiOperation({ summary: 'Отправить сообщение в Neuro Abai AI' })
@@ -75,6 +74,12 @@ export class AiAssistantController {
       ? body.messages.map(m => `${m.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${m.content}`).join('\n\n')
       : (body.message ?? '');
     const scenario = body.scenario ?? '';
+
+    // Special case: simple weekly schedule generation for AIScheduleBuilder
+    if (scenario === 'schedule_generation_v1') {
+      return await this.aiAssistantService.generateSimpleScheduleFromPrompt(message);
+    }
+
     return await this.aiAssistantService.processNeuroAbaiRequest(message, scenario, files);
   }
 

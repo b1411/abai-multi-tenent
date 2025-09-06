@@ -93,6 +93,7 @@ interface ScheduleGridProps {
     start: string;
     end: string;
   };
+  slotStepMinutes?: number;
 }
 
 // Компонент урока в сетке
@@ -468,7 +469,7 @@ const TimeSlotCell: React.FC<{
     lesson => lesson.date === date && lesson.startTime === timeSlot.time
   );
 
-  const dropId = `slot-${date}-${timeSlot.time}`;
+  const dropId = `slot::${date}::${timeSlot.time}`;
   
   const { isOver, setNodeRef } = useDroppable({
     id: dropId,
@@ -540,6 +541,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   onUpdateLessons,
   quarterSettings,
   workingHours,
+  slotStepMinutes,
 }) => {
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -572,22 +574,32 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   // Генерируем временные слоты
   const timeSlots = useMemo(() => {
     const slots: TimeSlot[] = [];
-    const startHour = parseInt(workingHours.start.split(':')[0]);
-    const endHour = parseInt(workingHours.end.split(':')[0]);
+    const [startH, startM] = workingHours.start.split(':').map(Number);
+    const [endH, endM] = workingHours.end.split(':').map(Number);
+    const step = typeof slotStepMinutes === 'number' && slotStepMinutes > 0 ? slotStepMinutes : 60;
 
-    // Если endHour меньше 18, расширяем до 18:00
-    const actualEndHour = Math.max(endHour, 18);
+    // Если конец рабочего дня раньше 18:00, расширяем до 18:00 для удобства обзора
+    const endLimit = Math.max(endH * 60 + (endM || 0), 18 * 60);
 
-    for (let hour = startHour; hour <= actualEndHour; hour++) {
+    let current = startH * 60 + (startM || 0);
+
+    const toTimeStr = (mins: number) => {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    };
+
+    while (current <= endLimit) {
       slots.push({
-        time: `${hour.toString().padStart(2, '0')}:00`,
-        hour,
-        minute: 0,
+        time: toTimeStr(current),
+        hour: Math.floor(current / 60),
+        minute: current % 60,
       });
+      current += step;
     }
 
     return slots;
-  }, [workingHours]);
+  }, [workingHours, slotStepMinutes]);
 
   // Генерируем рабочие дни
   const workingDays = useMemo(() => {
@@ -735,14 +747,10 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     // Парсим целевую позицию
     const overIdString = over.id as string;
     console.log('Drop target:', overIdString); // Для отладки
-    
-    const targetInfo = overIdString.split('-');
-    
-    if (targetInfo.length >= 3 && targetInfo[0] === 'slot') {
-      // Собираем дату и время из частей ID
-      const targetDate = targetInfo[1];
-      const targetTime = targetInfo.slice(2).join(':'); // Объединяем части времени обратно
-      
+
+    if (overIdString.startsWith('slot::')) {
+      const [, targetDate, targetTime] = overIdString.split('::');
+
       console.log('Target date:', targetDate, 'Target time:', targetTime); // Для отладки
       
       // Проверяем, не перемещается ли урок в то же место

@@ -112,10 +112,53 @@ const StudentDetail: React.FC = () => {
   const examLimit = 20;
   const [loadingExams, setLoadingExams] = useState<boolean>(false);
   // Exams deterministic mock (explicit user request override: deterministic mocks allowed for Exams)
-  const [examFilterYear, setExamFilterYear] = useState('2024/2025');
+  const [examFilterYear, setExamFilterYear] = useState(() => {
+    const now = new Date();
+    const start = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    return `${start}/${start + 1}`;
+  });
   const [examFilterQuarter, setExamFilterQuarter] = useState('Все четверти');
   const [examFilterMonth, setExamFilterMonth] = useState('Все месяцы');
   const [examFilterType, setExamFilterType] = useState('Все типы экзаменов');
+
+  const schoolYearOptions = useMemo(() => {
+    const now = new Date();
+    const start = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    const years = [start - 1, start, start + 1];
+    return years.map(y => `${y}/${y + 1}`);
+  }, []);
+
+  const quarterOptions = useMemo(() => ([
+    'Все четверти',
+    '1 четверть (сент–окт)',
+    '2 четверть (нояб–дек)',
+    '3 четверть (янв–март)',
+    '4 четверть (апр–май)'
+  ]), []);
+
+  const monthOptions = useMemo(() => ([
+    'Все месяцы',
+    'Сентябрь','Октябрь','Ноябрь','Декабрь',
+    'Январь','Февраль','Март','Апрель','Май'
+  ]), []);
+
+  const monthNameToNumber = useCallback((name: string): number | undefined => {
+    switch (name) {
+      case 'Январь': return 1;
+      case 'Февраль': return 2;
+      case 'Март': return 3;
+      case 'Апрель': return 4;
+      case 'Май': return 5;
+      case 'Июнь': return 6;
+      case 'Июль': return 7;
+      case 'Август': return 8;
+      case 'Сентябрь': return 9;
+      case 'Октябрь': return 10;
+      case 'Ноябрь': return 11;
+      case 'Декабрь': return 12;
+      default: return undefined;
+    }
+  }, []);
 
   // Deterministic pseudo-random generator placeholder (for future scaling)
   const seededRandom = useCallback((seed: number) => {
@@ -124,25 +167,7 @@ const StudentDetail: React.FC = () => {
   }, []);
 
   // Fixed deterministic dataset per specification (values match provided sample)
-  const examMockData = useMemo(() => {
-    return [
-      { subject: 'Английский', max: 100, min: 35, obtained: 65, passed: true },
-      { subject: 'Математика', max: 100, min: 35, obtained: 73, passed: true },
-      { subject: 'Физика', max: 100, min: 35, obtained: 55, passed: true },
-      { subject: 'Химия', max: 100, min: 35, obtained: 90, passed: true },
-      { subject: 'Испанский', max: 100, min: 35, obtained: 88, passed: true }
-    ];
-  }, [student?.id]);
 
-  const examTotals = useMemo(() => {
-    const totalMax = examMockData.reduce((s, r) => s + r.max, 0);
-    const totalObtained = examMockData.reduce((s, r) => s + r.obtained, 0);
-    const passedCount = examMockData.filter(r => r.passed).length;
-    const failedCount = examMockData.length - passedCount;
-    const percent = totalMax ? (totalObtained / totalMax) * 100 : 0;
-    const avg = examMockData.length ? totalObtained / examMockData.length : 0;
-    return { totalMax, totalObtained, passedCount, failedCount, percent, avg };
-  }, [examMockData]);
   // (future) exam type toggle if needed. Currently default CONTROL_WORK
   // const [examType, setExamType] = useState<'CONTROL_WORK' | 'EXAM'>('CONTROL_WORK');
 
@@ -425,11 +450,29 @@ const StudentDetail: React.FC = () => {
     if (!student) return;
     setLoadingExams(true);
     try {
+      const typeParam = examFilterType === 'Экзамен'
+        ? 'EXAM'
+        : examFilterType === 'Контрольная'
+          ? 'CONTROL_WORK'
+          : undefined;
+
+      const qNumber = (() => {
+        const m = examFilterQuarter.match(/^\d/);
+        return m ? Number(m[0]) : undefined;
+      })();
+
+      const mNumber = (() => {
+        const n = monthNameToNumber(examFilterMonth);
+        return examFilterMonth !== 'Все месяцы' ? n : undefined;
+      })();
+
       const resp = await studentService.getStudentExams(student.id, {
         page: examPage,
         limit: examLimit,
-        // type: examType
-        type: 'CONTROL_WORK'
+        ...(typeParam ? { type: typeParam as 'CONTROL_WORK' | 'EXAM' } : {}),
+        schoolYear: examFilterYear,
+        ...(qNumber ? { quarter: qNumber } : {}),
+        ...(mNumber ? { month: mNumber } : {})
       });
       setExamsData(resp);
     } catch (e) {
@@ -440,7 +483,7 @@ const StudentDetail: React.FC = () => {
       });
     }
     setLoadingExams(false);
-  }, [student, examPage]);
+  }, [student, examPage, examFilterType, examFilterYear, examFilterQuarter, examFilterMonth, monthNameToNumber]);
 
   // Сброс страницы при переключении студента
   useEffect(() => {
@@ -467,13 +510,13 @@ const StudentDetail: React.FC = () => {
     }
   }, [student?.id, activeTab]); // избегаем включения функций и состояний, чтобы не создавать бесконечные циклы
 
-  // Отдельный effect для экзаменов с зависимостью от страницы
+  // Отдельный effect для экзаменов с зависимостью от страницы и типа
   useEffect(() => {
     if (!student) return;
     if (activeTab === 'exams') {
       fetchExamsData();
     }
-  }, [student?.id, activeTab, examPage]); // examPage триггерит перезагрузку
+  }, [student?.id, activeTab, examPage, examFilterType, examFilterYear, examFilterQuarter, examFilterMonth]); // триггерим по странице/типу/фильтрам
 
   const getAccessLevel = () => {
     if (!user || !student) return 'none';
@@ -1814,10 +1857,12 @@ const StudentDetail: React.FC = () => {
                 </label>
                 <select
                   value={examFilterYear}
-                  onChange={e => setExamFilterYear(e.target.value)}
+                  onChange={e => { setExamFilterYear(e.target.value); setExamPage(1); }}
                   className="border rounded-lg px-2 py-1 text-sm"
                 >
-                  <option>2024/2025</option>
+                  {schoolYearOptions.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex flex-col">
@@ -1826,10 +1871,12 @@ const StudentDetail: React.FC = () => {
                 </label>
                 <select
                   value={examFilterQuarter}
-                  onChange={e => setExamFilterQuarter(e.target.value)}
+                  onChange={e => { setExamFilterQuarter(e.target.value); setExamFilterMonth('Все месяцы'); setExamPage(1); }}
                   className="border rounded-lg px-2 py-1 text-sm"
                 >
-                  <option>Все четверти</option>
+                  {quarterOptions.map(q => (
+                    <option key={q} value={q}>{q}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex flex-col">
@@ -1838,10 +1885,12 @@ const StudentDetail: React.FC = () => {
                 </label>
                 <select
                   value={examFilterMonth}
-                  onChange={e => setExamFilterMonth(e.target.value)}
+                  onChange={e => { setExamFilterMonth(e.target.value); setExamFilterQuarter('Все четверти'); setExamPage(1); }}
                   className="border rounded-lg px-2 py-1 text-sm"
                 >
-                  <option>Все месяцы</option>
+                  {monthOptions.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex flex-col">
@@ -1850,10 +1899,12 @@ const StudentDetail: React.FC = () => {
                 </label>
                 <select
                   value={examFilterType}
-                  onChange={e => setExamFilterType(e.target.value)}
+                  onChange={e => { setExamFilterType(e.target.value); setExamPage(1); }}
                   className="border rounded-lg px-2 py-1 text-sm"
                 >
                   <option>Все типы экзаменов</option>
+                  <option>Контрольная</option>
+                  <option>Экзамен</option>
                 </select>
               </div>
               <div className="hidden md:flex flex-col">
@@ -1873,24 +1924,33 @@ const StudentDetail: React.FC = () => {
             <div className="w-full lg:w-64 flex-shrink-0">
               <div className="border rounded-xl p-5 bg-gradient-to-b from-white to-slate-50 h-full flex flex-col gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Общий рейтинг</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">30</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Процент</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-1">79.5%</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Результат</p>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
-                    Сдано
-                  </span>
-                </div>
-                <div className="mt-auto">
-                  <p className="text-[11px] text-gray-500 leading-snug">
-                    Данные сформированы детерминированным образом по запросу. В будущем можно заменить на реальные.
+                  <p className="text-sm font-medium text-gray-600">Всего записей</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">
+                    {examsData?.pagination?.total ?? examsData?.data?.length ?? 0}
                   </p>
                 </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Средний балл (урок)</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">
+                    {(() => {
+                      const arr = (examsData?.data ?? [])
+                        .map(x => x.result?.lessonScore)
+                        .filter(v => typeof v === 'number') as number[];
+                      return arr.length ? (arr.reduce((s, n) => s + n, 0) / arr.length).toFixed(1) : '—';
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Присутствий</p>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
+                    {(examsData?.data ?? []).filter(x => x.result?.attendance === true).length}
+                  </span>
+                </div>
+                {loadingExams && (
+                  <div className="mt-auto">
+                    <Spinner size="sm" />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1904,86 +1964,123 @@ const StudentDetail: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
-                        Предмет
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
-                        Макс. баллы
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
-                        Мин. баллы
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
-                        Получено баллов
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">
-                        Результат
-                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">Дата</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">Предмет</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">Название</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">Тип</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">Оценка</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">Дом. работа</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 uppercase tracking-wide text-xs">Посещаемость</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                    {examMockData.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap">{row.subject}</td>
-                        <td className="px-4 py-2 text-gray-700">{row.max}</td>
-                        <td className="px-4 py-2 text-gray-700">{row.min}</td>
+                    {(examsData?.data ?? []).map((row) => (
+                      <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-2 text-gray-700 whitespace-nowrap">
+                          {new Date(row.date).toLocaleDateString('ru-RU')}
+                        </td>
+                        <td className="px-4 py-2 text-gray-900 font-medium whitespace-nowrap">
+                          {row.studyPlan?.name || '—'}
+                        </td>
+                        <td className="px-4 py-2 text-gray-700">
+                          {row.name}
+                        </td>
+                        <td className="px-4 py-2 text-gray-700 whitespace-nowrap">
+                          {row.type === 'EXAM' ? 'Экзамен' : 'Контрольная'}
+                        </td>
                         <td className="px-4 py-2 text-gray-900 font-semibold">
-                          {row.obtained}
+                          {row.result?.lessonScore ?? '—'}
+                        </td>
+                        <td className="px-4 py-2 text-gray-700">
+                          {row.result?.homeworkScore ?? '—'}
                         </td>
                         <td className="px-4 py-2">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${row.passed
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                              }`}
-                          >
-                            {row.passed ? 'Сдано' : 'Не сдано'}
-                          </span>
+                          {row.result?.attendance != null ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${row.result.attendance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {row.result.attendance ? 'Присутствовал' : 'Отсутствовал'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
+                    {!loadingExams && (examsData?.data ?? []).length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+                          Нет записей
+                        </td>
+                      </tr>
+                    )}
+                    {loadingExams && (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-6 text-center">
+                          <Spinner size="sm" />
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        Рейтинг: 30
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        Всего: {examTotals.totalMax}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        Получено баллов: {examTotals.totalObtained}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        Процент: {examTotals.percent.toFixed(2)}%
-                      </td>
-                      <td className="px-4 py-3"></td>
-                    </tr>
-                  </tfoot>
                 </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-xs text-gray-600">
+                  Стр. {examsData?.pagination?.page ?? 1} из {examsData?.pagination?.totalPages ?? 1}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setExamPage(p => Math.max(1, p - 1))}
+                    disabled={loadingExams || (examsData?.pagination?.page ?? 1) <= 1}
+                    className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    Назад
+                  </button>
+                  <button
+                    onClick={() => setExamPage(p => {
+                      const max = examsData?.pagination?.totalPages ?? p + 1;
+                      return Math.min(max, p + 1);
+                    })}
+                    disabled={loadingExams || !examsData || (examsData?.pagination?.page ?? 1) >= (examsData?.pagination?.totalPages ?? 1)}
+                    className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    Вперед
+                  </button>
+                </div>
               </div>
 
               {/* Bottom stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                 <div className="bg-blue-50 rounded-lg p-4 text-center">
                   <FaClipboardList className="w-6 h-6 mx-auto mb-1 text-blue-600" />
-                  <div className="text-lg font-bold text-blue-600">{examMockData.length}</div>
+                  <div className="text-lg font-bold text-blue-600">
+                    {examsData?.pagination?.total ?? examsData?.data?.length ?? 0}
+                  </div>
                   <div className="text-xs text-gray-600">Всего экзаменов</div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4 text-center">
                   <FaCheckCircle className="w-6 h-6 mx-auto mb-1 text-green-600" />
-                  <div className="text-lg font-bold text-green-600">{examTotals.passedCount}</div>
-                  <div className="text-xs text-gray-600">Сдано</div>
+                  <div className="text-lg font-bold text-green-600">
+                    {(examsData?.data ?? []).filter(x => x.result?.attendance === true).length}
+                  </div>
+                  <div className="text-xs text-gray-600">Присутствий</div>
                 </div>
                 <div className="bg-red-50 rounded-lg p-4 text-center">
                   <FaExclamationTriangle className="w-6 h-6 mx-auto mb-1 text-red-600" />
-                  <div className="text-lg font-bold text-red-600">{examTotals.failedCount}</div>
-                  <div className="text-xs text-gray-600">Не сдано</div>
+                  <div className="text-lg font-bold text-red-600">
+                    {(examsData?.data ?? []).filter(x => x.result?.attendance === false).length}
+                  </div>
+                  <div className="text-xs text-gray-600">Отсутствий</div>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4 text-center">
                   <FaChartLine className="w-6 h-6 mx-auto mb-1 text-yellow-600" />
                   <div className="text-lg font-bold text-yellow-600">
-                    {examTotals.avg.toFixed(1)}
+                    {(() => {
+                      const arr = (examsData?.data ?? [])
+                        .map(x => x.result?.lessonScore)
+                        .filter(v => typeof v === 'number') as number[];
+                      return arr.length ? (arr.reduce((s, n) => s + n, 0) / arr.length).toFixed(1) : '—';
+                    })()}
                   </div>
                   <div className="text-xs text-gray-600">Средний балл</div>
                 </div>

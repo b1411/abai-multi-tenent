@@ -2178,14 +2178,92 @@ export class StudentsService {
   // === ОПТИМИЗИРОВАННЫЙ ПОЛУЧЕНИЕ ЭКЗАМЕНОВ / КОНТРОЛЬНЫХ ===
   async getStudentExams(
     studentId: number,
-    opts: { type?: 'CONTROL_WORK' | 'EXAM'; page: number; limit: number },
+    opts: {
+      type?: 'CONTROL_WORK' | 'EXAM';
+      page: number;
+      limit: number;
+      schoolYear?: string;
+      quarter?: number; // 1-4 (школьные четверти)
+      month?: number; // 1-12 (используем вместе с schoolYear)
+      dateFrom?: string;
+      dateTo?: string;
+    },
   ) {
-    const { type, page, limit } = opts;
+    const { type, page, limit, schoolYear, quarter, month, dateFrom, dateTo } = opts;
     const student = await this.findOne(studentId); // выбросит NotFound если нет
+
+    // Вычисление диапазона дат с учетом школьного года/четверти/месяца
+    const computeRange = (): { gte?: Date; lte?: Date } => {
+      // Явные даты имеют приоритет
+      if (dateFrom || dateTo) {
+        return {
+          ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+          ...(dateTo ? { lte: new Date(dateTo) } : {}),
+        };
+      }
+
+      // Разбор учебного года формата "YYYY/YYYY"
+      const parseSchoolYear = (sy?: string): { startYear: number; endYear: number } | null => {
+        if (!sy) return null;
+        const m = sy.match(/^(\d{4})\s*\/\s*(\d{4})$/);
+        if (m) {
+          const a = parseInt(m[1], 10);
+          const b = parseInt(m[2], 10);
+          if (b === a + 1) return { startYear: a, endYear: b };
+        }
+        return null;
+      };
+
+      // Текущий учебный год по умолчанию
+      const now = new Date();
+      const inferredStartYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+      const years = parseSchoolYear(schoolYear) ?? { startYear: inferredStartYear, endYear: inferredStartYear + 1 };
+
+      // Фильтр по школьной четверти
+      if (quarter) {
+        switch (quarter) {
+          case 1: // сентябрь-октябрь
+            return { gte: new Date(years.startYear, 8, 1), lte: new Date(years.startYear, 9, 31, 23, 59, 59, 999) };
+          case 2: // ноябрь-декабрь
+            return { gte: new Date(years.startYear, 10, 1), lte: new Date(years.startYear, 11, 31, 23, 59, 59, 999) };
+          case 3: // январь-март (с 9 янв)
+            return { gte: new Date(years.endYear, 0, 9), lte: new Date(years.endYear, 2, 31, 23, 59, 59, 999) };
+          case 4: // апрель-май
+            return { gte: new Date(years.endYear, 3, 1), lte: new Date(years.endYear, 4, 31, 23, 59, 59, 999) };
+          default:
+            break;
+        }
+      }
+
+      // Фильтр по месяцу в рамках учебного года
+      if (month) {
+        const mIdx = month - 1; // 0-11
+        const year = mIdx >= 8 ? years.startYear : years.endYear; // Sep-Dec -> startYear, Jan-Aug -> endYear
+        const start = new Date(year, mIdx, 1);
+        const end = new Date(year, mIdx + 1, 0, 23, 59, 59, 999); // последний день месяца
+        return { gte: start, lte: end };
+      }
+
+      // Если указан только schoolYear — берем весь учебный год (1 сен — 31 мая)
+      if (schoolYear) {
+        return {
+          gte: new Date(years.startYear, 8, 1),
+          lte: new Date(years.endYear, 4, 31, 23, 59, 59, 999),
+        };
+      }
+
+      return {};
+    };
+
+    const dateRange = computeRange();
 
     const where: any = {
       deletedAt: null,
-      type: (type || 'CONTROL_WORK'),
+      // По умолчанию берем оба типа CONTROL_WORK и EXAM
+      ...(type ? { type } : { type: { in: ['CONTROL_WORK', 'EXAM'] } }),
+      ...(dateRange.gte || dateRange.lte
+        ? { date: { ...(dateRange.gte ? { gte: dateRange.gte } : {}), ...(dateRange.lte ? { lte: dateRange.lte } : {}) } }
+        : {}),
       studyPlan: {
         group: {
           some: { id: student.groupId },

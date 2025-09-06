@@ -850,7 +850,16 @@ export const studentService = {
   // ===== ЭКЗАМЕНЫ / КОНТРОЛЬНЫЕ (оптимизированный endpoint) =====
   async getStudentExams(
     studentId: number,
-    params?: { type?: 'CONTROL_WORK' | 'EXAM'; page?: number; limit?: number }
+    params?: {
+      type?: 'CONTROL_WORK' | 'EXAM';
+      page?: number;
+      limit?: number;
+      schoolYear?: string;
+      quarter?: number;
+      month?: number;
+      dateFrom?: string;
+      dateTo?: string;
+    }
   ): Promise<{
     data: Array<{
       id: number;
@@ -871,6 +880,11 @@ export const studentService = {
     if (params?.type) qs.append('type', params.type);
     if (params?.page) qs.append('page', String(params.page));
     if (params?.limit) qs.append('limit', String(params.limit));
+    if (params?.schoolYear) qs.append('schoolYear', params.schoolYear);
+    if (params?.quarter !== undefined) qs.append('quarter', String(params.quarter));
+    if (params?.month !== undefined) qs.append('month', String(params.month));
+    if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.append('dateTo', params.dateTo);
     const url = `/students/${studentId}/exams${qs.toString() ? `?${qs.toString()}` : ''}`;
     return await apiClient.get(url);
   },

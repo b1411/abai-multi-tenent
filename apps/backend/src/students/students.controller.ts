@@ -441,12 +441,22 @@ export class StudentsController {
     @Param('id') id: string,
     @Query('type') type?: 'CONTROL_WORK' | 'EXAM',
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '50'
+    @Query('limit') limit: string = '50',
+    @Query('schoolYear') schoolYear?: string,
+    @Query('quarter') quarter?: string,
+    @Query('month') month?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     return this.studentsService.getStudentExams(+id, {
       type,
       page: Number(page) || 1,
-      limit: Number(limit) || 50
+      limit: Number(limit) || 50,
+      schoolYear: schoolYear || undefined,
+      quarter: quarter ? Number(quarter) : undefined,
+      month: month ? Number(month) : undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
     });
   }
 

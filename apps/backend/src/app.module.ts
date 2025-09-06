@@ -43,6 +43,8 @@ import { ActivityMonitoringModule } from './activity-monitoring/activity-monitor
 import { EducationalReportsModule } from './educational-reports/educational-reports.module';
 import { EdoModule } from './edo/edo.module';
 import { MailModule } from './mail/mail.module';
+import { AiTutorsModule } from './ai-tutors/ai-tutors.module';
+import { AiChatModule } from './ai-chat/ai-chat.module';
 import * as path from 'node:path';
 
 const envFile = (() => {
@@ -96,6 +98,8 @@ const envFile = (() => {
     LessonResultsModule,
     AiAssistantModule,
     MailModule,
+    AiTutorsModule,
+    AiChatModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, JwtService],

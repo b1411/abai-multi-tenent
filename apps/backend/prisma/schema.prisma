@@ -136,6 +136,10 @@ model User {
   classroomBookingsCreated ClassroomBooking[] @relation("ClassroomBookingsCreated")
   aiSuggestionsCreated     AiSuggestion[]     @relation("AiSuggestionAuthor")
   aiSuggestionsApplied     AiSuggestion[]     @relation("AiSuggestionAppliedBy")
+
+  // AI tutor/chat relations
+  aiTutorsCreated          AiTutor[]
+  aiChatThreads            AiChatThread[]
 }
 
 model Student {
@@ -336,6 +340,7 @@ model File {
   homeworkId         Int?
   VacationDocument   VacationDocument[]
   DocumentFile       DocumentFile[]
+  aiTutorFiles       AiTutorFile[]
 }
 
 model Quiz {
@@ -2068,4 +2073,74 @@ model AiSuggestionAudit {
   note         String?
   data         Json?
   createdAt    DateTime     @default(now())
+}
+
+//
+// --- AI Tutors and AI Chat (isolated storage) ---
+//
+
+model AiTutor {
+  id                Int            @id @default(autoincrement())
+  subject           String
+  name              String?
+  avatarUrl         String?
+  extraInstructions String?        @db.Text
+  knowledgeText     String?        @db.Text
+  vectorStoreId     String?
+  isPublic          Boolean        @default(true)
+
+  createdBy Int
+  creator   User           @relation(fields: [createdBy], references: [id])
+
+  files    AiTutorFile[]
+  threads  AiChatThread[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model AiTutorFile {
+  id         Int     @id @default(autoincrement())
+  aiTutorId  Int
+  aiTutor    AiTutor @relation(fields: [aiTutorId], references: [id], onDelete: Cascade)
+  fileId     Int
+  file       File    @relation(fields: [fileId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([aiTutorId, fileId])
+}
+
+model AiChatThread {
+  id        Int      @id @default(autoincrement())
+  tutorId   Int
+  tutor     AiTutor  @relation(fields: [tutorId], references: [id])
+  ownerId   Int
+  owner     User     @relation(fields: [ownerId], references: [id])
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  messages  AiChatMessage[]
+
+  @@unique([tutorId, ownerId])
+}
+
+enum AiChatRole {
+  system
+  user
+  assistant
+}
+
+model AiChatMessage {
+  id         Int          @id @default(autoincrement())
+  threadId   Int
+  thread     AiChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role       AiChatRole
+  content    String       @db.Text
+  attachments Json?
+  createdAt  DateTime     @default(now())
+
+  @@index([threadId, createdAt])
 }

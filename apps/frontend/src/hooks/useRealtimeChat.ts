@@ -29,6 +29,8 @@ export const useRealtimeChat = () => {
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const tokenRef = useRef<EphemeralToken | null>(null);
+  const contentTypeRef = useRef<'text' | 'input_text'>('input_text');
+  const lastSendRef = useRef<{ role: 'user' | 'assistant' | 'system'; text: string; retried?: boolean } | null>(null);
 
   // Инициализация WebRTC соединения
   const connect = useCallback(async () => {
@@ -117,7 +119,8 @@ export const useRealtimeChat = () => {
         body: offer.sdp,
         headers: {
           'Authorization': `Bearer ${token.client_secret.value}`,
-          'Content-Type': 'application/sdp'
+          'Content-Type': 'application/sdp',
+          'OpenAI-Beta': 'realtime=v1'
         },
       });
 
@@ -257,6 +260,30 @@ export const useRealtimeChat = () => {
 
       case 'error':
         console.error('Realtime API error:', event.error);
+        // Авто-ретрай при конфликте схемы ('text' vs 'input_text')
+        if (event?.error?.param === 'item.content[0].type' && lastSendRef.current && dcRef.current) {
+          const alreadyRetried = !!lastSendRef.current.retried;
+          if (!alreadyRetried) {
+            contentTypeRef.current = (contentTypeRef.current === 'text') ? 'input_text' : 'text';
+            const { role, text } = lastSendRef.current;
+            const retryEvent = {
+              type: 'conversation.item.create',
+              item: {
+                type: 'message',
+                role,
+                content: [{ type: contentTypeRef.current, text }]
+              },
+            };
+            lastSendRef.current = { role, text, retried: true };
+            dcRef.current.send(JSON.stringify(retryEvent));
+            // После ретрая запрашиваем ответ
+            dcRef.current.send(JSON.stringify({
+              type: 'response.create',
+              response: { modalities: ['text', 'audio'] }
+            }));
+            break;
+          }
+        }
         setConnectionState({ 
           status: 'error', 
           error: event.error.message || 'Ошибка API' 
@@ -283,14 +310,15 @@ export const useRealtimeChat = () => {
     };
 
     setMessages(prev => [...prev, message]);
-
+    lastSendRef.current = { role: 'user', text, retried: false };
+    
     // Отправляем сообщение в Realtime API
     dcRef.current.send(JSON.stringify({
       type: 'conversation.item.create',
       item: {
         type: 'message',
         role: 'user',
-        content: [{ type: 'input_text', text }]
+        content: [{ type: contentTypeRef.current, text }]
       }
     }));
 
@@ -306,23 +334,22 @@ export const useRealtimeChat = () => {
 
   // Переключение передачи аудио (push-to-talk)
   const togglePushToTalk = useCallback((enabled: boolean) => {
-    if (!dcRef.current || connectionState.status !== 'connected') {
+    if (connectionState.status !== 'connected') {
       return;
     }
 
-    if (enabled) {
-      // Начинаем передачу аудио
-      dcRef.current.send(JSON.stringify({
-        type: 'input_audio_buffer.append',
-        audio: '' // Аудио будет передаваться через WebRTC
-      }));
-    } else {
-      // Заканчиваем передачу аудио
-      dcRef.current.send(JSON.stringify({
-        type: 'input_audio_buffer.commit'
-      }));
+    const track = localStreamRef.current?.getAudioTracks?.()[0];
+    if (!track) {
+      return;
+    }
 
-      // Запрашиваем ответ
+    // В режиме push-to-talk управляем локальным микрофонным треком,
+    // аудио идет по WebRTC, без data channel событий input_audio_buffer.*
+    track.enabled = enabled;
+    setIsMicrophoneMuted(!enabled);
+
+    // Когда отпускаем (заканчиваем говорить) — запрашиваем ответ
+    if (!enabled && dcRef.current) {
       dcRef.current.send(JSON.stringify({
         type: 'response.create',
         response: {
@@ -335,16 +362,7 @@ export const useRealtimeChat = () => {
   // Очистка чата
   const clearMessages = useCallback(() => {
     setMessages([]);
-    
-    if (dcRef.current && connectionState.status === 'connected') {
-      // Очищаем историю разговора
-      dcRef.current.send(JSON.stringify({
-        type: 'conversation.item.truncate',
-        conversation_id: 'default',
-        content_index: 0
-      }));
-    }
-  }, [connectionState.status]);
+  }, []);
 
   const toggleMute = useCallback(() => {
     if (audioElementRef.current) {
@@ -374,9 +392,49 @@ export const useRealtimeChat = () => {
       item: {
         type: "message",
         role: "system",
-        content: [{ type: "input_text", text }]
+        content: [{ type: contentTypeRef.current, text }]
       },
     };
+    lastSendRef.current = { role: 'system', text, retried: false };
+    dcRef.current.send(JSON.stringify(event));
+  }, [connectionState.status]);
+
+  // Обновление параметров сессии (например, instructions) для Realtime API
+  const updateSession = useCallback((session: any) => {
+    if (!dcRef.current || connectionState.status !== 'connected') {
+      console.error('Data channel not connected for session update');
+      return;
+    }
+    dcRef.current.send(JSON.stringify({
+      type: 'session.update',
+      session
+    }));
+  }, [connectionState.status]);
+
+  // Отправка произвольного события в Realtime API
+  const sendEvent = useCallback((event: any) => {
+    if (!dcRef.current || connectionState.status !== 'connected') {
+      console.error('Data channel not connected for custom event');
+      return;
+    }
+    dcRef.current.send(JSON.stringify(event));
+  }, [connectionState.status]);
+
+  // Создание сообщения указанной роли с текстом (для инициализации истории)
+  const sendMessageEvent = useCallback((role: 'user' | 'assistant' | 'system', text: string) => {
+    if (!dcRef.current || connectionState.status !== 'connected') {
+      console.error('Data channel not connected for message event');
+      return;
+    }
+    const event = {
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role,
+        content: [{ type: contentTypeRef.current, text }]
+      },
+    };
+    lastSendRef.current = { role, text, retried: false };
     dcRef.current.send(JSON.stringify(event));
   }, [connectionState.status]);
 
@@ -408,6 +466,9 @@ export const useRealtimeChat = () => {
     toggleMute,
     isMicrophoneMuted,
     toggleMicrophoneMute,
-    sendSystemMessage
+    sendSystemMessage,
+    updateSession,
+    sendMessageEvent,
+    sendEvent
   };
 };

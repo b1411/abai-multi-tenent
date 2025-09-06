@@ -5,6 +5,7 @@ import { scheduleGenerationSchema } from './schemas/schedule-generation.schema';
 import * as pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import { PrismaService } from '../prisma/prisma.service';
+import OpenAI from 'openai';
 
 export interface KtpImportedStructure {
   courseName: string;
@@ -44,6 +45,7 @@ export interface ToolDefinition {
 export class AiAssistantService {
   private readonly logger = new Logger(AiAssistantService.name);
   private readonly openaiApiKey = process.env.OPENAI_API_KEY;
+  private openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   private readonly algorithmVersion = '2.0.0';
 
   constructor(private prisma: PrismaService) { }
@@ -123,13 +125,18 @@ export class AiAssistantService {
 
   private async postOpenAIResponseWithSchema<T>(p: { instructions: string; input: string; schemaName: string; schema: any; temperature?: number; model?: string; }): Promise<T> {
     const { instructions, input, schemaName, schema, temperature = 0.3, model = 'gpt-4o-2024-08-06' } = p;
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, instructions, input, temperature, text: { format: { type: 'json_schema', name: schemaName, schema, strict: true } } })
-    });
-    if (!res.ok) { const err = await res.text(); throw new Error(`OpenAI error ${res.status}: ${err}`); }
-    const data = await res.json();
+    let data: any;
+    try {
+      data = await this.openai.responses.create({
+        model,
+        instructions,
+        input,
+        temperature,
+        text: { format: { type: 'json_schema', name: schemaName, schema, strict: true } }
+      });
+    } catch (e: any) {
+      throw new Error(`OpenAI error: ${e?.message || String(e)}`);
+    }
     const text = this.extractResponsesText(data);
     const clean = this.sanitizeJsonText(text);
     return JSON.parse(clean) as T;
@@ -137,12 +144,12 @@ export class AiAssistantService {
 
   private async postOpenAIResponseText(p: { instructions: string; input: string; temperature?: number; model?: string; }): Promise<string> {
     const { instructions, input, temperature = 0.7, model = 'gpt-4o-2024-08-06' } = p;
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST', headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, instructions, input, temperature })
-    });
-    if (!res.ok) { const err = await res.text(); throw new Error(`OpenAI error ${res.status}: ${err}`); }
-    const data = await res.json();
-    return this.extractResponsesText(data);
+    try {
+      const data = await this.openai.responses.create({ model, instructions, input, temperature });
+      return this.extractResponsesText(data);
+    } catch (e: any) {
+      throw new Error(`OpenAI error: ${e?.message || String(e)}`);
+    }
   }
 
   private extractResponsesText(data: any): string {
@@ -336,7 +343,6 @@ export class AiAssistantService {
     await this.prisma.aiSuggestionAudit.create({ data: { suggestionId: id, action: 'APPLIED', performedBy, data: { before, after: newPlannedLessons } } });
     return { success: true };
   }
-
 
   private sanitizeJsonText(text: string) { let t = text.trim(); if (t.startsWith('```')) t = t.replace(/^```[a-zA-Z]*\n?/, '').replace(/```\s*$/, ''); return t.trim(); }
 

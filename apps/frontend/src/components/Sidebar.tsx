@@ -105,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'AI чат', href: '/app/ai-chat', icon: Bot, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { name: 'Календарь', href: '/app/calendar', icon: Calendar },
         { name: 'Список дел', href: '/app/tasks', icon: List, roles: ['ADMIN', 'TEACHER', "FINANCIST", "HR"] },
-        { name: 'Fizmat AI Ala', href: '/app/neuro-abai', icon: Brain, roles: ['ADMIN', 'TEACHER', "FINANCIST", "HR"] },
+        { name: 'Neuro ABAI', href: '/app/neuro-abai', icon: Brain, roles: ['ADMIN', 'TEACHER', "FINANCIST", "HR"] },
       ]
     },
     {

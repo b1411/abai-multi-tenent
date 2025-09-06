@@ -611,29 +611,29 @@ export class AiAssistantService {
       }
     }
 
-    // Для dryRun или неподдерживаемых инструментов возвращаем preview-объект.
-    // Также генерируем короткое текстовое сообщение (preview.message) через LLM,
-    // которое фронтенд сможет вставить в чат при необходимости.
+    // Для dryRun или неподдерживаемых/неисполняемых инструментов возвращаем preview-объект.
+    // Теперь генерируем короткое сообщение и для dryRun=false (кроме случаев реального исполнения createLesson),
+    // чтобы фронт всегда получил человекочитаемый текст.
+    const needsPreviewOnly = actionId !== 'createLesson' || !!dryRun;
     let previewMessage: string | null = null;
-    if (dryRun) {
+
+    if (needsPreviewOnly) {
       try {
-        // Инструкция: кратко сформулировать, что сделает инструмент или какой ответ стоит показать учителю.
-        const instr = `Ты — Neuro Abai ассистент. У тебя есть инструмент: ${tool.name} (id=${tool.id}).
-На вход поступили аргументы: ${JSON.stringify(args ?? {})}.
-Сгенерируй короткое понятное сообщение на русском (1-3 предложения), которое можно показать в чате пользователю как результат предпросмотра работы инструмента.
-Не добавляй никакого поясняющего JSON, верни только текст.`;
-        // Используем postOpenAIResponseText для генерации текста
+        const mode = dryRun ? 'предпросмотр' : 'выполнение (MVP: без записи в БД)';
+        const instr = `Ты — Neuro Abai ассистент. Режим: ${mode}.
+Инструмент: ${tool.name} (id=${tool.id}).
+Аргументы: ${JSON.stringify(args ?? {})}.
+Верни короткое понятное сообщение на русском (1–3 предложения) — что будет сделано/результат действия.
+Только текст, без JSON и Markdown.`;
         const msgText = await this.postOpenAIResponseText({ instructions: instr, input: '', temperature: 0.6 });
         let pm = msgText ? String(msgText).trim() : null;
         if (pm && pm.startsWith('```')) pm = this.sanitizeJsonText(pm);
 
-        // Если модель вернула JSON внутри текста — попробуем извлечь первый удобочитаемый фрагмент
         if (pm) {
           try {
             const maybeJson = pm.trim();
             if (/^[[{]/.test(maybeJson)) {
               const parsed = JSON.parse(maybeJson);
-              // common shapes: { actions: [...] } или { alternatives: [...] } или массив alternatives
               if (parsed && Array.isArray(parsed.actions) && parsed.actions[0]) {
                 const a = parsed.actions[0];
                 pm = (a.description || a.message || a.label || JSON.stringify(a)).toString();
@@ -646,14 +646,12 @@ export class AiAssistantService {
               }
             }
           } catch {
-            // ignore parse errors — оставляем оригинальный текст
+            // keep pm as-is
           }
         }
 
-        // Нормализуем — убираем переводы строк, лишние пробелы
         if (pm) {
           pm = pm.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
-          // Ограничим длину сообщения, чтобы не ломало ширину окна чата (примерно 300 символов)
           const MAX_PREVIEW_LENGTH = 300;
           if (pm.length > MAX_PREVIEW_LENGTH) pm = pm.slice(0, MAX_PREVIEW_LENGTH - 3).trim() + '...';
         }
@@ -664,18 +662,29 @@ export class AiAssistantService {
         previewMessage = null;
       }
 
-      // Fallback: если LLM не вернул текст — формируем нейтральный понятный preview без "сырых" данных
       if (!previewMessage || previewMessage.length === 0) {
-        previewMessage = `Инструмент "${tool.name}": предпросмотр подготовлен.`;
+        previewMessage = dryRun
+          ? `Инструмент "${tool.name}": предпросмотр подготовлен.`
+          : `Инструмент "${tool.name}": выполнено (MVP, без записи в БД).`;
       }
+
+      const preview = {
+        tool: { id: tool.id, name: tool.name, description: tool.description },
+        argsPreview: args ?? null,
+        dryRun: !!dryRun,
+        message: previewMessage,
+        note: actionId === 'createLesson' ? 'To actually create lesson set dryRun=false' : 'MVP: без записи в БД'
+      };
+      return { success: true, preview, chatReply: { message: previewMessage }, logId: log.id };
     }
 
+    // сюда попадём только при реальном исполнении createLesson (dryRun=false), но на всякий случай вернём дефолт
     const preview = {
       tool: { id: tool.id, name: tool.name, description: tool.description },
-      argsPreview: null,
+      argsPreview: args ?? null,
       dryRun: !!dryRun,
-      message: previewMessage,
-      note: actionId === 'createLesson' ? 'To actually create lesson set dryRun=false' : 'Preview only in MVP'
+      message: null,
+      note: 'Executed'
     };
     return { success: true, preview, logId: log.id };
   }
@@ -735,18 +744,29 @@ export class AiAssistantService {
       prompt += `\n\nFILES:${parts.join('')}`;
     }
 
-    // Инструкция модели: вернуть несколько кратких альтернативных ответов.
-    const altInstr = `${prompt}
-
-Пожалуйста, сгенерируй три варианта краткого ответа пользователю (на русском, 1-3 предложения каждый).
-Верни результат В ПРЕФЕРЕНЦИАЛЬНОМ JSON виде:
+    // Инструкция модели: сгенерировать ВАРИАНТЫ ДЕЙСТВИЙ (action proposals), не ответы.
+    const toolsDescriptor = this.toolsRegistry.map(t => ({
+      id: t.id, name: t.name, description: t.description, inputSchema: t.inputSchema ?? null, requiredRoles: t.requiredRoles ?? []
+    }));
+    const systemInstr = `Ты — Neuro Abai ассистент для учителя. Сгенерируй до 5 ВАРИАНТОВ ДЕЙСТВИЙ в JSON.
+Только JSON (возможно в \`\`\`json). Формат:
 {
-  "alternatives": ["вариант 1...", "вариант 2...", "вариант 3..."]
+  "actions": [
+    { "type":"chatReply", "label":"...", "message":"..." },
+    { "type":"agentTool", "actionId":"<toolId>", "label":"...", "argsPreview": { ... }, "message":"(краткое пояснение, 1-3 предложения)" },
+    { "type":"askForConsent", "label":"...", "message":"..." }
+  ]
 }
-Если модель не может вернуть JSON, можно вернуть обычный текст с вариантами, пронумерованными как "1) ...", "2) ...", "3) ...".`;
+- Используй инструменты строго из списка TOOLS ниже и их inputSchema при формировании argsPreview.
+- Сообщения короткие (<=300 символов), на русском, без markdown.
+- Никаких "альтернативных ответов" как текста — именно варианты действий.`;
+    const modelInput = `${prompt}
+
+TOOLS:
+${JSON.stringify(toolsDescriptor).substring(0, 18000)}`;
 
     try {
-      const aiText = await this.postOpenAIResponseText({ instructions: '', input: altInstr, temperature: 0.6 });
+      const aiText = await this.postOpenAIResponseText({ instructions: systemInstr, input: modelInput, temperature: 0.4 });
       const cleaned = this.sanitizeJsonText(aiText);
 
       // Нормализуем ответ: если модель вернула JSON с actions / alternatives — формируем готовые карточки (plain message).
@@ -764,12 +784,12 @@ export class AiAssistantService {
             if (msg.length > 300) msg = msg.slice(0, 297).trim() + '...';
             return {
               actionId: a.actionId ?? null,
-              type: (a.type) ?? 'chatReply',
-              label: a.label ?? `Вариант ${idx + 1}`,
+              type: a.type ?? (a.actionId ? 'agentTool' : 'chatReply'),
+              label: a.label ?? `Действие ${idx + 1}`,
               description: a.description ?? '',
-              argsPreview: null,
-              message: msg || `Вариант ${idx + 1}`,
-              rationale: a.rationale ?? 'Автосгенерированный вариант ответа от Neuro Abai'
+              argsPreview: a.argsPreview ?? a.args ?? null,
+              message: msg || (a.type === 'agentTool' ? 'Действие агента' : `Действие ${idx + 1}`),
+              rationale: a.rationale ?? 'Автосгенерированный вариант действия от Neuro Abai'
             };
           });
         }
@@ -783,11 +803,11 @@ export class AiAssistantService {
             return {
               actionId: null,
               type: 'chatReply',
-              label: `Вариант ${idx + 1}`,
+              label: `Действие ${idx + 1}`,
               description: '',
               argsPreview: null,
               message: msg,
-              rationale: 'Автосгенерированный вариант ответа от Neuro Abai'
+              rationale: 'Автосгенерированный вариант действия от Neuro Abai'
             };
           });
         }
@@ -801,11 +821,11 @@ export class AiAssistantService {
             return {
               actionId: null,
               type: 'chatReply',
-              label: `Вариант ${idx + 1}`,
+              label: `Действие ${idx + 1}`,
               description: '',
               argsPreview: null,
               message: msg,
-              rationale: 'Автосгенерированный вариант ответа от Neuro Abai'
+              rationale: 'Автосгенерированный вариант действия от Neuro Abai'
             };
           });
         }
@@ -833,17 +853,17 @@ export class AiAssistantService {
           return {
             actionId: null,
             type: 'chatReply' as const,
-            label: `Вариант ${idx + 1}`,
+            label: `Действие ${idx + 1}`,
             description: '',
             argsPreview: null,
             message: msg,
-            rationale: 'Автосгенерированный вариант ответа от Neuro Abai'
+            rationale: 'Автосгенерированный вариант действия от Neuro Abai'
           };
         });
       }
 
       // Ограничим до 5 вариантов
-      if (!actions || actions.length === 0) actions = [{ actionId: null, type: 'chatReply', label: 'Вариант 1', description: '', argsPreview: null, message: cleaned.replace(/\r?\n+/g, ' ').trim().slice(0, 300), rationale: 'Автосгенерированный вариант ответа от Neuro Abai' }];
+      if (!actions || actions.length === 0) actions = [{ actionId: null, type: 'chatReply', label: 'Действие 1', description: '', argsPreview: null, message: cleaned.replace(/\r?\n+/g, ' ').trim().slice(0, 300), rationale: 'Автосгенерированный вариант действия от Neuro Abai' }];
       actions = actions.slice(0, 5);
 
       await this.prisma.activityLog.create({
@@ -851,7 +871,7 @@ export class AiAssistantService {
           userId: userId ?? null,
           type: 'API_REQUEST',
           action: 'AI_GENERATE_ACTIONS_SUCCESS',
-          description: `Generated ${actions.length} chatReply alternatives`,
+          description: `Generated ${actions.length} action proposals`,
           method: 'POST',
           url: '/ai-assistant/generate-actions',
           requestData: { message: message?.substring(0, 2000), context },

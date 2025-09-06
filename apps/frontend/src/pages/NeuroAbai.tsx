@@ -1,9 +1,10 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { neuroAbaiService } from '../services/neuroAbaiService';
 import AISuggestionModal from '../components/AISuggestionModal';
 import { Paperclip, Send, X, FileText, Bot, User, ChevronDown } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { toast } from 'react-toastify';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -141,6 +142,41 @@ export default function NeuroAbai() {
   const [curriculumPlanId, setCurriculumPlanId] = useState<string>('');
   const [actionsMap, setActionsMap] = useState<Record<number, any[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const ENABLE_ACTIONS = false;
+
+  // ----- Chat history persistence (per scenario + curriculumPlanId) -----
+  const storagePrefix = 'neuroAbai:chat';
+  const getStorageKey = (scen: string, cpId: string) =>
+    `${storagePrefix}:${encodeURIComponent(scen)}:${cpId || 'none'}`;
+
+  // Load history when scenario or curriculumPlanId changes
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(getStorageKey(scenario, curriculumPlanId));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setMessages(parsed);
+        }
+      } else {
+        // No history for this key — start fresh
+        setMessages([]);
+      }
+    } catch {
+      // ignore parsing/storage errors
+      void 0;
+    }
+  }, [scenario, curriculumPlanId]);
+
+  // Save history whenever messages change for current key
+  useEffect(() => {
+    try {
+      localStorage.setItem(getStorageKey(scenario, curriculumPlanId), JSON.stringify(messages));
+    } catch {
+      // ignore storage errors
+      void 0;
+    }
+  }, [messages, scenario, curriculumPlanId]);
 
   const openModal = (s: any) => { setSelectedSuggestion(s); setModalOpen(true); };
   const closeModal = () => { setModalOpen(false); setSelectedSuggestion(null); };
@@ -198,24 +234,25 @@ export default function NeuroAbai() {
         const idx = newMessages.length - 1;
 
         // asynchronously request structured action proposals using the same convo and files
-        (async () => {
-          try {
-            const ga = await neuroAbaiService.generateActions({ messages: convo, context: { scenario }, files: filesToSend });
-            if (ga?.actions && Array.isArray(ga.actions) && ga.actions.length > 0) {
-              setActionsMap(prevMap => ({ ...prevMap, [idx]: ga.actions }));
-            } else if (ga?.raw) {
-              const parsed = parseActionsFromContent(ga.raw);
-              if (parsed.length > 0) setActionsMap(prevMap => ({ ...prevMap, [idx]: parsed }));
+        if (ENABLE_ACTIONS) {
+          (async () => {
+            try {
+              const ga = await neuroAbaiService.generateActions({ messages: convo, context: { scenario }, files: filesToSend });
+              if (ga?.actions && Array.isArray(ga.actions) && ga.actions.length > 0) {
+                setActionsMap(prevMap => ({ ...prevMap, [idx]: ga.actions }));
+              } else if (ga?.raw) {
+                const parsed = parseActionsFromContent(ga.raw);
+                if (parsed.length > 0) setActionsMap(prevMap => ({ ...prevMap, [idx]: parsed }));
+              }
+            } catch (err) {
+              console.warn('generateActions failed', err);
             }
-          } catch (err) {
-            console.warn('generateActions failed', err);
-          }
-        })();
+          })();
+        }
 
         return newMessages;
       });
 
-      setFiles([]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch (e) {
       console.error(e);
@@ -242,11 +279,45 @@ export default function NeuroAbai() {
     return [];
   };
 
+  // Remove inline JSON action payloads from assistant message content to keep actions as separate UI items
+  const stripActionJsonFromContent = (content: string) => {
+    if (!content) return content;
+    let out = content;
+
+    // Remove fenced JSON blocks
+    out = out.replace(/```json[\s\S]*?```/gi, '');
+
+    // Try remove a top-level JSON/array that looks like actions
+    const jsonMatch = out.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    if (jsonMatch) {
+      try {
+        const obj = JSON.parse(jsonMatch[1]);
+        const looksLikeActions =
+          (Array.isArray(obj) &&
+            obj.every(
+              (x: any) =>
+                x && typeof x === 'object' && (x.actionId || x.type || x.label || x.name || (x.args || x.argsPreview))
+            )) ||
+          (obj && typeof obj === 'object' && (obj.actions || obj.actionId || obj.type));
+        if (looksLikeActions) {
+          out = out.replace(jsonMatch[1], '');
+        }
+      } catch {
+        // not JSON — ignore
+        void 0;
+      }
+    }
+
+    return out.trim();
+  };
+
   const [currentAction, setCurrentAction] = useState<any>(null);
   const [currentActionMessageIndex, setCurrentActionMessageIndex] = useState<number | null>(null);
   const [actionPreviewLoading, setActionPreviewLoading] = useState(false);
   const [actionExecLoading, setActionExecLoading] = useState(false);
   const [actionPreviewResult, setActionPreviewResult] = useState<any>(null);
+  const [actionPreviewIsResult, setActionPreviewIsResult] = useState(false);
+  const [actionResultsMap, setActionResultsMap] = useState<Record<string, string>>({});
 
   const handleActionClick = (action: any, idx: number) => {
     setCurrentAction(action);
@@ -258,6 +329,26 @@ export default function NeuroAbai() {
 
   const extractPlainMessageFromResponse = (res: any) => {
     if (!res) return '';
+
+    // Axios error shape (from apiClient/axios)
+    try {
+      if (res?.response) {
+        const d = res.response.data;
+        if (typeof d === 'string' && d.trim()) return d;
+        if (d?.message) return Array.isArray(d.message) ? d.message.join('\n') : String(d.message);
+        if (d?.error) return String(d.error);
+        if (d?.errors && typeof d.errors === 'object') {
+          const parts = Object.values(d.errors as Record<string, unknown>).flat().map((v) => String(v));
+          const joined = parts.join('\n').trim();
+          if (joined) return joined;
+        }
+        return res.response.statusText || 'Ошибка';
+      }
+    } catch {
+      // ignore parsing
+      void 0;
+    }
+
     // string
     if (typeof res === 'string') {
       // keep string as-is
@@ -288,53 +379,102 @@ export default function NeuroAbai() {
     return text;
   };
 
+  // Map loosely-typed LLM actions to a concrete tool id from registry
+  const resolveActionId = (a: any): string | null => {
+    if (a?.actionId) return String(a.actionId);
+    if (a?.id) return String(a.id);
+    const t = String(a?.type || '').trim();
+    if (t === 'createLesson' || t === 'scheduleLesson' || t === 'summarizeKTP') return t;
+    if (t === 'suggestLesson' || t === 'suggestLessonCreation') return 'suggestLessonCreation';
+    // 'agentTool' without explicit id is unusable
+    return null;
+  };
+
+  // Coerce common numeric args coming as strings (e.g. "*Id")
+  const coerceArgs = (args: any) => {
+    if (!args || typeof args !== 'object') return {};
+    const out: any = Array.isArray(args) ? [...args] : { ...args };
+    Object.keys(out).forEach((k) => {
+      const v = out[k];
+      if (v == null) return;
+      if (typeof v === 'string' && /^[+-]?\d+(\.\d+)?$/.test(v) && (k.toLowerCase().endsWith('id') || k.toLowerCase().includes('minutes'))) {
+        const num = Number(v);
+        if (!Number.isNaN(num)) out[k] = num;
+      }
+    });
+    return out;
+  };
+
+  const actionKey = (a: any, idx: number) => `${idx}:${resolveActionId(a) || a.id || a.label || a.name || 'idx' + idx}`;
+
   const handleActionPreview = async (action: any) => {
+    setActionPreviewIsResult(false);
     // For chatReply show local preview without backend
-    if (action.type === 'chatReply' || (!action.actionId && action.message)) {
+    const actionId = resolveActionId(action);
+    if (action.type === 'chatReply' || (!actionId && action.message)) {
       setActionPreviewResult({ message: extractPlainMessageFromResponse(action.message ?? action.argsPreview?.message ?? '') });
+      return;
+    }
+    if (!actionId) {
+      setActionPreviewResult({ message: 'Инструмент не распознан. Невозможно выполнить предпросмотр.' });
       return;
     }
     setActionPreviewLoading(true);
     try {
-      const res = await neuroAbaiService.agentAction(action.actionId || action.id, action.argsPreview || action.args || {}, true);
+      const args = coerceArgs(action.argsPreview || action.args || {});
+      const res = await neuroAbaiService.agentAction(actionId, args, true);
       setActionPreviewResult({ message: extractPlainMessageFromResponse(res) });
     } catch (e) {
       console.error(e);
-      alert('Ошибка предпросмотра');
+      const msg = extractPlainMessageFromResponse(e) || 'Ошибка предпросмотра';
+      setActionPreviewResult({ message: msg });
+      try { toast.error(msg, { autoClose: 2000 }); } catch (err) { void 0; }
     } finally {
       setActionPreviewLoading(false);
     }
   };
 
   const handleActionExecute = async (action: any) => {
-    if (!confirm('Выполнить действие?')) return;
     setActionExecLoading(true);
     try {
-      // chatReply: insert assistant message immediately
-      if (action.type === 'chatReply' || (!action.actionId && action.message)) {
-        const assistantMsg = extractPlainMessageFromResponse(action.message ?? action.argsPreview?.message ?? '');
-        if (assistantMsg) {
-          setMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);
-        } else {
-          setMessages(prev => [...prev, { role: 'assistant', content: 'Готовый ответ отправлен.' }]);
-        }
+      // chatReply: не отправляем как ответ ассистента — подставляем в ввод
+      const actionId = resolveActionId(action);
+      if (action.type === 'chatReply' || (!actionId && action.message)) {
+        const msg = extractPlainMessageFromResponse(action.message ?? action.argsPreview?.message ?? '');
+        setInput(msg);
         setCurrentAction(null);
         setCurrentActionMessageIndex(null);
         setActionPreviewResult(null);
-        setActionExecLoading(false);
+        setActionPreviewIsResult(false);
+        try { toast.info('Текст вставлен в поле ввода', { autoClose: 1500 }); } catch (err) { void 0; }
         return;
       }
 
-      // tool execution
-      const res = await neuroAbaiService.agentAction(action.actionId || action.id, action.argsPreview || action.args || {}, false);
+      if (!actionId) {
+        alert('Неизвестный инструмент действия');
+        return;
+      }
+
+      // tool execution: показываем результат под карточкой, не как сообщение ассистента
+      const args = coerceArgs(action.argsPreview || action.args || {});
+      const res = await neuroAbaiService.agentAction(actionId, args, false);
       const contentToInsert = extractPlainMessageFromResponse(res) || 'Действие выполнено';
-      setMessages(prev => [...prev, { role: 'assistant', content: contentToInsert }]);
-      setCurrentAction(null);
-      setCurrentActionMessageIndex(null);
-      setActionPreviewResult(null);
+      setActionPreviewResult({ message: contentToInsert });
+      setActionPreviewIsResult(true);
+      const idxMsg = currentActionMessageIndex ?? -1;
+      const k = actionKey(action, idxMsg);
+      if (idxMsg >= 0) setActionResultsMap(prev => ({ ...prev, [k]: contentToInsert }));
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      try { toast.success(contentToInsert || 'Действие выполнено', { autoClose: 2000 }); } catch (err) { void 0; }
     } catch (e) {
       console.error(e);
-      alert('Ошибка выполнения');
+      const msg = extractPlainMessageFromResponse(e) || 'Ошибка выполнения';
+      setActionPreviewResult({ message: msg });
+      setActionPreviewIsResult(true);
+      const idxMsg = currentActionMessageIndex ?? -1;
+      const k = actionKey(action, idxMsg);
+      if (idxMsg >= 0) setActionResultsMap(prev => ({ ...prev, [k]: msg }));
+      try { toast.error(msg, { autoClose: 2000 }); } catch (err) { void 0; }
     } finally {
       setActionExecLoading(false);
     }
@@ -368,8 +508,9 @@ export default function NeuroAbai() {
 
             {messages.map((m, idx) => {
               const content = m.content || '';
-              const rendered = m.role === 'assistant' ? DOMPurify.sanitize((marked.parse(content) as string)) : null;
               const actionsFromContent = m.role === 'assistant' ? parseActionsFromContent(content) : [];
+              const cleaned = m.role === 'assistant' ? stripActionJsonFromContent(content) : content;
+              const rendered = m.role === 'assistant' ? DOMPurify.sanitize((marked.parse(cleaned) as string)) : null;
               const actions = actionsMap[idx] && Array.isArray(actionsMap[idx]) && actionsMap[idx].length > 0
                 ? actionsMap[idx]
                 : actionsFromContent;
@@ -385,10 +526,13 @@ export default function NeuroAbai() {
                       {m.role === 'assistant' ? null : content}
                     </ChatMessage>
 
-                    {actions.length > 0 && (
-                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {ENABLE_ACTIONS && actions.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-xs font-semibold text-gray-600 mb-2">Варианты действий</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {actions.map((a: any, i: number) => {
                           const rawMsg = a.message ?? a.argsPreview?.message ?? '';
+                          const resKey = actionKey(a, idx);
                           const previewText = String(rawMsg).replace(/\s+/g, ' ').trim();
                           const displayText = previewText.length > MAX_PREVIEW_LENGTH ? previewText.slice(0, MAX_PREVIEW_LENGTH) + '...' : previewText;
                           return (
@@ -407,7 +551,7 @@ export default function NeuroAbai() {
                                     }}
                                     className="text-xs px-3 py-1 rounded-md bg-blue-600 text-white"
                                   >
-                                    Использовать
+                                    Вставить в ввод
                                   </button>
 
                                   {a.type !== 'chatReply' && (
@@ -442,9 +586,18 @@ export default function NeuroAbai() {
                                 ((currentAction.actionId || currentAction.id || currentAction.label) === (a.actionId || a.id || a.label)) &&
                                 actionPreviewResult?.message && (
                                 <div className="mt-2 text-xs text-gray-600">
-                                  <div className="font-medium">Предпросмотр:</div>
+                                  <div className="font-medium">{actionPreviewIsResult ? 'Результат:' : 'Предпросмотр:'}</div>
                                   <div className="max-h-24 overflow-auto bg-white p-2 rounded text-gray-800 whitespace-pre-wrap">
                                     {actionPreviewResult.message}
+                                  </div>
+                                </div>
+                              )}
+
+                              {actionResultsMap[resKey] && (
+                                <div className="mt-2 text-xs text-gray-600">
+                                  <div className="font-medium">Результат:</div>
+                                  <div className="max-h-24 overflow-auto bg-white p-2 rounded text-gray-800 whitespace-pre-wrap">
+                                    {actionResultsMap[resKey]}
                                   </div>
                                 </div>
                               )}
@@ -452,6 +605,7 @@ export default function NeuroAbai() {
                           );
                         })}
                       </div>
+                    </div>
                     )}
                   </div>
                 </ChatBubble>

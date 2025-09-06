@@ -30,7 +30,11 @@ class NeuroAbaiService {
     // also send plain concatenated message so backend endpoints expecting `message` receive full history
     formData.append('message', plainMessage);
 
-    if (data.scenario) formData.append('context', JSON.stringify({ scenario: data.scenario }));
+    if (data.scenario) {
+      formData.append('scenario', data.scenario);
+      // keep context for compatibility with other endpoints expecting context object
+      formData.append('context', JSON.stringify({ scenario: data.scenario }));
+    }
 
     if (data.files && data.files.length > 0) {
       data.files.forEach((file) => formData.append('files', file));

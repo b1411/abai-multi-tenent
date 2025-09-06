@@ -77,7 +77,7 @@ const sidebarLinks = {
     {
       to: "/app/neuro-abai",
       icon: <FaBrain />,
-      label: 'Fizmat AI Ala',
+      label: 'Neuro ABAI',
       type: 'SidebarLink'
     }
   ],

@@ -15,6 +15,6 @@ for f in .env.*; do
             exit 0
         fi
         
-        pnpm -C apps/backend exec prisma db push --schema apps/backend/prisma/schema.prisma
+        pnpm -C apps/backend exec prisma db push --schema /root/app/apps/backend/prisma/schema.prisma
     )
 done

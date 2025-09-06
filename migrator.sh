@@ -2,7 +2,7 @@
 set -euo pipefail
 shopt -s nullglob
 
-for f in env.*; do
+for f in .env.*; do
     echo "Pushing schema for $f..."
     (
         set -a

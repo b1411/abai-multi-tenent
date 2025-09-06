@@ -73,6 +73,8 @@ import {
   Radar
 } from 'recharts';
 import { EMO_TREND_THRESHOLD } from '../constants/emotional';
+import { lessonService } from '../services/lessonService';
+import lessonResultService, { AbsentReason } from '../services/lessonResultService';
 
 const monthLabelsRu = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
@@ -378,6 +380,101 @@ const StudentDetail: React.FC = () => {
   const [deleteCommentModalOpen, setDeleteCommentModalOpen] = useState(false);
   const [editingComment, setEditingComment] = useState<StudentComment | null>(null);
   const [deletingComment, setDeletingComment] = useState<StudentComment | null>(null);
+
+  const canManageAttendance = useMemo(() => user?.role === 'TEACHER' || user?.role === 'ADMIN', [user?.role]);
+
+  const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+  const [attForm, setAttForm] = useState<{
+    date: string;
+    lessonId: number | null;
+    attendance: boolean;
+    absentReason?: AbsentReason | '';
+    absentComment?: string;
+  }>({
+    date: new Date().toISOString().slice(0, 10),
+    lessonId: null,
+    attendance: false,
+    absentReason: '',
+    absentComment: ''
+  });
+  const [lessonsForDate, setLessonsForDate] = useState<any[]>([]);
+  const [loadingLessons, setLoadingLessons] = useState(false);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [editingResult, setEditingResult] = useState<any | null>(null);
+
+  const loadLessonsByDate = useCallback(async (dateStr: string) => {
+    try {
+      setLoadingLessons(true);
+      const dateFrom = `${dateStr}T00:00:00.000Z`;
+      const dateTo = `${dateStr}T23:59:59.999Z`;
+      const res = await lessonService.getLessons({ dateFrom, dateTo, limit: 50, sortBy: 'date', order: 'asc' });
+      setLessonsForDate(res.data);
+    } catch (e) {
+      console.error('Ошибка загрузки уроков на дату:', e);
+      setLessonsForDate([]);
+    } finally {
+      setLoadingLessons(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (attendanceModalOpen) {
+      void loadLessonsByDate(attForm.date);
+    }
+  }, [attendanceModalOpen, attForm.date, loadLessonsByDate]);
+
+  const openAttendanceModal = () => {
+    setEditingResult(null);
+    setAttForm({
+      date: new Date().toISOString().slice(0, 10),
+      lessonId: null,
+      attendance: false,
+      absentReason: '',
+      absentComment: ''
+    });
+    setAttendanceModalOpen(true);
+  };
+  const closeAttendanceModal = () => { setAttendanceModalOpen(false); setEditingResult(null); };
+  const openEditAttendance = (d: any) => {
+    setEditingResult(d);
+    setAttForm({
+      date: d?.date ? new Date(d.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      lessonId: (d as any)?.lessonId ?? null,
+      attendance: !!d?.attendance,
+      absentReason: d?.attendance ? '' : (d?.absentReason ?? ''),
+      absentComment: d?.attendance ? '' : (d?.absentComment ?? '')
+    });
+    setAttendanceModalOpen(true);
+  };
+
+  const submitAttendance = async () => {
+    if (!student) return;
+    try {
+      setSavingAttendance(true);
+      if (editingResult?.id) {
+        await lessonResultService.updateLessonResult(editingResult.id, {
+          attendance: attForm.attendance,
+          absentReason: attForm.attendance ? undefined : (attForm.absentReason as AbsentReason | undefined),
+          absentComment: attForm.attendance ? undefined : (attForm.absentComment || undefined)
+        });
+      } else {
+        if (!attForm.lessonId) return;
+        await lessonResultService.createLessonResult({
+          studentId: student.id,
+          lessonId: attForm.lessonId,
+          attendance: attForm.attendance,
+          absentReason: attForm.attendance ? undefined : (attForm.absentReason as AbsentReason | undefined),
+          absentComment: attForm.attendance ? undefined : (attForm.absentComment || undefined)
+        });
+      }
+      closeAttendanceModal();
+      await fetchAttendanceData();
+    } catch (e) {
+      console.error('Ошибка сохранения посещаемости:', e);
+    } finally {
+      setSavingAttendance(false);
+    }
+  };
 
   // Посещаемость
   const fetchAttendanceData = useCallback(async () => {
@@ -751,60 +848,7 @@ const StudentDetail: React.FC = () => {
     return Object.entries(counts).map(([skill, value]) => ({ skill, value }));
   }, [pdpPlans]);
 
-  // Мок расширенная история посещаемости (разрешено пользователем)
-  const attendanceHistoryMock = useMemo(() => ([
-    {
-      type: 'medical',
-      category: 'Мед. пункт',
-      reason: 'Головная боль',
-      date: '2024-03-15',
-      time: '10:30',
-      status: 'Подтверждено',
-      confirmer: 'Асанова А.К.',
-      duration: '2 часа',
-      comment: 'Отправлен домой после приема лекарств'
-    },
-    {
-      type: 'late',
-      category: 'Опоздание',
-      subject: 'Математика',
-      date: '2024-03-14',
-      time: '09:15',
-      duration: '15 минут',
-      comment: 'Опоздание по причине транспортных проблем'
-    },
-    {
-      type: 'excused',
-      category: 'Уважительная',
-      reason: 'Семейные обстоятельства',
-      date: '2024-03-10',
-      status: 'Одобрено',
-      confirmer: 'Классный руководитель',
-      duration: 'Полный день',
-      comment: 'Заявление от родителей предоставлено'
-    },
-    {
-      type: 'medical',
-      category: 'Мед. пункт',
-      reason: 'Плановый осмотр',
-      date: '2024-02-20',
-      time: '11:45',
-      status: 'Подтверждено',
-      confirmer: 'Асанова А.К.',
-      duration: '1 час',
-      comment: 'Профилактический осмотр пройден успешно'
-    },
-    {
-      type: 'absence',
-      category: 'Отсутствие',
-      reason: 'ОРВИ',
-      date: '2024-02-15',
-      status: 'Подтверждено',
-      confirmer: 'Мед. справка',
-      duration: '5 дней',
-      comment: 'Справка от врача предоставлена'
-    }
-  ]), []);
+  // История посещаемости берется из backend: attendanceData.details
 
   // Remark handlers
   const handleAddRemark = () => { setEditingRemark(null); setRemarkModalOpen(true); };
@@ -2154,80 +2198,93 @@ const StudentDetail: React.FC = () => {
               </div>
 
               <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-lg font-semibold mb-2">История посещаемости</h3>
-                <p className="text-xs text-gray-500 mb-4">Записи о посещаемости, медицинских визитах и пропусках (мок данные)</p>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold">История посещаемости</h3>
+                  {canManageAttendance && (
+                    <button
+                      onClick={openAttendanceModal}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                    >
+                      Добавить запись
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mb-4">Данные из журнала занятий</p>
                 <div className="space-y-4">
-                  {attendanceHistoryMock.map((item, idx) => {
-                    const badge =
-                      item.type === 'medical'
-                        ? 'bg-purple-100 text-purple-800'
-                        : item.type === 'late'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : item.type === 'excused'
-                            ? 'bg-blue-100 text-blue-800'
-                            : item.type === 'absence'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800';
-                    return (
-                      <div
-                        key={idx}
-                        className="border rounded-lg p-4 bg-white flex flex-col gap-3"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${badge}`}>
-                              {item.category}
-                            </span>
-                            {item.status && (
-                              <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-green-100 text-green-800">
-                                {item.status}
+                  {attendanceData.details.length > 0 ? (
+                    attendanceData.details.map((d: any) => {
+                      const present = d.attendance === true;
+                      const reasonLabel =
+                        d.absentReason === 'SICK'
+                          ? 'Болезнь'
+                          : d.absentReason === 'FAMILY'
+                            ? 'Семейные обстоятельства'
+                            : d.absentReason === 'OTHER'
+                              ? 'Другое'
+                              : null;
+                      return (
+                        <div
+                          key={d.id}
+                          className="border rounded-lg p-4 bg-white flex flex-col gap-3"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${present ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {present ? 'Присутствовал' : 'Отсутствовал'}
                               </span>
-                            )}
+                              {!present && reasonLabel && (
+                                <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-gray-100 text-gray-800">
+                                  {reasonLabel}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                              <span>{new Date(d.date).toLocaleDateString('ru-RU')}</span>
+                              {canManageAttendance && (
+                                <button
+                                  onClick={() => openEditAttendance(d)}
+                                  className="px-2 py-1 rounded border text-gray-700 hover:bg-gray-50"
+                                >
+                                  Редактировать
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                            <span>{new Date(item.date).toLocaleDateString('ru-RU')}</span>
-                            {item.time && <span>{item.time}</span>}
-                            {item.duration && (
-                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                                {item.duration}
-                              </span>
-                            )}
-                          </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                          <div className="space-y-1">
-                            {item.reason && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                            <div className="space-y-1">
                               <p className="text-sm font-medium text-gray-800">
-                                {item.reason}
+                                Предмет: {d.subject || '—'}
                               </p>
-                            )}
-                            {item.subject && (
-                              <p className="text-sm font-medium text-gray-800">
-                                Предмет: {item.subject}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            {item.confirmer && (
-                              <p className="text-gray-700">
-                                <span className="font-medium text-gray-600">Подтверждено:</span>{' '}
-                                {item.confirmer}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            {item.comment && (
-                              <p className="text-gray-700">
-                                <span className="font-medium text-gray-600 block">Комментарий</span>
-                                <span className="block">{item.comment}</span>
-                              </p>
-                            )}
+                              {d.teacher && (
+                                <p className="text-gray-700">
+                                  Преподаватель: {d.teacher}
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              {d.lessonScore != null && (
+                                <p className="text-gray-700">Оценка за урок: {d.lessonScore}</p>
+                              )}
+                              {d.homeworkScore != null && (
+                                <p className="text-gray-700">Домашняя работа: {d.homeworkScore}</p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              {d.absentComment && (
+                                <p className="text-gray-700">
+                                  <span className="font-medium text-gray-600 block">Комментарий</span>
+                                  <span className="block">{d.absentComment}</span>
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <div className="text-sm text-gray-500">Нет записей</div>
+                  )}
                 </div>
               </div>
             </>
@@ -2950,6 +3007,110 @@ const StudentDetail: React.FC = () => {
       )}
 
       {/* Модалы */}
+      {attendanceModalOpen && canManageAttendance && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={closeAttendanceModal}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-5">
+            <h3 className="text-lg font-semibold mb-4">{editingResult ? 'Редактировать запись посещаемости' : 'Добавить запись посещаемости'}</h3>
+            <div className="space-y-3">
+              {editingResult ? (
+                <div className="p-2 rounded bg-gray-50 text-xs text-gray-600">
+                  Запись от {new Date(editingResult.date).toLocaleDateString('ru-RU')} • {editingResult.subject || '—'}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Дата</label>
+                    <input
+                      type="date"
+                      value={attForm.date}
+                      onChange={e => setAttForm(f => ({ ...f, date: e.target.value }))}
+                      className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Урок</label>
+                    <div className="mt-1">
+                      {loadingLessons ? (
+                        <div className="flex items-center gap-2 text-sm text-gray-500"><Spinner size="sm" /> Загрузка уроков...</div>
+                      ) : (
+                        <select
+                          value={attForm.lessonId ?? ''}
+                          onChange={e => setAttForm(f => ({ ...f, lessonId: e.target.value ? Number(e.target.value) : null }))}
+                          className="w-full border rounded-lg px-2 py-1 text-sm"
+                        >
+                          <option value="">Выберите урок</option>
+                          {lessonsForDate.map((l: any) => (
+                            <option key={l.id} value={l.id}>
+                              {new Date(l.date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} • {l.studyPlan?.name || l.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Статус</label>
+                <select
+                  value={attForm.attendance ? 'present' : 'absent'}
+                  onChange={e => {
+                    const present = e.target.value === 'present';
+                    setAttForm(f => ({
+                      ...f,
+                      attendance: present,
+                      absentReason: present ? '' : f.absentReason,
+                      absentComment: present ? '' : f.absentComment
+                    }));
+                  }}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option value="present">Присутствовал</option>
+                  <option value="absent">Отсутствовал</option>
+                </select>
+              </div>
+              {!attForm.attendance && (
+                <>
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Причина отсутствия</label>
+                    <select
+                      value={attForm.absentReason || ''}
+                      onChange={e => setAttForm(f => ({ ...f, absentReason: e.target.value as AbsentReason }))}
+                      className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                    >
+                      <option value="">Не выбрано</option>
+                      <option value="SICK">Болезнь</option>
+                      <option value="FAMILY">Семейные обстоятельства</option>
+                      <option value="OTHER">Другое</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Комментарий</label>
+                    <textarea
+                      value={attForm.absentComment || ''}
+                      onChange={e => setAttForm(f => ({ ...f, absentComment: e.target.value }))}
+                      rows={2}
+                      className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                      placeholder="Опционально"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button onClick={closeAttendanceModal} className="px-3 py-2 rounded-lg border text-sm">Отмена</button>
+              <button
+                onClick={submitAttendance}
+                disabled={savingAttendance || (!editingResult && !attForm.lessonId)}
+                className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm disabled:opacity-60"
+              >
+                {savingAttendance ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <RemarkModal
         isOpen={remarkModalOpen}
         onClose={closeRemarkModal}

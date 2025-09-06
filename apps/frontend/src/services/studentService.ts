@@ -256,6 +256,69 @@ export interface UpdateCommentData {
   isPrivate?: boolean;
 }
 
+// === PDP Types ===
+export type PdpPlanStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
+export type PdpGoalStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE';
+
+export interface PdpGoal {
+  id: number;
+  planId: number;
+  title: string;
+  status: PdpGoalStatus;
+  deadline?: string | null;
+  order?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface PdpPlan {
+  id: number;
+  studentId: number;
+  subject: string;
+  status: PdpPlanStatus;
+  mentor?: string | null;
+  description?: string | null;
+  progress: number;
+  skills: string[];
+  goals: PdpGoal[];
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface CreatePdpPlanInput {
+  subject: string;
+  status?: PdpPlanStatus;
+  mentor?: string;
+  description?: string;
+  progress?: number; // 0-100
+  skills?: string[];
+}
+
+export interface UpdatePdpPlanInput {
+  subject?: string;
+  status?: PdpPlanStatus;
+  mentor?: string;
+  description?: string;
+  progress?: number; // 0-100
+  skills?: string[];
+}
+
+export interface CreatePdpGoalInput {
+  title: string;
+  status?: PdpGoalStatus;
+  deadline?: string; // ISO date
+  order?: number;
+}
+
+export interface UpdatePdpGoalInput {
+  title?: string;
+  status?: PdpGoalStatus;
+  deadline?: string; // ISO date
+  order?: number;
+}
+
 export interface CompleteStudentReport {
   student: Student;
   basicInfo: any;
@@ -810,5 +873,34 @@ export const studentService = {
     if (params?.limit) qs.append('limit', String(params.limit));
     const url = `/students/${studentId}/exams${qs.toString() ? `?${qs.toString()}` : ''}`;
     return await apiClient.get(url);
+  },
+
+  // ===== PDP ENDPOINTS =====
+  async getStudentPdp(studentId: number): Promise<PdpPlan[]> {
+    return await apiClient.get<PdpPlan[]>(`/students/${studentId}/pdp`);
+  },
+
+  async createStudentPdp(studentId: number, data: CreatePdpPlanInput): Promise<PdpPlan> {
+    return await apiClient.post<PdpPlan>(`/students/${studentId}/pdp`, data);
+  },
+
+  async updatePdpPlan(planId: number, data: UpdatePdpPlanInput): Promise<PdpPlan> {
+    return await apiClient.patch<PdpPlan>(`/students/pdp/${planId}`, data);
+  },
+
+  async deletePdpPlan(planId: number): Promise<any> {
+    return await apiClient.delete(`/students/pdp/${planId}`);
+  },
+
+  async addPdpGoal(planId: number, data: CreatePdpGoalInput): Promise<PdpGoal> {
+    return await apiClient.post<PdpGoal>(`/students/pdp/${planId}/goals`, data);
+  },
+
+  async updatePdpGoal(goalId: number, data: UpdatePdpGoalInput): Promise<PdpGoal> {
+    return await apiClient.patch<PdpGoal>(`/students/pdp/goals/${goalId}`, data);
+  },
+
+  async deletePdpGoal(goalId: number): Promise<any> {
+    return await apiClient.delete(`/students/pdp/goals/${goalId}`);
   }
 };

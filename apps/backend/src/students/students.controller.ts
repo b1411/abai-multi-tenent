@@ -7,6 +7,10 @@ import { CreateRemarkDto } from './dto/create-remark.dto';
 import { UpdateRemarkDto } from './dto/update-remark.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { CreatePdpPlanDto } from './dto/create-pdp-plan.dto';
+import { UpdatePdpPlanDto } from './dto/update-pdp-plan.dto';
+import { CreatePdpGoalDto } from './dto/create-pdp-goal.dto';
+import { UpdatePdpGoalDto } from './dto/update-pdp-goal.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -444,5 +448,70 @@ export class StudentsController {
       page: Number(page) || 1,
       limit: Number(limit) || 50
     });
+  }
+
+  // === МЕТОДЫ ДЛЯ ЛИЧНОГО ПЛАНА РАЗВИТИЯ (PDP) ===
+
+  @Get(':id/pdp')
+  @ApiOperation({ summary: 'Получить персональный план развития студента' })
+  @ApiResponse({ status: 200, description: 'Персональный план развития студента' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  getStudentPdp(@Param('id') id: string, @Request() req) {
+    return this.studentsService.getStudentPdp(+id, req.user?.role, req.user?.id).then(res => res.plans);
+  }
+
+  @Post(':id/pdp')
+  @ApiOperation({ summary: 'Создать/добавить персональный план развития студенту' })
+  @ApiResponse({ status: 201, description: 'План развития создан' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  createStudentPdp(@Param('id') id: string, @Body() dto: CreatePdpPlanDto, @Request() req) {
+    return this.studentsService.createStudentPdp(+id, dto, req.user?.role, req.user?.id).then(res => res.plan);
+  }
+
+  @Patch('pdp/:planId')
+  @ApiOperation({ summary: 'Обновить план развития' })
+  @ApiResponse({ status: 200, description: 'План развития обновлен' })
+  @ApiParam({ name: 'planId', description: 'ID плана' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  updatePdpPlan(@Param('planId') planId: string, @Body() dto: UpdatePdpPlanDto, @Request() req) {
+    return this.studentsService.updatePdpPlan(+planId, dto, req.user?.role, req.user?.id).then(res => res.plan);
+  }
+
+  @Delete('pdp/:planId')
+  @ApiOperation({ summary: 'Удалить план развития' })
+  @ApiResponse({ status: 200, description: 'План развития удален' })
+  @ApiParam({ name: 'planId', description: 'ID плана' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  deletePdpPlan(@Param('planId') planId: string, @Request() req) {
+    return this.studentsService.deletePdpPlan(+planId, req.user?.role, req.user?.id);
+  }
+
+  @Post('pdp/:planId/goals')
+  @ApiOperation({ summary: 'Добавить цель в план развития' })
+  @ApiResponse({ status: 201, description: 'Цель добавлена' })
+  @ApiParam({ name: 'planId', description: 'ID плана' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  addPdpGoal(@Param('planId') planId: string, @Body() dto: CreatePdpGoalDto, @Request() req) {
+    return this.studentsService.addPdpGoal(+planId, dto, req.user?.role, req.user?.id).then(res => res.goal);
+  }
+
+  @Patch('pdp/goals/:goalId')
+  @ApiOperation({ summary: 'Обновить цель плана развития' })
+  @ApiResponse({ status: 200, description: 'Цель обновлена' })
+  @ApiParam({ name: 'goalId', description: 'ID цели' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  updatePdpGoal(@Param('goalId') goalId: string, @Body() dto: UpdatePdpGoalDto, @Request() req) {
+    return this.studentsService.updatePdpGoal(+goalId, dto, req.user?.role, req.user?.id).then(res => res.goal);
+  }
+
+  @Delete('pdp/goals/:goalId')
+  @ApiOperation({ summary: 'Удалить цель плана развития' })
+  @ApiResponse({ status: 200, description: 'Цель удалена' })
+  @ApiParam({ name: 'goalId', description: 'ID цели' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
+  deletePdpGoal(@Param('goalId') goalId: string, @Request() req) {
+    return this.studentsService.deletePdpGoal(+goalId, req.user?.role, req.user?.id);
   }
 }

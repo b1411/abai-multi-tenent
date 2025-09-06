@@ -166,6 +166,7 @@ model Student {
   comments           StudentComment[]
   olympiadResults    OlympiadResult[]
   admissions         StudentAdmission[]
+  personalDevelopmentPlans PersonalDevelopmentPlan[]
 }
 
 model LessonResult {
@@ -2143,4 +2144,54 @@ model AiChatMessage {
   createdAt  DateTime     @default(now())
 
   @@index([threadId, createdAt])
+}
+
+//
+// --- Personal Development Plan (PDP) ---
+//
+
+enum PdpPlanStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+}
+
+enum PdpGoalStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
+model PersonalDevelopmentPlan {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  student     Student  @relation(fields: [studentId], references: [id])
+  subject     String
+  status      PdpPlanStatus @default(DRAFT)
+  mentor      String?
+  description String? @db.Text
+  progress    Int      @default(0)
+  skills      String[]
+  goals       PdpGoal[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([studentId])
+}
+
+model PdpGoal {
+  id        Int      @id @default(autoincrement())
+  planId    Int
+  plan      PersonalDevelopmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title     String
+  status    PdpGoalStatus @default(PENDING)
+  deadline  DateTime?
+  order     Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([planId])
 }

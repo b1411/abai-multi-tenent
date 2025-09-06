@@ -42,7 +42,11 @@ import {
   StudentCommentsResponse,
   CreateCommentData,
   UpdateCommentData,
-  StudentComment
+  StudentComment,
+  PdpPlan,
+  PdpGoal,
+  CreatePdpPlanInput,
+  UpdatePdpPlanInput
 } from '../services/studentService';
 import RemarkModal from '../components/RemarkModal';
 import DeleteRemarkModal from '../components/DeleteRemarkModal';
@@ -590,61 +594,119 @@ const StudentDetail: React.FC = () => {
       }));
   }, [grades]);
 
-  // Allowed mock personal development plan (explicitly permitted)
-  const personalPlan = useMemo(() => {
-    return [
-      {
-        id: 'plan-math',
-        subject: 'Математика',
-        status: 'В процессе',
-        mentor: 'Иванов С.',
-        description: 'Усилить решение задач с параметрами и повысить средний балл до 4.9.',
-        progress: 60,
-        skills: ['Алгебра', 'Аналитика', 'Логика'],
-        goals: [
-          { id: 'm1', title: 'Параметры', status: 'done', deadline: '2025-09-01' },
-            { id: 'm2', title: 'Неравенства', status: 'in_progress', deadline: '2025-09-15' },
-          { id: 'm3', title: 'Тригонометрия', status: 'pending', deadline: '2025-10-01' }
-        ]
-      },
-      {
-        id: 'plan-phys',
-        subject: 'Физика',
-        status: 'В процессе',
-        mentor: 'Петров А.',
-        description: 'Стабилизировать результаты по механике и электродинамике.',
-        progress: 45,
-        skills: ['Механика', 'Аналитика'],
-        goals: [
-          { id: 'p1', title: 'Кинематика', status: 'in_progress', deadline: '2025-09-10' },
-          { id: 'p2', title: 'Электричество', status: 'pending', deadline: '2025-10-05' }
-        ]
-      },
-      {
-        id: 'plan-eng',
-        subject: 'Английский',
-        status: 'В процессе',
-        mentor: 'Smith E.',
-        description: 'Поднять speaking и listening до стабильных 85/100.',
-        progress: 35,
-        skills: ['Speaking', 'Listening', 'Vocabulary'],
-        goals: [
-          { id: 'e1', title: 'Listening practice', status: 'in_progress', deadline: '2025-09-12' },
-          { id: 'e2', title: 'Vocabulary расширение', status: 'pending', deadline: '2025-09-25' }
-        ]
-      }
-    ];
-  }, []);
+  // PDP (real API)
+  const [pdpPlans, setPdpPlans] = useState<PdpPlan[] | null>(null);
+  const [loadingPdp, setLoadingPdp] = useState(false);
+
+  const canEditPdp = useMemo(() => {
+    if (!user || !student) return false;
+    if (user.role === 'STUDENT') return student.userId === user.id;
+    if (user.role === 'TEACHER' || user.role === 'ADMIN') return true;
+    return false;
+  }, [user?.role, user?.id, student?.userId]);
+
+  const loadPdp = useCallback(async () => {
+    if (!student) return;
+    setLoadingPdp(true);
+    try {
+      const data = await studentService.getStudentPdp(student.id);
+      setPdpPlans(data);
+    } catch (e) {
+      console.error('Ошибка загрузки PDP:', e);
+      setPdpPlans([]);
+    }
+    setLoadingPdp(false);
+  }, [student?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'grades') {
+      void loadPdp();
+    }
+  }, [activeTab, loadPdp]);
+
+  const [newPlan, setNewPlan] = useState<{ subject: string; mentor?: string; description?: string; skills: string }>({
+    subject: '',
+    skills: ''
+  });
+  const [newGoalByPlan, setNewGoalByPlan] = useState<Record<number, { title: string; deadline?: string }>>({});
+
+  const handleCreatePlan = useCallback(async () => {
+    if (!student || !newPlan.subject.trim()) return;
+    try {
+      const payload: CreatePdpPlanInput = {
+        subject: newPlan.subject.trim(),
+        mentor: newPlan.mentor,
+        description: newPlan.description,
+        skills: newPlan.skills.split(',').map(s => s.trim()).filter(Boolean)
+      };
+      await studentService.createStudentPdp(student.id, payload);
+      setNewPlan({ subject: '', skills: '' });
+      await loadPdp();
+    } catch (e) {
+      console.error('Ошибка создания плана:', e);
+    }
+  }, [student?.id, newPlan, loadPdp]);
+
+  const handleUpdatePlan = useCallback(async (planId: number, patch: Partial<UpdatePdpPlanInput>) => {
+    try {
+      await studentService.updatePdpPlan(planId, patch);
+      await loadPdp();
+    } catch (e) {
+      console.error('Ошибка обновления плана:', e);
+    }
+  }, [loadPdp]);
+
+  const handleDeletePlan = useCallback(async (planId: number) => {
+    try {
+      await studentService.deletePdpPlan(planId);
+      await loadPdp();
+    } catch (e) {
+      console.error('Ошибка удаления плана:', e);
+    }
+  }, [loadPdp]);
+
+  const handleAddGoal = useCallback(async (planId: number) => {
+    const form = newGoalByPlan[planId];
+    if (!form?.title?.trim()) return;
+    try {
+      await studentService.addPdpGoal(planId, { title: form.title.trim(), deadline: form.deadline });
+      setNewGoalByPlan(prev => ({ ...prev, [planId]: { title: '' } }));
+      await loadPdp();
+    } catch (e) {
+      console.error('Ошибка добавления цели:', e);
+    }
+  }, [newGoalByPlan, loadPdp]);
+
+  const cycleStatus = (s: 'PENDING' | 'IN_PROGRESS' | 'DONE'): 'PENDING' | 'IN_PROGRESS' | 'DONE' =>
+    s === 'PENDING' ? 'IN_PROGRESS' : s === 'IN_PROGRESS' ? 'DONE' : 'PENDING';
+
+  const handleToggleGoalStatus = useCallback(async (goalId: number, current: 'PENDING' | 'IN_PROGRESS' | 'DONE') => {
+    try {
+      await studentService.updatePdpGoal(goalId, { status: cycleStatus(current) });
+      await loadPdp();
+    } catch (e) {
+      console.error('Ошибка изменения статуса цели:', e);
+    }
+  }, [loadPdp]);
+
+  const handleDeleteGoal = useCallback(async (goalId: number) => {
+    try {
+      await studentService.deletePdpGoal(goalId);
+      await loadPdp();
+    } catch (e) {
+      console.error('Ошибка удаления цели:', e);
+    }
+  }, [loadPdp]);
 
   const skillsDistributionData = useMemo(() => {
     const counts: Record<string, number> = {};
-    personalPlan.forEach(p => {
-      p.skills.forEach((s: string) => {
+    (pdpPlans ?? []).forEach(p => {
+      (p.skills || []).forEach((s: string) => {
         counts[s] = (counts[s] || 0) + 1;
       });
     });
     return Object.entries(counts).map(([skill, value]) => ({ skill, value }));
-  }, [personalPlan]);
+  }, [pdpPlans]);
 
   // Мок расширенная история посещаемости (разрешено пользователем)
   const attendanceHistoryMock = useMemo(() => ([
@@ -1320,7 +1382,7 @@ const StudentDetail: React.FC = () => {
             <h2 className="text-xl font-semibold">Успеваемость</h2>
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700">
-                Персональный план (мок данные)
+                Персональный план
               </span>
               {grades && (
                 <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600">
@@ -1442,103 +1504,213 @@ const StudentDetail: React.FC = () => {
                   )}
                 </div>
 
-                {/* Personal development plan (mock) */}
+                {/* Personal development plan (real API) */}
                 <div className="border rounded-xl p-5 flex flex-col">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FaChartLine className="w-4 h-4 text-green-600" />
-                    Персональный план развития
-                  </h3>
-                  <div className="space-y-5 max-h-[420px] overflow-auto pr-1">
-                    {personalPlan.map(plan => (
-                      <div
-                        key={plan.id}
-                        className="p-4 rounded-lg border bg-white flex flex-col gap-3"
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                      <FaChartLine className="w-4 h-4 text-green-600" />
+                      Персональный план развития
+                    </h3>
+                    {loadingPdp && <Spinner size="sm" />}
+                  </div>
+
+                  {canEditPdp && (
+                    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        value={newPlan.subject}
+                        onChange={e => setNewPlan(p => ({ ...p, subject: e.target.value }))}
+                        placeholder="Предмет"
+                        className="border rounded-lg px-2 py-1 text-sm"
+                      />
+                      <input
+                        value={newPlan.mentor || ''}
+                        onChange={e => setNewPlan(p => ({ ...p, mentor: e.target.value }))}
+                        placeholder="Ментор"
+                        className="border rounded-lg px-2 py-1 text-sm"
+                      />
+                      <input
+                        value={newPlan.skills}
+                        onChange={e => setNewPlan(p => ({ ...p, skills: e.target.value }))}
+                        placeholder="Навыки (через запятую)"
+                        className="border rounded-lg px-2 py-1 text-sm sm:col-span-2"
+                      />
+                      <textarea
+                        value={newPlan.description || ''}
+                        onChange={e => setNewPlan(p => ({ ...p, description: e.target.value }))}
+                        placeholder="Описание"
+                        className="border rounded-lg px-2 py-1 text-sm sm:col-span-2"
+                        rows={2}
+                      />
+                      <button
+                        onClick={handleCreatePlan}
+                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm sm:col-span-2"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 truncate">
-                              {plan.subject}
-                            </p>
-                            <p className="text-[11px] text-gray-500 mt-0.5">
-                              Ментор: {plan.mentor}
-                            </p>
+                        Добавить план
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-5 max-h-[420px] overflow-auto pr-1">
+                    {(pdpPlans ?? []).map((plan) => {
+                      const statusBadge =
+                        plan.status === 'COMPLETED'
+                          ? 'bg-green-100 text-green-800'
+                          : plan.status === 'IN_PROGRESS'
+                            ? 'bg-blue-100 text-blue-800'
+                            : plan.status === 'ON_HOLD'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-gray-100 text-gray-800';
+                      return (
+                        <div key={plan.id} className="p-4 rounded-lg border bg-white flex flex-col gap-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 truncate">{plan.subject}</p>
+                              {plan.mentor && (
+                                <p className="text-[11px] text-gray-500 mt-0.5">Ментор: {plan.mentor}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusBadge}`}>
+                                {plan.status === 'COMPLETED'
+                                  ? 'Завершено'
+                                  : plan.status === 'IN_PROGRESS'
+                                    ? 'В процессе'
+                                    : plan.status === 'ON_HOLD'
+                                      ? 'Пауза'
+                                      : 'Черновик'}
+                              </span>
+                              {canEditPdp && (
+                                <select
+                                  value={plan.status}
+                                  onChange={e => handleUpdatePlan(plan.id, { status: e.target.value as any })}
+                                  className="border rounded px-2 py-1 text-[11px]"
+                                >
+                                  <option value="DRAFT">Черновик</option>
+                                  <option value="IN_PROGRESS">В процессе</option>
+                                  <option value="COMPLETED">Завершено</option>
+                                  <option value="ON_HOLD">Пауза</option>
+                                </select>
+                              )}
+                              {canEditPdp && (
+                                <button
+                                  onClick={() => handleDeletePlan(plan.id)}
+                                  className="px-2 py-1 text-[11px] text-red-600 hover:bg-red-50 rounded"
+                                  title="Удалить план"
+                                >
+                                  Удалить
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800 shrink-0">
-                            {plan.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-700 leading-snug">
-                          {plan.description}
-                        </p>
-                        {/* Progress */}
-                        <div>
-                          <div className="flex justify-between text-[11px] text-gray-500 mb-1">
-                            <span>Прогресс</span>
-                            <span>{plan.progress}%</span>
-                          </div>
-                          <div className="h-2 w-full bg-gray-200 rounded">
-                            <div
-                              className={`h-2 rounded ${
-                                plan.progress >= 70
-                                  ? 'bg-green-500'
-                                  : plan.progress >= 40
-                                    ? 'bg-blue-500'
-                                    : 'bg-yellow-500'
-                              }`}
-                              style={{ width: `${Math.min(plan.progress, 100)}%` }}
+
+                          <textarea
+                            defaultValue={plan.description ?? ''}
+                            onBlur={e => canEditPdp && handleUpdatePlan(plan.id, { description: e.target.value })}
+                            disabled={!canEditPdp}
+                            placeholder="Описание"
+                            className="border rounded-lg px-2 py-1 text-sm"
+                            rows={2}
+                          />
+
+                          <div>
+                            <div className="flex justify-between text-[11px] text-gray-500 mb-1">
+                              <span>Прогресс</span>
+                              <span>{plan.progress}%</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              defaultValue={plan.progress}
+                              disabled={!canEditPdp}
+                              onChange={e => canEditPdp && handleUpdatePlan(plan.id, { progress: Number(e.target.value) })}
+                              className="w-full"
                             />
                           </div>
-                        </div>
-                        {/* Skills */}
-                        <div className="flex flex-wrap gap-1">
-                          {plan.skills.map(s => (
-                            <span
-                              key={s}
-                              className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-[10px]"
-                            >
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                        {/* Goals / tasks */}
-                        <div className="space-y-2">
-                          {plan.goals.map(g => {
-                            const badge =
-                              g.status === 'done'
-                                ? 'bg-green-100 text-green-800'
-                                : g.status === 'in_progress'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-yellow-100 text-yellow-800';
-                            const label =
-                              g.status === 'done'
-                                ? 'Готово'
-                                : g.status === 'in_progress'
-                                  ? 'В работе'
-                                  : 'Запланировано';
-                            return (
-                              <div
-                                key={g.id}
-                                className="flex items-center justify-between gap-3 text-xs"
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span
-                                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${badge}`}
-                                  >
-                                    {label}
-                                  </span>
-                                  <span className="truncate">{g.title}</span>
+
+                          <div className="flex flex-wrap gap-1">
+                            {(plan.skills || []).map((s) => (
+                              <span key={s} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-[10px]">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="space-y-2">
+                            {plan.goals.map((g: PdpGoal) => {
+                              const badge =
+                                g.status === 'DONE'
+                                  ? 'bg-green-100 text-green-800'
+                                  : g.status === 'IN_PROGRESS'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-yellow-100 text-yellow-800';
+                              const label =
+                                g.status === 'DONE' ? 'Готово' : g.status === 'IN_PROGRESS' ? 'В работе' : 'Запланировано';
+                              return (
+                                <div key={g.id} className="flex items-center justify-between gap-3 text-xs">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <button
+                                      disabled={!canEditPdp}
+                                      onClick={() => handleToggleGoalStatus(g.id, g.status)}
+                                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${badge} disabled:opacity-60`}
+                                      title="Сменить статус"
+                                    >
+                                      {label}
+                                    </button>
+                                    <span className="truncate">{g.title}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[10px] text-gray-400">
+                                      {g.deadline ? new Date(g.deadline).toLocaleDateString('ru-RU') : ''}
+                                    </span>
+                                    {canEditPdp && (
+                                      <button
+                                        onClick={() => handleDeleteGoal(g.id)}
+                                        className="text-red-600 hover:bg-red-50 px-2 py-0.5 rounded"
+                                        title="Удалить цель"
+                                      >
+                                        Удалить
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                                <span className="text-[10px] text-gray-400 shrink-0">
-                                  {g.deadline
-                                    ? new Date(g.deadline).toLocaleDateString('ru-RU')
-                                    : ''}
-                                </span>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
+
+                          {canEditPdp && (
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-5 gap-2">
+                              <input
+                                value={newGoalByPlan[plan.id]?.title || ''}
+                                onChange={e =>
+                                  setNewGoalByPlan(prev => ({ ...prev, [plan.id]: { ...(prev[plan.id] || {}), title: e.target.value } }))
+                                }
+                                placeholder="Новая цель"
+                                className="border rounded-lg px-2 py-1 text-sm sm:col-span-2"
+                              />
+                              <input
+                                type="date"
+                                value={newGoalByPlan[plan.id]?.deadline || ''}
+                                onChange={e =>
+                                  setNewGoalByPlan(prev => ({ ...prev, [plan.id]: { ...(prev[plan.id] || {}), deadline: e.target.value } }))
+                                }
+                                className="border rounded-lg px-2 py-1 text-sm"
+                              />
+                              <button
+                                onClick={() => handleAddGoal(plan.id)}
+                                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:col-span-2"
+                              >
+                                Добавить цель
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+
+                    {(!pdpPlans || pdpPlans.length === 0) && !loadingPdp && (
+                      <div className="text-sm text-gray-500">Нет планов</div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -4,6 +4,10 @@ import { CreateFullStudentDto } from './dto/create-full-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
+import { CreatePdpPlanDto } from './dto/create-pdp-plan.dto';
+import { UpdatePdpPlanDto } from './dto/update-pdp-plan.dto';
+import { CreatePdpGoalDto } from './dto/create-pdp-goal.dto';
+import { UpdatePdpGoalDto } from './dto/update-pdp-goal.dto';
 
 @Injectable()
 export class StudentsService {
@@ -2232,5 +2236,227 @@ export class StudentsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  // === PDP (Personal Development Plan) ===
+
+  private async assertCanViewStudent(studentId: number, currentUserRole?: string, currentUserId?: number) {
+    if (['ADMIN', 'TEACHER'].includes(currentUserRole || '')) return;
+
+    if (currentUserRole === 'STUDENT') {
+      const st = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { userId: true },
+      });
+      if (!st || st.userId !== currentUserId) {
+        throw new ForbiddenException('Students can only view their own PDP');
+      }
+      return;
+    }
+
+    if (currentUserRole === 'PARENT') {
+      const parent = await this.prisma.parent.findUnique({
+        where: { userId: currentUserId || 0 },
+        include: { students: { where: { id: studentId } } },
+      });
+      if (!parent || parent.students.length === 0) {
+        throw new ForbiddenException('Parents can only view PDP of their own children');
+      }
+      return;
+    }
+
+    throw new ForbiddenException('Insufficient permissions');
+  }
+
+  private async assertCanEditStudent(studentId: number, currentUserRole?: string, currentUserId?: number) {
+    if (['ADMIN', 'TEACHER'].includes(currentUserRole || '')) return;
+
+    if (currentUserRole === 'STUDENT') {
+      const st = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { userId: true },
+      });
+      if (!st || st.userId !== currentUserId) {
+        throw new ForbiddenException('Students can only edit their own PDP');
+      }
+      return;
+    }
+
+    // Parents, HR, FINANCIST cannot edit PDP
+    throw new ForbiddenException('Only admins, teachers, or the student can edit PDP');
+  }
+
+  async getStudentPdp(studentId: number, currentUserRole?: string, currentUserId?: number) {
+    await this.findOne(studentId);
+    await this.assertCanViewStudent(studentId, currentUserRole, currentUserId);
+
+    const plans = await this.prisma.personalDevelopmentPlan.findMany({
+      where: { studentId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        goals: {
+          where: { deletedAt: null },
+          orderBy: [
+            { order: 'asc' },
+            { deadline: 'asc' },
+            { createdAt: 'asc' },
+          ],
+        },
+      },
+    });
+
+    return {
+      studentId,
+      totalPlans: plans.length,
+      plans,
+    };
+  }
+
+  async createStudentPdp(studentId: number, dto: CreatePdpPlanDto, currentUserRole?: string, currentUserId?: number) {
+    await this.findOne(studentId);
+    await this.assertCanEditStudent(studentId, currentUserRole, currentUserId);
+
+    const plan = await this.prisma.personalDevelopmentPlan.create({
+      data: {
+        studentId,
+        subject: dto.subject,
+        status: (dto.status as any) || 'DRAFT',
+        mentor: dto.mentor,
+        description: dto.description,
+        progress: dto.progress ?? 0,
+        skills: dto.skills || [],
+      },
+      include: { goals: true },
+    });
+
+    return {
+      success: true,
+      plan,
+    };
+  }
+
+  async updatePdpPlan(planId: number, dto: UpdatePdpPlanDto, currentUserRole?: string, currentUserId?: number) {
+    const plan = await this.prisma.personalDevelopmentPlan.findFirst({
+      where: { id: planId, deletedAt: null },
+      include: { student: true },
+    });
+
+    if (!plan) throw new NotFoundException(`PDP plan ${planId} not found`);
+
+    await this.assertCanEditStudent(plan.studentId, currentUserRole, currentUserId);
+
+    const updated = await this.prisma.personalDevelopmentPlan.update({
+      where: { id: planId },
+      data: {
+        ...(dto.subject !== undefined && { subject: dto.subject }),
+        ...(dto.status !== undefined && { status: dto.status as any }),
+        ...(dto.mentor !== undefined && { mentor: dto.mentor }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.progress !== undefined && { progress: dto.progress }),
+        ...(dto.skills !== undefined && { skills: dto.skills }),
+        updatedAt: new Date(),
+      },
+      include: {
+        goals: {
+          where: { deletedAt: null },
+          orderBy: [{ order: 'asc' }, { deadline: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
+    });
+
+    return {
+      success: true,
+      plan: updated,
+    };
+  }
+
+  async deletePdpPlan(planId: number, currentUserRole?: string, currentUserId?: number) {
+    const plan = await this.prisma.personalDevelopmentPlan.findFirst({
+      where: { id: planId, deletedAt: null },
+      include: { student: true },
+    });
+
+    if (!plan) throw new NotFoundException(`PDP plan ${planId} not found`);
+
+    await this.assertCanEditStudent(plan.studentId, currentUserRole, currentUserId);
+
+    await this.prisma.personalDevelopmentPlan.update({
+      where: { id: planId },
+      data: { deletedAt: new Date() },
+    });
+
+    return { success: true };
+  }
+
+  async addPdpGoal(planId: number, dto: CreatePdpGoalDto, currentUserRole?: string, currentUserId?: number) {
+    const plan = await this.prisma.personalDevelopmentPlan.findFirst({
+      where: { id: planId, deletedAt: null },
+      include: { student: true },
+    });
+    if (!plan) throw new NotFoundException(`PDP plan ${planId} not found`);
+
+    await this.assertCanEditStudent(plan.studentId, currentUserRole, currentUserId);
+
+    const goal = await this.prisma.pdpGoal.create({
+      data: {
+        planId,
+        title: dto.title,
+        status: (dto.status as any) || 'PENDING',
+        deadline: dto.deadline ? new Date(dto.deadline) : null,
+        order: dto.order ?? null,
+      },
+    });
+
+    return { success: true, goal };
+  }
+
+  async updatePdpGoal(goalId: number, dto: UpdatePdpGoalDto, currentUserRole?: string, currentUserId?: number) {
+    const goal = await this.prisma.pdpGoal.findFirst({
+      where: { id: goalId, deletedAt: null },
+      include: {
+        plan: {
+          include: { student: true },
+        },
+      },
+    });
+
+    if (!goal) throw new NotFoundException(`PDP goal ${goalId} not found`);
+
+    await this.assertCanEditStudent(goal.plan.studentId, currentUserRole, currentUserId);
+
+    const updated = await this.prisma.pdpGoal.update({
+      where: { id: goalId },
+      data: {
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.status !== undefined && { status: dto.status as any }),
+        ...(dto.deadline !== undefined && { deadline: dto.deadline ? new Date(dto.deadline) : null }),
+        ...(dto.order !== undefined && { order: dto.order }),
+        updatedAt: new Date(),
+      },
+    });
+
+    return { success: true, goal: updated };
+  }
+
+  async deletePdpGoal(goalId: number, currentUserRole?: string, currentUserId?: number) {
+    const goal = await this.prisma.pdpGoal.findFirst({
+      where: { id: goalId, deletedAt: null },
+      include: {
+        plan: {
+          include: { student: true },
+        },
+      },
+    });
+
+    if (!goal) throw new NotFoundException(`PDP goal ${goalId} not found`);
+
+    await this.assertCanEditStudent(goal.plan.studentId, currentUserRole, currentUserId);
+
+    await this.prisma.pdpGoal.update({
+      where: { id: goalId },
+      data: { deletedAt: new Date() },
+    });
+
+    return { success: true };
   }
 }

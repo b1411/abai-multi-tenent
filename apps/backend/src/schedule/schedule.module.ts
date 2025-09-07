@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '../jwt/jwt.service';
 import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FilesService } from 'src/files/files.service';
 
 @Module({
   controllers: [ScheduleController, ScheduleAiController, ScheduleAiFlowController],
@@ -18,19 +19,20 @@ import { NotificationsService } from '../notifications/notifications.service';
     ScheduleService,
     LessonScheduleService,
     ScheduleAiService,
-  ScheduleManagementService,
-  ScheduleAiFlowService,
+    ScheduleManagementService,
+    ScheduleAiFlowService,
     PrismaService,
     JwtService,
-  AiAssistantService,
-  NotificationsService
+    AiAssistantService,
+    NotificationsService,
+    FilesService
   ],
   exports: [
     ScheduleService,
     LessonScheduleService,
     ScheduleAiService,
-  ScheduleManagementService,
-  ScheduleAiFlowService
+    ScheduleManagementService,
+    ScheduleAiFlowService
   ],
 })
 export class ScheduleModule { }

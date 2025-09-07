@@ -60,8 +60,25 @@ export class AiAssistantController {
     status: 201,
     description: 'Ответ от AI получен успешно',
     schema: {
-      type: 'string',
-      description: 'Ответ от AI ассистента'
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: 'Текст ответа ассистента' },
+        files: {
+          type: 'array',
+          description: 'Сгенерированные/изменённые файлы от ассистента',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string' },
+              originalName: { type: 'string' },
+              url: { type: 'string' },
+              type: { type: 'string' },
+              size: { type: 'number' }
+            }
+          }
+        }
+      }
     }
   })
   @Roles('ADMIN', 'HR', 'TEACHER', 'STUDENT', 'PARENT', "FINANCIST")
@@ -69,9 +86,16 @@ export class AiAssistantController {
     @Body() body: { message?: string; messages?: { role: string; content: string }[]; scenario?: string },
     @UploadedFiles() files?: Express.Multer.File[]
   ) {
-    // prefer full conversation if provided as structured messages; fallback to single message
-    const message = body.messages && Array.isArray(body.messages)
-      ? body.messages.map(m => `${m.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${m.content}`).join('\n\n')
+    // Prefer full conversation; accept JSON string in multipart form
+    let parsedMessages: any[] | undefined;
+    try {
+      if (typeof (body as any).messages === 'string') parsedMessages = JSON.parse((body as any).messages);
+      else if (Array.isArray(body.messages)) parsedMessages = body.messages;
+    } catch {
+      parsedMessages = Array.isArray(body.messages) ? body.messages : undefined;
+    }
+    const message = parsedMessages && Array.isArray(parsedMessages)
+      ? parsedMessages.map(m => `${m.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${m.content}`).join('\n\n')
       : (body.message ?? '');
     const scenario = body.scenario ?? '';
 
@@ -80,7 +104,9 @@ export class AiAssistantController {
       return await this.aiAssistantService.generateSimpleScheduleFromPrompt(message);
     }
 
-    return await this.aiAssistantService.processNeuroAbaiRequest(message, scenario, files);
+    // Default: enable code_interpreter so model can read/modify files and return generated files
+    const result = await this.aiAssistantService.chatWithTools(message, scenario, files);
+    return result;
   }
 
   @Post('suggestions')
@@ -166,9 +192,26 @@ export class AiAssistantController {
     @Req() req?: Request
   ) {
     const user: any = req ? (req as any).user : undefined;
-    const message = body.messages && Array.isArray(body.messages)
-      ? body.messages.map(m => `${m.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${m.content}`).join('\n\n')
+
+    // Parse possible JSON strings from multipart form-data
+    let parsedMessages: any[] | undefined;
+    try {
+      if (typeof (body as any).messages === 'string') parsedMessages = JSON.parse((body as any).messages);
+      else if (Array.isArray(body.messages)) parsedMessages = body.messages;
+    } catch {
+      parsedMessages = Array.isArray(body.messages) ? body.messages : undefined;
+    }
+    const message = parsedMessages && Array.isArray(parsedMessages)
+      ? parsedMessages.map((m: any) => `${m.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${m.content}`).join('\n\n')
       : (body.message ?? '');
-    return await this.aiAssistantService.generateActionProposals(message, user?.id, body.context, files);
+
+    let parsedContext: any = body.context;
+    try {
+      if (typeof (body as any).context === 'string') parsedContext = JSON.parse((body as any).context);
+    } catch {
+      // keep as-is
+    }
+
+    return await this.aiAssistantService.generateActionProposals(message, user?.id, parsedContext, files);
   }
 }

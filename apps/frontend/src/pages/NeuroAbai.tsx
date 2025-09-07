@@ -5,10 +5,12 @@ import { Paperclip, Send, X, FileText, Bot, User, ChevronDown } from 'lucide-rea
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { toast } from 'react-toastify';
+import fileService, { UploadedFile } from '../services/fileService';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  attachments?: UploadedFile[];
 }
 
 interface FileUploadAreaProps {
@@ -228,9 +230,11 @@ export default function NeuroAbai() {
       // send full conversation + files
       const res = await neuroAbaiService.sendMessage({ messages: convo, scenario, files: filesToSend });
 
-      // append assistant message and capture its index
+      // append assistant message (with files) and capture its index
       setMessages(prev => {
-        const newMessages = [...prev, ({ role: 'assistant', content: res || 'Нет ответа' } as Message)];
+        const reply = res?.message ?? 'Нет ответа';
+        const attached = Array.isArray(res?.files) ? res.files : [];
+        const newMessages = [...prev, ({ role: 'assistant', content: reply, attachments: attached } as Message)];
         const idx = newMessages.length - 1;
 
         // asynchronously request structured action proposals using the same convo and files
@@ -525,6 +529,36 @@ export default function NeuroAbai() {
                     >
                       {m.role === 'assistant' ? null : content}
                     </ChatMessage>
+
+                    {m.attachments && m.attachments.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-xs font-semibold text-gray-600 mb-2">Файлы</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {m.attachments.map((f) => (
+                            <div key={f.id} className="flex items-center justify-between rounded px-3 py-2 bg-white border">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText size={14} className="text-gray-400" />
+                                <span className="truncate text-sm">{f.originalName || f.name}</span>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    if (f.url && f.url.startsWith('https://')) {
+                                      window.open(f.url, '_blank');
+                                    } else {
+                                      await fileService.downloadFile(f.id, f.originalName || f.name);
+                                    }
+                                  } catch (_) { /* no-op */ }
+                                }}
+                                className="text-xs px-2 py-1 rounded border whitespace-nowrap"
+                              >
+                                Скачать
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {ENABLE_ACTIONS && actions.length > 0 && (
                       <div className="mt-2">

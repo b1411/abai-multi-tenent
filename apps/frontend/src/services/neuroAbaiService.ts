@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import type { UploadedFile } from './fileService';
 
 export interface NeuroAbaiRequest {
   message?: string;
@@ -11,7 +12,7 @@ class NeuroAbaiService {
   /**
    * Отправляет сообщение в Neuro Abai AI
    */
-  async sendMessage(data: NeuroAbaiRequest): Promise<string> {
+  async sendMessage(data: NeuroAbaiRequest): Promise<{ message: string; files?: UploadedFile[] }> {
     const formData = new FormData();
 
     // prefer explicit messages array (conversation history); fallback to single message
@@ -40,7 +41,7 @@ class NeuroAbaiService {
       data.files.forEach((file) => formData.append('files', file));
     }
 
-    const response = await apiClient.postFormData<string>('/ai-assistant/openai-responses', formData);
+    const response = await apiClient.postFormData<{ message: string; files?: UploadedFile[] }>('/ai-assistant/openai-responses', formData);
     return response;
   }
 

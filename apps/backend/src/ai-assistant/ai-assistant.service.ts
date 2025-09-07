@@ -6,6 +6,8 @@ import * as pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import { PrismaService } from '../prisma/prisma.service';
 import OpenAI from 'openai';
+import { toFile } from 'openai/uploads';
+import { FilesService } from '../files/files.service';
 import { simpleScheduleSchema } from './schemas/simple-schedule.schema';
 import { SimpleScheduleResponseDto } from './dto/simple-schedule-response.dto';
 
@@ -50,7 +52,7 @@ export class AiAssistantService {
   private openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   private readonly algorithmVersion = '2.0.0';
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService, private filesService: FilesService) { }
 
   // ---- Public API ----
   async createEphemeralToken() {
@@ -156,7 +158,414 @@ export class AiAssistantService {
     return this.postOpenAIResponseText({ instructions: systemPrompt, input: userPrompt, temperature: 0.7 });
   }
 
+  /**
+   * Chat with OpenAI Responses API using code_interpreter.
+   * If model generates files, we fetch them and persist via FilesService, returning their metadata.
+   */
+  async chatWithTools(message: string, scenario: string, files?: Express.Multer.File[]) {
+    this.ensureKey();
+    const systemPrompt =
+      this.buildNeuroAbaiSystemPrompt() +
+      '\n\nТебе доступны инструменты. Если требуется отредактировать или сгенерировать файл, используй code_interpreter: ' +
+      'прочитай вложения, сделай изменения и запиши новый файл. В конце приложи получившийся файл к ответу. ' +
+      'Дай короткое пояснение, что изменено. ' +
+      'Не вставляй sandbox:/ ссылки — если создаешь файл, обязательно прикладывай его как output_file или container_file_citation. Не создавай и не прикладывай файлы, если пользователь этого явно не просил.';
+
+    // Upload user files to OpenAI and provide them to code_interpreter via tool_resources
+    const codeInterpreterFileIds: string[] = [];
+    if (files?.length) {
+      for (const f of files) {
+        try {
+          const fileLike = await toFile(f.buffer, f.originalname || 'upload.bin', {
+            type: f.mimetype || 'application/octet-stream'
+          });
+          const created = await this.openai.files.create({ file: fileLike, purpose: 'assistants' });
+          codeInterpreterFileIds.push(created.id);
+          this.logger.log(`[OpenAI] Uploaded file to OpenAI: name=${f.originalname ?? 'upload.bin'} id=${created.id} mimetype=${f.mimetype ?? 'unknown'} size=${f.size ?? f.buffer?.length ?? 0}`);
+        } catch (e: any) {
+          this.logger.warn(`Failed to upload file to OpenAI: ${f?.originalname ?? 'unknown'} - ${e?.message ?? e}`);
+        }
+      }
+    }
+
+    const userPrompt = `${scenario || ''}\n\n${message || ''}`;
+    const startedAt = Math.floor(Date.now() / 1000);
+    // Signatures of user-uploaded inputs to exclude from per-message attachments
+    const uploadedInputs = Array.isArray(files)
+      ? files.map(f => ({
+          name: String(f.originalname || '').toLowerCase().trim(),
+          size: Number.isFinite((f as any).size) ? (f as any).size : (f.buffer?.length ?? 0),
+          mimetype: String(f.mimetype || '').toLowerCase()
+        }))
+      : [];
+    const uploadedInputNames = new Set(uploadedInputs.map(u => u.name).filter(Boolean));
+
+    // Only allow file outputs if explicitly requested
+    const allowFileOutputs = /(?:(?:сделай|создай|сгенерируй|сформируй|редактируй|исправь|сохрани|приложи|вложи|прикрепи|скачай|экспорт|export|download|create|generate)(?:\s+(?:файл|документ))?)|(?:docx|doc|xlsx|xls|pptx|ppt|pdf|zip|png|jpe?g|gif|csv|excel|word|таблиц[а-яё]*|презентац[а-яё]*|отч[её]т[а-яё]*)/i.test(`${scenario || ''} ${message || ''}`);
+    const fileMentioned = /\b(файл|документ|таблиц[а-яё]*|презентац[а-яё]*|отч[её]т[а-яё]*|attachment|document|file|spreadsheet|presentation|report)\b/i.test(`${scenario || ''} ${message || ''}`);
+
+    let data: any;
+    try {
+      const body: OpenAI.Responses.ResponseCreateParamsNonStreaming = {
+        model: 'gpt-4.1',
+        tools: [
+          { type: 'code_interpreter', container: { type: 'auto', file_ids: [] } }
+        ],
+        tool_choice: 'auto',
+        instructions: systemPrompt,
+        input: userPrompt,
+      };
+      if (codeInterpreterFileIds.length) {
+        if (body.tools[0].type === "code_interpreter") {
+          (body.tools[0].container as OpenAI.Responses.Tool.CodeInterpreter.CodeInterpreterToolAuto).file_ids = codeInterpreterFileIds;
+        }
+      }
+
+      try {
+        // Lightweight payload logging (avoids dumping large strings)
+        const toolsSummary = JSON.stringify(body.tools ?? []);
+        const toolResSummary = JSON.stringify((body as any).tool_resources ?? null);
+        const instrLen = typeof systemPrompt === 'string' ? systemPrompt.length : 0;
+        const inputLen = typeof userPrompt === 'string' ? userPrompt.length : 0;
+        const fileIdsSummary = codeInterpreterFileIds.join(',');
+        this.logger.log(`[OpenAI] responses.create payload: model=${body.model}; tools=${toolsSummary}; tool_resources=${toolResSummary}; instr_len=${instrLen}; input_len=${inputLen}; file_ids=[${fileIdsSummary}]`);
+      } catch (logErr) {
+        this.logger.warn(`[OpenAI] Failed to log payload: ${logErr instanceof Error ? logErr.message : String(logErr)}`);
+      }
+      data = await this.openai.responses.create(body);
+    } catch (e: any) {
+      throw new BadRequestException(`OpenAI error: ${e?.message || String(e)}`);
+    }
+
+    const messageText = this.extractResponsesText(data);
+
+    // Extract file outputs from model (container citations and output files), persist via FilesService
+    const resultFiles: any[] = [];
+    const processedCitationIds = new Set<string>();
+    try {
+      const containerFilesCache = new Map<string, { id: string; filename?: string; createdAt?: number }[]>();
+      // 1) Container file citations (cfile_*) coming from code_interpreter container
+      const citations = this.extractContainerFileCitationsFromAny(data);
+      for (const c of citations) {
+        try {
+          // Gate citations to this turn only, when createdAt is available
+          try {
+            const list = containerFilesCache.get(c.container_id) ?? await this.listContainerFiles(c.container_id);
+            if (!containerFilesCache.has(c.container_id)) containerFilesCache.set(c.container_id, list);
+            const meta = list.find((it: any) => it.id === c.file_id);
+            if (meta && typeof meta.createdAt === 'number' && meta.createdAt < startedAt - 30) {
+              this.logger.log(`[Files] Skipping citation older than current turn: container=${c.container_id} file=${c.file_id} createdAt=${meta.createdAt}`);
+              continue;
+            }
+          } catch {
+            // If listing fails or createdAt not available, proceed to download (best effort)
+          }
+
+          const downloaded: any = await this.downloadContainerFile(c.container_id, c.file_id, c.filename);
+
+          // Skip if downloaded file matches a user upload by name and size
+          const dnNameLc = String(downloaded?.originalname || '').toLowerCase().trim();
+          if (dnNameLc && uploadedInputNames.has(dnNameLc)) {
+            const up = uploadedInputs.find(u => u.name === dnNameLc);
+            if (up && Math.abs((downloaded?.size || 0) - (up.size || 0)) <= 1) {
+              this.logger.log(`[Files] Skipping downloaded container file matching user upload: ${downloaded.originalname} (${downloaded.size} bytes)`);
+              continue;
+            }
+          }
+
+          const uploaded = await this.filesService.uploadFile(downloaded, 'ai-generated', undefined);
+          resultFiles.push(uploaded);
+          processedCitationIds.add(`${c.container_id}:${c.file_id}`);
+        } catch (e: any) {
+          this.logger.warn(`Failed to fetch/persist container file ${c.file_id}: ${e?.message ?? e}`);
+        }
+      }
+
+      // 2) Assistants output files (file-*) returned by Responses API
+      const fileIds = Array.from(new Set(this.extractFileIdsFromAny(data)));
+      for (const fid of fileIds) {
+        try {
+          const meta = await this.openai.files.retrieve(fid);
+          const purpose = (meta as any)?.purpose;
+          if (purpose && purpose !== 'assistants_output') {
+            this.logger.warn(`Skipping OpenAI file ${fid} with purpose=${purpose}`);
+            continue;
+          }
+          const contentResp = await this.openai.files.content(fid);
+          const arrayBuf = await contentResp.arrayBuffer();
+          const buf = Buffer.from(arrayBuf);
+          const metaAny: any = meta as any;
+          const mimeType = metaAny?.mime_type || 'application/octet-stream';
+          const finalName = this.inferFileName(metaAny?.filename, fid, mimeType);
+
+          // Skip if assistants_output coincides with user upload by name and size
+          const finalNameLc = String(finalName || '').toLowerCase().trim();
+          if (finalNameLc && uploadedInputNames.has(finalNameLc)) {
+            const up = uploadedInputs.find(u => u.name === finalNameLc);
+            if (up && Math.abs(buf.length - (up.size || 0)) <= 1) {
+              this.logger.log(`[Files] Skipping assistants_output matching user upload: ${finalName} (${buf.length} bytes)`);
+              continue;
+            }
+          }
+
+          const fake: any = {
+            fieldname: 'file',
+            originalname: finalName,
+            encoding: '7bit',
+            mimetype: mimeType,
+            size: buf.length,
+            buffer: buf
+          };
+          const uploaded = await this.filesService.uploadFile(fake, 'ai-generated', undefined);
+          resultFiles.push(uploaded);
+        } catch (e: any) {
+          this.logger.warn(`Failed to fetch/persist OpenAI file ${fid}: ${e?.message ?? e}`);
+        }
+      }
+    } catch {
+      // ignore parsing issues
+    }
+
+    // Restricted fallback: include only files created during this turn (by timestamp)
+    if (resultFiles.length === 0) {
+      try {
+        const containerIds = this.extractContainerIdsFromAny(data);
+        for (const cid of containerIds) {
+          try {
+            const list = await this.listContainerFiles(cid);
+            const recent = list.filter((it: any) => {
+              const ts = typeof it.createdAt === 'number' ? it.createdAt : undefined;
+              return ts != null && ts >= startedAt - 30;
+            });
+            for (const it of recent) {
+              try {
+                // Skip if already processed via explicit citation
+                if (processedCitationIds.has(`${cid}:${it.id}`)) {
+                  this.logger.log(`[Files] Skipping fallback duplicate of citation: container=${cid} file=${it.id}`);
+                  continue;
+                }
+                const downloaded: any = await this.downloadContainerFile(cid, it.id, it.filename);
+
+                // Skip if fallback file matches a user upload by name and size
+                const dnNameLc = String(downloaded?.originalname || '').toLowerCase().trim();
+                if (dnNameLc && uploadedInputNames.has(dnNameLc)) {
+                  const up = uploadedInputs.find(u => u.name === dnNameLc);
+                  if (up && Math.abs((downloaded?.size || 0) - (up.size || 0)) <= 1) {
+                    this.logger.log(`[Files] Skipping fallback file matching user upload: ${downloaded.originalname} (${downloaded.size} bytes)`);
+                    continue;
+                  }
+                }
+
+                const uploaded = await this.filesService.uploadFile(downloaded, 'ai-generated', undefined);
+                resultFiles.push(uploaded);
+              } catch (e: any) {
+                this.logger.warn(`Recent fallback download failed for container ${cid} file ${it.id}: ${e?.message ?? e}`);
+              }
+            }
+          } catch (e: any) {
+            this.logger.warn(`Recent list failed for container ${cid}: ${e?.message ?? e}`);
+          }
+        }
+      } catch (e: any) {
+        this.logger.warn(`Restricted fallback failed: ${e?.message ?? e}`);
+      }
+    }
+
+    const filesToReturn = (allowFileOutputs || (resultFiles.length > 0 && fileMentioned)) ? resultFiles : [];
+    return { message: messageText, files: filesToReturn };
+  }
+
+  private extractContainerFileCitationsFromAny(obj: any): { container_id: string; file_id: string; filename?: string }[] {
+    const out: { container_id: string; file_id: string; filename?: string }[] = [];
+    const visit = (v: any) => {
+      if (!v) return;
+      if (Array.isArray(v)) { v.forEach(visit); return; }
+      if (typeof v === 'object') {
+        const anyV: any = v;
+        if (anyV?.type === 'container_file_citation' && typeof anyV?.file_id === 'string' && typeof anyV?.container_id === 'string') {
+          out.push({ container_id: anyV.container_id, file_id: anyV.file_id, filename: anyV.filename });
+        }
+        for (const val of Object.values(v)) visit(val);
+      }
+    };
+    visit(obj);
+    // dedupe by container_id:file_id
+    const seen = new Set<string>();
+    return out.filter((c) => { const k = `${c.container_id}:${c.file_id}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  }
+
+  private async downloadContainerFile(containerId: string, fileId: string, filename?: string) {
+    const url = `https://api.openai.com/v1/containers/${containerId}/files/${fileId}/content`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${this.openaiApiKey}` } });
+    if (!res.ok) {
+      const errTxt = await res.text().catch(() => `${res.statusText}`);
+      throw new Error(`download container file failed: ${res.status} ${errTxt}`);
+    }
+    const arrayBuf = await res.arrayBuffer();
+    const buf = Buffer.from(arrayBuf);
+    const contentType = res.headers.get('content-type') || 'application/octet-stream';
+    // Try to derive filename from Content-Disposition header if present
+    let cdName: string | undefined;
+    const cd = res.headers.get('content-disposition') || '';
+    const cdMatch = cd.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+    if (cdMatch && cdMatch[1]) {
+      try {
+        cdName = decodeURIComponent(cdMatch[1].replace(/"/g, '').trim());
+      } catch {
+        cdName = cdMatch[1].replace(/"/g, '').trim();
+      }
+    }
+    const finalName = this.inferFileName(filename || cdName, fileId, contentType);
+    const fake: any = {
+      fieldname: 'file',
+      originalname: finalName,
+      encoding: '7bit',
+      mimetype: contentType,
+      size: buf.length,
+      buffer: buf
+    };
+    return fake;
+  }
+
+  private extractContainerIdsFromAny(obj: any): string[] {
+    const out: string[] = [];
+    const isContainerId = (s: string) => /^cntr_[A-Za-z0-9_-]+$/.test(s);
+
+    const visit = (v: any) => {
+      if (!v) return;
+
+      if (typeof v === 'string') {
+        const matches = v.match(/cntr_[A-Za-z0-9_-]+/g);
+        if (matches) {
+          for (const m of matches) if (isContainerId(m)) out.push(m);
+        }
+        return;
+      }
+
+      if (Array.isArray(v)) { v.forEach(visit); return; }
+
+      if (typeof v === 'object') {
+        const anyV: any = v;
+
+        // Явные вызовы инструмента содержат container_id
+        if (anyV?.type === 'code_interpreter_call' && typeof anyV?.container_id === 'string' && isContainerId(anyV.container_id)) {
+          out.push(anyV.container_id);
+        }
+        if (typeof anyV?.container_id === 'string' && isContainerId(anyV.container_id)) {
+          out.push(anyV.container_id);
+        }
+
+        for (const val of Object.values(v)) visit(val);
+      }
+    };
+
+    visit(obj);
+    return Array.from(new Set(out));
+  }
+
+  private async listContainerFiles(containerId: string): Promise<{ id: string; filename?: string; createdAt?: number }[]> {
+    const url = `https://api.openai.com/v1/containers/${containerId}/files`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' } });
+    if (!res.ok) {
+      const errTxt = await res.text().catch(() => `${res.statusText}`);
+      throw new Error(`list container files failed: ${res.status} ${errTxt}`);
+    }
+    let json: any;
+    try { json = await res.json(); } catch { json = null; }
+    const arr = Array.isArray(json?.data) ? json.data : (Array.isArray(json?.files) ? json.files : (Array.isArray(json) ? json : []));
+    return arr
+      .map((x: any) => {
+        const c = x?.created_at ?? x?.createdAt ?? x?.created_at_s ?? x?.created_at_ms ?? x?.createdAtMs ?? x?.created ?? x?.createdAtISO ?? null;
+        let createdAt: number | undefined;
+        if (typeof c === 'number') {
+          createdAt = c > 1e12 ? Math.floor(c / 1000) : c;
+        } else if (typeof c === 'string') {
+          const t = Date.parse(c);
+          if (!Number.isNaN(t)) createdAt = Math.floor(t / 1000);
+        }
+        return { id: String(x?.id ?? ''), filename: x?.filename ?? x?.name ?? undefined, createdAt };
+      })
+      .filter((x: any) => x.id);
+  }
+
+  private extractFileIdsFromAny(obj: any): string[] {
+    const out: string[] = [];
+    const isValidFileId = (s: string) => /^file-[A-Za-z0-9_-]+$/.test(s);
+
+    const visit = (v: any) => {
+      if (!v) return;
+
+      if (typeof v === 'string') {
+        const matches = v.match(/file-[A-Za-z0-9_-]+/g);
+        if (matches) {
+          for (const m of matches) {
+            if (isValidFileId(m)) out.push(m);
+          }
+        }
+        return;
+      }
+
+      if (Array.isArray(v)) {
+        v.forEach(visit);
+        return;
+      }
+
+      if (typeof v === 'object') {
+        const anyV: any = v;
+        // Prefer explicit output_file objects
+        if (anyV?.type === 'output_file' && typeof anyV.file_id === 'string' && isValidFileId(anyV.file_id)) {
+          out.push(anyV.file_id);
+        }
+
+        for (const [k, val] of Object.entries(v)) {
+          if (k === 'file_id' && typeof val === 'string' && isValidFileId(val)) out.push(val);
+          visit(val);
+        }
+      }
+    };
+
+    visit(obj);
+    return Array.from(new Set(out));
+  }
+
   // ---- Helpers ----
+  private extFromMime(mime?: string): string {
+    const m = (mime || '').toLowerCase();
+    const map: Record<string, string> = {
+      'application/pdf': '.pdf',
+      'text/plain': '.txt',
+      'application/rtf': '.rtf',
+      'application/json': '.json',
+      'application/xml': '.xml',
+      'text/csv': '.csv',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+      'application/msword': '.doc',
+      'application/vnd.ms-excel': '.xls',
+      'application/vnd.ms-powerpoint': '.ppt',
+      'image/png': '.png',
+      'image/jpeg': '.jpg',
+      'image/jpg': '.jpg',
+      'image/gif': '.gif',
+      'image/svg+xml': '.svg',
+      'application/zip': '.zip'
+    };
+    if (m && map[m]) return map[m];
+    if (m.startsWith('image/')) return `.${m.split('/')[1]}`;
+    if (m.startsWith('text/')) return '.txt';
+    return '.bin';
+  }
+
+  private inferFileName(name?: string, id?: string, contentType?: string): string {
+    const guessed = (name || '').trim();
+    const hasExt = /\.[A-Za-z0-9]+$/.test(guessed);
+    const notBin = guessed && !/\.bin$/i.test(guessed);
+    if (guessed && hasExt && notBin) return guessed;
+    const ext = this.extFromMime(contentType);
+    return `${(guessed && !hasExt && notBin ? guessed : (id || 'file'))}${ext}`;
+  }
+
   private ensureKey() { if (!this.openaiApiKey) throw new Error('OPENAI_API_KEY is not configured'); }
 
   private buildNeuroAbaiSystemPrompt(): string {
@@ -179,6 +588,14 @@ export class AiAssistantService {
     const { instructions, input, schemaName, schema, temperature = 0.3, model = 'gpt-4o-2024-08-06' } = p;
     let data: any;
     try {
+      try {
+        const instrLen = typeof instructions === 'string' ? instructions.length : 0;
+        const inputLen = typeof input === 'string' ? input.length : 0;
+        const schemaNameSafe = String(schemaName);
+        this.logger.log(`[OpenAI] responses.create payload: model=${model}; text.format=json_schema(${schemaNameSafe}); instr_len=${instrLen}; input_len=${inputLen}; temperature=${temperature}`);
+      } catch (logErr) {
+        this.logger.warn(`[OpenAI] Failed to log payload: ${logErr instanceof Error ? logErr.message : String(logErr)}`);
+      }
       data = await this.openai.responses.create({
         model,
         instructions,
@@ -197,6 +614,13 @@ export class AiAssistantService {
   private async postOpenAIResponseText(p: { instructions: string; input: string; temperature?: number; model?: string; }): Promise<string> {
     const { instructions, input, temperature = 0.7, model = 'gpt-4o-2024-08-06' } = p;
     try {
+      try {
+        const instrLen = typeof instructions === 'string' ? instructions.length : 0;
+        const inputLen = typeof input === 'string' ? input.length : 0;
+        this.logger.log(`[OpenAI] responses.create payload: model=${model}; instr_len=${instrLen}; input_len=${inputLen}; temperature=${temperature}`);
+      } catch (logErr) {
+        this.logger.warn(`[OpenAI] Failed to log payload: ${logErr instanceof Error ? logErr.message : String(logErr)}`);
+      }
       const data = await this.openai.responses.create({ model, instructions, input, temperature });
       return this.extractResponsesText(data);
     } catch (e: any) {

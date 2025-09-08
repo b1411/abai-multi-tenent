@@ -167,6 +167,7 @@ model Student {
   olympiadResults    OlympiadResult[]
   admissions         StudentAdmission[]
   personalDevelopmentPlans PersonalDevelopmentPlan[]
+  extraEducations          ExtraEducation[]
 }
 
 model LessonResult {
@@ -2194,4 +2195,52 @@ model PdpGoal {
   deletedAt DateTime?
 
   @@index([planId])
+}
+
+//
+// --- Extra Education ---
+//
+
+model ExtraEducation {
+  id           String    @id @default(uuid())
+  studentId    Int
+  student      Student   @relation(fields: [studentId], references: [id])
+  name         String
+  category     String
+  organization String
+  progress     Int       @default(0)
+  status       String    // IN_PROGRESS | COMPLETED | PLANNED
+  startDate    DateTime
+  endDate      DateTime?
+  mentor       String
+  mentorTitle  String?
+  description  String?   @db.Text
+  location     String
+  participants Int        @default(0)
+  skills       String[]
+  achievements ExtraAchievement[]
+  schedule     ExtraSchedule[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@index([studentId])
+}
+
+model ExtraAchievement {
+  id         String         @id @default(uuid())
+  activityId String
+  activity   ExtraEducation @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  title      String
+  description String?       @db.Text
+  date       DateTime
+  level      String         // WIN | PARTICIPANT | PROJECT | CERT
+}
+
+model ExtraSchedule {
+  id         String         @id @default(uuid())
+  activityId String
+  activity   ExtraEducation @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  day        String
+  time       String
 }

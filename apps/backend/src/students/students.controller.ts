@@ -11,6 +11,8 @@ import { CreatePdpPlanDto } from './dto/create-pdp-plan.dto';
 import { UpdatePdpPlanDto } from './dto/update-pdp-plan.dto';
 import { CreatePdpGoalDto } from './dto/create-pdp-goal.dto';
 import { UpdatePdpGoalDto } from './dto/update-pdp-goal.dto';
+import { CreateExtraEducationDto } from './dto/create-extra-education.dto';
+import { UpdateExtraEducationDto } from './dto/update-extra-education.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -408,6 +410,43 @@ export class StudentsController {
   @Roles('ADMIN')
   deleteStudentComment(@Param('commentId') commentId: string, @Request() req) {
     return this.studentsService.deleteStudentComment(+commentId, req.user?.id, req.user?.role);
+  }
+
+  // === ДОПОЛНИТЕЛЬНОЕ ОБРАЗОВАНИЕ ===
+  @Get(':id/extra-education')
+  @ApiOperation({ summary: 'Получить доп. образование студента' })
+  @ApiResponse({ status: 200, description: 'Список доп. активностей студента' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  getStudentExtraEducation(@Param('id') id: string, @Request() req) {
+    return this.studentsService.getStudentExtraEducation(+id, req.user?.role, req.user?.id);
+  }
+
+  @Post(':id/extra-education')
+  @ApiOperation({ summary: 'Создать запись доп. образования для студента' })
+  @ApiResponse({ status: 201, description: 'Активность создана' })
+  @ApiParam({ name: 'id', description: 'ID студента' })
+  @Roles('ADMIN', 'TEACHER')
+  createStudentExtraEducation(@Param('id') id: string, @Body() dto: CreateExtraEducationDto, @Request() req) {
+    return this.studentsService.createStudentExtraEducation(+id, dto, req.user?.id, req.user?.role);
+  }
+
+  @Patch('extra-education/:activityId')
+  @ApiOperation({ summary: 'Обновить запись доп. образования' })
+  @ApiResponse({ status: 200, description: 'Активность обновлена' })
+  @ApiParam({ name: 'activityId', description: 'ID активности' })
+  @Roles('ADMIN', 'TEACHER')
+  updateStudentExtraEducation(@Param('activityId') activityId: string, @Body() dto: UpdateExtraEducationDto, @Request() req) {
+    return this.studentsService.updateStudentExtraEducation(activityId, dto, req.user?.id, req.user?.role);
+  }
+
+  @Delete('extra-education/:activityId')
+  @ApiOperation({ summary: 'Удалить запись доп. образования (мягкое удаление)' })
+  @ApiResponse({ status: 200, description: 'Активность удалена' })
+  @ApiParam({ name: 'activityId', description: 'ID активности' })
+  @Roles('ADMIN', 'TEACHER')
+  deleteStudentExtraEducation(@Param('activityId') activityId: string, @Request() req) {
+    return this.studentsService.deleteStudentExtraEducation(activityId, req.user?.id, req.user?.role);
   }
 
   // === МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ПРЕПОДАВАТЕЛЕЙ СТУДЕНТА ===

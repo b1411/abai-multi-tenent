@@ -46,7 +46,14 @@ import {
   PdpPlan,
   PdpGoal,
   CreatePdpPlanInput,
-  UpdatePdpPlanInput
+  UpdatePdpPlanInput,
+  ExtraActivity,
+  ExtraCategory,
+  ExtraStatus,
+  ExtraAchievementLevel,
+  CreateExtraEducationInput,
+  UpdateExtraEducationInput,
+  ExtraSchedule
 } from '../services/studentService';
 import RemarkModal from '../components/RemarkModal';
 import DeleteRemarkModal from '../components/DeleteRemarkModal';
@@ -175,6 +182,222 @@ const StudentDetail: React.FC = () => {
 
   const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
 
+  // Доп образование (реальные данные с бэкенда; серверные моки допустимы)
+  const [extraEducationPrograms, setExtraEducationPrograms] = useState<ExtraActivity[]>([]);
+  const [loadingExtra, setLoadingExtra] = useState(false);
+  const [extraCreateOpen, setExtraCreateOpen] = useState(false);
+  const [savingExtra, setSavingExtra] = useState(false);
+  const [extraForm, setExtraForm] = useState<{
+    name: string;
+    category: ExtraCategory;
+    organization: string;
+    status: ExtraStatus;
+    progress: number;
+    startDate: string;
+    endDate: string;
+    mentor: string;
+    mentorTitle?: string;
+    description?: string;
+    location: string;
+    participants: number;
+    skillsCsv: string;
+    schedule: ExtraSchedule[];
+    achievements: Array<{ title: string; description?: string; date: string; level: ExtraAchievementLevel }>;
+  }>({
+    name: '',
+    category: 'Курсы',
+    organization: '',
+    status: 'PLANNED',
+    progress: 0,
+    startDate: '',
+    endDate: '',
+    mentor: '',
+    mentorTitle: '',
+    description: '',
+    location: '',
+    participants: 0,
+    skillsCsv: '',
+    schedule: [{ day: '', time: '' }],
+    achievements: []
+  });
+
+  const [extraEditOpen, setExtraEditOpen] = useState(false);
+  const [savingExtraEdit, setSavingExtraEdit] = useState(false);
+  const [editingExtra, setEditingExtra] = useState<ExtraActivity | null>(null);
+  const [extraEditForm, setExtraEditForm] = useState<{
+    name: string;
+    category: ExtraCategory;
+    organization: string;
+    status: ExtraStatus;
+    progress: number;
+    startDate: string;
+    endDate: string;
+    mentor: string;
+    mentorTitle?: string;
+    description?: string;
+    location: string;
+    participants: number;
+    skillsCsv: string;
+    schedule: ExtraSchedule[];
+    achievements: Array<{ title: string; description?: string; date: string; level: ExtraAchievementLevel }>;
+  }>({
+    name: '',
+    category: 'Курсы',
+    organization: '',
+    status: 'PLANNED',
+    progress: 0,
+    startDate: '',
+    endDate: '',
+    mentor: '',
+    mentorTitle: '',
+    description: '',
+    location: '',
+    participants: 0,
+    skillsCsv: '',
+    schedule: [{ day: '', time: '' }],
+    achievements: []
+  });
+
+  const fetchExtraEducation = useCallback(async () => {
+    if (!student) return;
+    setLoadingExtra(true);
+    try {
+      const data = await studentService.getStudentExtraEducation(student.id);
+      setExtraEducationPrograms(data || []);
+    } catch (e) {
+      console.error('Ошибка загрузки доп. образования:', e);
+      setExtraEducationPrograms([]);
+    } finally {
+      setLoadingExtra(false);
+    }
+  }, [student?.id]);
+
+  const resetExtraForm = () => {
+    setExtraForm({
+      name: '',
+      category: 'Курсы',
+      organization: '',
+      status: 'PLANNED',
+      progress: 0,
+      startDate: '',
+      endDate: '',
+      mentor: '',
+      mentorTitle: '',
+      description: '',
+      location: '',
+      participants: 0,
+      skillsCsv: '',
+      schedule: [{ day: '', time: '' }],
+      achievements: []
+    });
+  };
+
+  const handleCreateExtra = async () => {
+    if (!student) return;
+    try {
+      setSavingExtra(true);
+      const payload: CreateExtraEducationInput = {
+        name: extraForm.name.trim(),
+        category: extraForm.category,
+        organization: extraForm.organization.trim(),
+        progress: Number(extraForm.progress) || 0,
+        status: extraForm.status,
+        startDate: extraForm.startDate,
+        endDate: extraForm.endDate || undefined,
+        mentor: extraForm.mentor.trim(),
+        mentorTitle: extraForm.mentorTitle?.trim() || undefined,
+        description: extraForm.description?.trim() || undefined,
+        location: extraForm.location.trim(),
+        participants: Number(extraForm.participants) || 0,
+        skills: extraForm.skillsCsv.split(',').map(s => s.trim()).filter(Boolean),
+        schedule: (extraForm.schedule || []).filter(s => s.day && s.time),
+        achievements: (extraForm.achievements || []).filter(a => a.title && a.date && a.level).map(a => ({ title: a.title.trim(), description: (a.description ?? '').trim(), date: a.date, level: a.level }))
+      };
+      await studentService.createStudentExtraEducation(student.id, payload);
+      setExtraCreateOpen(false);
+      resetExtraForm();
+      await fetchExtraEducation();
+    } catch (e) {
+      console.error('Ошибка создания активности:', e);
+    } finally {
+      setSavingExtra(false);
+    }
+  };
+
+  const openEditExtra = (p: ExtraActivity) => {
+    setEditingExtra(p);
+    setExtraEditForm({
+      name: p.name,
+      category: p.category as ExtraCategory,
+      organization: p.organization,
+      status: p.status as ExtraStatus,
+      progress: p.progress,
+      startDate: p.startDate ? new Date(p.startDate).toISOString().slice(0, 10) : '',
+      endDate: p.endDate ? new Date(p.endDate).toISOString().slice(0, 10) : '',
+      mentor: p.mentor,
+      mentorTitle: p.mentorTitle || '',
+      description: p.description || '',
+      location: p.location,
+      participants: p.participants,
+      skillsCsv: (p.skills || []).join(', '),
+      schedule: (p.schedule || []).map(s => ({ day: s.day, time: s.time })),
+      achievements: (p.achievements || []).map(a => ({
+        title: a.title,
+        description: a.description || '',
+        date: a.date ? new Date(a.date).toISOString().slice(0, 10) : '',
+        level: a.level as ExtraAchievementLevel
+      }))
+    });
+    setExtraEditOpen(true);
+  };
+
+  const handleUpdateExtra = async () => {
+    if (!editingExtra) return;
+    try {
+      setSavingExtraEdit(true);
+      const payload: UpdateExtraEducationInput = {
+        name: extraEditForm.name.trim(),
+        category: extraEditForm.category,
+        organization: extraEditForm.organization.trim(),
+        progress: Number(extraEditForm.progress) || 0,
+        status: extraEditForm.status,
+        startDate: extraEditForm.startDate || undefined,
+        endDate: extraEditForm.endDate || undefined,
+        mentor: extraEditForm.mentor.trim(),
+        mentorTitle: extraEditForm.mentorTitle?.trim() || undefined,
+        description: extraEditForm.description?.trim() || undefined,
+        location: extraEditForm.location.trim(),
+        participants: Number(extraEditForm.participants) || 0,
+        skills: extraEditForm.skillsCsv.split(',').map(s => s.trim()).filter(Boolean),
+        schedule: (extraEditForm.schedule || []).filter(s => s.day && s.time),
+        achievements: (extraEditForm.achievements || [])
+          .filter(a => a.title && a.date && a.level)
+          .map(a => ({ title: a.title.trim(), description: (a.description ?? '').trim(), date: a.date, level: a.level }))
+      };
+      await studentService.updateStudentExtraEducation(editingExtra.id, payload);
+      setExtraEditOpen(false);
+      setEditingExtra(null);
+      await fetchExtraEducation();
+    } catch (e) {
+      console.error('Ошибка обновления активности:', e);
+    } finally {
+      setSavingExtraEdit(false);
+    }
+  };
+
+  const handleDeleteExtra = async (p: ExtraActivity) => {
+    if (!p?.id) return;
+    const ok = window.confirm('Удалить активность?');
+    if (!ok) return;
+    try {
+      await studentService.deleteStudentExtraEducation(p.id);
+      await fetchExtraEducation();
+    } catch (e) {
+      console.error('Ошибка удаления активности:', e);
+    }
+  };
+
+  /* Legacy local mocks (disabled):
   // Доп образование (разрешены моки, расширенный формат)
   interface ExtraActivity {
     id: string;
@@ -306,7 +529,8 @@ const StudentDetail: React.FC = () => {
       ]
     }
   ]);
-
+  */
+  
   // Агрегации по распределению и навыкам
   const extraDistribution = useMemo(() => {
     const counts: Record<string, number> = {
@@ -380,8 +604,11 @@ const StudentDetail: React.FC = () => {
   const [deleteCommentModalOpen, setDeleteCommentModalOpen] = useState(false);
   const [editingComment, setEditingComment] = useState<StudentComment | null>(null);
   const [deletingComment, setDeletingComment] = useState<StudentComment | null>(null);
+  const [pdpCreateOpen, setPdpCreateOpen] = useState(false);
+  const [savingPdp, setSavingPdp] = useState(false);
 
   const canManageAttendance = useMemo(() => user?.role === 'TEACHER' || user?.role === 'ADMIN', [user?.role]);
+  const canManageExtra = useMemo(() => user?.role === 'TEACHER' || user?.role === 'ADMIN', [user?.role]);
 
   const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
   const [attForm, setAttForm] = useState<{
@@ -601,6 +828,8 @@ const StudentDetail: React.FC = () => {
       fetchRemarksData();
     } else if (activeTab === 'comments') {
       fetchCommentsData();
+    } else if (activeTab === 'extra') {
+      fetchExtraEducation();
     } else if (activeTab === 'overview') {
       if (!emotionalData) fetchEmotionalData();
       if (!attendanceData) fetchAttendanceData();
@@ -967,6 +1196,9 @@ const StudentDetail: React.FC = () => {
       ...(user?.role === 'ADMIN' ? [
         { id: 'comments', label: 'Комментарии админам', icon: FaComments },
       ] : [])
+    ] : []),
+    ...(accessLevel === 'full' && user?.role === 'STUDENT' ? [
+      { id: 'extra', label: 'Доп образование', icon: FaSmile },
     ] : [])
   ];
 
@@ -1602,37 +1834,12 @@ const StudentDetail: React.FC = () => {
                   </div>
 
                   {canEditPdp && (
-                    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input
-                        value={newPlan.subject}
-                        onChange={e => setNewPlan(p => ({ ...p, subject: e.target.value }))}
-                        placeholder="Предмет"
-                        className="border rounded-lg px-2 py-1 text-sm"
-                      />
-                      <input
-                        value={newPlan.mentor || ''}
-                        onChange={e => setNewPlan(p => ({ ...p, mentor: e.target.value }))}
-                        placeholder="Ментор"
-                        className="border rounded-lg px-2 py-1 text-sm"
-                      />
-                      <input
-                        value={newPlan.skills}
-                        onChange={e => setNewPlan(p => ({ ...p, skills: e.target.value }))}
-                        placeholder="Навыки (через запятую)"
-                        className="border rounded-lg px-2 py-1 text-sm sm:col-span-2"
-                      />
-                      <textarea
-                        value={newPlan.description || ''}
-                        onChange={e => setNewPlan(p => ({ ...p, description: e.target.value }))}
-                        placeholder="Описание"
-                        className="border rounded-lg px-2 py-1 text-sm sm:col-span-2"
-                        rows={2}
-                      />
+                    <div className="mb-4">
                       <button
-                        onClick={handleCreatePlan}
-                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm sm:col-span-2"
+                        onClick={() => setPdpCreateOpen(true)}
+                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
                       >
-                        Добавить план
+                        Создать план
                       </button>
                     </div>
                   )}
@@ -2447,10 +2654,20 @@ const StudentDetail: React.FC = () => {
               <span className="px-2 py-1 rounded bg-blue-50 text-blue-700">
                 Активностей: {extraEducationPrograms.length}
               </span>
+              {canManageExtra && (
+                <button
+                  onClick={() => setExtraCreateOpen(true)}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Добавить активность
+                </button>
+              )}
             </div>
           </div>
 
-          {extraEducationPrograms.length > 0 ? (
+          {loadingExtra ? (
+            <div className="flex justify-center items-center h-40"><Spinner size="lg" /></div>
+          ) : extraEducationPrograms.length > 0 ? (
             <div className="space-y-10">
               {/* Сетка активностей */}
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -2476,9 +2693,27 @@ const StudentDetail: React.FC = () => {
                           <h3 className="font-semibold text-gray-900 text-base leading-snug break-words">{p.name}</h3>
                           <p className="text-xs text-gray-500 mt-1 truncate">{p.organization}</p>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusBadge} shrink-0 whitespace-nowrap`}>
-                          {statusLabel}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusBadge} whitespace-nowrap`}>
+                            {statusLabel}
+                          </span>
+                          {canManageExtra && (
+                            <>
+                              <button
+                                onClick={() => openEditExtra(p)}
+                                className="px-2 py-1 text-[11px] rounded border text-gray-700 hover:bg-gray-50"
+                              >
+                                Редактировать
+                              </button>
+                              <button
+                                onClick={() => handleDeleteExtra(p)}
+                                className="px-2 py-1 text-[11px] text-red-600 rounded hover:bg-red-50"
+                              >
+                                Удалить
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2 text-[11px] text-gray-600">
@@ -2529,11 +2764,11 @@ const StudentDetail: React.FC = () => {
                         <h4 className="text-[11px] font-semibold text-gray-700 mb-1 uppercase tracking-wide">
                           Навыки
                         </h4>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap -m-0.5">
                           {p.skills.map(skill => (
                             <span
                               key={skill}
-                              className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] break-words"
+                              className="m-0.5 inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] leading-4 whitespace-normal break-words max-w-full"
                             >
                               {skill}
                             </span>
@@ -3006,6 +3241,576 @@ const StudentDetail: React.FC = () => {
         </div>
       )}
 
+      {extraCreateOpen && canManageExtra && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setExtraCreateOpen(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl p-5">
+            <h3 className="text-lg font-semibold mb-4">Добавить активность</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[70vh] overflow-auto pr-1">
+              <div className="md:col-span-2">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Название</label>
+                <input
+                  value={extraForm.name}
+                  onChange={e => setExtraForm(f => ({ ...f, name: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Напр. Курс по алгоритмам"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Категория</label>
+                <select
+                  value={extraForm.category}
+                  onChange={e => setExtraForm(f => ({ ...f, category: e.target.value as ExtraCategory }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option value="Кружки">Кружки</option>
+                  <option value="Организации">Организации</option>
+                  <option value="Курсы">Курсы</option>
+                  <option value="Олимпиады">Олимпиады</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Организация</label>
+                <input
+                  value={extraForm.organization}
+                  onChange={e => setExtraForm(f => ({ ...f, organization: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Организация"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Статус</label>
+                <select
+                  value={extraForm.status}
+                  onChange={e => setExtraForm(f => ({ ...f, status: e.target.value as ExtraStatus }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option value="PLANNED">Запланировано</option>
+                  <option value="IN_PROGRESS">В процессе</option>
+                  <option value="COMPLETED">Завершено</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Прогресс (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={extraForm.progress}
+                  onChange={e => setExtraForm(f => ({ ...f, progress: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Дата начала</label>
+                <input
+                  type="date"
+                  value={extraForm.startDate}
+                  onChange={e => setExtraForm(f => ({ ...f, startDate: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Дата окончания</label>
+                <input
+                  type="date"
+                  value={extraForm.endDate}
+                  onChange={e => setExtraForm(f => ({ ...f, endDate: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Ментор</label>
+                <input
+                  value={extraForm.mentor}
+                  onChange={e => setExtraForm(f => ({ ...f, mentor: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Ментор"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Должность ментора</label>
+                <input
+                  value={extraForm.mentorTitle || ''}
+                  onChange={e => setExtraForm(f => ({ ...f, mentorTitle: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Опционально"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Описание</label>
+                <textarea
+                  value={extraForm.description || ''}
+                  onChange={e => setExtraForm(f => ({ ...f, description: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  rows={3}
+                  placeholder="Краткое описание"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Локация</label>
+                <input
+                  value={extraForm.location}
+                  onChange={e => setExtraForm(f => ({ ...f, location: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Место проведения"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Участников</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={extraForm.participants}
+                  onChange={e => setExtraForm(f => ({ ...f, participants: Math.max(0, Number(e.target.value) || 0) }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Навыки (через запятую)</label>
+                <input
+                  value={extraForm.skillsCsv}
+                  onChange={e => setExtraForm(f => ({ ...f, skillsCsv: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Напр. Алгоритмы, Коммуникации"
+                />
+              </div>
+
+              <div className="md:col-span-2 border-t pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Расписание</h4>
+                  <button
+                    type="button"
+                    onClick={() => setExtraForm(f => ({ ...f, schedule: [...(f.schedule || []), { day: '', time: '' }] }))}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    Добавить
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(extraForm.schedule || []).map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <input
+                        value={row.day}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraForm(f => {
+                            const arr = [...(f.schedule || [])];
+                            arr[idx] = { ...arr[idx], day: v };
+                            return { ...f, schedule: arr };
+                          });
+                        }}
+                        className="col-span-5 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="День (Пн/Вт/...)"
+                      />
+                      <input
+                        value={row.time}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraForm(f => {
+                            const arr = [...(f.schedule || [])];
+                            arr[idx] = { ...arr[idx], time: v };
+                            return { ...f, schedule: arr };
+                          });
+                        }}
+                        className="col-span-5 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="Время (17:00-18:30)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setExtraForm(f => ({ ...f, schedule: (f.schedule || []).filter((_, i) => i !== idx) }))}
+                        className="col-span-2 text-red-600 text-sm hover:underline"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-2 border-t pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Достижения</h4>
+                  <button
+                    type="button"
+                    onClick={() => setExtraForm(f => ({ ...f, achievements: [...(f.achievements || []), { title: '', description: '', date: '', level: 'PROJECT' as ExtraAchievementLevel }] }))}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    Добавить
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(extraForm.achievements || []).map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <input
+                        value={row.title}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], title: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-4 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="Название"
+                      />
+                      <input
+                        value={row.description || ''}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], description: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-4 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="Описание"
+                      />
+                      <input
+                        type="date"
+                        value={row.date}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], date: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-2 border rounded-lg px-2 py-1 text-sm"
+                      />
+                      <select
+                        value={row.level}
+                        onChange={e => {
+                          const v = e.target.value as ExtraAchievementLevel;
+                          setExtraForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], level: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-2 border rounded-lg px-2 py-1 text-sm"
+                      >
+                        <option value="PROJECT">Проект</option>
+                        <option value="WIN">Победа</option>
+                        <option value="PARTICIPANT">Участник</option>
+                        <option value="CERT">Сертификат</option>
+                      </select>
+                      <div className="col-span-12">
+                        <button
+                          type="button"
+                          onClick={() => setExtraForm(f => ({ ...f, achievements: (f.achievements || []).filter((_, i) => i !== idx) }))}
+                          className="text-red-600 text-sm hover:underline"
+                        >
+                          Удалить достижение
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button onClick={() => setExtraCreateOpen(false)} className="px-3 py-2 rounded-lg border text-sm">Отмена</button>
+              <button
+                onClick={handleCreateExtra}
+                disabled={savingExtra || !extraForm.name.trim() || !extraForm.organization.trim() || !extraForm.startDate || !extraForm.mentor.trim() || !extraForm.location.trim()}
+                className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm disabled:opacity-60"
+              >
+                {savingExtra ? 'Сохранение...' : 'Создать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {extraEditOpen && canManageExtra && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setExtraEditOpen(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl p-5">
+            <h3 className="text-lg font-semibold mb-4">Редактировать активность</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[70vh] overflow-auto pr-1">
+              <div className="md:col-span-2">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Название</label>
+                <input
+                  value={extraEditForm.name}
+                  onChange={e => setExtraEditForm(f => ({ ...f, name: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Напр. Курс по алгоритмам"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Категория</label>
+                <select
+                  value={extraEditForm.category}
+                  onChange={e => setExtraEditForm(f => ({ ...f, category: e.target.value as ExtraCategory }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option value="Кружки">Кружки</option>
+                  <option value="Организации">Организации</option>
+                  <option value="Курсы">Курсы</option>
+                  <option value="Олимпиады">Олимпиады</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Организация</label>
+                <input
+                  value={extraEditForm.organization}
+                  onChange={e => setExtraEditForm(f => ({ ...f, organization: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Организация"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Статус</label>
+                <select
+                  value={extraEditForm.status}
+                  onChange={e => setExtraEditForm(f => ({ ...f, status: e.target.value as ExtraStatus }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                >
+                  <option value="PLANNED">Запланировано</option>
+                  <option value="IN_PROGRESS">В процессе</option>
+                  <option value="COMPLETED">Завершено</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Прогресс (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={extraEditForm.progress}
+                  onChange={e => setExtraEditForm(f => ({ ...f, progress: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Дата начала</label>
+                <input
+                  type="date"
+                  value={extraEditForm.startDate}
+                  onChange={e => setExtraEditForm(f => ({ ...f, startDate: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Дата окончания</label>
+                <input
+                  type="date"
+                  value={extraEditForm.endDate}
+                  onChange={e => setExtraEditForm(f => ({ ...f, endDate: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Ментор</label>
+                <input
+                  value={extraEditForm.mentor}
+                  onChange={e => setExtraEditForm(f => ({ ...f, mentor: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Ментор"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Должность ментора</label>
+                <input
+                  value={extraEditForm.mentorTitle || ''}
+                  onChange={e => setExtraEditForm(f => ({ ...f, mentorTitle: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Опционально"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Описание</label>
+                <textarea
+                  value={extraEditForm.description || ''}
+                  onChange={e => setExtraEditForm(f => ({ ...f, description: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  rows={3}
+                  placeholder="Краткое описание"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Локация</label>
+                <input
+                  value={extraEditForm.location}
+                  onChange={e => setExtraEditForm(f => ({ ...f, location: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Место проведения"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Участников</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={extraEditForm.participants}
+                  onChange={e => setExtraEditForm(f => ({ ...f, participants: Math.max(0, Number(e.target.value) || 0) }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Навыки (через запятую)</label>
+                <input
+                  value={extraEditForm.skillsCsv}
+                  onChange={e => setExtraEditForm(f => ({ ...f, skillsCsv: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  placeholder="Напр. Алгоритмы, Коммуникации"
+                />
+              </div>
+
+              <div className="md:col-span-2 border-t pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Расписание</h4>
+                  <button
+                    type="button"
+                    onClick={() => setExtraEditForm(f => ({ ...f, schedule: [...(f.schedule || []), { day: '', time: '' }] }))}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    Добавить
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(extraEditForm.schedule || []).map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <input
+                        value={row.day}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraEditForm(f => {
+                            const arr = [...(f.schedule || [])];
+                            arr[idx] = { ...arr[idx], day: v };
+                            return { ...f, schedule: arr };
+                          });
+                        }}
+                        className="col-span-5 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="День (Пн/Вт/...)"
+                      />
+                      <input
+                        value={row.time}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraEditForm(f => {
+                            const arr = [...(f.schedule || [])];
+                            arr[idx] = { ...arr[idx], time: v };
+                            return { ...f, schedule: arr };
+                          });
+                        }}
+                        className="col-span-5 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="Время (17:00-18:30)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setExtraEditForm(f => ({ ...f, schedule: (f.schedule || []).filter((_, i) => i !== idx) }))}
+                        className="col-span-2 text-red-600 text-sm hover:underline"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-2 border-t pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Достижения</h4>
+                  <button
+                    type="button"
+                    onClick={() => setExtraEditForm(f => ({ ...f, achievements: [...(f.achievements || []), { title: '', description: '', date: '', level: 'PROJECT' as ExtraAchievementLevel }] }))}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    Добавить
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(extraEditForm.achievements || []).map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <input
+                        value={row.title}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraEditForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], title: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-4 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="Название"
+                      />
+                      <input
+                        value={row.description || ''}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraEditForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], description: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-4 border rounded-lg px-2 py-1 text-sm"
+                        placeholder="Описание"
+                      />
+                      <input
+                        type="date"
+                        value={row.date}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setExtraEditForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], date: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-2 border rounded-lg px-2 py-1 text-sm"
+                      />
+                      <select
+                        value={row.level}
+                        onChange={e => {
+                          const v = e.target.value as ExtraAchievementLevel;
+                          setExtraEditForm(f => {
+                            const arr = [...(f.achievements || [])];
+                            arr[idx] = { ...arr[idx], level: v };
+                            return { ...f, achievements: arr };
+                          });
+                        }}
+                        className="col-span-2 border rounded-lg px-2 py-1 text-sm"
+                      >
+                        <option value="PROJECT">Проект</option>
+                        <option value="WIN">Победа</option>
+                        <option value="PARTICIPANT">Участник</option>
+                        <option value="CERT">Сертификат</option>
+                      </select>
+                      <div className="col-span-12">
+                        <button
+                          type="button"
+                          onClick={() => setExtraEditForm(f => ({ ...f, achievements: (f.achievements || []).filter((_, i) => i !== idx) }))}
+                          className="text-red-600 text-sm hover:underline"
+                        >
+                          Удалить достижение
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button onClick={() => setExtraEditOpen(false)} className="px-3 py-2 rounded-lg border text-sm">Отмена</button>
+              <button
+                onClick={handleUpdateExtra}
+                disabled={savingExtraEdit || !extraEditForm.name.trim() || !extraEditForm.organization.trim() || !extraEditForm.startDate || !extraEditForm.mentor.trim() || !extraEditForm.location.trim()}
+                className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm disabled:opacity-60"
+              >
+                {savingExtraEdit ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Модалы */}
       {attendanceModalOpen && canManageAttendance && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -3106,6 +3911,71 @@ const StudentDetail: React.FC = () => {
                 className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm disabled:opacity-60"
               >
                 {savingAttendance ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pdpCreateOpen && canEditPdp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setPdpCreateOpen(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-5">
+            <h3 className="text-lg font-semibold mb-4">Создать план развития</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Предмет</label>
+                <input
+                  value={newPlan.subject}
+                  onChange={e => setNewPlan(p => ({ ...p, subject: e.target.value }))}
+                  placeholder="Предмет"
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Ментор</label>
+                <input
+                  value={newPlan.mentor || ''}
+                  onChange={e => setNewPlan(p => ({ ...p, mentor: e.target.value }))}
+                  placeholder="Ментор"
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Навыки</label>
+                <input
+                  value={newPlan.skills}
+                  onChange={e => setNewPlan(p => ({ ...p, skills: e.target.value }))}
+                  placeholder="Навыки (через запятую)"
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Описание</label>
+                <textarea
+                  value={newPlan.description || ''}
+                  onChange={e => setNewPlan(p => ({ ...p, description: e.target.value }))}
+                  placeholder="Описание"
+                  className="mt-1 w-full border rounded-lg px-2 py-1 text-sm"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button onClick={() => setPdpCreateOpen(false)} className="px-3 py-2 rounded-lg border text-sm">Отмена</button>
+              <button
+                onClick={async () => {
+                  try {
+                    setSavingPdp(true);
+                    await handleCreatePlan();
+                    setPdpCreateOpen(false);
+                  } finally {
+                    setSavingPdp(false);
+                  }
+                }}
+                disabled={savingPdp || !newPlan.subject.trim()}
+                className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm disabled:opacity-60"
+              >
+                {savingPdp ? 'Сохранение...' : 'Создать'}
               </button>
             </div>
           </div>

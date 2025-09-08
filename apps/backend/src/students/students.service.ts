@@ -8,6 +8,8 @@ import { CreatePdpPlanDto } from './dto/create-pdp-plan.dto';
 import { UpdatePdpPlanDto } from './dto/update-pdp-plan.dto';
 import { CreatePdpGoalDto } from './dto/create-pdp-goal.dto';
 import { UpdatePdpGoalDto } from './dto/update-pdp-goal.dto';
+import { CreateExtraEducationDto } from './dto/create-extra-education.dto';
+import { UpdateExtraEducationDto } from './dto/update-extra-education.dto';
 
 @Injectable()
 export class StudentsService {
@@ -2105,6 +2107,142 @@ export class StudentsService {
       success: true,
       message: `Comment deleted successfully for student ${comment.student.user.surname} ${comment.student.user.name}`,
     };
+  }
+
+  // === ДОПОЛНИТЕЛЬНОЕ ОБРАЗОВАНИЕ ===
+  async getStudentExtraEducation(studentId: number, currentUserRole?: string, currentUserId?: number) {
+    await this.findOne(studentId);
+    await this.assertCanViewStudent(studentId, currentUserRole, currentUserId);
+
+    return this.prisma.extraEducation.findMany({
+      where: { studentId, deletedAt: null },
+      include: { achievements: true, schedule: true },
+      orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async createStudentExtraEducation(studentId: number, dto: CreateExtraEducationDto, currentUserId?: number, currentUserRole?: string) {
+    await this.findOne(studentId);
+    await this.assertCanEditStudent(studentId, currentUserRole, currentUserId);
+
+    const created = await this.prisma.extraEducation.create({
+      data: {
+        studentId,
+        name: dto.name,
+        category: dto.category as any,
+        organization: dto.organization,
+        progress: dto.progress ?? 0,
+        status: dto.status as any,
+        startDate: new Date(dto.startDate),
+        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        mentor: dto.mentor,
+        mentorTitle: dto.mentorTitle ?? null,
+        description: dto.description ?? null,
+        location: dto.location,
+        participants: dto.participants ?? 0,
+        skills: dto.skills ?? [],
+        achievements: dto.achievements && dto.achievements.length ? {
+          create: dto.achievements.map(a => ({
+            title: a.title,
+            description: a.description ?? null,
+            date: new Date(a.date),
+            level: a.level as any,
+          })),
+        } : undefined,
+        schedule: dto.schedule && dto.schedule.length ? {
+          create: dto.schedule.map(s => ({
+            day: s.day,
+            time: s.time,
+          })),
+        } : undefined,
+      },
+      include: { achievements: true, schedule: true },
+    });
+
+    return created;
+  }
+
+  async updateStudentExtraEducation(activityId: string, dto: UpdateExtraEducationDto, currentUserId?: number, currentUserRole?: string) {
+    const existing = await this.prisma.extraEducation.findFirst({
+      where: { id: activityId, deletedAt: null },
+      select: { id: true, studentId: true },
+    });
+    if (!existing) throw new NotFoundException(`Extra education activity ${activityId} not found`);
+
+    await this.assertCanEditStudent(existing.studentId, currentUserRole, currentUserId);
+
+    // Update scalar fields first
+    const data: any = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.category !== undefined && { category: dto.category as any }),
+      ...(dto.organization !== undefined && { organization: dto.organization }),
+      ...(dto.progress !== undefined && { progress: dto.progress }),
+      ...(dto.status !== undefined && { status: dto.status as any }),
+      ...(dto.startDate !== undefined && { startDate: dto.startDate ? new Date(dto.startDate) : null }),
+      ...(dto.endDate !== undefined && { endDate: dto.endDate ? new Date(dto.endDate) : null }),
+      ...(dto.mentor !== undefined && { mentor: dto.mentor }),
+      ...(dto.mentorTitle !== undefined && { mentorTitle: dto.mentorTitle ?? null }),
+      ...(dto.description !== undefined && { description: dto.description ?? null }),
+      ...(dto.location !== undefined && { location: dto.location }),
+      ...(dto.participants !== undefined && { participants: dto.participants }),
+      ...(dto.skills !== undefined && { skills: dto.skills ?? [] }),
+      updatedAt: new Date(),
+    };
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.extraEducation.update({
+        where: { id: activityId },
+        data,
+      });
+
+      if (dto.schedule !== undefined) {
+        await tx.extraSchedule.deleteMany({ where: { activityId } });
+        if (dto.schedule && dto.schedule.length) {
+          await tx.extraSchedule.createMany({
+            data: dto.schedule.map(s => ({ activityId, day: s.day, time: s.time })),
+          });
+        }
+      }
+
+      if (dto.achievements !== undefined) {
+        await tx.extraAchievement.deleteMany({ where: { activityId } });
+        if (dto.achievements && dto.achievements.length) {
+          await tx.extraAchievement.createMany({
+            data: dto.achievements.map(a => ({
+              activityId,
+              title: a.title,
+              description: a.description ?? null,
+              date: new Date(a.date),
+              level: a.level as any,
+            })),
+          });
+        }
+      }
+
+      return tx.extraEducation.findUnique({
+        where: { id: activityId },
+        include: { achievements: true, schedule: true },
+      });
+    });
+
+    return result!;
+  }
+
+  async deleteStudentExtraEducation(activityId: string, currentUserId?: number, currentUserRole?: string) {
+    const existing = await this.prisma.extraEducation.findFirst({
+      where: { id: activityId, deletedAt: null },
+      select: { id: true, studentId: true },
+    });
+    if (!existing) throw new NotFoundException(`Extra education activity ${activityId} not found`);
+
+    await this.assertCanEditStudent(existing.studentId, currentUserRole, currentUserId);
+
+    await this.prisma.extraEducation.update({
+      where: { id: activityId },
+      data: { deletedAt: new Date() },
+    });
+
+    return { success: true };
   }
 
   // === МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ПРЕПОДАВАТЕЛЕЙ СТУДЕНТА ===

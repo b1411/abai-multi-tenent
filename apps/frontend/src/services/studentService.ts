@@ -256,6 +256,63 @@ export interface UpdateCommentData {
   isPrivate?: boolean;
 }
 
+// === Extra Education Types ===
+export type ExtraAchievementLevel = 'WIN' | 'PARTICIPANT' | 'PROJECT' | 'CERT';
+export type ExtraStatus = 'IN_PROGRESS' | 'COMPLETED' | 'PLANNED';
+export type ExtraCategory = 'Кружки' | 'Организации' | 'Курсы' | 'Олимпиады';
+
+export interface ExtraAchievement {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  level: ExtraAchievementLevel;
+}
+
+export interface ExtraSchedule {
+  day: string;
+  time: string;
+}
+
+export interface ExtraActivity {
+  id: string;
+  name: string;
+  category: ExtraCategory;
+  organization: string;
+  progress: number;
+  status: ExtraStatus;
+  startDate: string;
+  endDate?: string;
+  mentor: string;
+  mentorTitle?: string;
+  description: string;
+  schedule: ExtraSchedule[];
+  location: string;
+  participants: number;
+  skills: string[];
+  achievements: ExtraAchievement[];
+}
+
+// Create/Update Extra Education inputs
+export type CreateExtraEducationInput = {
+  name: string;
+  category: ExtraCategory;
+  organization: string;
+  progress?: number;
+  status: ExtraStatus;
+  startDate: string; // ISO
+  endDate?: string;  // ISO
+  mentor: string;
+  mentorTitle?: string;
+  description?: string;
+  location: string;
+  participants?: number;
+  skills?: string[];
+  schedule?: ExtraSchedule[];
+  achievements?: Array<Omit<ExtraAchievement, 'id'>>;
+};
+export type UpdateExtraEducationInput = Partial<CreateExtraEducationInput>;
+
 // === PDP Types ===
 export type PdpPlanStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
 export type PdpGoalStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE';
@@ -824,6 +881,23 @@ export const studentService = {
     subject: string;
   }>> {
     return await apiClient.get(`/students/${studentId}/teachers`);
+  },
+
+  // Дополнительное образование
+  async getStudentExtraEducation(studentId: number): Promise<ExtraActivity[]> {
+    return await apiClient.get<ExtraActivity[]>(`/students/${studentId}/extra-education`);
+  },
+
+  async createStudentExtraEducation(studentId: number, data: CreateExtraEducationInput): Promise<ExtraActivity> {
+    return await apiClient.post<ExtraActivity>(`/students/${studentId}/extra-education`, data);
+  },
+
+  async updateStudentExtraEducation(activityId: string, data: UpdateExtraEducationInput): Promise<ExtraActivity> {
+    return await apiClient.patch<ExtraActivity>(`/students/extra-education/${activityId}`, data);
+  },
+
+  async deleteStudentExtraEducation(activityId: string): Promise<{ success: boolean }> {
+    return await apiClient.delete(`/students/extra-education/${activityId}`);
   },
 
   // ===== ПАГИНАЦИЯ СТУДЕНТОВ =====

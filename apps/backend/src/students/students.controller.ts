@@ -224,7 +224,7 @@ export class StudentsController {
   // === НОВЫЕ МЕТОДЫ ДЛЯ ПОСЕЩАЕМОСТИ, ФИНАНСОВ И ЭМОЦИОНАЛЬНОГО АНАЛИЗА ===
 
   @Get(':id/attendance')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить данные о посещаемости студента',
     description: 'Получает полную статистику посещаемости студента с возможностью фильтрации по датам'
   })
@@ -241,7 +241,7 @@ export class StudentsController {
   }
 
   @Get(':id/finances')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить финансовую информацию студента',
     description: `
 Получает полную финансовую информацию студента включая платежи, задолженности и статистику.
@@ -262,7 +262,7 @@ export class StudentsController {
   }
 
   @Get(':id/emotional-state')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить эмоциональное состояние студента',
     description: `
 Получает данные об эмоциональном состоянии студента на основе feedback форм и отдельных записей.
@@ -283,7 +283,7 @@ export class StudentsController {
   }
 
   @Get(':id/complete-report')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить полный отчет по студенту',
     description: `
 Получает комплексный отчет включающий:
@@ -307,7 +307,7 @@ export class StudentsController {
   // === МЕТОДЫ ДЛЯ РАБОТЫ С ЗАМЕЧАНИЯМИ ===
 
   @Get(':id/remarks')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить замечания студента',
     description: 'Получает все замечания о студенте. Студенты могут видеть только свои замечания.'
   })
@@ -320,7 +320,7 @@ export class StudentsController {
   }
 
   @Post(':id/remarks')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Добавить замечание студенту',
     description: 'Добавляет новое замечание о студенте. Доступно только преподавателям и админам.'
   })
@@ -333,7 +333,7 @@ export class StudentsController {
   }
 
   @Patch('remarks/:remarkId')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Обновить замечание',
     description: 'Обновляет существующее замечание. Доступно только автору замечания или админам.'
   })
@@ -346,7 +346,7 @@ export class StudentsController {
   }
 
   @Delete('remarks/:remarkId')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Удалить замечание',
     description: 'Удаляет замечание. Доступно только автору замечания или админам.'
   })
@@ -361,7 +361,7 @@ export class StudentsController {
   // === МЕТОДЫ ДЛЯ РАБОТЫ С КОММЕНТАРИЯМИ ===
 
   @Get(':id/comments')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить комментарии студента',
     description: 'Получает все комментарии о студенте, которые видны только администрации. Доступно только админам.'
   })
@@ -374,7 +374,7 @@ export class StudentsController {
   }
 
   @Post(':id/comments')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Добавить комментарий студенту',
     description: 'Добавляет новый комментарий о студенте, который виден только администрации. Доступно только админам.'
   })
@@ -387,7 +387,7 @@ export class StudentsController {
   }
 
   @Patch('comments/:commentId')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Обновить комментарий',
     description: 'Обновляет существующий комментарий. Доступно только автору комментария или админам.'
   })
@@ -400,7 +400,7 @@ export class StudentsController {
   }
 
   @Delete('comments/:commentId')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Удалить комментарий',
     description: 'Удаляет комментарий. Доступно только автору комментария или админам.'
   })
@@ -452,7 +452,7 @@ export class StudentsController {
   // === МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ПРЕПОДАВАТЕЛЕЙ СТУДЕНТА ===
 
   @Get(':id/teachers')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить преподавателей студента',
     description: 'Получает список всех преподавателей, которые ведут занятия у данного студента'
   })
@@ -465,7 +465,7 @@ export class StudentsController {
   }
 
   @Get(':id/exams')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить контрольные / экзамены студента',
     description: `
 Возвращает список уроков типа CONTROL_WORK (по умолчанию) или EXAM для всех учебных планов группы студента.

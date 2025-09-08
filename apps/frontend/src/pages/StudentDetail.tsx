@@ -2690,7 +2690,8 @@ const StudentDetail: React.FC = () => {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-gray-900 text-base leading-snug break-words">{p.name}</h3>
+                          <br/>
+<h3 className="font-semibold text-gray-900 text-base leading-snug break-normal text-pretty">{p.name}</h3>
                           <p className="text-xs text-gray-500 mt-1 truncate">{p.organization}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">

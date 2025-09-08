@@ -247,6 +247,37 @@ async function processTenant(t: TenantConfig) {
                 log(t.name, 'Запуск import-students (college, SKIP_TEACHERS=1)');
                 const importEnv = { ...envOverride, SKIP_TEACHERS: '1' };
                 runImport(importEnv);
+
+                // Дополнительно: преподаватели колледжа
+                // Преобразуем apps/backend/scripts/college_teachers.json -> teachers.json и запускаем импорт (без SKIP_TEACHERS)
+                try {
+                  const collegeTeachersPath = path.join(scriptsDir, 'college_teachers.json');
+                  const teachersPath = path.join(scriptsDir, 'teachers.json');
+                  if (fs.existsSync(collegeTeachersPath)) {
+                    const rawT = JSON.parse(fs.readFileSync(collegeTeachersPath, 'utf-8')) as any[];
+                    if (Array.isArray(rawT)) {
+                      const transformedT = rawT.map(r => ({
+                        Email: (r['почта '] || r['Почта'] || r['email'] || r['Email'] || '').toString().trim(),
+                        "Фамилия": (r['Фамилия '] || r['Фамилия'] || '').toString().trim(),
+                        "Имя": (r['Имя'] || '').toString().trim(),
+                        "Отчество": (r['Отчество'] || '').toString().trim(),
+                        "Телефон": ((r['номер телефона '] ?? r['Номер телефона'] ?? r['Телефон'] ?? '') + '').toString().trim(),
+                        "ДатаРождения": (r['дата рождения '] ?? r['Дата рождения'] ?? r['ДатаРождения'] ?? '').toString().trim(),
+                        "Пароль": ''
+                      }));
+                      fs.writeFileSync(teachersPath, JSON.stringify(transformedT, null, 2), 'utf-8');
+                      log(t.name, `Сформирован teachers.json (${transformedT.length}) из college_teachers.json`);
+                      log(t.name, 'Запуск import-students для преподавателей (college)');
+                      runImport(envOverride);
+                    } else {
+                      log(t.name, 'college_teachers.json: ожидался массив');
+                    }
+                  } else {
+                    log(t.name, 'college_teachers.json не найден — пропуск импорта преподавателей колледжа');
+                  }
+                } catch (e:any) {
+                  log(t.name, `Ошибка преобразования college_teachers.json: ${e.message || e}`);
+                }
               } else {
                 log(t.name, 'college-students.json: ожидался массив');
               }

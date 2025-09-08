@@ -132,24 +132,24 @@ export const useBuildings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchBuildings = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await ClassroomService.getBuildings();
-        setBuildings(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Произошла ошибка при загрузке зданий');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchBuildings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ClassroomService.getBuildings();
+      setBuildings(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Произошла ошибка при загрузке зданий');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchBuildings();
   }, []);
 
-  return { buildings, loading, error };
+  return { buildings, loading, error, refresh: fetchBuildings };
 };
 
 export const useEquipmentTypes = () => {
@@ -157,22 +157,22 @@ export const useEquipmentTypes = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchEquipmentTypes = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await ClassroomService.getEquipmentTypes();
-        setEquipmentTypes(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Произошла ошибка при загрузке типов оборудования');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchEquipmentTypes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ClassroomService.getEquipmentTypes();
+      setEquipmentTypes(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Произошла ошибка при загрузке типов оборудования');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchEquipmentTypes();
   }, []);
 
-  return { equipmentTypes, loading, error };
+  return { equipmentTypes, loading, error, refresh: fetchEquipmentTypes };
 };

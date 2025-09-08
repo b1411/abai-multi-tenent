@@ -147,8 +147,8 @@ const StudentDetail: React.FC = () => {
 
   const monthOptions = useMemo(() => ([
     'Все месяцы',
-    'Сентябрь','Октябрь','Ноябрь','Декабрь',
-    'Январь','Февраль','Март','Апрель','Май'
+    'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май'
   ]), []);
 
   const monthNameToNumber = useCallback((name: string): number | undefined => {
@@ -530,7 +530,7 @@ const StudentDetail: React.FC = () => {
     }
   ]);
   */
-  
+
   // Агрегации по распределению и навыкам
   const extraDistribution = useMemo(() => {
     const counts: Record<string, number> = {
@@ -1214,43 +1214,43 @@ const StudentDetail: React.FC = () => {
       ? emotionalData
       : student.EmotionalState
         ? {
-            student: student.id,
-            currentState: {
-              mood: {
-                value: student.EmotionalState.mood,
-                description: student.EmotionalState.moodDesc,
-                trend: student.EmotionalState.moodTrend
-              },
-              concentration: {
-                value: student.EmotionalState.concentration,
-                description: student.EmotionalState.concentrationDesc,
-                trend: student.EmotionalState.concentrationTrend
-              },
-              socialization: {
-                value: student.EmotionalState.socialization,
-                description: student.EmotionalState.socializationDesc,
-                trend: student.EmotionalState.socializationTrend
-              },
-              motivation: {
-                value: student.EmotionalState.motivation,
-                description: student.EmotionalState.motivationDesc,
-                trend: student.EmotionalState.motivationTrend
-              },
-              lastUpdated: student.EmotionalState.updatedAt
+          student: student.id,
+          currentState: {
+            mood: {
+              value: student.EmotionalState.mood,
+              description: student.EmotionalState.moodDesc,
+              trend: student.EmotionalState.moodTrend
             },
-            feedbackHistory: [],
-            trends: {},
-            recommendations: [],
-            source: 'legacy'
-          }
+            concentration: {
+              value: student.EmotionalState.concentration,
+              description: student.EmotionalState.concentrationDesc,
+              trend: student.EmotionalState.concentrationTrend
+            },
+            socialization: {
+              value: student.EmotionalState.socialization,
+              description: student.EmotionalState.socializationDesc,
+              trend: student.EmotionalState.socializationTrend
+            },
+            motivation: {
+              value: student.EmotionalState.motivation,
+              description: student.EmotionalState.motivationDesc,
+              trend: student.EmotionalState.motivationTrend
+            },
+            lastUpdated: student.EmotionalState.updatedAt
+          },
+          feedbackHistory: [],
+          trends: {},
+          recommendations: [],
+          source: 'legacy'
+        }
         : {
-            student: student.id,
-            currentState: null,
-            feedbackHistory: [],
-            trends: {},
-            recommendations: [],
-            source: 'no_data'
-          };
+          student: student.id,
+          currentState: null,
+          feedbackHistory: [],
+          trends: {},
+          recommendations: [],
+          source: 'no_data'
+        };
 
   const emotionalCurrent = effectiveEmotional.currentState;
   const emotionalUpdatedAt = emotionalCurrent?.lastUpdated
@@ -1291,7 +1291,7 @@ const StudentDetail: React.FC = () => {
     return undefined;
   };
 
-  const computeDerivedTrend = (calc: (e:any)=>number|undefined) => {
+  const computeDerivedTrend = (calc: (e: any) => number | undefined) => {
     if (emotionalHistory.length < 2) return { trend: 'neutral' as const, diff: null as number | null };
     const prev = calc(emotionalHistory[emotionalHistory.length - 2]);
     const curr = calc(emotionalHistory[emotionalHistory.length - 1]);
@@ -1388,8 +1388,8 @@ const StudentDetail: React.FC = () => {
               <button
                 key={tab.id}
                 className={`pb-3 px-2 text-sm font-medium flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
                 onClick={() => setActiveTab(tab.id)}
               >
@@ -1457,7 +1457,7 @@ const StudentDetail: React.FC = () => {
                   description={emotionalCurrent?.socialization.description}
                   trend={socializationTrend}
                 />
-                
+
                 <EmotionMetricCard
                   title="Вовлеченность"
                   icon={<FaChartLine className="w-6 h-6 drop-shadow" />}
@@ -1665,8 +1665,8 @@ const StudentDetail: React.FC = () => {
                       {result.attendance !== null && (
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${result.attendance
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
                             }`}
                         >
                           {result.attendance ? 'Присутствовал' : 'Отсутствовал'}
@@ -1676,10 +1676,10 @@ const StudentDetail: React.FC = () => {
                         result.lessonScore !== undefined && (
                           <span
                             className={`px-3 py-1 rounded-lg text-sm font-semibold text-white ${result.lessonScore >= 4
-                                ? 'bg-green-500'
-                                : result.lessonScore >= 3
-                                  ? 'bg-yellow-500'
-                                  : 'bg-red-500'
+                              ? 'bg-green-500'
+                              : result.lessonScore >= 3
+                                ? 'bg-yellow-500'
+                                : 'bg-red-500'
                               }`}
                           >
                             {result.lessonScore}
@@ -1805,13 +1805,12 @@ const StudentDetail: React.FC = () => {
                             </p>
                           </div>
                           <span
-                            className={`px-3 py-1 rounded-md text-sm font-semibold text-white ${
-                              a.score >= 4
+                            className={`px-3 py-1 rounded-md text-sm font-semibold text-white ${a.score >= 4
                                 ? 'bg-green-500'
                                 : a.score >= 3
                                   ? 'bg-yellow-500'
                                   : 'bg-red-500'
-                            }`}
+                              }`}
                           >
                             {a.score}
                           </span>
@@ -2611,10 +2610,10 @@ const StudentDetail: React.FC = () => {
                           <td className="px-6 py-4">
                             <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${payment.status === 'paid'
-                                  ? 'bg-green-100 text-green-800'
-                                  : payment.status === 'overdue'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
+                                ? 'bg-green-100 text-green-800'
+                                : payment.status === 'overdue'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
                                 }`}
                             >
                               {payment.status === 'paid'
@@ -2690,8 +2689,8 @@ const StudentDetail: React.FC = () => {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <br/>
-<h3 className="font-semibold text-gray-900 text-base leading-snug break-normal text-pretty">{p.name}</h3>
+                          <br />
+                          <h3 className="font-semibold text-gray-900 text-base leading-snug break-normal text-pretty">{p.name}</h3>
                           <p className="text-xs text-gray-500 mt-1 truncate">{p.organization}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -2833,10 +2832,10 @@ const StudentDetail: React.FC = () => {
                         <div className="h-2 w-full bg-gray-200 rounded">
                           <div
                             className={`h-2 rounded ${p.progress >= 100
-                                ? 'bg-green-500'
-                                : p.progress >= 60
-                                  ? 'bg-blue-500'
-                                  : 'bg-yellow-500'
+                              ? 'bg-green-500'
+                              : p.progress >= 60
+                                ? 'bg-blue-500'
+                                : 'bg-yellow-500'
                               }`}
                             style={{ width: `${Math.min(100, p.progress)}%` }}
                           />
@@ -3022,12 +3021,12 @@ const StudentDetail: React.FC = () => {
                           <div className="flex items-center gap-3">
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-medium ${remark.type === 'ACADEMIC'
-                                  ? 'bg-orange-100 text-orange-800'
-                                  : remark.type === 'BEHAVIOR'
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : remark.type === 'ATTENDANCE'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : 'bg-gray-100 text-gray-800'
+                                ? 'bg-orange-100 text-orange-800'
+                                : remark.type === 'BEHAVIOR'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : remark.type === 'ATTENDANCE'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
                                 }`}
                             >
                               {remark.type === 'ACADEMIC'
@@ -3171,10 +3170,10 @@ const StudentDetail: React.FC = () => {
                           <div className="flex items-center gap-3">
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-medium ${comment.type === 'ACADEMIC'
-                                  ? 'bg-green-100 text-green-800'
-                                  : comment.type === 'GENERAL'
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : 'bg-gray-100 text-gray-800'
+                                ? 'bg-green-100 text-green-800'
+                                : comment.type === 'GENERAL'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : 'bg-gray-100 text-gray-800'
                                 }`}
                             >
                               {comment.type === 'ACADEMIC'
@@ -4015,7 +4014,7 @@ const StudentDetail: React.FC = () => {
   );
 };
 
-const TrendBadge: React.FC<{label:string;trend:'up'|'down'|'neutral';diff:number|null}> = ({label, trend, diff}) => {
+const TrendBadge: React.FC<{ label: string; trend: 'up' | 'down' | 'neutral'; diff: number | null }> = ({ label, trend, diff }) => {
   const color =
     trend === 'up'
       ? 'text-green-600'

@@ -28,8 +28,8 @@ const CLASSROOM_TYPE_COLORS: Record<ClassroomType, string> = {
 const Classrooms: React.FC = () => {
   const { user } = useAuth();
 const { classrooms, loading, error, deleteClassroom, createClassroom, updateClassroom, fetchClassrooms } = useClassrooms();
-  const { buildings } = useBuildings();
-  const { equipmentTypes } = useEquipmentTypes();
+  const { buildings, refresh: refreshBuildings } = useBuildings();
+  const { equipmentTypes, refresh: refreshEquipment } = useEquipmentTypes();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('');
@@ -97,6 +97,7 @@ const [detailsClassroomId, setDetailsClassroomId] = useState<number | null>(null
   const handleDeleteClassroom = async (id: number) => {
     try {
       await deleteClassroom(id);
+      await Promise.all([fetchClassrooms(), refreshBuildings(), refreshEquipment()]);
       setShowDeleteConfirm(null);
     } catch (error) {
       console.error('Ошибка при удалении аудитории:', error);
@@ -105,11 +106,13 @@ const [detailsClassroomId, setDetailsClassroomId] = useState<number | null>(null
 
   const handleCreateClassroom = async (data: any) => {
     await createClassroom(data);
+    await Promise.all([fetchClassrooms(), refreshBuildings(), refreshEquipment()]);
   };
 
   const handleUpdateClassroom = async (data: any) => {
     if (selectedClassroom) {
       await updateClassroom(selectedClassroom.id, data);
+      await Promise.all([fetchClassrooms(), refreshBuildings(), refreshEquipment()]);
     }
   };
 

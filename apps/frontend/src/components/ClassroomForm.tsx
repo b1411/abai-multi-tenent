@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FaTimes, FaPlus, FaTrash } from 'react-icons/fa';
 import { CreateClassroomDto, UpdateClassroomDto, ClassroomType, Classroom } from '../types/classroom';
 import { useBuildings, useEquipmentTypes } from '../hooks/useClassrooms';
@@ -42,6 +42,16 @@ const ClassroomForm: React.FC<ClassroomFormProps> = ({
   const [newEquipment, setNewEquipment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Варианты зданий: объединяем варианты из API с текущим значением формы,
+  // чтобы новое здание сразу появлялось в списке и выбиралось.
+  const buildingOptions = useMemo(() => {
+    const set = new Set<string>(buildings);
+    if (formData.building && formData.building.trim()) {
+      set.add(formData.building.trim());
+    }
+    return Array.from(set).sort();
+  }, [buildings, formData.building]);
 
   // Заполнение формы при редактировании
   useEffect(() => {
@@ -218,7 +228,7 @@ const ClassroomForm: React.FC<ClassroomFormProps> = ({
                 disabled={isSubmitting}
               >
                 <option value="">Выберите здание</option>
-                {buildings.map(building => (
+                {buildingOptions.map(building => (
                   <option key={building} value={building}>{building}</option>
                 ))}
               </select>
@@ -230,6 +240,7 @@ const ClassroomForm: React.FC<ClassroomFormProps> = ({
                 type="text"
                 value={newBuilding}
                 onChange={(e) => setNewBuilding(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddBuilding(); } }}
                 placeholder="Новое здание"
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 disabled={isSubmitting}

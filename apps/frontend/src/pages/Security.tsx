@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, RefreshCw } from 'lucide-react';
-import AlertsFeed from '../components/security/AlertsFeed';
 import CameraStream from '../components/security/CameraStream';
 import EmergencyButtons from '../components/security/EmergencyButtons';
 import FaceIDLog from '../components/security/FaceIDLog';
@@ -75,11 +74,6 @@ const Security: React.FC = () => {
   }, []);
 
   // Обработчики событий
-  const handleAlertClick = (alert: SecurityAlert) => {
-    setSelectedAlert(alert);
-    // Здесь можно открыть модальное окно с деталями
-    console.log('Просмотр деталей тревоги:', alert);
-  };
 
   const handleResolveAlert = (alertId: string) => {
     setAlerts(current =>
@@ -230,18 +224,9 @@ const Security: React.FC = () => {
 
       {/* Основная сетка компонентов - мобильная адаптация */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6">
-        {/* Левая колонка - Тревоги */}
-        <div className="md:col-span-1 lg:col-span-4 space-y-4 md:space-y-6">
-          {/* Лента тревог */}
-          <AlertsFeed
-            alerts={alerts}
-            onAlertClick={handleAlertClick}
-            onResolveAlert={handleResolveAlert}
-          />
-        </div>
 
         {/* Центральная колонка - Видеопоток и метрики */}
-        <div className="md:col-span-1 lg:col-span-4 space-y-4 md:space-y-6">
+        <div className="md:col-span-1 lg:col-span-6 space-y-4 md:space-y-6">
           {/* Видеопоток с ИИ */}
           <CameraStream
             camera={cameras[0]}
@@ -255,7 +240,7 @@ const Security: React.FC = () => {
         </div>
 
         {/* Правая колонка - Экстренные кнопки */}
-        <div className="md:col-span-2 lg:col-span-4 space-y-4 md:space-y-6">
+        <div className="md:col-span-2 lg:col-span-6 space-y-4 md:space-y-6">
           {/* Экстренные кнопки */}
           <EmergencyButtons
             onEmergencyCall={handleEmergencyCall}

@@ -832,8 +832,8 @@ const SchedulePage: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // В календарном виде загружаем больше данных, чтобы показать все регулярные занятия
-      const effectivePageSize = viewMode === 'calendar' ? 1000 : pageSize;
+  // Для календаря и сетки загружаем много записей, чтобы охватить все дни недели
+  const effectivePageSize = (viewMode === 'calendar' || viewMode === 'grid') ? 1000 : pageSize;
 
       const requestFilters = {
         ...(filters.groupId && { groupId: parseInt(filters.groupId) }),
@@ -856,13 +856,42 @@ const SchedulePage: React.FC = () => {
         user?.id,
         requestFilters
       );
-      // Если backend возвращает массив — вручную ограничим размер при необходимости
+
+      // Функция нормализации: гарантируем наличие string day (monday..sunday)
+      const mapNumberToDay = (n?: number | null): ScheduleItem['day'] | undefined => {
+        if (!n) return undefined;
+        const arr: ScheduleItem['day'][] = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        return arr[n-1];
+      };
+      const deriveDayFromDate = (dateStr?: string | null): ScheduleItem['day'] | undefined => {
+        if (!dateStr) return undefined;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return undefined;
+        const weekday = d.getDay(); // 0=Sunday
+        const map: Record<number, ScheduleItem['day']> = {0:'sunday',1:'monday',2:'tuesday',3:'wednesday',4:'thursday',5:'friday',6:'saturday'};
+        return map[weekday];
+      };
+      const normalize = (items: ScheduleItem[]): ScheduleItem[] => items.map(it => ({
+        ...it,
+        day: it.day || mapNumberToDay((it as any).dayOfWeek) || deriveDayFromDate(it.date) || it.day
+      }));
+
       if (Array.isArray(response)) {
-        setSchedule(response.slice(0, effectivePageSize));
+        const items = response.slice(0, effectivePageSize);
+  const norm = normalize(items);
+  const dayStats: Record<string, number> = {};
+  norm.forEach(i => { dayStats[i.day] = (dayStats[i.day] || 0) + 1; });
+  console.log('Распределение занятий по дням (array response):', dayStats);
+  setSchedule(norm);
         setTotal(response.length);
       } else {
-        setSchedule(response.items || []);
-        setTotal(response.total || 0);
+        const items = response.items || [];
+  const norm = normalize(items);
+  const dayStats: Record<string, number> = {};
+  norm.forEach(i => { dayStats[i.day] = (dayStats[i.day] || 0) + 1; });
+  console.log('Распределение занятий по дням (paged response):', dayStats);
+  setSchedule(norm);
+        setTotal(response.total || items.length || 0);
       }
     } catch (error) {
       console.error('Ошибка загрузки расписания:', error);
@@ -1500,6 +1529,100 @@ const SchedulePage: React.FC = () => {
   ];
   const gridTimes: string[] = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
 
+  // Вспомогательные функции для работы со временем в сетке
+  const timeToMinutes = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const getSlotRange = (time: string) => {
+    const start = timeToMinutes(time);
+    const idx = gridTimes.indexOf(time);
+    const end = idx >= 0 && idx < gridTimes.length - 1 ? timeToMinutes(gridTimes[idx + 1]) : start + 60; // последний слот = +60 мин
+    return { start, end };
+  };
+
+  // --- Построение набора элементов для недельной сетки ---
+  const buildGridItems = () => {
+    const items = getFilteredSchedule();
+    if (!items.length) return [] as ScheduleItem[];
+
+    // Границы текущей недели (понедельник-воскресенье) по локальному времени
+    const now = new Date();
+    const day = (now.getDay() + 6) % 7; // 0..6 (0 = Monday)
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - day);
+    weekStart.setHours(0,0,0,0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23,59,59,999);
+
+    const toUTCDateOnly = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    const inWeek = (dateStr?: string) => {
+      if (!dateStr) return true; // для регулярных без конкретной даты – показываем, потом отфильтруем biweekly
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return true;
+      const t = toUTCDateOnly(d);
+      return t >= toUTCDateOnly(weekStart) && t <= toUTCDateOnly(weekEnd);
+    };
+
+    const weekNumber = (date: Date) => {
+      const firstJan = new Date(date.getFullYear(),0,1);
+      const diff = date.getTime() - firstJan.getTime();
+      return Math.floor(diff / (1000*60*60*24*7));
+    };
+
+    const anchorWeekCache: Record<string, number> = {};
+    const getAnchorWeek = (it: ScheduleItem) => {
+      if (it.id in anchorWeekCache) return anchorWeekCache[it.id];
+      let anchor: Date | undefined;
+      if (it.startDate) anchor = new Date(it.startDate);
+      else if (it.date) anchor = new Date(it.date);
+      if (!anchor || isNaN(anchor.getTime())) anchor = now; // fallback
+      const w = weekNumber(anchor);
+      anchorWeekCache[it.id] = w;
+      return w;
+    };
+
+    const currentWeekNumber = weekNumber(weekStart);
+
+    const map = new Map<string, ScheduleItem>();
+
+    for (const it of items) {
+      // Фильтрация по неделе для одноразовых (once) и датированных
+      if (it.repeat === 'once' || it.date) {
+        if (!inWeek(it.date)) continue;
+      }
+
+      // Biweekly: показываем только если чётность недели совпадает
+      if (it.repeat === 'biweekly') {
+        const anchorWeek = getAnchorWeek(it);
+        if ((currentWeekNumber - anchorWeek) % 2 !== 0) continue; // не эта неделя
+      }
+
+      // Ключ для уникальности занятия в недельной сетке
+      const key = [it.day, it.startTime, it.subject, it.classId, it.teacherId, it.roomId, it.repeat].join('|');
+      if (!map.has(key)) {
+        map.set(key, it);
+      } else {
+        // Если есть несколько одноразовых в той же ячейке текущей недели – оставляем ближайшую по дате
+        const existing = map.get(key)!;
+        if (it.date && existing.date) {
+          const dNew = new Date(it.date).getTime();
+          const dOld = new Date(existing.date).getTime();
+          if (Math.abs(dNew - weekStart.getTime()) < Math.abs(dOld - weekStart.getTime())) {
+            map.set(key, it);
+          }
+        } else if (it.date && !existing.date) {
+          // Предпочитаем конкретизированную дату над шаблонной
+          map.set(key, it);
+        }
+      }
+    }
+    return Array.from(map.values());
+  };
+
+  const gridItems = buildGridItems();
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -1615,8 +1738,8 @@ const SchedulePage: React.FC = () => {
                   className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 flex items-center justify-center transition-colors text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm"
                 >
                   <Bot className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="hidden sm:inline">AI Планирование (планы)</span>
-                  <span className="sm:hidden">AI Планы</span>
+                  <span className="hidden sm:inline">Умная генерация расписания</span>
+                  <span className="sm:hidden">Умная генерация</span>
                 </NavLink>
               </div>
             )}
@@ -2175,9 +2298,16 @@ const SchedulePage: React.FC = () => {
                         {time}
                       </div>
                       {gridDays.map(({ key: day }) => {
-                        const itemsInCell = getFilteredSchedule().filter(
-                          (item) => item.day === day && item.startTime === time
-                        );
+                        // Показываем все занятия, время начала которых попадает в диапазон текущего слота [time, nextTime)
+                        const { start: slotStart, end: slotEnd } = getSlotRange(time);
+                        const itemsInCell = gridItems
+                          .filter((item) => {
+                            if (item.day !== day) return false;
+                            if (!item.startTime) return false;
+                            const m = timeToMinutes(item.startTime);
+                            return m >= slotStart && m < slotEnd; // попадает в часовой интервал
+                          })
+                          .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
                         const droppableId = `${day}-${time}`;
 
                         return (
@@ -2224,9 +2354,15 @@ const SchedulePage: React.FC = () => {
                 {/* Times list for selected day */}
                 <div className="mt-2 space-y-2">
                   {gridTimes.map((time) => {
-                    const itemsInCell = getFilteredSchedule().filter(
-                      (item) => item.day === selectedGridDay && item.startTime === time
-                    );
+                    const { start: slotStart, end: slotEnd } = getSlotRange(time);
+                    const itemsInCell = gridItems
+                      .filter((item) => {
+                        if (item.day !== selectedGridDay) return false;
+                        if (!item.startTime) return false;
+                        const m = timeToMinutes(item.startTime);
+                        return m >= slotStart && m < slotEnd;
+                      })
+                      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
                     const droppableId = `${selectedGridDay}-${time}`;
                     return (
                       <div key={time} className="flex items-stretch gap-2">

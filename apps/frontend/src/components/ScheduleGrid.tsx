@@ -94,6 +94,8 @@ interface ScheduleGridProps {
     end: string;
   };
   slotStepMinutes?: number;
+  /** Существующее расписание (не перетаскивается), для подсветки конфликтов */
+  externalLessons?: ScheduleLesson[];
 }
 
 // Компонент урока в сетке
@@ -461,13 +463,15 @@ const ConflictModal: React.FC<ConflictModalProps> = ({
 const TimeSlotCell: React.FC<{
   date: string;
   timeSlot: TimeSlot;
-  lessons: ScheduleLesson[];
+  lessons: ScheduleLesson[]; // только новые уроки (редактируемые)
+  externalLessons?: ScheduleLesson[]; // существующие
   onDropLesson: (lessonId: string, date: string, time: string) => void;
-  allLessons: ScheduleLesson[];
-}> = ({ date, timeSlot, lessons, onDropLesson, allLessons }) => {
+  allLessons: ScheduleLesson[]; // все новые уроки (для быстрой валидации)
+}> = ({ date, timeSlot, lessons, externalLessons = [], onDropLesson, allLessons }) => {
   const cellLessons = lessons.filter(
     lesson => lesson.date === date && lesson.startTime === timeSlot.time
   );
+  const cellExternal = externalLessons.filter(l => l.date === date && l.startTime === timeSlot.time);
 
   const dropId = `slot::${date}::${timeSlot.time}`;
   
@@ -477,21 +481,19 @@ const TimeSlotCell: React.FC<{
 
   // Проверяем наличие конфликтов в этой ячейке
   const hasConflicts = useMemo(() => {
-    if (cellLessons.length <= 1) return false;
-    
-    const teachers = cellLessons.map(l => l.teacherId);
-    const groups = cellLessons.map(l => l.groupId);
-    const classrooms = cellLessons.map(l => l.classroomId).filter(Boolean);
-    
-    // Проверяем дублирующиеся учителей, группы или аудитории
+    // Конфликт если внутри новых >1 с одним ресурсом ИЛИ пересечение нового и существующего по любому ресурсу
+    const combined = [...cellLessons, ...cellExternal];
+    if (combined.length <= 1) return false;
+    const teachers = combined.map(l => l.teacherId);
+    const groups = combined.map(l => l.groupId);
+    const classrooms = combined.map(l => l.classroomId).filter(Boolean);
     const uniqueTeachers = [...new Set(teachers)];
     const uniqueGroups = [...new Set(groups)];
     const uniqueClassrooms = [...new Set(classrooms)];
-    
-    return teachers.length !== uniqueTeachers.length || 
-           groups.length !== uniqueGroups.length || 
-           (classrooms.length > 0 && classrooms.length !== uniqueClassrooms.length);
-  }, [cellLessons]);
+    return teachers.length !== uniqueTeachers.length ||
+      groups.length !== uniqueGroups.length ||
+      (classrooms.length > 0 && classrooms.length !== uniqueClassrooms.length);
+  }, [cellLessons, cellExternal]);
 
   const style = {
     backgroundColor: isOver ? '#f0f9ff' : hasConflicts ? '#fef2f2' : undefined,
@@ -514,18 +516,35 @@ const TimeSlotCell: React.FC<{
         </div>
       )}
       
-      {cellLessons.length > 0 && (
+      {(cellLessons.length > 0 || cellExternal.length > 0) && (
         <div className="space-y-1">
-          {cellLessons.map((lesson, index) => (
-            <DraggableLessonCard 
-              key={lesson.id} 
+          {cellExternal.map(ext => (
+            <div
+              key={`ext-${ext.id}`}
+              className="bg-gray-300/70 text-gray-800 p-2 rounded-lg shadow-sm border border-dashed border-gray-400 cursor-not-allowed opacity-70"
+              title="Существующий урок (только для чтения)"
+            >
+              <div className="text-[10px] font-semibold flex items-center justify-between">
+                <span>{ext.subject}</span>
+                <span className="text-[8px] uppercase tracking-wide">EXIST</span>
+              </div>
+              <div className="text-[10px]">{ext.groupName}</div>
+              <div className="text-[10px] opacity-80 flex items-center"><Clock className="h-3 w-3 mr-1" />{ext.startTime}</div>
+              {ext.classroomName && (
+                <div className="text-[10px] opacity-80 flex items-center"><MapPin className="h-3 w-3 mr-1" />{ext.classroomName}</div>
+              )}
+            </div>
+          ))}
+          {cellLessons.map(lesson => (
+            <DraggableLessonCard
+              key={lesson.id}
               lesson={lesson}
-              onClick={() => {}} // Можно добавить обработчик клика
+              onClick={() => {}}
             />
           ))}
         </div>
       )}
-      {cellLessons.length === 0 && (
+      {cellLessons.length === 0 && cellExternal.length === 0 && (
         <div className="h-full w-full flex items-center justify-center text-gray-300">
           <div className="text-xs">
             {isOver ? 'Отпустите здесь' : 'Свободно'}
@@ -542,6 +561,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   quarterSettings,
   workingHours,
   slotStepMinutes,
+  externalLessons = [],
 }) => {
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -639,9 +659,11 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   const conflictAnalysis = useMemo(() => {
     const conflicts: ConflictInfo[] = [];
     const conflictedLessons = new Set<string>();
+    // Для анализа используем совокупность новых и существующих
+    const all = [...lessons, ...externalLessons];
 
-    for (const lesson of lessons) {
-      const otherLessons = lessons.filter(l => l.id !== lesson.id);
+    for (const lesson of all) {
+      const otherLessons = all.filter(l => l.id !== lesson.id);
       
       // Проверка конфликтов учителя
       const teacherConflicts = otherLessons.filter(
@@ -711,7 +733,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
       },
       conflicts
     };
-  }, [lessons]);
+  }, [lessons, externalLessons]);
 
   // Фильтруем уроки
   const filteredLessons = useMemo(() => {
@@ -826,11 +848,13 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   };
 
   const getDateLabel = (dateString: string) => {
-    const date = new Date(dateString);
+    // Парсим дату в UTC чтобы исключить сдвиг часового пояса
+    const [y,m,d] = dateString.split('-').map(Number);
+    const date = new Date(Date.UTC(y, (m||1)-1, d||1));
     const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
     const monthNames = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-    
-    return `${dayNames[date.getDay()]} ${date.getDate()} ${monthNames[date.getMonth()]}`;
+    const dow = date.getUTCDay();
+    return `${dayNames[dow]} ${String(d).padStart(2,'0')} ${monthNames[date.getUTCMonth()]}`;
   };
 
   return (
@@ -1001,13 +1025,13 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
             </div>
 
             {/* Таблица расписания */}
-            <div className="border rounded-lg overflow-hidden bg-white">
-              <table className="w-full">
+            <div className="border rounded-lg overflow-x-auto bg-white">
+              <table className="min-w-max">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="border-r w-20 p-2 text-xs font-medium">Время</th>
+                    <th className="border-r w-20 p-2 text-xs font-medium sticky left-0 bg-gray-50 z-10">Время</th>
                     {workingDays.map(date => (
-                      <th key={date} className="border-r min-w-[150px] p-2 text-xs font-medium">
+                      <th key={date} className="border-r min-w-[140px] p-2 text-xs font-medium whitespace-nowrap">
                         {getDateLabel(date)}
                       </th>
                     ))}
@@ -1016,7 +1040,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                 <tbody>
                   {timeSlots.map(timeSlot => (
                     <tr key={timeSlot.time}>
-                      <td className="border-r border-b p-2 bg-gray-50 text-xs font-medium">
+                      <td className="border-r border-b p-2 bg-gray-50 text-xs font-medium sticky left-0 z-10">
                         {timeSlot.time}
                       </td>
                       {workingDays.map(date => (
@@ -1025,6 +1049,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                             date={date}
                             timeSlot={timeSlot}
                             lessons={filteredLessons}
+                            externalLessons={externalLessons}
                             allLessons={lessons}
                             onDropLesson={(lessonId, newDate, newTime) => {
                               const updatedLessons = lessons.map(lesson => {

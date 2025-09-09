@@ -12,6 +12,7 @@ import { JwtService } from '../jwt/jwt.service';
 import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FilesService } from 'src/files/files.service';
+import { ScheduleOptimizerService } from './schedule-optimizer.service';
 
 @Module({
   controllers: [ScheduleController, ScheduleAiController, ScheduleAiFlowController],
@@ -25,6 +26,7 @@ import { FilesService } from 'src/files/files.service';
     JwtService,
     AiAssistantService,
     NotificationsService,
+    ScheduleOptimizerService,
     FilesService
   ],
   exports: [
@@ -32,7 +34,8 @@ import { FilesService } from 'src/files/files.service';
     LessonScheduleService,
     ScheduleAiService,
     ScheduleManagementService,
-    ScheduleAiFlowService
+    ScheduleAiFlowService,
+    ScheduleOptimizerService
   ],
 })
 export class ScheduleModule { }

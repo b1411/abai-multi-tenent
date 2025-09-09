@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -29,8 +30,8 @@ import { Button, Loading } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import ScheduleGrid from '../components/ScheduleGrid';
 import scheduleService from '../services/scheduleService';
-import apiClient from '../services/apiClient';
 import { GroupOption, ClassroomOption, TeacherOption, StudyPlanOption } from '../types/schedule';
+import { GenerationParams as FlowGenerationParams, DraftItem, OptimizedScheduleResponse, ApplyResponse } from '../types/aiScheduleFlow';
 
 // Константы для праздников Казахстана
 const KAZAKHSTAN_HOLIDAYS_2024_2025: { [key: string]: string } = {
@@ -64,33 +65,41 @@ const KAZAKHSTAN_HOLIDAYS_2024_2025: { [key: string]: string } = {
   '2025-12-16': 'День независимости'
 };
 
-// Стандартные четверти учебного года
-const ACADEMIC_QUARTERS = {
-  1: { 
+// Динамическое построение четвертей учебного года
+// baseYear = год начала учебного года (сентябрь baseYear – май baseYear+1)
+const buildAcademicQuarters = (baseYear: number) => ({
+  1: {
     label: '1 четверть',
-    start: '2024-09-02', 
-    end: '2024-10-27',
+    // Обычно старт со 2 сентября (1-е – День знаний/церемонии)
+    start: `${baseYear}-09-02`,
+    // Конец аналогично прежней структуре: последняя неделя октября (берём ту же дату сдвига)
+    end: `${baseYear}-10-27`,
     description: 'Сентябрь - Октябрь (8-9 недель)'
   },
-  2: { 
+  2: {
     label: '2 четверть',
-    start: '2024-11-05', 
-    end: '2024-12-22',
+    start: `${baseYear}-11-05`,
+    end: `${baseYear}-12-22`,
     description: 'Ноябрь - Декабрь (7-8 недель)'
   },
-  3: { 
+  3: {
     label: '3 четверть',
-    start: '2025-01-09', 
-    end: '2025-03-16',
+    start: `${baseYear + 1}-01-09`,
+    end: `${baseYear + 1}-03-16`,
     description: 'Январь - Март (9-10 недель)'
   },
-  4: { 
+  4: {
     label: '4 четверть',
-    start: '2025-04-01', 
-    end: '2025-05-25',
+    start: `${baseYear + 1}-04-01`,
+    end: `${baseYear + 1}-05-25`,
     description: 'Апрель - Май (7-8 недель)'
   }
-};
+});
+
+// Определяем текущий учебный год: если сейчас август (7) или позже — baseYear = текущий, иначе предыдущий
+const NOW = new Date();
+const CURRENT_BASE_YEAR = NOW.getMonth() >= 7 ? NOW.getFullYear() : NOW.getFullYear() - 1;
+const ACADEMIC_QUARTERS = buildAcademicQuarters(CURRENT_BASE_YEAR);
 
 // Моковые данные для демонстрации
 const MOCK_GROUPS = [
@@ -246,6 +255,13 @@ const AISchedulePage: React.FC = () => {
 
   const [generatedSchedule, setGeneratedSchedule] = useState<GeneratedLesson[]>([]);
   const [scheduleStats, setScheduleStats] = useState<any>(null);
+  const [flowDraft, setFlowDraft] = useState<DraftItem[] | null>(null);
+  const [flowOptimized, setFlowOptimized] = useState<OptimizedScheduleResponse | null>(null);
+  const [flowValidation, setFlowValidation] = useState<any>(null);
+  // Существующее расписание для выбранных групп (для подсветки конфликтов)
+  const [existingLessons, setExistingLessons] = useState<any[]>([]);
+  // Переключатель отображения недели A/B для biweekly шаблонов
+  const [biweeklyView, setBiweeklyView] = useState<'A' | 'B'>('A');
   
   // Состояние для кастомизации предметов
   const [customSubjectHours, setCustomSubjectHours] = useState<{ [key: string]: number }>({});
@@ -256,8 +272,24 @@ const AISchedulePage: React.FC = () => {
   // Состояние для пожеланий педагогов
   const [teacherPreferences, setTeacherPreferences] = useState<{ [key: string]: TeacherPreference[] }>({});
 
+  // Bulk выбор и настройка предметов (шаг 2)
+  const [selectedSubjectKeys, setSelectedSubjectKeys] = useState<string[]>([]);
+  const [bulkHours, setBulkHours] = useState<number>(1);
+
   // Состояние для полноэкранного режима
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Обновляем границы четверти если изменился базовый учебный год (перезагрузка осенью)
+  useEffect(() => {
+    setQuarterSettings(prev => {
+      const q = ACADEMIC_QUARTERS[prev.quarterNumber];
+      // Если год в startDate не совпадает с актуальным baseYear — обновляем
+      if (!prev.startDate.startsWith(String(CURRENT_BASE_YEAR))) {
+        return { ...prev, startDate: q.start, endDate: q.end };
+      }
+      return prev;
+    });
+  }, [CURRENT_BASE_YEAR]);
 
   // Загрузка реальных данных
   useEffect(() => {
@@ -286,6 +318,72 @@ const AISchedulePage: React.FC = () => {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Перезагрузка списка учебных планов при изменении выбранных групп, чтобы гарантировать что multi-group планы подтягиваются для каждой группы
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!selectedGroups.length) return; // ничего не делаем если нет выбора
+      try {
+        const promises = selectedGroups.map(gid => scheduleService.getStudyPlans({ groupId: gid, limit: 500 }));
+        const results = await Promise.all(promises);
+        if (cancelled) return;
+        // Плоский список; дубли (один и тот же plan для разных групп) сохраняем как отдельные записи с уникальным составным id
+        const merged: any[] = [];
+        const seen = new Set<string>();
+        for (const list of results) {
+          for (const sp of list) {
+            const key = `${sp.id}-${sp.groupId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            merged.push(sp);
+          }
+        }
+        // Сохраняем вместе с уже загруженными (если хотим объединить) или заменяем; заменяем чтобы убрать старые нерелевантные
+        setStudyPlans(merged as any);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedGroups]);
+
+  // Подгружаем существующее расписание по выбранным группам при переходе к шагам генерации/валидации
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (selectedGroups.length === 0) {
+        setExistingLessons([]);
+        return;
+      }
+      try {
+        // Получаем все записи (без пагинации) и фильтруем по диапазону четверти
+        const raw = await scheduleService.getScheduleForUser('ADMIN');
+        if (cancelled) return;
+        const arr = Array.isArray(raw) ? raw : (raw as any).items || [];
+        const filtered = arr.filter((it: any) => selectedGroups.includes(Number(it.classId)) || selectedGroups.includes(Number(it.groupId)));
+        // Преобразуем к формату ScheduleLesson, стараемся сохранить id и поля
+        const toLesson = (it: any) => ({
+          id: `exist-${it.id}`,
+          date: it.date || it.startDate || quarterSettings.startDate,
+          startTime: it.startTime,
+            endTime: it.endTime,
+          subject: it.subject || 'Предмет',
+          groupId: Number(it.groupId || it.classId) || 0,
+          groupName: String(it.classId || it.groupName || it.groupId || ''),
+          teacherId: Number(it.teacherId) || 0,
+          teacherName: it.teacherName || '',
+          classroomId: it.classroomId ? Number(it.classroomId) : undefined,
+          classroomName: it.roomId || it.classroomName,
+          color: undefined
+        });
+        setExistingLessons(filtered.map(toLesson));
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedGroups, quarterSettings.startDate, quarterSettings.endDate]);
 
   // Предустановленные пожелания педагогов
   const getDefaultTeacherPreferences = (teacherId: number): TeacherPreference[] => [
@@ -584,9 +682,32 @@ const AISchedulePage: React.FC = () => {
   };
 
   const updateSubjectHours = (subjectKey: string, hours: number) => {
-    setCustomSubjectHours({
-      ...customSubjectHours,
+    setCustomSubjectHours(prev => ({
+      ...prev,
       [subjectKey]: hours
+    }));
+  };
+
+  // Helpers for bulk selection/actions
+  const toggleSubjectSelected = (key: string) => {
+    setSelectedSubjectKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
+  const selectAllSubjects = () => {
+    const keys = getSelectedSubjects().map((sp: any) => `${sp.groupId}-${sp.id}`);
+    setSelectedSubjectKeys(keys);
+  };
+  const clearSubjectSelection = () => setSelectedSubjectKeys([]);
+  const applyBulkHours = () => {
+    if (!Number.isFinite(bulkHours) || bulkHours < 1 || bulkHours > 8) return;
+    setCustomSubjectHours(prev => {
+      const next = { ...prev };
+      for (const sp of getSelectedSubjects()) {
+        const key = `${sp.groupId}-${sp.id}`;
+        if (selectedSubjectKeys.includes(key)) {
+          next[key] = bulkHours;
+        }
+      }
+      return next;
     });
   };
 
@@ -871,153 +992,138 @@ const AISchedulePage: React.FC = () => {
   const generateSchedule = async () => {
     setLoading(true);
     try {
-      // Формируем промпт для backend AI
-      const teacherPart = teachers.map(t => `${t.id}:${t.name} ${t.surname}`).join('\n');
-      const groupPart = groups
-        .filter(g => selectedGroups.includes(g.id))
-        .map(g => `${g.id}:${g.name} курс ${g.courseNumber ?? ''}`.trim())
-        .join('\n');
-      const subjects = getSelectedSubjects();
-      if (subjects.length === 0) {
-        alert('Для выбранных групп нет учебных планов (StudyPlans). Добавьте учебные планы или выберите другие группы.');
-        setLoading(false);
-        return;
-      }
-      const planPart = subjects.map(s => `${s.id}:${s.name} (group ${s.groupName})`).join('\n');
-      const roomPart = classrooms
-        .filter(c => selectedClassrooms.includes(c.id))
-        .map(c => `${c.id}:${c.name} (${c.type}) cap:${c.capacity}`)
-        .join('\n');
-
-      const constraintsPart = [
-        `Период: ${quarterSettings.startDate} - ${quarterSettings.endDate}`,
-        `Рабочие дни: ${quarterSettings.workingDays.join(',')}`,
-        `Рабочее время: ${scheduleConstraints.workingHours.start}-${scheduleConstraints.workingHours.end}`,
-        `Длительность урока: ${scheduleConstraints.lessonDuration} мин`,
-        `Перемена: ${scheduleConstraints.breakDuration} мин`,
-        `Макс уроков в день: ${scheduleConstraints.maxLessonsPerDay}`,
-        `Не ставить первым: ${scheduleConstraints.noFirstLessonSubjects.join(', ') || '—'}`,
-        `Не ставить последним: ${scheduleConstraints.noLastLessonSubjects.join(', ') || '—'}`
-      ].join('\n');
-
-      const outputFormat = `# OutputFormat
-Верни JSON строго по схеме:
-{
-  "lessons": [
-    { "day":1-5, "slot":1-8, "studyPlanId":number, "groupId":number, "teacherId":number, "classroomId":number|null, "recurrence":"weekly" }
-  ]
-}`;
-
-      const prompt = `# Teachers
-${teacherPart || '—'}
-
-# Groups
-${groupPart || '—'}
-
-# StudyPlans
-${planPart || '—'}
-
-# Classrooms
-${roomPart || '—'}
-
-# Constraints
-${constraintsPart}
-
-${outputFormat}`;
-
-      const resp = await apiClient.post<{ lessons: Array<{ day: number; slot: number; studyPlanId: number; groupId: number; teacherId: number; classroomId?: number | null; recurrence: 'weekly' }> }>('/ai-assistant/openai-responses', {
-        message: prompt,
-        scenario: 'schedule_generation_v1'
-      });
-
-      const weeklyLessons: { day: number; slot: number; studyPlanId: number; groupId: number; teacherId: number; classroomId: number | null; recurrence: 'weekly' }[] = Array.isArray((resp as any).lessons) ? (resp as any).lessons : [];
-
-      // Вспомогательные функции
-      const addMinutes = (time: string, minutes: number) => {
-        const [h, m] = time.split(':').map(Number);
-        const d = new Date();
-        d.setHours(h, m, 0, 0);
-        d.setMinutes(d.getMinutes() + minutes);
-        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      const subjectHours: Record<number, number> = Object.fromEntries(
+        Object.entries(customSubjectHours)
+          .map(([k, v]) => {
+            const parts = String(k).split('-');
+            const spId = Number(parts[1]);
+            return [spId, Number(v)];
+          })
+          .filter(([spId, hours]) => Number.isFinite(spId as number) && Number.isFinite(hours as number) && (hours as number) > 0 && (hours as number) <= 8)
+      );
+      const params: FlowGenerationParams = {
+        startDate: quarterSettings.startDate,
+        endDate: quarterSettings.endDate,
+        groupIds: selectedGroups,
+        constraints: {
+          workingHours: scheduleConstraints.workingHours,
+          maxConsecutiveHours: Math.min(4, scheduleConstraints.maxLessonsPerDay),
+          preferredBreaks: [12],
+          excludeWeekends: !quarterSettings.workingDays.includes(6),
+          minBreakDuration: scheduleConstraints.breakDuration
+        },
+        subjectHours,
+        generationType: 'full'
       };
-      const slotToTime = (slot: number) => {
-        const base = scheduleConstraints.workingHours.start || '08:00';
-        const perSlot = scheduleConstraints.lessonDuration + scheduleConstraints.breakDuration;
-        const offset = (slot - 1) * perSlot;
-        const start = addMinutes(base, offset);
-        const end = addMinutes(start, scheduleConstraints.lessonDuration);
-        return { start, end };
-      };
-      const isHoliday = (dateStr: string) =>
-        !!KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] || quarterSettings.customHolidays.includes(dateStr);
 
-      const getAllWorkingDates = (): string[] => {
-        const start = new Date(quarterSettings.startDate);
-        const end = new Date(quarterSettings.endDate);
-        const dates: string[] = [];
-        const cur = new Date(start);
-        while (cur <= end) {
-          const dow0 = cur.getDay(); // 0..6
-          const dow = dow0 === 0 ? 7 : dow0; // 1..7
-          const ds = cur.toISOString().split('T')[0];
-          if (quarterSettings.workingDays.includes(dow) && !isHoliday(ds)) dates.push(ds);
-          cur.setDate(cur.getDate() + 1);
+  const draftRes = await scheduleService.flowDraft(params);
+  // Просим локальный оптимизатор вернуть шаблоны + debug логи
+  params.debug = true;
+  const optimized: OptimizedScheduleResponse = await scheduleService.flowOptimizeLocal({ draft: draftRes.draft, params });
+      setFlowDraft(draftRes.draft);
+      setFlowOptimized(optimized);
+      const validation = await scheduleService.flowValidate(optimized);
+      setFlowValidation(validation);
+      // Если есть recurringTemplates — строим одну неделю из шаблонов
+      let weekLessons: GeneratedLesson[] = [];
+      if (optimized.recurringTemplates?.length) {
+        const templates = optimized.recurringTemplates;
+        const startDateObj = new Date(params.startDate + 'T00:00:00');
+        const startDow = startDateObj.getDay(); // 0=Sun..6
+        const monday = new Date(startDateObj);
+        const offset = (startDow + 6) % 7; // количество дней назад до понедельника
+        monday.setDate(monday.getDate() - offset);
+        const dateMap = new Map<number, string>();
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+          const dow = d.getDay() === 0 ? 7 : d.getDay();
+          dateMap.set(dow, d.toISOString().split('T')[0]);
         }
-        return dates;
-      };
-
-      const workingDates = getAllWorkingDates();
-      const byDayDates = new Map<number, string[]>();
-      for (let d = 1; d <= 7; d++) {
-        byDayDates.set(d, workingDates.filter(ds => {
-          const dow0 = new Date(ds).getDay();
-          const dow = dow0 === 0 ? 7 : dow0;
-          return dow === d;
-        }));
-      }
-
-      const result: GeneratedLesson[] = [];
-      weeklyLessons.forEach(l => {
-        const dates = byDayDates.get(l.day) || [];
-        dates.forEach(dateStr => {
-          const t = slotToTime(l.slot);
-          const teacher = teachers.find(tt => tt.id === l.teacherId);
-          const plan = studyPlans.find(sp => sp.id === l.studyPlanId);
-          const group = groups.find(g => g.id === l.groupId);
-          const room = l.classroomId ? classrooms.find(c => c.id === l.classroomId) : undefined;
-          result.push({
-            id: `ai-${l.day}-${l.slot}-${l.studyPlanId}-${dateStr}`,
-            date: dateStr,
-            dayOfWeek: getDayName(new Date(dateStr).getDay()),
-            startTime: t.start,
-            endTime: t.end,
-            subject: plan?.name || `SP#${l.studyPlanId}`,
-            studyPlanId: l.studyPlanId,
-            groupId: group?.id || l.groupId,
-            groupName: group?.name || `Group#${l.groupId}`,
-            teacherId: teacher?.id || l.teacherId,
-            teacherName: teacher ? `${teacher.name} ${teacher.surname}` : `Teacher#${l.teacherId}`,
-            classroomId: room?.id,
-            classroomName: room?.name,
-            weekNumber: getWeekNumber(dateStr)
+        templates.forEach((tpl, idx) => {
+          const date = dateMap.get(tpl.dayOfWeek) || params.startDate;
+          const teacher = teachers.find(t => t.id === tpl.teacherId);
+          const group = groups.find(g => g.id === tpl.groupId);
+          weekLessons.push({
+            id: `tpl-${tpl.groupId}-${tpl.subject}-${tpl.dayOfWeek}-${idx}`,
+            date,
+            dayOfWeek: getDayNameFromDateStr(date),
+            startTime: tpl.startTime,
+            endTime: tpl.endTime,
+            subject: tpl.subject,
+            studyPlanId: tpl.studyPlanId || 0,
+            groupId: tpl.groupId,
+            groupName: group?.name || `Group#${tpl.groupId}`,
+            teacherId: tpl.teacherId,
+            teacherName: teacher ? `${teacher.name} ${teacher.surname}` : `Teacher#${tpl.teacherId}`,
+            classroomId: tpl.roomId ? Number(tpl.roomId) : undefined,
+            classroomName: tpl.roomId ? String(tpl.roomId) : undefined,
+            weekNumber: 1
           });
         });
-      });
+        // Добавляем singleOccurrences попадающие в эту неделю
+        if (optimized.singleOccurrences?.length) {
+          const singles = optimized.singleOccurrences;
+          const weekDateSet = new Set(Array.from(dateMap.values()));
+          singles.filter(s => weekDateSet.has(s.date)).forEach((s, idx) => {
+            const teacher = teachers.find(t => t.id === s.teacherId);
+            const group = groups.find(g => g.id === s.groupId);
+            weekLessons.push({
+              id: `single-${s.groupId}-${s.subject}-${s.date}-${idx}`,
+              date: s.date,
+              dayOfWeek: getDayNameFromDateStr(s.date),
+              startTime: s.startTime,
+              endTime: s.endTime,
+              subject: s.subject,
+              studyPlanId: s.studyPlanId || 0,
+              groupId: s.groupId,
+              groupName: group?.name || `Group#${s.groupId}`,
+              teacherId: s.teacherId,
+              teacherName: teacher ? `${teacher.name} ${teacher.surname}` : `Teacher#${s.teacherId}`,
+              classroomId: s.roomId ? Number(s.roomId) : undefined,
+              classroomName: s.roomId ? String(s.roomId) : undefined,
+              weekNumber: 1
+            });
+          });
+        }
+      } else {
+        weekLessons = (optimized.generatedSchedule || []).map((l, idx) => {
+          const teacher = teachers.find(tt => tt.id === l.teacherId);
+          const group = groups.find(g => g.id === l.groupId);
+          const room = l.classroomId ? classrooms.find(c => c.id === l.classroomId) : undefined;
+          return {
+            id: `gen-${idx}-${l.date}-${l.startTime}-${l.groupId}`,
+            date: l.date,
+            dayOfWeek: getDayNameFromDateStr(l.date),
+            startTime: l.startTime,
+            endTime: l.endTime,
+            subject: l.subject,
+            studyPlanId: 0,
+            groupId: l.groupId,
+            groupName: group?.name || `Group#${l.groupId}`,
+            teacherId: l.teacherId || 0,
+            teacherName: teacher ? `${teacher.name} ${teacher.surname}` : (l.teacherId ? `Teacher#${l.teacherId}` : ''),
+            classroomId: l.classroomId || undefined,
+            classroomName: room?.name,
+            weekNumber: getWeekNumber(l.date)
+          };
+        });
+      }
 
-      // Сортировка
-      result.sort((a, b) => {
+      weekLessons.sort((a, b) => {
         const dc = a.date.localeCompare(b.date);
         if (dc !== 0) return dc;
         return a.startTime.localeCompare(b.startTime);
       });
 
-      setGeneratedSchedule(result);
+      setGeneratedSchedule(weekLessons);
+      const workingDates = getAllWorkingDates();
       setScheduleStats({
-        totalLessons: result.length,
-        totalDays: workingDates.length,
-        averagePerDay: (result.length / workingDates.length).toFixed(1),
-        subjectsCount: subjects.length,
-        teachersCount: [...new Set(subjects.map(s => s.teacherId))].length
+  totalLessons: weekLessons.length,
+  totalDays: workingDates.length,
+  averagePerDay: (weekLessons.length / Math.max(1, workingDates.length)).toFixed(1),
+  subjectsCount: weekLessons.length ? new Set(weekLessons.map(s => s.subject)).size : 0,
+  teachersCount: weekLessons.length ? new Set(weekLessons.map(s => s.teacherId)).size : 0
       });
       setCurrentStep(6);
     } catch (e) {
@@ -1030,25 +1136,21 @@ ${outputFormat}`;
 
   // Вспомогательные функции для улучшенного алгоритма
   const getAllWorkingDates = (): string[] => {
-    const start = new Date(quarterSettings.startDate);
-    const end = new Date(quarterSettings.endDate);
-    const workingDates: string[] = [];
-    const current = new Date(start);
-
-    while (current <= end) {
-      const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
-      const dateStr = current.toISOString().split('T')[0];
-      
-      if (quarterSettings.workingDays.includes(dayOfWeek) && 
-          !KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] && 
+    const start = parseYMDUtc(quarterSettings.startDate);
+    const end = parseYMDUtc(quarterSettings.endDate);
+    const working: string[] = [];
+    let cursor = new Date(start.getTime());
+    while (cursor.getTime() <= end.getTime()) {
+      const dow = cursor.getUTCDay() === 0 ? 7 : cursor.getUTCDay();
+      const dateStr = cursor.toISOString().split('T')[0];
+      if (quarterSettings.workingDays.includes(dow) &&
+          !KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] &&
           !quarterSettings.customHolidays.includes(dateStr)) {
-        workingDates.push(dateStr);
+        working.push(dateStr);
       }
-      
-      current.setDate(current.getDate() + 1);
+      cursor = new Date(cursor.getTime() + 24*60*60*1000);
     }
-
-    return workingDates;
+    return working;
   };
 
   const getRandomDateForSubject = (workingDates: string[], subject: any, activePrefs: TeacherPreference[]): string | null => {
@@ -1229,6 +1331,17 @@ ${outputFormat}`;
     return days[dayNum];
   };
 
+  // UTC безопасный парсер YYYY-MM-DD -> Date
+  const parseYMDUtc = (ymd: string) => {
+    const [y,m,d] = ymd.split('-').map(Number);
+    return new Date(Date.UTC(y, (m||1)-1, d||1));
+  };
+
+  const getDayNameFromDateStr = (dateStr: string) => {
+    const dt = parseYMDUtc(dateStr);
+    return getDayName(dt.getUTCDay());
+  };
+
   const getWeekNumber = (dateStr: string) => {
     const date = new Date(dateStr);
     const start = new Date(quarterSettings.startDate);
@@ -1281,45 +1394,22 @@ ${outputFormat}`;
   };
 
   const saveSchedule = async () => {
-    const patterns = getWeeklyPatterns();
-    if (!patterns.length) {
-      alert('Нет уроков для сохранения');
+    if (!flowOptimized) {
+      alert('Нет данных оптимизации для сохранения');
       return;
     }
     setLoading(true);
-    let created = 0;
-    const errors: string[] = [];
-
-    for (const p of patterns) {
-      try {
-        await scheduleService.create({
-          studyPlanId: p.studyPlanId,
-          groupId: p.groupId,
-          teacherId: p.teacherId,
-          classroomId: p.classroomId,
-          dayOfWeek: p.dayOfWeek,
-          startTime: p.startTime,
-          endTime: p.endTime,
-          repeat: 'weekly',
-          startDate: quarterSettings.startDate,
-          endDate: quarterSettings.endDate,
-          // Укажем пресет четверти для ясности периода
-          periodPreset: (['quarter1', 'quarter2', 'quarter3', 'quarter4'] as const)[quarterSettings.quarterNumber - 1] as any,
-          // Просим бэкенд перезаписывать конфликтующие записи
-          overwrite: true
-        } as any);
-        created++;
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Ошибка';
-        errors.push(`day ${p.dayOfWeek} ${p.startTime}-${p.endTime} g#${p.groupId} sp#${p.studyPlanId}: ${msg}`);
-      }
-    }
-
-    setLoading(false);
-    if (errors.length) {
-      alert(`Создано weekly-паттернов: ${created}. Ошибок: ${errors.length}\n` + errors.slice(0, 5).join('\n'));
-    } else {
-      alert(`Создано weekly-паттернов: ${created}`);
+    try {
+      const res: ApplyResponse = await scheduleService.flowApply(flowOptimized);
+      const created = typeof res?.createdCount === 'number'
+        ? res.createdCount
+        : Array.isArray(res?.created) ? res.created.length : 0;
+      alert(`Сохранено записей: ${created}`);
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка сохранения расписания');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1533,6 +1623,49 @@ ${outputFormat}`;
                     <h3 className="text-lg font-medium text-gray-900 mb-4">
                       Предметы выбранных классов ({getSelectedSubjects().length})
                     </h3>
+
+                    {/* Панель массовой настройки выбранных предметов */}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                      <div className="text-sm text-gray-600">
+                        Выбрано: <span className="font-medium">{selectedSubjectKeys.length}</span> из {getSelectedSubjects().length}
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={selectAllSubjects}
+                          className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                        >
+                          Выбрать все
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearSubjectSelection}
+                          className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                        >
+                          Очистить
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm text-gray-700">Часов/нед:</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={8}
+                            value={bulkHours}
+                            onChange={(e) => setBulkHours(parseInt(e.target.value || '1', 10))}
+                            className="w-20 px-2 py-1.5 border border-gray-300 rounded-md"
+                          />
+                          <button
+                            type="button"
+                            disabled={selectedSubjectKeys.length === 0}
+                            onClick={applyBulkHours}
+                            className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Применить к выбранным
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {getSelectedSubjects().map((subject, index) => {
                         const subjectKey = `${subject.groupId}-${subject.id}`;
@@ -1566,6 +1699,13 @@ ${outputFormat}`;
                                 </div>
                               </div>
                               <div className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSubjectKeys.includes(subjectKey)}
+                                  onChange={(e) => { e.stopPropagation(); toggleSubjectSelected(subjectKey); }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                />
                                 <Edit3 className="h-4 w-4 text-gray-400" />
                                 <BookOpen className="h-5 w-5 text-gray-400" />
                               </div>
@@ -2005,13 +2145,14 @@ ${outputFormat}`;
                 <div className="border rounded-lg overflow-hidden bg-white" style={{ height: '70vh' }}>
                   <ScheduleGrid
                     lessons={generatedSchedule}
+                    externalLessons={existingLessons}
                     onUpdateLessons={(updatedLessons) => {
                       // Преобразуем ScheduleLesson[] обратно в GeneratedLesson[] и восстанавливаем studyPlanId
                       const idToStudyPlan = new Map(generatedSchedule.map(l => [l.id, l.studyPlanId]));
                       const convertedLessons = updatedLessons.map(lesson => ({
                         ...lesson,
-                        studyPlanId: (lesson as any).studyPlanId ?? idToStudyPlan.get(lesson.id) ?? 0,
-                        dayOfWeek: getDayName(new Date(lesson.date).getDay()),
+                        studyPlanId: (lesson as unknown as GeneratedLesson).studyPlanId ?? idToStudyPlan.get(lesson.id) ?? 0,
+                        dayOfWeek: getDayNameFromDateStr(lesson.date),
                         weekNumber: getWeekNumber(lesson.date)
                       }));
                       setGeneratedSchedule(convertedLessons as GeneratedLesson[]);
@@ -2108,6 +2249,21 @@ ${outputFormat}`;
                       {[...new Set(generatedSchedule.map(l => l.teacherId))].length} преподавателей
                     </p>
                   </div>
+                  {flowOptimized?.recurringTemplates?.some(t => t.repeat === 'biweekly') && (
+                    <div className="ml-4 flex items-center space-x-1 bg-gray-100 rounded px-2 py-1 text-sm">
+                      <span className="text-gray-600">Неделя:</span>
+                      <button
+                        type="button"
+                        onClick={() => setBiweeklyView('A')}
+                        className={`px-2 py-0.5 rounded ${biweeklyView==='A' ? 'bg-indigo-600 text-white' : 'hover:bg-white'}`}
+                      >A</button>
+                      <button
+                        type="button"
+                        onClick={() => setBiweeklyView('B')}
+                        className={`px-2 py-0.5 rounded ${biweeklyView==='B' ? 'bg-indigo-600 text-white' : 'hover:bg-white'}`}
+                      >B</button>
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="outline"
@@ -2190,13 +2346,14 @@ ${outputFormat}`;
                 >
                   <ScheduleGrid
                     lessons={generatedSchedule}
+                    externalLessons={existingLessons}
                     onUpdateLessons={(updatedLessons) => {
                       // Преобразуем ScheduleLesson[] обратно в GeneratedLesson[] и восстанавливаем studyPlanId
                       const idToStudyPlan = new Map(generatedSchedule.map(l => [l.id, l.studyPlanId]));
                       const convertedLessons = updatedLessons.map(lesson => ({
                         ...lesson,
-                        studyPlanId: (lesson as any).studyPlanId ?? idToStudyPlan.get(lesson.id) ?? 0,
-                        dayOfWeek: getDayName(new Date(lesson.date).getDay()),
+                        studyPlanId: (lesson as unknown as GeneratedLesson).studyPlanId ?? idToStudyPlan.get(lesson.id) ?? 0,
+                        dayOfWeek: getDayNameFromDateStr(lesson.date),
                         weekNumber: getWeekNumber(lesson.date)
                       }));
                       setGeneratedSchedule(convertedLessons as GeneratedLesson[]);

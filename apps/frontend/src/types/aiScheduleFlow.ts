@@ -14,8 +14,11 @@ export interface GenerationParams {
   groupIds: number[];
   constraints: GenerationConstraints;
   generationType: GenerationType;
+  subjectHours?: Record<number, number>;
   subjectIds?: number[];
   teacherIds?: number[];
+  /** Включает подробное логирование оптимизатора */
+  debug?: boolean;
 }
 
 export interface DraftItem {
@@ -61,6 +64,39 @@ export interface OptimizedScheduleResponse {
   suggestions?: string[];
   statistics?: Record<string, unknown> & { averageDailyLessons?: number };
   confidence?: number;
+  // Агрегированные данные периодичности от локального оптимизатора
+  recurringTemplates?: Array<{
+    groupId: number;
+    teacherId: number;
+    studyPlanId?: number;
+    subject: string;
+    startTime: string;
+    endTime: string;
+    dayOfWeek: number; // 1=Пн ... 7=Вс
+    startDate: string;
+    endDate: string;
+    repeat: 'weekly' | 'biweekly';
+    excludedDates: string[];
+    isTemplate: boolean;
+    roomId?: string | number;
+    roomType?: string;
+    roomCapacity?: number;
+  }>;
+  singleOccurrences?: Array<{
+    groupId: number;
+    teacherId: number;
+    studyPlanId?: number;
+    subject: string;
+    startTime: string;
+    endTime: string;
+    date: string;
+    repeat: 'once';
+    excludedDates: string[];
+    isTemplate: boolean;
+    roomId?: string | number;
+    roomType?: string;
+    roomCapacity?: number;
+  }>;
 }
 
 export interface ValidationResult {

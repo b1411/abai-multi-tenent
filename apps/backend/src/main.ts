@@ -4,7 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { Request, Response } from 'express';
+import { Request, Response, json, urlencoded } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -12,6 +12,11 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     snapshot: true, // Используем snapshot для создания документации
   });
+
+  // Увеличиваем лимит тела запроса (по умолчанию ~100kb) для больших JSON (генерация расписания и т.п.)
+  const bodyLimit = process.env.REQUEST_LIMIT || '5mb';
+  app.use(json({ limit: bodyLimit }));
+  app.use(urlencoded({ limit: bodyLimit, extended: true }));
 
   // Настройка WebSocket адаптера для Socket.IO
   app.useWebSocketAdapter(new IoAdapter(app));

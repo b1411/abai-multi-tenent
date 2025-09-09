@@ -89,6 +89,8 @@ async function ensureStudyPlan(name: string, teacherId: number, groupIds: number
     return sp;
 }
 
+// (Per-group helper был удалён, т.к. возвращаемся к модели один план на курс)
+
 // Добавляем конкретную дату проведения в первую учебную неделю (1-5 сентября) согласно dayOfWeek
 async function ensureSchedule(studyPlanId: number, groupId: number, dayOfWeek: number, start: string, end: string, teacherId: number, classroomId?: number) {
     const academicYearStart = (new Date()).getFullYear(); // если сейчас >= сентябрь – этот год, иначе предыдущий
@@ -338,20 +340,20 @@ async function main() {
     const chemTeacher = teachers.find(t => t.email === 'chem.teacher@abai.edu.kz');
     if (!mathTeacher || !bioTeacher || !physTeacher || !chemTeacher) throw new Error('Teacher initialization failed');
 
-    // Имена учебных планов теперь только предмет без номера класса
-    const spAlg = await ensureStudyPlan('Алгебра', mathTeacher.teacherId, [g10A.id, g10B.id], { description: 'Углублённый курс алгебры (10 класс)', normativeWorkload: 102 });
-    const spBio = await ensureStudyPlan('Биология', bioTeacher.teacherId, [g10B.id], { description: 'Общая биология (10 класс)', normativeWorkload: 68 });
-    const spPhys = await ensureStudyPlan('Физика', physTeacher.teacherId, [g11A.id, g11B.id], { description: 'МКТ и термодинамика (11 класс)', normativeWorkload: 85 });
-    const spChem = await ensureStudyPlan('Химия', chemTeacher.teacherId, [g9A.id], { description: 'Основы неорганической химии (9 класс)', normativeWorkload: 68 });
+    // Планы на курс (grade) – один план на предмет, связывается со всеми группами курса
+    const spAlg = await ensureStudyPlan('Алгебра', mathTeacher.teacherId, [g10A.id, g10B.id], { description: 'Алгебра 10 класс', normativeWorkload: 102 });
+    const spBio = await ensureStudyPlan('Биология', bioTeacher.teacherId, [g10B.id], { description: 'Биология 10 класс', normativeWorkload: 68 });
+    const spPhys = await ensureStudyPlan('Физика', physTeacher.teacherId, [g11A.id, g11B.id], { description: 'Физика 11 класс', normativeWorkload: 85 });
+    const spChem = await ensureStudyPlan('Химия', chemTeacher.teacherId, [g9A.id], { description: 'Химия 9 класс', normativeWorkload: 68 });
 
-    // Schedule
+    // Schedule (как исходно: по одному занятию/слоту на часть групп)
     await ensureSchedule(spAlg.id, g10A.id, 1, '08:30', '09:15', mathTeacher.teacherId, c101.id);
     await ensureSchedule(spAlg.id, g10B.id, 1, '09:25', '10:10', mathTeacher.teacherId, c101.id);
     await ensureSchedule(spBio.id, g10B.id, 2, '10:25', '11:10', bioTeacher.teacherId, c205.id);
     await ensureSchedule(spPhys.id, g11A.id, 3, '11:25', '12:10', physTeacher.teacherId, c305.id);
     await ensureSchedule(spChem.id, g9A.id, 4, '12:20', '13:05', chemTeacher.teacherId, c305.id);
 
-    // Lessons + homework + results (first 4 occurrences per plan in Sept 2025)
+    // Lessons + homework + results (4 появления в сентябре 2025 для каждого плана)
     const year = 2025; const month0 = 8; // September
     const planWeekday: [number, number][] = [[spAlg.id, 1], [spBio.id, 2], [spPhys.id, 3], [spChem.id, 4]];
     for (const [planId, weekday] of planWeekday) {
@@ -461,24 +463,21 @@ async function main() {
         await Promise.all(creations);
     });
 
-    // 4. Study plans (subjects x grades) – only one plan per (subject, grade)
+    // 4. Study plans (subjects x grades) – один план на предмет и курс
     interface PlanMeta { planId: number; subject: string; grade: number; teacherId: number; }
     const planMetas: PlanMeta[] = [];
     for (const grade of targetGrades) {
         const gradeGroups = bulkGroups.filter(g => g.courseNumber === grade).map(g => g.id);
         for (let si = 0; si < subjectList.length; si++) {
-            // Limit subjects per grade to first 6 to control explosion
-            if (si >= 6) break;
+            if (si >= 6) break; // ограничим количеством
             const subj = subjectList[si];
             const teacher = teachers[(si + grade) % teachers.length];
-            // Используем единое имя плана = предмет (без номера класса). Один план связывается с группами разных классов.
-            const planName = subj;
-            const plan = await ensureStudyPlan(planName, teacher.teacherId, gradeGroups, { description: `Учебный план по предмету ${subj} (добавлены группы ${grade} класса)`, normativeWorkload: 68 + (si % 3) * 17 });
+            const plan = await ensureStudyPlan(subj, teacher.teacherId, gradeGroups, { description: `Учебный план по предмету ${subj} (курс ${grade})`, normativeWorkload: 68 + (si % 3) * 17 });
             planMetas.push({ planId: plan.id, subject: subj, grade, teacherId: teacher.teacherId });
         }
     }
 
-    // 5. Schedules (one weekly slot per plan for first group of grade)
+    // 5. Schedules (по одному слоту на первый класс курса)
     await runBatched(planMetas, 15, async meta => {
         const gradeGroupIds = bulkGroups.filter(g => g.courseNumber === meta.grade).map(g => g.id);
         const firstGroupId = gradeGroupIds[0];
@@ -492,7 +491,7 @@ async function main() {
     // 6. Lessons & grades (Sept & Oct current year, up to 4 per month per plan)
     const currYear = now.getFullYear();
     const months = [8, 9]; // September (8), October (9) zero-based
-    const heavyPlans = planMetas.slice(0, 150);
+    const heavyPlans = planMetas.slice(0, 150); // ограничим количество для генерации уроков
     const planStudentMap = await buildPlanStudentsMap(heavyPlans.map(p => p.planId));
     await runBatched(heavyPlans, 6, async meta => {
         const studentIds = planStudentMap.get(meta.planId) || [];

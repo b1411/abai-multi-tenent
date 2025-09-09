@@ -28,6 +28,13 @@ export class ScheduleAiFlowController {
     return this.flow.aiOptimize(body.draft, body.params);
   }
 
+  @Post('optimize-local')
+  @ApiOperation({ summary: 'Оптимизировать черновик локальным оптимизатором' })
+  @ApiResponse({ status: 200, description: 'Оптимизация выполнена' })
+  async optimizeLocal(@Body() body: { draft: any[]; params: GenerateScheduleDto }) {
+    return this.flow.optimizeLocal(body.draft, body.params);
+  }
+
   @Post('validate')
   @ApiOperation({ summary: 'Локальная проверка конфликтов' })
   @ApiResponse({ status: 200 })

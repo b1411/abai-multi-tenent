@@ -106,6 +106,10 @@ export class GenerateScheduleDto {
   @IsOptional()
   subjectIds?: number[];
 
+  @ApiProperty({ description: 'Часы в неделю по studyPlanId', type: Object, additionalProperties: { type: 'number' } })
+  @IsOptional()
+  subjectHours?: Record<number, number>;
+
   @ApiProperty({ example: 'Генерация расписания для осеннего семестра', description: 'Дополнительные инструкции' })
   @IsString()
   @IsOptional()

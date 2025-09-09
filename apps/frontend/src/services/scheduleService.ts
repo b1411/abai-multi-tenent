@@ -104,6 +104,10 @@ class ScheduleService {
     return apiClient.post<OptimizedScheduleResponse>(`/schedule-flow/optimize`, body);
   }
 
+  async flowOptimizeLocal(body: OptimizeRequestBody): Promise<OptimizedScheduleResponse> {
+    return apiClient.post<OptimizedScheduleResponse>(`/schedule-flow/optimize-local`, body);
+  }
+
   async flowValidate(generated: OptimizedScheduleResponse): Promise<FlowValidationResult> {
     return apiClient.post<FlowValidationResult>(`/schedule-flow/validate`, { generated });
   }

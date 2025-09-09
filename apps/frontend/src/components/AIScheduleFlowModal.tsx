@@ -94,7 +94,7 @@ const AIScheduleFlowModal: React.FC<Props> = ({ isOpen, onClose, onApplied }) =>
     setLoading(true); setError(null);
     try {
   const body: OptimizeRequestBody = { draft, params };
-  const res = await scheduleService.flowOptimize(body);
+  const res = await scheduleService.flowOptimizeLocal(body);
   setOptimized(res as OptimizedScheduleResponse);
       setStep(3);
     } catch (e) { const msg = e instanceof Error ? e.message : 'Ошибка оптимизации'; setError(msg); }
@@ -143,7 +143,7 @@ const AIScheduleFlowModal: React.FC<Props> = ({ isOpen, onClose, onApplied }) =>
           <div className="flex items-center space-x-3">
             <div className="bg-white/20 p-2 rounded"><Brain className="h-6 w-6" /></div>
             <div>
-              <h2 className="text-xl font-semibold">AI Поток генерации расписания</h2>
+              <h2 className="text-xl font-semibold">Умная генерация расписания</h2>
               <p className="text-sm text-indigo-100">Эвристика → Оптимизация → Проверка → Сохранение</p>
             </div>
           </div>
@@ -236,7 +236,7 @@ const AIScheduleFlowModal: React.FC<Props> = ({ isOpen, onClose, onApplied }) =>
                 </div>
                 <div className="flex justify-between">
                   <Button variant="outline" onClick={()=>setStep(1)}>Назад</Button>
-                  <Button disabled={!draft || loading} onClick={runOptimize}>Оптимизировать AI</Button>
+                  <Button disabled={!draft || loading} onClick={runOptimize}>Умная генерация</Button>
                 </div>
                 {loading && <Loading text="Оптимизация..." />}
               </motion.div>

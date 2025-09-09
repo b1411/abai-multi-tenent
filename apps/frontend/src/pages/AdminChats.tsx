@@ -8,6 +8,7 @@ import { ScrollArea } from '../components/ui/ScrollArea';
 import { Search, MessageCircle, Users, Clock, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import apiClient from '../services/apiClient';
 
 interface User {
   id: number;
@@ -81,17 +82,11 @@ export default function AdminChats() {
   const fetchEmployeeChats = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/chat/admin/all', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      try {
+        const data = await apiClient.get<Chat[]>('/chat/admin/all');
         setChats(data);
-      } else {
-        console.error('Ошибка загрузки чатов:', response.statusText);
+      } catch (e: any) {
+        console.error('Ошибка загрузки чатов:', e?.message || e);
       }
     } catch (error) {
       console.error('Ошибка загрузки чатов:', error);
@@ -103,17 +98,11 @@ export default function AdminChats() {
   const fetchChatMessages = async (chatId: number) => {
     try {
       setMessagesLoading(true);
-      const response = await fetch(`/api/chat/admin/${chatId}/messages`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      try {
+        const data = await apiClient.get<ChatMessages>(`/chat/admin/${chatId}/messages`);
         setChatMessages(data);
-      } else {
-        console.error('Ошибка загрузки сообщений:', response.statusText);
+      } catch (e: any) {
+        console.error('Ошибка загрузки сообщений:', e?.message || e);
       }
     } catch (error) {
       console.error('Ошибка загрузки сообщений:', error);
@@ -345,69 +334,82 @@ export default function AdminChats() {
 
       {/* Диалог просмотра сообщений */}
       <Dialog open={isMessagesDialogOpen} onOpenChange={setIsMessagesDialogOpen}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] m-2 sm:m-4">
-          <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg lg:text-xl pr-8">
+        <DialogContent className="w-[98vw] sm:w-full max-w-5xl h-[85vh] flex flex-col m-2 sm:m-4 p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b">
+            <DialogTitle className="text-base sm:text-lg lg:text-xl pr-4 leading-tight">
               {selectedChat && getChatDisplayName(selectedChat)}
             </DialogTitle>
           </DialogHeader>
+
+          {selectedChat && (
+            <div className="px-4 py-2 border-b bg-gray-50 flex flex-wrap gap-1 sm:gap-2">
+              {selectedChat.participants.map(p => (
+                <Badge
+                  key={p.id}
+                  className={`text-[10px] sm:text-xs ${getRoleBadgeColor(p.user.role)} font-normal`}
+                >
+                  {p.user.name} {p.user.surname}
+                </Badge>
+              ))}
+            </div>
+          )}
           
-          <ScrollArea className="h-64 sm:h-80 lg:h-96 w-full p-2 sm:p-4 border rounded-lg sm:rounded-xl">
+          <ScrollArea className="flex-1 px-3 sm:px-4 py-3">
             {messagesLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
             ) : chatMessages && chatMessages.data.length > 0 ? (
               <div className="space-y-4">
                 {chatMessages.data.map((message) => (
-                  <div key={message.id} className="flex gap-2 sm:gap-3 lg:gap-4">
+                  <div key={message.id} className="flex items-start gap-3 group">
                     <div className="flex-shrink-0">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-gray-700">
-                          {message.sender.name.charAt(0)}
-                        </span>
+                      <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-gray-300 to-gray-200 rounded-full flex items-center justify-center text-gray-700 text-xs font-semibold">
+                        {message.sender.name.charAt(0)}
                       </div>
                     </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 mb-1 sm:mb-2">
-                        <span className="font-medium text-xs sm:text-sm lg:text-base">
-                          {message.sender.name} {message.sender.surname}
-                        </span>
-                        <Badge className={`text-xs ${getRoleBadgeColor(message.sender.role)} self-start`}>
-                          {message.sender.role}
-                        </Badge>
-                        <span className="text-xs text-gray-500">
-                          {format(new Date(message.createdAt), 'dd.MM.yyyy HH:mm', { locale: ru })}
-                        </span>
-                        {message.isEdited && (
-                          <span className="text-xs text-gray-400">(изменено)</span>
-                        )}
-                      </div>
-                      
-                      {message.replyTo && (
-                        <div className="bg-gray-100 border-l-4 border-gray-300 pl-2 sm:pl-3 py-1 sm:py-2 mb-1 sm:mb-2 text-xs sm:text-sm rounded-r-lg">
-                          <span className="font-medium">{message.replyTo.sender.name}:</span>
-                          <p className="text-gray-600 break-words">{message.replyTo.content}</p>
+
+                    <div className="max-w-[75%] sm:max-w-[80%]">
+                      <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm relative">
+                        <div className="flex flex-wrap items-center gap-1 mb-1">
+                          <span className="font-medium text-xs sm:text-sm text-gray-900">
+                            {message.sender.name} {message.sender.surname}
+                          </span>
+                          <Badge className={`text-[10px] sm:text-xs ${getRoleBadgeColor(message.sender.role)} px-1.5 py-0.5`}>
+                            {message.sender.role}
+                          </Badge>
+                          <span className="text-[10px] sm:text-xs text-gray-500">
+                            {format(new Date(message.createdAt), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                          </span>
+                          {message.isEdited && (
+                            <span className="text-[10px] text-gray-400">(изменено)</span>
+                          )}
                         </div>
-                      )}
-                      
-                      <p className="text-xs sm:text-sm lg:text-base text-gray-900 whitespace-pre-wrap break-words">
-                        {message.content}
-                      </p>
+
+                        {message.replyTo && (
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 mb-2 text-[11px] sm:text-xs">
+                            <span className="font-medium">{message.replyTo.sender.name}:</span>{' '}
+                            <span className="text-gray-600 break-words">{message.replyTo.content}</span>
+                          </div>
+                        )}
+
+                        <div className="text-xs sm:text-sm leading-relaxed text-gray-900 whitespace-pre-wrap break-words">
+                          {message.content}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-600">Сообщений пока нет</p>
+              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                Сообщений пока нет
               </div>
             )}
           </ScrollArea>
 
           {chatMessages && (
-            <div className="text-xs sm:text-sm lg:text-base text-gray-500 text-center p-2 sm:p-4">
+            <div className="text-[11px] sm:text-xs lg:text-sm text-gray-500 text-center px-4 py-2 border-t bg-white">
               Показано {chatMessages.data.length} из {chatMessages.pagination.total} сообщений
             </div>
           )}

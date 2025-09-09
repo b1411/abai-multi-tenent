@@ -368,7 +368,7 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Список комментариев студента' })
   @ApiResponse({ status: 404, description: 'Студент не найден' })
   @ApiParam({ name: 'id', description: 'ID студента' })
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'TEACHER')
   getStudentComments(@Param('id') id: string) {
     return this.studentsService.getStudentComments(+id);
   }

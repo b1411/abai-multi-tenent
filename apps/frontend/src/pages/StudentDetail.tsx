@@ -103,6 +103,12 @@ const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  // Нормализуем роль (убираем пробелы / регистр), чтобы избежать проблем вида "Teacher", "teacher", "TEACHER "
+  const rawRole = (user?.role ?? '').toString();
+  const userRole = rawRole.trim().toUpperCase();
+  // Используем includes/регэксп для гибкости (на случай составных или future-ролей)
+  const isTeacher = /TEACHER/.test(userRole);
+  const isAdmin = /ADMIN/.test(userRole);
   const { student, grades, loading, error, refetch, fetchGrades } = useStudent(Number(id));
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -607,8 +613,8 @@ const StudentDetail: React.FC = () => {
   const [pdpCreateOpen, setPdpCreateOpen] = useState(false);
   const [savingPdp, setSavingPdp] = useState(false);
 
-  const canManageAttendance = useMemo(() => user?.role === 'TEACHER' || user?.role === 'ADMIN', [user?.role]);
-  const canManageExtra = useMemo(() => user?.role === 'TEACHER' || user?.role === 'ADMIN', [user?.role]);
+  const canManageAttendance = useMemo(() => isTeacher || isAdmin, [isTeacher, isAdmin]);
+  const canManageExtra = useMemo(() => isTeacher || isAdmin, [isTeacher, isAdmin]);
 
   const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
   const [attForm, setAttForm] = useState<{
@@ -846,18 +852,19 @@ const StudentDetail: React.FC = () => {
 
   const getAccessLevel = () => {
     if (!user || !student) return 'none';
-    switch (user.role) {
-      case 'STUDENT':
-        return student.userId === user.id ? 'full' : 'basic';
-      case 'PARENT':
-        return student.Parents?.some(parent => parent.user.id === user.id) ? 'full' : 'none';
-      case 'TEACHER':
-      case 'ADMIN':
-      case 'HR':
-        return 'full';
-      default:
-        return 'none';
+    // Студент
+    if (userRole === 'STUDENT') {
+      return student.userId === user.id ? 'full' : 'basic';
     }
+    // Родитель (допускаем варианты PARENT*, например PARENT_GUARDIAN)
+    if (/PARENT/.test(userRole)) {
+      return student.Parents?.some(parent => parent.user.id === user.id) ? 'full' : 'none';
+    }
+    // Преподаватели / Админы / HR (допускаем составные названия ролей с включением ключевого слова)
+    if (isTeacher || isAdmin || /HR/.test(userRole)) {
+      return 'full';
+    }
+    return 'none';
   };
 
   const accessLevel = getAccessLevel();
@@ -969,10 +976,10 @@ const StudentDetail: React.FC = () => {
 
   const canEditPdp = useMemo(() => {
     if (!user || !student) return false;
-    if (user.role === 'STUDENT') return student.userId === user.id;
-    if (user.role === 'TEACHER' || user.role === 'ADMIN') return true;
+    if (userRole === 'STUDENT') return student.userId === user.id;
+    if (isTeacher || isAdmin) return true;
     return false;
-  }, [user?.role, user?.id, student?.userId]);
+  }, [userRole, isTeacher, isAdmin, user?.id, student?.userId]);
 
   const loadPdp = useCallback(async () => {
     if (!student) return;
@@ -1182,24 +1189,29 @@ const StudentDetail: React.FC = () => {
     );
   }
 
+  const canSeeRemarks = (isTeacher || isAdmin) && accessLevel === 'full';
+const canSeeComments = (isAdmin || isTeacher) && accessLevel === 'full';
+
   const tabs = [
     { id: 'overview', label: 'Обзор', icon: FaUserGraduate },
-    ...(accessLevel === 'full' && user?.role !== 'STUDENT' ? [
-      { id: 'grades', label: 'Успеваемость', icon: FaChartLine },
-      { id: 'exams', label: 'Экзамены', icon: FaBook },
-      { id: 'attendance', label: 'Посещаемость', icon: FaClipboardList },
-      { id: 'finance', label: 'Финансы', icon: FaCreditCard },
-      { id: 'extra', label: 'Доп образование', icon: FaSmile },
-      ...(user?.role === 'TEACHER' || user?.role === 'ADMIN' ? [
-        { id: 'remarks', label: 'Замечания', icon: FaExclamationTriangle },
-      ] : []),
-      ...(user?.role === 'ADMIN' ? [
-        { id: 'comments', label: 'Комментарии админам', icon: FaComments },
-      ] : [])
-    ] : []),
-    ...(accessLevel === 'full' && user?.role === 'STUDENT' ? [
-      { id: 'extra', label: 'Доп образование', icon: FaSmile },
-    ] : [])
+    ...(accessLevel === 'full' && userRole !== 'STUDENT'
+      ? [
+          { id: 'grades', label: 'Успеваемость', icon: FaChartLine },
+          { id: 'exams', label: 'Экзамены', icon: FaBook },
+          { id: 'attendance', label: 'Посещаемость', icon: FaClipboardList },
+          { id: 'finance', label: 'Финансы', icon: FaCreditCard },
+          { id: 'extra', label: 'Доп образование', icon: FaSmile }
+        ]
+      : []),
+    ...(accessLevel === 'full' && userRole === 'STUDENT'
+      ? [{ id: 'extra', label: 'Доп образование', icon: FaSmile }]
+      : []),
+    ...(canSeeRemarks
+      ? [{ id: 'remarks', label: 'Замечания', icon: FaExclamationTriangle }]
+      : []),
+    ...(canSeeComments
+      ? [{ id: 'comments', label: 'Комментарии админам', icon: FaComments }]
+      : [])
   ];
 
   const renderTrendIcon = (trend?: string) => {
@@ -2956,7 +2968,7 @@ const StudentDetail: React.FC = () => {
       )}
 
       {/* REMARKS */}
-      {activeTab === 'remarks' && accessLevel === 'full' && (user?.role === 'TEACHER' || user?.role === 'ADMIN') && (
+      {activeTab === 'remarks' && canSeeRemarks && (
         <div className="space-y-6">
           {loadingData.remarks ? (
             <div className="flex justify-center items-center h-64">
@@ -3099,7 +3111,7 @@ const StudentDetail: React.FC = () => {
       )}
 
       {/* COMMENTS */}
-      {activeTab === 'comments' && accessLevel === 'full' && user?.role === 'ADMIN' && (
+      {activeTab === 'comments' && canSeeComments && (
         <div className="space-y-6">
           {loadingData.comments ? (
             <div className="flex justify-center items-center h-64">

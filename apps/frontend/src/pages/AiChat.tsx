@@ -41,6 +41,9 @@ const AiChat: React.FC = () => {
   const [createFiles, setCreateFiles] = useState<FileList | null>(null);
   const [editingTutorId, setEditingTutorId] = useState<number | null>(null);
   const [editData, setEditData] = useState<UpdateTutorInput>({});
+  const [showTutors, setShowTutors] = useState(false);
+
+  // View mode state
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -120,8 +123,8 @@ const AiChat: React.FC = () => {
         skipAutoScrollOnceRef.current = true;
         setMessages(prev => {
           const existingIds = new Set(prev.map(p => p.id));
-          const onlyNew = older.filter(o => !existingIds.has(o.id));
-          return [...onlyNew, ...prev];
+            const onlyNew = older.filter(o => !existingIds.has(o.id));
+            return [...onlyNew, ...prev];
         });
         requestAnimationFrame(() => {
           const newHeight = el.scrollHeight;
@@ -418,9 +421,9 @@ const AiChat: React.FC = () => {
       </div>
 
       {/* Content: left tutors, center persisted chat, right realtime feed */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-0">
-        {/* Tutors panel */}
-        <aside className="lg:col-span-3 border-r bg-white min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 relative flex">
+        {showTutors && (
+          <div className="absolute inset-y-0 left-0 w-72 bg-white border-r shadow-lg z-30 flex flex-col">
           <div className="p-4 border-b flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">Тьюторы</h2>
             {isTeacherOrAdmin && (
@@ -509,7 +512,10 @@ const AiChat: React.FC = () => {
             ) : (
               <ul className="divide-y">
                 {tutors.map((t) => (
-                  <li key={t.id} className={`p-3 ${selectedTutorId === t.id ? 'bg-blue-50' : 'bg-white'}`}>
+                  <li
+                    key={t.id}
+                    className={`group ${selectedTutorId === t.id ? 'bg-blue-50' : 'bg-white'} p-3 transition-colors`}
+                  >
                     {editingTutorId === t.id ? (
                       <div className="space-y-2">
                         <input
@@ -553,24 +559,32 @@ const AiChat: React.FC = () => {
                     ) : (
                       <div className="flex items-start gap-3">
                         {t.avatarUrl ? (
-                          <img src={t.avatarUrl} alt={t.name || t.subject} className="w-10 h-10 rounded-full object-cover" />
+                          <img
+                            src={t.avatarUrl}
+                            alt={t.name || t.subject}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm text-gray-600">
                             {t.subject.slice(0, 2).toUpperCase()}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap items-start gap-2">
                             <button
                               onClick={() => selectTutor(t.id)}
-                              className="text-left"
+                              className="text-left flex-1 min-w-[140px]"
                             >
-                              <div className="font-medium text-gray-900 truncate">{t.name || t.subject}</div>
-                              <div className="text-xs text-gray-500">{t.subject}{t.isPublic ? ' • Публичный' : ''}</div>
+                              <div className="font-medium text-gray-900 truncate">
+                                {t.name || t.subject}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {t.subject}{t.isPublic ? ' • Публичный' : ''}
+                              </div>
                             </button>
                             {isTeacherOrAdmin && (
-                              <div className="flex items-center gap-2">
-                                <label className="text-xs text-blue-600 hover:underline cursor-pointer">
+                              <div className="flex items-center gap-2 shrink-0">
+                                <label className="text-xs text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
                                   + Файлы
                                   <input
                                     type="file"
@@ -603,10 +617,11 @@ const AiChat: React.FC = () => {
               </ul>
             )}
           </div>
-        </aside>
+          </div>
+        )}
 
         {/* Persisted text chat */}
-        <main className="lg:col-span-6 min-h-0 flex flex-col">
+        <main className="flex-1 min-h-0 flex flex-col">
           <div className="px-4 sm:px-6 lg:px-8 py-3 border-b bg-white">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -616,6 +631,7 @@ const AiChat: React.FC = () => {
                 <p className="text-xs text-gray-500">Переписка сохраняется и используется для контекста</p>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => setShowTutors(v => !v)} className="px-2 py-1.5 text-xs rounded-md border border-gray-300 bg-white hover:bg-gray-50 hidden sm:inline-block">{showTutors ? 'Скрыть тьюторов' : 'Тьюторы'}</button>
                 <span className={`w-2.5 h-2.5 rounded-full ${connectionDot}`} />
                 <button
                   onClick={handleToggleRealtime}

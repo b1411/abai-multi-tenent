@@ -29,6 +29,7 @@ export interface EventImpact {
 }
 
 const STRESS_ATTENTION_THRESHOLD = 70;
+const LOW_METRIC_THRESHOLD = 40;
 
 function clamp(v: number) {
   return Math.max(0, Math.min(100, Math.round(v)));
@@ -139,37 +140,60 @@ export function useEmotionalAnalysis() {
       setTotalPages(paginatedRes.totalPages);
       setStudents(studentsData);
 
-      // Attention students (только реальные данные; без моков)
-      const att: RiskStudent[] = studentsData.map<RiskStudent>(st => {
-        const es: any = (st as any).EmotionalState;
-        if (!es) {
+      // Attention students: загружаем всех (все страницы) чтобы не пропускать студентов с высоким стрессом
+      let allStudents: Student[] = studentsData;
+      try {
+        if (paginatedRes.totalPages > 1) {
+          for (let p = 2; p <= paginatedRes.totalPages; p++) {
+            const extra = await studentService
+              .getPaginatedStudents({ page: p, limit: studentLimit })
+              .catch(() => null);
+            if (extra?.data) {
+              allStudents = allStudents.concat(extra.data);
+            }
+          }
+        }
+      } catch {
+        // частичные ошибки игнорируем
+      }
+
+      const mapped: RiskStudent[] = allStudents
+        .map<RiskStudent | null>(st => {
+          const es: any = (st as any).EmotionalState;
+          if (!es) return null; // без данных пропускаем
+          const mood = es.mood ?? 0;
+          const motivation = es.motivation ?? 0;
+          const concentration = es.concentration ?? 0;
+            const socialization = es.socialization ?? 0;
+          const stress = clamp(100 - (mood + motivation) / 2);
+          const engagement = clamp((motivation + socialization) / 2);
           return {
             student: st,
+            mood,
+            motivation,
+            concentration,
+            socialization,
+            stress,
+            engagement,
+            updatedAt: es.updatedAt,
             source: 'feedback' as const
           };
-        }
-        const mood = es.mood ?? 0;
-        const motivation = es.motivation ?? 0;
-        const concentration = es.concentration ?? 0;
-        const socialization = es.socialization ?? 0;
-        const stress = clamp(100 - (mood + motivation) / 2);
-        const engagement = clamp((motivation + socialization) / 2);
-        return {
-          student: st,
-          mood,
-          motivation,
-          concentration,
-          socialization,
-          stress,
-          engagement,
-          updatedAt: es.updatedAt,
-          source: 'feedback' as const
-        };
-      })
-        .filter(r => (r.stress ?? 0) >= STRESS_ATTENTION_THRESHOLD)
-        .sort((a, b) => (b.stress! - a.stress!))
-        .slice(0, 30);
-      setAttentionStudents(att);
+        })
+        .filter((r): r is RiskStudent => r !== null)
+        .sort((a, b) => (b.stress! - a.stress!));
+
+      const att: RiskStudent[] = mapped.filter(r => {
+        const stressPass = (r.stress ?? 0) >= STRESS_ATTENTION_THRESHOLD;
+        const lowAny =
+          (r.mood !== undefined && r.mood < LOW_METRIC_THRESHOLD) ||
+          (r.motivation !== undefined && r.motivation < LOW_METRIC_THRESHOLD) ||
+          (r.concentration !== undefined && r.concentration < LOW_METRIC_THRESHOLD) ||
+          (r.socialization !== undefined && r.socialization < LOW_METRIC_THRESHOLD);
+        return stressPass || lowAny;
+      });
+
+      // Если по критериям никого нет, показываем базовый топ (fallback)
+      setAttentionStudents(att.length ? att : mapped);
     } catch (e: any) {
       setError(e.message || 'Ошибка');
     } finally {
@@ -214,14 +238,19 @@ export function useEmotionalAnalysis() {
     setSelectedStudentDetails({ loading: false, error: null, emotional: null });
   };
 
-  // Список уникальных групп (из студентов – реальные данные)
+  // Список всех групп: из overview.groupStats + текущая страница студентов
   const groups = useMemo(() => {
     const set = new Set<string>();
+    if (overview?.groupStats) {
+      overview.groupStats.forEach(gs => {
+        if (gs.group) set.add(gs.group);
+      });
+    }
     students.forEach(s => {
       if (s.group?.name) set.add(s.group.name);
     });
-    return Array.from(set).sort();
-  }, [students]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [overview, students]);
 
   // Group stats (берём напрямую из overview)
   const filteredGroupStats = useMemo(() => {
@@ -262,6 +291,15 @@ export function useEmotionalAnalysis() {
       };
     });
   }, [overview]);
+
+  // Фильтр списка attention по выбранной группе
+  const attentionStudentsByGroup = useMemo(() => {
+    // Если не выбрано или 'all' -> все
+    if (!selectedGroup || selectedGroup === 'all') return attentionStudents;
+    // Если выбранная группа отсутствует (рассинхронизация) -> показываем всех
+    if (!groups.includes(selectedGroup)) return attentionStudents;
+    return attentionStudents.filter(a => a.student.group?.name === selectedGroup);
+  }, [attentionStudents, selectedGroup, groups]);
 
   // Экспорт CSV (адаптирован к overview)
   const exportGroupsCSV = () => {
@@ -358,6 +396,7 @@ export function useEmotionalAnalysis() {
     emotionalLoyalty: null, // legacy field (для совместимости)
     students,
     attentionStudents,
+    attentionStudentsByGroup,
     selectedStudentId,
     selectedStudentDetails,
     periodOptions,

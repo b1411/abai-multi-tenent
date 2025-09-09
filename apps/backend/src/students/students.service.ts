@@ -139,6 +139,7 @@ export class StudentsService {
             },
           },
         },
+        EmotionalState: true,
         lessonsResults: {
           take: 5,
           orderBy: { createdAt: 'desc' },
@@ -252,6 +253,7 @@ export class StudentsService {
             },
           },
           group: true,
+          EmotionalState: true,
           Parents: {
             include: {
               user: {
@@ -352,6 +354,7 @@ export class StudentsService {
             },
           },
         },
+        EmotionalState: true,
         Parents: {
           include: {
             user: {
@@ -605,6 +608,7 @@ export class StudentsService {
             role: true,
           },
         },
+        EmotionalState: true,
         Parents: {
           include: {
             user: {
@@ -662,6 +666,7 @@ export class StudentsService {
             },
           },
         },
+        EmotionalState: true,
         Parents: {
           include: {
             user: {
@@ -882,6 +887,7 @@ export class StudentsService {
             },
           },
         },
+        EmotionalState: true,
         lessonsResults: {
           take: 5,
           orderBy: { createdAt: 'desc' },

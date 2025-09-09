@@ -55,12 +55,22 @@ const EmotionalAnalysisPage: React.FC = () => {
     selectedGroup,
     setSelectedGroup,
     attentionStudents,
+    attentionStudentsByGroup,
     openStudentDetails,
     closeStudentDetails,
     selectedStudentId,
     selectedStudentDetails,
     totalStudents,
   } = useEmotionalAnalysis();
+
+  // Выбираем итоговый список риск-студентов (fallback если по какой-то причине фильтр дал пусто при all)
+  const riskStudents = useMemo(() => {
+    if (selectedGroup === 'all') {
+      // если all и отфильтрованный список пуст, используем оригинальный
+      return attentionStudentsByGroup.length === 0 ? attentionStudents : attentionStudentsByGroup;
+    }
+    return attentionStudentsByGroup;
+  }, [selectedGroup, attentionStudentsByGroup, attentionStudents]);
 
   // Готовим данные тренда до раннего return (чтобы не нарушать порядок хуков)
   const trendData = useMemo(() => {
@@ -72,7 +82,6 @@ const EmotionalAnalysisPage: React.FC = () => {
     }));
   }, [events]);
 
-  
   const computeTrend = (series: (number | undefined)[]) => {
     if (series.length < 2) return 'neutral';
     const prev = series[series.length - 2];
@@ -278,14 +287,14 @@ const EmotionalAnalysisPage: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-gray-700">Ученики, требующие внимания</h3>
                 <span className="px-3 py-1 bg-red-50 text-red-600 text-sm font-medium rounded-full">
-                  {attentionStudents.length} учеников
+                  {riskStudents.length} учеников
                 </span>
               </div>
-              {attentionStudents.length === 0 && (
+              {riskStudents.length === 0 && (
                 <div className="text-sm text-gray-500">Нет учащихся с высоким стрессом</div>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {attentionStudents.slice(0,5).map(st => {
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[600px] overflow-y-auto pr-1">
+                {riskStudents.map(st => {
                   const name = `${st.student.user.name} ${st.student.user.surname}`;
                   return (
                     <div key={st.student.id} className="bg-gray-50 rounded-lg p-4 flex flex-col">

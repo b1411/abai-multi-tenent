@@ -673,7 +673,7 @@ const Reports: React.FC = () => {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip
-                formatter={(value: number) => `${value.toLocaleString()} KZT`}
+                formatter={(value: number) => value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' KZT'}
                 labelStyle={{ color: '#1F2937' }}
                 contentStyle={{
                   backgroundColor: 'white',
@@ -703,7 +703,7 @@ const Reports: React.FC = () => {
               <XAxis type="number" />
               <YAxis dataKey="name" type="category" width={120} />
               <Tooltip
-                formatter={(value: number) => `${value} часов`}
+                formatter={(value: number) => `${typeof value === 'number' ? value.toFixed(2) : value} часов`}
                 labelStyle={{ color: '#1F2937' }}
                 contentStyle={{
                   backgroundColor: 'white',
@@ -734,7 +734,9 @@ const Reports: React.FC = () => {
               <YAxis />
               <Tooltip
                 formatter={(value: number, name: string) => [
-                  name === 'count' ? `${value} занятий` : `${value.toFixed(1)} часов`,
+                  name === 'count'
+                    ? `${value} занятий`
+                    : `${typeof value === 'number' ? value.toFixed(2) : value} часов`,
                   name === 'count' ? 'Количество занятий' : 'Общие часы'
                 ]}
                 labelStyle={{ color: '#1F2937' }}

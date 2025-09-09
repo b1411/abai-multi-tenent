@@ -502,7 +502,7 @@ const StudentProfile: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="subject" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                       <Legend />
                       <Bar dataKey="attended" fill="#10B981" name="Присутствовал" />
                       <Bar dataKey="missed" fill="#EF4444" name="Пропустил" />

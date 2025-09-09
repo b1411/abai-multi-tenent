@@ -187,7 +187,7 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
               <Area
                 type="monotone"
                 dataKey="count"
@@ -218,7 +218,7 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
                   <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -231,7 +231,7 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="hour" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
               <Bar dataKey="count" fill="#10B981" />
             </BarChart>
           </ResponsiveContainer>
@@ -250,7 +250,7 @@ export const ActivityStatistics: React.FC<ActivityStatisticsProps> = ({
                 width={120}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip />
+              <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
               <Bar dataKey="count" fill="#8B5CF6" />
             </BarChart>
           </ResponsiveContainer>

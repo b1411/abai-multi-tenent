@@ -282,8 +282,8 @@ const Loyalty: React.FC = () => {
                   <Tooltip
                     formatter={(v: any, n: string) =>
                       n.includes('рейтинг')
-                        ? [v, 'Средний рейтинг']
-                        : [`${v}%`, 'Процент повторных']
+                        ? [typeof v === 'number' ? v.toFixed(2) : v, 'Средний рейтинг']
+                        : [typeof v === 'number' ? `${v.toFixed(2)}%` : v, 'Процент повторных']
                     }
                   />
                   <Legend />

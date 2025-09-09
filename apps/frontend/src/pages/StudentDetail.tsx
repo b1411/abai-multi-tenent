@@ -1494,7 +1494,7 @@ const StudentDetail: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" />
                         <YAxis domain={[0, 100]} />
-                        <Tooltip />
+                        <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                         <Legend />
                         <Line type="monotone" dataKey="настроение" stroke="#F59E0B" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="концентрация" stroke="#8B5CF6" strokeWidth={2} dot={false} />
@@ -1571,9 +1571,9 @@ const StudentDetail: React.FC = () => {
                     <LineChart data={performanceChartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
-                      <YAxis domain={[0, 5]} />
-                      <Tooltip />
-                      <Legend />
+                        <YAxis domain={[0, 5]} />
+                        <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
+                        <Legend />
                       {performanceSubjects.map((s, idx) => {
                         const palette = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
                         return (
@@ -2022,7 +2022,7 @@ const StudentDetail: React.FC = () => {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
                           <YAxis domain={[0, 5]} />
-                          <Tooltip />
+                          <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                           <Legend />
                           {performanceSubjects.map((s, idx) => {
                             const palette = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
@@ -2064,7 +2064,7 @@ const StudentDetail: React.FC = () => {
                             fill="#6366F1"
                             fillOpacity={0.5}
                           />
-                          <Tooltip />
+                          <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                         </RadarChart>
                       </ResponsiveContainer>
                     </div>
@@ -2394,7 +2394,7 @@ const StudentDetail: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="subject" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                       <Legend />
                       <Bar dataKey="attended" fill="#10B981" name="Присутствовал" />
                       <Bar dataKey="missed" fill="#EF4444" name="Пропустил" />
@@ -2571,7 +2571,7 @@ const StudentDetail: React.FC = () => {
                           />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
@@ -2873,7 +2873,7 @@ const StudentDetail: React.FC = () => {
                             />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: any, name: any) => [`${value}`, name]} />
+                        <Tooltip formatter={(value: any, name: any) => (typeof value === 'number' ? [value.toFixed(2), name] : [value, name])} />
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>
@@ -2900,7 +2900,7 @@ const StudentDetail: React.FC = () => {
                             fill="#6366F1"
                             fillOpacity={0.5}
                           />
-                          <Tooltip />
+                          <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                         </RadarChart>
                       </ResponsiveContainer>
                     </div>

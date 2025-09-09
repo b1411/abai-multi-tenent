@@ -217,7 +217,7 @@ const EmotionalAnalysisPage: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="idx" tickLine={false} axisLine={false} fontSize={12} />
                       <YAxis domain={[0, 100]} tickLine={false} axisLine={false} fontSize={12} />
-                      <Tooltip />
+                      <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                       <Legend />
                       <Area type="monotone" dataKey="mood" stroke="#2563eb" fill="url(#gradMood)" name="Настроение" />
                       <Area type="monotone" dataKey="stress" stroke="#dc2626" fill="url(#gradStress)" name="Стресс" />

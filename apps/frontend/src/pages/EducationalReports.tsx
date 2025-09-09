@@ -1354,7 +1354,7 @@ const EducationalReports: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis domain={[3, 5]} tick={{ fontSize: 12 }} />
-                <Tooltip />
+                <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                 <Legend />
                 <Line type="monotone" dataKey="averageGrade" stroke="#3B82F6" strokeWidth={2} name="Средний балл" />
               </LineChart>
@@ -1372,7 +1372,7 @@ const EducationalReports: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
+                <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                 <Legend />
                 <Bar dataKey="absences" fill="#EF4444" name="Пропуски" />
               </BarChart>
@@ -1398,7 +1398,7 @@ const EducationalReports: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

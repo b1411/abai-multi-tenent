@@ -265,7 +265,7 @@ const Performance: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} />
                 <YAxis domain={[2, 5]} axisLine={false} tickLine={false} />
-                <Tooltip />
+                <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                 <Area type="monotone" dataKey="value" stroke="#2E69FF" fillOpacity={1} fill="url(#colorValue)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -288,7 +288,7 @@ const Performance: React.FC = () => {
                     <Cell key={index} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -305,7 +305,7 @@ const Performance: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" domain={[0, 5]} />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} />
-                <Tooltip />
+                <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                 <Bar dataKey="grade" fill="#2E69FF" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

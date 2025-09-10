@@ -991,6 +991,55 @@ const SchedulePage: React.FC = () => {
     return role === 'ADMIN';
   };
 
+  const exportToExcel = () => {
+    const items = getFilteredSchedule();
+    if (!items.length) return;
+
+    const dayRu: Record<string, string> = {
+      monday: 'Понедельник',
+      tuesday: 'Вторник',
+      wednesday: 'Среда',
+      thursday: 'Четверг',
+      friday: 'Пятница',
+      saturday: 'Суббота',
+      sunday: 'Воскресенье'
+    };
+    const typeRu: Record<string, string> = {
+      lesson: 'Урок',
+      consultation: 'Консультация',
+      extra: 'Доп. занятие'
+    };
+    const repeatRu: Record<string, string> = {
+      weekly: 'Еженедельно',
+      biweekly: 'Раз в 2 недели',
+      once: 'Единожды'
+    };
+    const statusRu: Record<string, string> = {
+      upcoming: 'Предстоит',
+      completed: 'Завершено',
+      cancelled: 'Отменено'
+    };
+
+    const rows = items.map(it => ({
+      'Дата/День': it.date ? new Date(it.date).toLocaleDateString('ru-RU') : (dayRu[it.day] || ''),
+      'День недели': dayRu[it.day] || '',
+      'Время': `${it.startTime} - ${it.endTime}`,
+      'Группа': it.classId,
+      'Предмет': it.subject,
+      'Преподаватель': it.teacherName,
+      'Аудитория': it.roomId,
+      'Тип': typeRu[it.type] || it.type,
+      'Повторение': repeatRu[it.repeat] || it.repeat,
+      'Статус': statusRu[it.status] || it.status
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Расписание');
+    const fileName = `schedule-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   const handleAddClick = (day?: ScheduleItem['day'], time?: string) => {
     setSelectedItem(day && time ? { day, startTime: time } : {});
     setIsEditMode(false);
@@ -1623,7 +1672,7 @@ const SchedulePage: React.FC = () => {
 
   const gridItems = buildGridItems();
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     // Проверяем, что перетаскивание произошло над валидной ячейкой
@@ -1661,12 +1710,9 @@ const SchedulePage: React.FC = () => {
       );
 
       try {
-        // Отправляем запрос на сервер
         await scheduleService.updateScheduleDayAndTime(active.id as string, newDay, newTime, newEndTime);
-        // Можно добавить уведомление об успехе
       } catch (error) {
         console.error("Failed to update schedule:", error);
-        // Возвращаем UI в предыдущее состояние в случае ошибки
         loadScheduleData();
         alert("Не удалось переместить занятие. Проверьте, нет ли конфликтов.");
       }
@@ -1728,8 +1774,17 @@ const SchedulePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Кнопки действий */}
+        {/* Кнопки действий */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <button
+              onClick={exportToExcel}
+              disabled={getFilteredSchedule().length === 0}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 flex items-center justify-center transition-colors text-sm sm:text-base min-h-[44px] touch-manipulation shadow-sm disabled:opacity-50"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="hidden sm:inline">Экспорт в Excel</span>
+              <span className="sm:hidden">Excel</span>
+            </button>
             {/* Показываем кнопку AI только администратору */}
             {role === 'ADMIN' && (
               <div className="flex flex-col sm:flex-row gap-2 flex-1 sm:flex-none">

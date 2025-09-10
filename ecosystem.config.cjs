@@ -25,8 +25,8 @@ module.exports = {
     // ==================== BACKENDS ====================
     {
       name: 'backend-fizmat-school',
-      cwd: ROOT,
-      script: 'apps/backend/dist/src/main.js',
+      cwd: `${ROOT}/apps/backend`,
+      script: 'dist/src/main.js',
       interpreter: 'node',
       node_args: '-r dotenv/config',
       env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-school' },
@@ -34,8 +34,8 @@ module.exports = {
     },
     {
       name: 'backend-uib-college',
-      cwd: ROOT,
-      script: 'apps/backend/dist/src/main.js',
+      cwd: `${ROOT}/apps/backend`,
+      script: 'dist/src/main.js',
       interpreter: 'node',
       node_args: '-r dotenv/config',
       env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.uib-college' },
@@ -43,8 +43,8 @@ module.exports = {
     },
     {
       name: 'backend-fizmat-academy',
-      cwd: ROOT,
-      script: 'apps/backend/dist/src/main.js',
+      cwd: `${ROOT}/apps/backend`,
+      script: 'dist/src/main.js',
       interpreter: 'node',
       node_args: '-r dotenv/config',
       env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.fizmat-academy' },
@@ -52,8 +52,8 @@ module.exports = {
     },
     {
       name: 'backend-demo',
-      cwd: ROOT,
-      script: 'apps/backend/dist/src/main.js',
+      cwd: `${ROOT}/apps/backend`,
+      script: 'dist/src/main.js',
       interpreter: 'node',
       node_args: '-r dotenv/config',
       env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai' },

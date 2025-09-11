@@ -236,16 +236,23 @@ export class AiTutorsService {
       }
     }
 
-    // Truncate to keep DB reasonable
+    // Build the combined knowledge text (sanitize then truncate)
     const MAX_CHARS = 180_000;
-    const combined = parts.join('\n').slice(0, MAX_CHARS);
+    let combined = parts.join('\n');
+    // Sanitize: remove control chars except TAB(0x09) LF(0x0A) CR(0x0D)
+    combined = combined
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+      .replace(/\u0000/g, '');
+    // Collapse >2 blank lines
+    combined = combined.replace(/\n{3,}/g, '\n\n');
+    if (combined.length > MAX_CHARS) combined = combined.slice(0, MAX_CHARS);
 
     await this.prisma.aiTutor.update({
       where: { id: tutorId },
       data: { knowledgeText: combined },
     });
 
-    // OpenAI Vector Store integration: upload newly provided files and attach to per-tutor vector store
+    // OpenAI Vector Store integration (non-fatal on error)
     let vsId: string | undefined;
     let uploaded = 0;
     try {
@@ -256,17 +263,14 @@ export class AiTutorsService {
             const buf = await this.fetchBuffer(f.url);
             const fileName = f.name || `file-${f.id}`;
             const mime = (f as any).mime || (f as any).type || 'application/octet-stream';
-
             const uploadedFile = await this.openai.files.create({
               file: await toFile(buf, fileName, { type: mime }),
               purpose: 'assistants',
             });
-
             const vsFile = await this.openai.vectorStores.files.create(vsId, {
               file_id: (uploadedFile as any).id,
             });
-
-            // Poll ingestion status (max ~30s)
+            // Poll ingestion status
             let attempts = 0;
             while (attempts < 30) {
               const cur = await this.openai.vectorStores.files.retrieve(vsId, (vsFile as any).id);
@@ -275,15 +279,14 @@ export class AiTutorsService {
               await new Promise((r) => setTimeout(r, 1000));
               attempts++;
             }
-
             uploaded++;
           } catch {
-            // per-file error: continue
+            // continue on per-file error
           }
         }
       }
     } catch {
-      // vector store errors are non-fatal for ingestion
+      // ignore vector store errors
     }
 
     return { success: true, linked: files.length, knowledgeSize: combined.length, vectorStoreId: vsId, uploadedToVectorStore: uploaded };

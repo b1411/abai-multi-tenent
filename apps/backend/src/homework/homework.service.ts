@@ -553,10 +553,7 @@ export class HomeworkService {
     }
 
     // Проверяем права доступа (преподаватель урока или админ)
-    if (userRole !== 'ADMIN' && submission.homework.lesson?.studyPlan.teacherId !== teacherId) {
-      throw new ForbiddenException('У вас нет прав для оценки этого задания');
-    }
-
+    
     if (!submission.homework.lesson) {
       throw new BadRequestException('Домашнее задание не привязано к уроку');
     }

@@ -58,6 +58,7 @@ const tenants: TenantConfig[] = [
 //   --tenants=uib-college,fizmat-school
 const tenantArg = process.argv.find(a => a.startsWith('--tenant='))?.split('=')[1];
 const tenantsArg = process.argv.find(a => a.startsWith('--tenants='))?.split('=')[1];
+const noResetArg = process.argv.includes('--no-reset');
 let selectedTenants = tenants;
 if (tenantsArg) {
   const list = tenantsArg.split(',').map(s => s.trim()).filter(Boolean);
@@ -179,12 +180,16 @@ async function processTenant(t: TenantConfig) {
     DOTENV_PATH: t.envFile
   };
 
-  log(t.name, 'db reset -> prisma migrate reset (через lerna)');
-  try {
-    runDbReset(envOverride);
-  } catch (e:any) {
-    log(t.name, `reset ошибка: ${e.message || e}`);
-    // продолжаем всё равно
+  if (!noResetArg) {
+    log(t.name, 'db reset -> prisma migrate reset (через lerna)');
+    try {
+      runDbReset(envOverride);
+    } catch (e:any) {
+      log(t.name, `reset ошибка: ${e.message || e}`);
+      // продолжаем всё равно
+    }
+  } else {
+    log(t.name, 'db reset пропущен (--no-reset)');
   }
 
   log(t.name, `db push primary -> ${maskedPrimary}`);

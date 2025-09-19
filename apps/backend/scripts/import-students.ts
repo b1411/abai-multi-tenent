@@ -173,18 +173,33 @@ async function findOrCreateGroup(groupName: string, courseNumber: number) {
 
 async function upsertStudent(st: NormalizedStudent) {
     const existingUser = await prisma.user.findUnique({ where: { email: st.email } });
-    if (existingUser) {
-        const existingStudent = await prisma.student.findFirst({ where: { userId: existingUser.id } });
-        if (!existingStudent) {
-            const group = await findOrCreateGroup(st.groupName, st.courseNumber);
-            await prisma.student.create({ data: { userId: existingUser.id, groupId: group.id } });
-            console.log(`Добавлена сущность Student для существующего пользователя ${st.email}`);
-        }
-        return { status: 'skip-exists' as const };
-    }
-
     const group = await findOrCreateGroup(st.groupName, st.courseNumber);
     const hashedPassword = await bcrypt.hash(st.password, 10);
+
+    if (existingUser) {
+        await prisma.user.update({
+            where: { email: st.email },
+            data: {
+                name: st.name,
+                surname: st.surname,
+                middlename: st.middlename,
+                phone: st.phone,
+                birthDate: st.birthDate,
+                hashedPassword
+            }
+        });
+        const existingStudent = await prisma.student.findFirst({ where: { userId: existingUser.id } });
+        if (existingStudent) {
+            await prisma.student.update({
+                where: { id: existingStudent.id },
+                data: { groupId: group.id }
+            });
+        } else {
+            await prisma.student.create({ data: { userId: existingUser.id, groupId: group.id } });
+        }
+        return { status: 'updated' as const };
+    }
+
     const user = await prisma.user.create({
         data: {
             email: st.email,
@@ -203,22 +218,33 @@ async function upsertStudent(st: NormalizedStudent) {
 
 async function upsertTeacher(t: NormalizedTeacher) {
     const existingUser = await prisma.user.findUnique({ where: { email: t.email } });
+    const hashedPassword = await bcrypt.hash(t.password, 10);
+
     if (existingUser) {
         if (existingUser.role !== 'TEACHER') {
             const existingTeacher = await prisma.teacher.findFirst({ where: { userId: existingUser.id } });
-            if (existingTeacher) return { status: 'skip-exists' as const };
+            if (existingTeacher) return { status: 'role-mismatch' as const };
             console.warn(`Пользователь ${t.email} с ролью ${existingUser.role} — пропущено (не меняем роль).`);
             return { status: 'role-mismatch' as const };
         }
+        await prisma.user.update({
+            where: { email: t.email },
+            data: {
+                name: t.name,
+                surname: t.surname,
+                middlename: t.middlename,
+                phone: t.phone,
+                birthDate: t.birthDate,
+                hashedPassword
+            }
+        });
         const existingTeacher = await prisma.teacher.findFirst({ where: { userId: existingUser.id } });
         if (!existingTeacher) {
             await prisma.teacher.create({ data: { userId: existingUser.id } });
-            console.log(`Добавлена сущность Teacher для существующего пользователя ${t.email}`);
         }
-        return { status: 'skip-exists' as const };
+        return { status: 'updated' as const };
     }
 
-    const hashedPassword = await bcrypt.hash(t.password, 10);
     const user = await prisma.user.create({
         data: {
             email: t.email,

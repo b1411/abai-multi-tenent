@@ -55,7 +55,7 @@ export class LessonsService {
     });
   }
 
-  async findAll(filters: LessonFilterDto): Promise<PaginateResponseDto<Lesson>> {
+  async findAll(filters: LessonFilterDto, user?: any): Promise<PaginateResponseDto<Lesson>> {
     const {
       page = 1,
       limit = 10,
@@ -75,7 +75,7 @@ export class LessonsService {
     const finalStartDate = startDate || dateFrom;
     const finalEndDate = endDate || dateTo;
 
-    const where: Prisma.LessonWhereInput = {
+    let where: Prisma.LessonWhereInput = {
       deletedAt: null,
       ...(search && search.trim() && {
         OR: [
@@ -123,6 +123,20 @@ export class LessonsService {
         }
       }),
     };
+
+    // Ограничение для TEACHER: показывать только свои уроки
+    if (user?.role === 'TEACHER') {
+      where = {
+        ...where,
+        studyPlan: {
+          teacher: {
+            user: {
+              id: user.id
+            }
+          }
+        }
+      };
+    }
 
     const [data, count] = await Promise.all([
       this.prisma.lesson.findMany({

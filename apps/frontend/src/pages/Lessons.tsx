@@ -104,9 +104,14 @@ const LessonsPage: React.FC = () => {
     try {
       setLessonsLoading(true);
       // Используем разные методы в зависимости от роли
-      const response = hasRole('STUDENT')
-        ? await lessonService.getMyLessons(filters)
-        : await lessonService.getLessons(filters);
+      let response;
+      if (hasRole('STUDENT')) {
+        response = await lessonService.getMyLessons(filters);
+      } else if (hasRole('TEACHER')) {
+        response = await lessonService.getLessons({ ...filters, teacherId: user?.id });
+      } else {
+        response = await lessonService.getLessons(filters);
+      }
       setLessons(response.data);
       setPagination(response.pagination);
     } catch (error) {
@@ -374,16 +379,16 @@ const LessonsPage: React.FC = () => {
 
           {/* Filters Row 1 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <Select
-              placeholder="Тип урока"
-              value={filters.type || 'all'}
-              onChange={(value) => updateFilters({ type: value === 'all' ? undefined : value as LessonType })}
-              options={[
-                { value: 'all', label: 'Все типы' },
-                ...getLessonTypeOptions()
-              ]}
-              className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px]"
-            />
+              <Select
+                placeholder="Порядок"
+                value={filters.order === "asc" || filters.order === "desc" ? filters.order : "desc"}
+                onChange={(value) => updateFilters({ order: value === "asc" || value === "desc" ? value : undefined })}
+                options={[
+                  { value: 'asc', label: 'По возрастанию' },
+                  { value: 'desc', label: 'По убыванию' }
+                ]}
+                className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px]"
+              />
 
             <Select
               placeholder="Учебный план"
@@ -444,8 +449,8 @@ const LessonsPage: React.FC = () => {
 
               <Select
                 placeholder="Порядок"
-                value={filters.order || 'desc'}
-                onChange={(value) => updateFilters({ order: value as any })}
+                value={filters.order === "asc" || filters.order === "desc" ? filters.order : "desc"}
+                onChange={(value) => updateFilters({ order: value === "asc" || value === "desc" ? value : undefined })}
                 options={[
                   { value: 'asc', label: 'По возрастанию' },
                   { value: 'desc', label: 'По убыванию' }
@@ -473,7 +478,7 @@ const LessonsPage: React.FC = () => {
               data={lessons}
               loading={lessonsLoading}
               sortBy={filters.sortBy}
-              sortDirection={filters.order}
+              sortDirection={filters.order === "asc" || filters.order === "desc" ? filters.order : undefined}
               onSort={(key, direction) => updateFilters({ sortBy: key as any, order: direction })}
             />
           </div>

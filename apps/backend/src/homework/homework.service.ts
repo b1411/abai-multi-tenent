@@ -74,52 +74,60 @@ export class HomeworkService {
     });
   }
 
-  async findAll(filters: HomeworkQueryDto) {
-    const {
-      search,
-      lessonId,
-      studentId,
-      teacherId,
-      page = 1,
-      limit = 10,
-      sortBy = 'deadline',
-      order = 'asc'
-    } = filters;
+    async findAll(filters: HomeworkQueryDto, user?: any) {
+        // Если роль TEACHER, обязательно фильтруем только свои домашки
+        // Если user не передан, не фильтруем
+        const {
+            search,
+            lessonId,
+            studentId,
+            // teacherId,
+            page = 1,
+            limit = 10,
+            sortBy = 'deadline',
+            order = 'asc'
+        } = filters;
 
-    const where: Prisma.HomeworkWhereInput = {
-      deletedAt: null,
-      ...(search && {
-        name: {
-          contains: search,
-          mode: 'insensitive'
+        let where: Prisma.HomeworkWhereInput = {
+            deletedAt: null,
+            ...(search && {
+                name: {
+                    contains: search,
+                    mode: 'insensitive'
+                }
+            }),
+            ...(lessonId && {
+                lesson: {
+                    id: lessonId
+                }
+            }),
+            ...(studentId && {
+                studentsSubmissions: {
+                    some: {
+                        studentId: studentId
+                    }
+                }
+            })
+        };
+
+        // Ограничение для TEACHER: показывать только свои домашки
+        if (user?.role === 'TEACHER' && user?.id) {
+            where = {
+                ...where,
+                lesson: {
+                    studyPlan: {
+                        teacher: {
+                            userId: user.id
+                        }
+                    }
+                }
+            };
         }
-      }),
-      ...(lessonId && {
-        lesson: {
-          id: lessonId
-        }
-      }),
-      ...(teacherId && {
-        lesson: {
-          studyPlan: {
-            teacherId: teacherId
-          }
-        }
-      }),
-      ...(studentId && {
-        studentsSubmissions: {
-          some: {
-            studentId: studentId
-          }
-        }
-      })
-    };
 
     const orderBy: Prisma.HomeworkOrderByWithRelationInput = {};
     orderBy[sortBy] = order;
 
-    const [data, total] = await Promise.all([
-      this.prisma.homework.findMany({
+    const data = await this.prisma.homework.findMany({
         where,
         orderBy,
         skip: (page - 1) * limit,
@@ -156,17 +164,21 @@ export class HomeworkService {
             }
           }
         }
-      }),
-      this.prisma.homework.count({ where })
-    ]);
+      });
+
+    // Удаляем из выдачи все домашки, где lesson.studyPlan.teacher?.userId !== user.id (если TEACHER)
+    let filteredData = data;
+    if (user?.role === 'TEACHER' && user?.id) {
+        filteredData = data.filter(hw => hw.lesson?.studyPlan?.teacher?.userId === user.id);
+    }
 
     return {
-      data,
+      data: filteredData,
       meta: {
-        totalItems: total,
-        itemCount: data.length,
+        totalItems: filteredData.length,
+        itemCount: filteredData.length,
         itemsPerPage: limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(filteredData.length / limit),
         currentPage: page
       }
     };
@@ -293,7 +305,7 @@ export class HomeworkService {
   }
 
   async remove(id: number) {
-    const homework = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.homework.update({
       where: { id },
@@ -333,7 +345,7 @@ export class HomeworkService {
   }
 
   async submitHomework(homeworkId: number, userId: number, submitDto: HomeworkSubmitDto) {
-    const homework = await this.findOne(homeworkId);
+    await this.findOne(homeworkId);
 
     // Находим студента по userId
     const student = await this.prisma.student.findUnique({
@@ -345,7 +357,10 @@ export class HomeworkService {
     }
 
     // Проверяем дедлайн
-    if (new Date() > homework.deadline) {
+    const foundHomework = await this.prisma.homework.findUnique({
+      where: { id: homeworkId }
+    });
+    if (new Date() > foundHomework.deadline) {
       throw new BadRequestException('Срок сдачи домашнего задания истек');
     }
 
@@ -423,7 +438,7 @@ export class HomeworkService {
   }
 
   async updateHomeworkSubmission(homeworkId: number, userId: number, submitDto: HomeworkSubmitDto) {
-    const homework = await this.findOne(homeworkId);
+    await this.findOne(homeworkId);
 
     // Находим студента по userId
     const student = await this.prisma.student.findUnique({
@@ -435,7 +450,10 @@ export class HomeworkService {
     }
 
     // Проверяем дедлайн
-    if (new Date() > homework.deadline) {
+    const foundHomework = await this.prisma.homework.findUnique({
+      where: { id: homeworkId }
+    });
+    if (new Date() > foundHomework.deadline) {
       throw new BadRequestException('Срок сдачи домашнего задания истек. Нельзя изменить работу после дедлайна.');
     }
 
@@ -510,7 +528,7 @@ export class HomeworkService {
   }
 
   async getHomeworkSubmissions(homeworkId: number) {
-    const homework = await this.findOne(homeworkId);
+    await this.findOne(homeworkId);
 
     return this.prisma.homeworkSubmission.findMany({
       where: {
@@ -532,75 +550,70 @@ export class HomeworkService {
     });
   }
 
-  async gradeHomework(submissionId: number, gradeDto: GradeHomeworkDto, teacherId: number, userRole?: string) {
-    const submission = await this.prisma.homeworkSubmission.findUnique({
-      where: { id: submissionId },
-      include: {
-        homework: {
-          include: {
-            lesson: {
-              include: {
-                studyPlan: true
-              }
+    async gradeHomework(submissionId: number, gradeDto: GradeHomeworkDto) {
+        const submission = await this.prisma.homeworkSubmission.findUnique({
+            where: { id: submissionId },
+            include: {
+                homework: {
+                    include: {
+                        lesson: {
+                            include: {
+                                studyPlan: true
+                            }
+                        }
+                    }
+                }
             }
-          }
+        });
+
+        if (!submission) {
+            throw new NotFoundException('Отправка домашнего задания не найдена');
         }
-      }
-    });
 
-    if (!submission) {
-      throw new NotFoundException('Отправка домашнего задания не найдена');
+        if (!submission.homework.lesson) {
+            throw new BadRequestException('Домашнее задание не привязано к уроку');
+        }
+
+        await this.prisma.lessonResult.upsert({
+            where: {
+                homeworkId: submission.id
+            },
+            update: {
+                homeworkScore: gradeDto.score,
+                homeworkScoreComment: gradeDto.comment,
+                updatedAt: new Date()
+            },
+            create: {
+                studentId: submission.studentId,
+                lessonId: submission.homework.lesson.id,
+                homeworkId: submission.id,
+                homeworkScore: gradeDto.score,
+                homeworkScoreComment: gradeDto.comment
+            }
+        });
+
+        await this.prisma.homeworkSubmission.update({
+            where: { id: submissionId },
+            data: {
+                status: 'CHECKED',
+                updatedAt: new Date()
+            }
+        });
+
+        return this.prisma.homeworkSubmission.findUnique({
+            where: { id: submissionId },
+            include: {
+                student: {
+                    include: {
+                        user: true
+                    }
+                },
+                homework: true,
+                fileUrl: true,
+                LessonResult: true
+            }
+        });
     }
-
-    // Проверяем права доступа (преподаватель урока или админ)
-    
-    if (!submission.homework.lesson) {
-      throw new BadRequestException('Домашнее задание не привязано к уроку');
-    }
-
-    // Обновляем или создаем результат урока
-    const lessonResult = await this.prisma.lessonResult.upsert({
-      where: {
-        homeworkId: submission.id
-      },
-      update: {
-        homeworkScore: gradeDto.score,
-        homeworkScoreComment: gradeDto.comment,
-        updatedAt: new Date()
-      },
-      create: {
-        studentId: submission.studentId,
-        lessonId: submission.homework.lesson.id,
-        homeworkId: submission.id,
-        homeworkScore: gradeDto.score,
-        homeworkScoreComment: gradeDto.comment
-      }
-    });
-
-    // Обновляем статус отправки на CHECKED
-    await this.prisma.homeworkSubmission.update({
-      where: { id: submissionId },
-      data: {
-        status: 'CHECKED',
-        updatedAt: new Date()
-      }
-    });
-
-    // Возвращаем обновленную отправку с результатом урока
-    return this.prisma.homeworkSubmission.findUnique({
-      where: { id: submissionId },
-      include: {
-        student: {
-          include: {
-            user: true
-          }
-        },
-        homework: true,
-        fileUrl: true,
-        LessonResult: true
-      }
-    });
-  }
 
   async getHomeworkStats(filters: { lessonId?: number; studentId?: number; teacherId?: number }) {
     const { lessonId, studentId, teacherId } = filters;

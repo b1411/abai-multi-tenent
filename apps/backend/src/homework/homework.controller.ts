@@ -57,7 +57,12 @@ export class HomeworkController {
   @ApiQuery({ name: 'limit', required: false, description: 'Количество элементов на странице' })
   @ApiQuery({ name: 'sortBy', required: false, description: 'Поле для сортировки' })
   @ApiQuery({ name: 'order', required: false, description: 'Направление сортировки' })
-  findAll(@Query() filters: HomeworkQueryDto) {
+  findAll(@Query() filters: HomeworkQueryDto, @Req() req: any) {
+    // Для преподавателя — только свои домашки
+    if (req.user.role === 'TEACHER') {
+      return this.homeworkService.findAll(filters, { id: req.user.id, role: 'TEACHER' });
+    }
+    // Для админа — все
     return this.homeworkService.findAll(filters);
   }
 
@@ -160,12 +165,9 @@ export class HomeworkController {
   @ApiResponse({ status: 403, description: 'Нет прав для оценки' })
   gradeHomework(
     @Param('submissionId', ParseIntPipe) submissionId: number,
-    @Body() gradeDto: GradeHomeworkDto,
-    @Req() req: any
+    @Body() gradeDto: GradeHomeworkDto
   ) {
-    const teacherId = req.user.teacher?.id || 0;
-    const userRole = req.user.role;
-    return this.homeworkService.gradeHomework(submissionId, gradeDto, teacherId, userRole);
+    return this.homeworkService.gradeHomework(submissionId, gradeDto);
   }
 }
 

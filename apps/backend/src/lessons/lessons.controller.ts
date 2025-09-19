@@ -63,11 +63,12 @@ export class LessonsController {
         page: 1,
         limit: 1000, // Большой лимит для получения всех уроков
         noPagination: undefined // убираем этот параметр для сервиса
-      });
+      }, req.user);
       return result.data;
     }
 
-    return this.lessonsService.findAll(filters);
+    // Добавляем user для фильтрации по учителю
+    return this.lessonsService.findAll(filters, req.user);
   }
 
   @Get('me')

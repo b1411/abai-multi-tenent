@@ -97,9 +97,14 @@ const HomeworkPage: React.FC = () => {
     try {
       setHomeworksLoading(true);
       // Используем разные методы в зависимости от роли
-      const response = hasRole('STUDENT') 
-        ? await homeworkService.getMyHomeworks(filters)
-        : await homeworkService.getHomeworks(filters);
+      let response;
+      if (hasRole('STUDENT')) {
+        response = await homeworkService.getMyHomeworks(filters);
+      } else if (hasRole('TEACHER')) {
+        response = await homeworkService.getHomeworks({ ...filters, teacherId: user?.id });
+      } else {
+        response = await homeworkService.getHomeworks(filters);
+      }
       setHomeworks(response.data);
       setPagination({
         page: response.meta.currentPage,

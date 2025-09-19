@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -41,7 +41,11 @@ export class UsersController {
     enum: ['STUDENT', 'TEACHER', 'PARENT', 'ADMIN', 'FINANCIST', 'HR']
   })
   @Roles('ADMIN', 'HR', 'TEACHER', "PARENT", "STUDENT", "FINANCIST", "HR")
-  findByRole(@Param('role') role: string) {
+  findByRole(@Param('role') role: string, @Req() req: any) {
+    // Если студент запрашивает учителей, фильтруем только по его группе
+    if (role === 'TEACHER' && req.user.role === 'STUDENT') {
+      return this.usersService.findByRole(role, req.user.id);
+    }
     return this.usersService.findByRole(role);
   }
 

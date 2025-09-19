@@ -129,14 +129,15 @@ export interface UpdateLessonRequest {
 
 export interface LessonFilters {
   studyPlanId?: number;
-  type?: LessonType;
   search?: string;
+  type?: LessonType;
   dateFrom?: string;
   dateTo?: string;
   page?: number;
   limit?: number;
-  sortBy?: 'name' | 'date' | 'createdAt' | 'updatedAt';
-  order?: 'asc' | 'desc';
+  sortBy?: string;
+  order?: string;
+  teacherId?: number;
 }
 
 export interface LessonListResponse {

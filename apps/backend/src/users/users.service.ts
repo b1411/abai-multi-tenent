@@ -279,7 +279,51 @@ export class UsersService {
   }
 
   // Специальные методы для пользователей
-  findByRole(role: string) {
+  async findByRole(role: string, userId?: number) {
+    if (role === 'TEACHER' && userId) {
+      // Получаем группу студента
+      const student = await this.prisma.student.findUnique({
+        where: { userId },
+        select: { groupId: true }
+      });
+      if (!student) return [];
+      // Находим всех учителей, у которых есть учебные планы для этой группы
+      return this.prisma.user.findMany({
+        where: {
+          role: 'TEACHER',
+          deletedAt: null,
+          teacher: {
+            studyPlans: {
+              some: {
+                group: {
+                  some: {
+                    id: student.groupId
+                  }
+                }
+              }
+            }
+          }
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          surname: true,
+          phone: true,
+          middlename: true,
+          avatar: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+        },
+        orderBy: [
+          { surname: 'asc' },
+          { name: 'asc' },
+        ],
+      });
+    }
+    // Обычная фильтрация по роли
     return this.prisma.user.findMany({
       where: {
         role: role as any,

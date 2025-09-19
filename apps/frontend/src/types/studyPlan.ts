@@ -64,12 +64,12 @@ export interface Lesson {
 
 export interface StudyPlanFilters {
   search?: string;
-  groupId?: number;
   teacherId?: number;
-  sortBy?: 'name' | 'createdAt' | 'updatedAt';
-  order?: 'asc' | 'desc';
+  groupId?: number;
   page?: number;
   limit?: number;
+  sortBy?: string;
+  order?: "asc" | "desc";
 }
 
 // Response structure according to backend

@@ -68,7 +68,7 @@ export class StudyPlansService {
         };
     }
 
-    async findAll(filter: StudyPlanFilterDto): Promise<PaginateResponseDto<StudyPlan>> {
+    async findAll(filter: StudyPlanFilterDto, user?: any): Promise<PaginateResponseDto<StudyPlan>> {
         const {
             page = 1,
             limit = 10,
@@ -79,7 +79,7 @@ export class StudyPlansService {
             groupId
         } = filter;
 
-        const where: Prisma.StudyPlanWhereInput = {
+        let where: Prisma.StudyPlanWhereInput = {
             deletedAt: null,
             ...(search && search.trim() && {
                 OR: [
@@ -104,8 +104,24 @@ export class StudyPlansService {
                     }
                 }
             }),
-            ...(teacherId && { teacherId }),
+            ...(teacherId && {
+                teacher: {
+                    userId: teacherId
+                }
+            }),
         };
+
+        // Ограничение для TEACHER: показывать только свои учебные планы
+        if (user?.role === 'TEACHER' && user?.id) {
+            where = {
+                ...where,
+                teacher: {
+                    user: {
+                        id: user.id
+                    }
+                }
+            };
+        }
 
         const [data, totalItems] = await Promise.all([
             this.prisma.studyPlan.findMany({
@@ -502,6 +518,7 @@ export class StudyPlansService {
                     }
                 ]
             }),
+            ...(filter.teacherId ? { teacherId: filter.teacherId } : {}),
         };
 
         const [data, totalItems] = await Promise.all([

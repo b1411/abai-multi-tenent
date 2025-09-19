@@ -36,7 +36,8 @@ const StudyPlansPage: React.FC = () => {
     page: 1,
     limit: 10,
     sortBy: 'createdAt',
-    order: 'desc'
+    order: ['asc', 'desc'].includes('desc') ? 'desc' : undefined,
+    ...(hasRole('TEACHER') && user?.id ? { teacherId: user?.id } : {})
   }, hasRole('STUDENT'), hasRole('PARENT')); // Передаем флаги для студентов и родителей
 
   const {
@@ -171,7 +172,7 @@ const StudyPlansPage: React.FC = () => {
       </div>
 
       {/* Фильтры - адаптивная сетка */}
-      <div className="bg-white p-3 md:p-4 rounded-lg shadow mb-4 md:mb-6">
+      {hasRole('ADMIN') || hasRole('TEACHER') ? (<div className="bg-white p-3 md:p-4 rounded-lg shadow mb-4 md:mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
           <div className="col-span-1 md:col-span-1">
             <input
@@ -212,7 +213,7 @@ const StudyPlansPage: React.FC = () => {
           </div>
         </div>
       </div>
-
+      ) : null}
       {/* Состояние загрузки и ошибки */}
       {plansLoading && (
         <div className="flex justify-center items-center py-8">
@@ -298,7 +299,7 @@ const StudyPlansPage: React.FC = () => {
                         {formatDate(plan.updatedAt)}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user.id === user?.id)) ? (
+                        {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user?.id === user?.id)) ? (
                           <div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
                             <button
                               className="text-blue-600 hover:text-blue-800 flex items-center button-hover text-xs lg:text-sm"
@@ -432,7 +433,7 @@ const StudyPlansPage: React.FC = () => {
                 </div>
 
                 {/* Действия */}
-                {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user.id === user?.id)) && (
+                {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user?.id === user?.id)) && (
                   <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
                     <button
                       className="flex-1 min-w-[80px] px-3 py-2 text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-md flex items-center justify-center button-hover text-xs"
@@ -551,7 +552,7 @@ const StudyPlansPage: React.FC = () => {
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-800">Календарно-тематическое планирование</h2>
               <div className="flex items-center gap-2">
-                {ktpData && (hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user.id === user?.id)) && (
+                {ktpData && (hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user?.id === user?.id)) && (
                   <button
                     onClick={async () => {
                       if (!ktpData) return;
@@ -593,7 +594,7 @@ const StudyPlansPage: React.FC = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center h-64 text-center">
                   <div className="text-gray-500 mb-4">КТП для данного учебного плана не найден</div>
-                  {(hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user.id === user?.id)) && (
+                  {(hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user?.id === user?.id)) && (
                     <button
                       onClick={async () => {
                         try {

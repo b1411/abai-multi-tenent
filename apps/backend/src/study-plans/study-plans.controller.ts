@@ -41,7 +41,11 @@ export class StudyPlansController {
     if (req.user.role === 'PARENT') {
       return this.studyPlansService.findParentChildrenStudyPlans(filter, req.user.id);
     }
-    // Для админов и преподавателей возвращаем все планы
+    // Для преподавателя — только свои планы
+    if (req.user.role === 'TEACHER') {
+      return this.studyPlansService.findAll({ ...filter }, { id: req.user.id, role: 'TEACHER' });
+    }
+    // Для админов возвращаем все планы
     return this.studyPlansService.findAll(filter);
   }
 

@@ -180,6 +180,7 @@ export interface GradeStatistics {
 
 export interface JournalFilters {
   groupId?: number;
+  period?: string;
   studyPlanId?: number;
   startDate?: string;
   endDate?: string;

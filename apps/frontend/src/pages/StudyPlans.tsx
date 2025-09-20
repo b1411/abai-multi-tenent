@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaDownload, FaEdit, FaTimes, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaDownload, FaEdit, FaTimes, FaPlus, FaTrash, FaBookOpen, FaCalendarAlt } from 'react-icons/fa';
+import Tooltip from '../components/Tooltip';
 import { useStudyPlans, useAvailableData } from '../hooks/useStudyPlans';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate } from '../utils';
@@ -300,58 +301,77 @@ const StudyPlansPage: React.FC = () => {
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user?.id === user?.id)) ? (
-                          <div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
-                            <button
-                              className="text-blue-600 hover:text-blue-800 flex items-center button-hover text-xs lg:text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingPlan(plan);
-                              }}
-                            >
-                              <FaEdit className="mr-1" />
-                              <span className="hidden lg:inline">Редактировать</span>
-                              <span className="lg:hidden">Ред.</span>
-                            </button>
-                            <button
-                              className="text-green-600 hover:text-green-800 flex items-center button-hover text-xs lg:text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/lessons?studyPlanId=${plan.id}`);
-                              }}
-                            >
-                              <FaEdit className="mr-1" />
-                              Уроки
-                            </button>
-                            <button
-                              className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                setIsLoadingKtp(true);
-                                setKtpLoading(true);
-                                try {
-                                  const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
-                                  if (ktpList.data.length > 0) {
-                                    const ktp = await ktpService.getKtpById(ktpList.data[0].id);
-                                    setKtpData(ktp);
-                                  } else {
-                                    setKtpData(null);
-                                  }
-                                  setSelectedPlan(plan);
-                                } catch (err) {
-                                  console.error('Error loading KTP:', err);
-                                  setKtpData(null);
-                                  setSelectedPlan(plan);
-                                } finally {
-                                  setKtpLoading(false);
-                                  setShowKtpModal(true);
-                                  setIsLoadingKtp(false);
-                                }
-                              }}
-                            >
-                              <FaPlus className="mr-1" />
-                              КТП
-                            </button>
-                          </div>
+<div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
+  <Tooltip text="Редактировать">
+    <button
+      className="text-blue-600 hover:text-blue-800 flex items-center button-hover text-xs lg:text-sm"
+      onClick={(e) => {
+        e.stopPropagation();
+        setEditingPlan(plan);
+      }}
+    >
+      <FaEdit />
+    </button>
+  </Tooltip>
+  <Tooltip text="Уроки">
+    <button
+      className="text-green-600 hover:text-green-800 flex items-center button-hover text-xs lg:text-sm"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/lessons?studyPlanId=${plan.id}`);
+      }}
+    >
+      <FaBookOpen />
+    </button>
+  </Tooltip>
+  <Tooltip text="КТП">
+    <button
+      className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
+      onClick={async (e) => {
+        e.stopPropagation();
+        setIsLoadingKtp(true);
+        setKtpLoading(true);
+        try {
+          const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
+          if (ktpList.data.length > 0) {
+            const ktp = await ktpService.getKtpById(ktpList.data[0].id);
+            setKtpData(ktp);
+          } else {
+            setKtpData(null);
+          }
+          setSelectedPlan(plan);
+        } catch (err) {
+          console.error('Error loading KTP:', err);
+          setKtpData(null);
+          setSelectedPlan(plan);
+        } finally {
+          setKtpLoading(false);
+          setShowKtpModal(true);
+          setIsLoadingKtp(false);
+        }
+      }}
+    >
+      <FaCalendarAlt />
+    </button>
+  </Tooltip>
+  <Tooltip text="Удалить">
+    <button
+      className="text-red-600 hover:text-red-800 flex items-center button-hover text-xs lg:text-sm"
+      onClick={async (e) => {
+        e.stopPropagation();
+        if (!window.confirm('Удалить учебный план?')) return;
+        try {
+          await studyPlanService.deleteStudyPlan(plan.id.toString());
+          updateFilters({ ...filters, page: 1 });
+        } catch (err) {
+          alert('Ошибка при удалении учебного плана');
+        }
+      }}
+    >
+      <FaTrash />
+    </button>
+  </Tooltip>
+</div>
                         ) : (
                           <span className="text-gray-400 text-xs">Нет доступа</span>
                         )}

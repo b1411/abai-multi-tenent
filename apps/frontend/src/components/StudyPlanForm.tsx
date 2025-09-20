@@ -16,18 +16,22 @@ interface StudyPlanFormProps {
   onSubmit: (data: StudyPlanFormData) => Promise<void>;
   onClose: () => void;
   loading?: boolean;
+  teacherId?: number;
+  teacherDropdownDisabled?: boolean;
 }
 
 const StudyPlanForm: React.FC<StudyPlanFormProps> = ({
   studyPlan,
   onSubmit,
   onClose,
-  loading = false
+  loading = false,
+  teacherId,
+  teacherDropdownDisabled
 }) => {
   const [formData, setFormData] = useState<StudyPlanFormData>({
     name: studyPlan?.name || '',
     description: studyPlan?.description || '',
-    teacherId: studyPlan?.teacherId || undefined,
+    teacherId: studyPlan?.teacherId || teacherId || undefined,
     groupIds: studyPlan?.group?.map(g => g.id) || [],
     normativeWorkload: undefined
   });
@@ -199,7 +203,7 @@ const StudyPlanForm: React.FC<StudyPlanFormProps> = ({
                     errors.teacherId ? 'border-red-500' : 'border-gray-300'
                   }`}
                   required
-                  disabled={loading || submitting}
+                  disabled={loading || submitting || teacherDropdownDisabled}
                 >
                   <option value="">Выберите преподавателя</option>
                   {teachers.map(teacher => (

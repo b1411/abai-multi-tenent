@@ -762,6 +762,8 @@ const StudyPlansPage: React.FC = () => {
           onClose={handleCloseCreateForm}
           onSubmit={handleCreateStudyPlan}
           loading={formLoading}
+          teacherId={hasRole('TEACHER') ? user?.id : undefined}
+          teacherDropdownDisabled={hasRole('TEACHER')}
         />
       )}
 

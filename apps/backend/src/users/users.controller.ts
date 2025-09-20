@@ -27,7 +27,7 @@ export class UsersController {
   @Get()
   @ApiOperation({ summary: 'Получить всех пользователей' })
   @ApiResponse({ status: 200, description: 'Список всех пользователей' })
-  @Roles('ADMIN', 'HR', "FINANCIST")
+  @Roles('ADMIN', 'HR', "FINANCIST", "TEACHER")
   findAll() {
     return this.usersService.findAll();
   }

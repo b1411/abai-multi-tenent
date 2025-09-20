@@ -4,9 +4,17 @@ import { CreateHomeworkDto, HomeworkSubmitDto, GradeHomeworkDto, HomeworkQueryDt
 import { UpdateHomeworkDto } from './dto/update-homework.dto';
 import { Prisma } from '../../generated/prisma';
 
+import { TenantConfigService } from '../common/tenant-config.service';
+
 @Injectable()
 export class HomeworkService {
-  constructor(private prisma: PrismaService) { }
+  private prisma: PrismaService;
+  private tenantConfig: TenantConfigService;
+
+  constructor(prisma: PrismaService, tenantConfig: TenantConfigService) {
+    this.prisma = prisma;
+    this.tenantConfig = tenantConfig;
+  }
 
   async create(createHomeworkDto: CreateHomeworkDto) {
     const homework = await this.prisma.homework.create({

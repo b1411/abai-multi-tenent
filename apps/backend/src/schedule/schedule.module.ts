@@ -13,6 +13,7 @@ import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FilesService } from 'src/files/files.service';
 import { ScheduleOptimizerService } from './schedule-optimizer.service';
+import { TenantConfigService } from 'src/common/tenant-config.service';
 
 @Module({
   controllers: [ScheduleController, ScheduleAiController, ScheduleAiFlowController],
@@ -27,7 +28,8 @@ import { ScheduleOptimizerService } from './schedule-optimizer.service';
     AiAssistantService,
     NotificationsService,
     ScheduleOptimizerService,
-    FilesService
+    FilesService,
+    TenantConfigService
   ],
   exports: [
     ScheduleService,

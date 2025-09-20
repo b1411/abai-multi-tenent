@@ -5,16 +5,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TeacherWorkedHoursService } from '../teachers/teacher-worked-hours.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SystemService } from '../system/system.service';
+import { TenantConfigService } from 'src/common/tenant-config.service';
 
 @Module({
   controllers: [WorkloadController],
   providers: [
-    WorkloadService, 
-    PrismaService, 
+    WorkloadService,
+    PrismaService,
     TeacherWorkedHoursService,
     ScheduleService,
-    SystemService
+    SystemService,
+    TenantConfigService
   ],
   exports: [WorkloadService],
 })
-export class WorkloadModule {}
+export class WorkloadModule { }

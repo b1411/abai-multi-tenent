@@ -6,9 +6,10 @@ import { JwtService } from 'src/jwt/jwt.service';
 import { AiAssistantService } from 'src/ai-assistant/ai-assistant.service';
 import { ImportProgressService } from './import-progress.service';
 import { FilesService } from 'src/files/files.service';
+import { TenantConfigService } from 'src/common/tenant-config.service';
 
 @Module({
   controllers: [StudyPlansController],
-  providers: [StudyPlansService, PrismaService, JwtService, AiAssistantService, ImportProgressService, FilesService],
+  providers: [StudyPlansService, PrismaService, JwtService, AiAssistantService, ImportProgressService, FilesService, TenantConfigService],
 })
-export class StudyPlansModule {}
+export class StudyPlansModule { }

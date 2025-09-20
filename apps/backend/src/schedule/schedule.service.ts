@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantConfigService } from '../common/tenant-config.service';
 
 @Injectable()
 export class ScheduleService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private tenantConfig: TenantConfigService
+  ) {}
 
   async create(createScheduleDto: CreateScheduleDto) {
     // Проверяем существование связанных сущностей
@@ -417,29 +421,42 @@ export class ScheduleService {
 
   private resolvePeriodPreset(preset: string): { startDate: Date; endDate: Date } {
     const now = new Date();
-    // Учебный год начинается 1 сентября
     const currentYear = now.getFullYear();
     const schoolYear = now.getMonth() >= 8 ? currentYear : currentYear - 1;
-    // Утилита для даты (month is 0-based)
     const d = (y: number, m: number, day: number) => new Date(y, m, day);
 
-    switch (preset) {
-      case 'quarter1':
-        return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear, 9, 31) }; // Sep 1 - Oct 31
-      case 'quarter2':
-        return { startDate: d(schoolYear, 10 - 1, 1), endDate: d(schoolYear, 11, 31) }; // Nov 1 - Dec 31
-      case 'quarter3':
-        return { startDate: d(schoolYear + 1, 0, 9), endDate: d(schoolYear + 1, 2, 31) }; // Jan 9 - Mar 31
-      case 'quarter4':
-        return { startDate: d(schoolYear + 1, 3, 1), endDate: d(schoolYear + 1, 4, 31) }; // Apr 1 - May 31
-      case 'half_year_1':
-        return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear, 11, 31) }; // Sep 1 - Dec 31
-      case 'half_year_2':
-        return { startDate: d(schoolYear + 1, 0, 9), endDate: d(schoolYear + 1, 4, 31) }; // Jan 9 - May 31
-      case 'year':
-        return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear + 1, 4, 31) }; // Sep 1 - May 31
-      default:
-        throw new BadRequestException('Неизвестный periodPreset');
+    if (this.tenantConfig.periodType === 'semester') {
+      switch (preset) {
+        case 'semester1':
+        case 'fall_semester':
+          return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear, 11, 31) }; // Sep 1 - Dec 31
+        case 'semester2':
+        case 'spring_semester':
+          return { startDate: d(schoolYear + 1, 0, 9), endDate: d(schoolYear + 1, 4, 31) }; // Jan 9 - May 31
+        case 'year':
+          return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear + 1, 4, 31) }; // Sep 1 - May 31
+        default:
+          throw new BadRequestException('Неизвестный periodPreset для семестра');
+      }
+    } else {
+      switch (preset) {
+        case 'quarter1':
+          return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear, 9, 31) }; // Sep 1 - Oct 31
+        case 'quarter2':
+          return { startDate: d(schoolYear, 10 - 1, 1), endDate: d(schoolYear, 11, 31) }; // Nov 1 - Dec 31
+        case 'quarter3':
+          return { startDate: d(schoolYear + 1, 0, 9), endDate: d(schoolYear + 1, 2, 31) }; // Jan 9 - Mar 31
+        case 'quarter4':
+          return { startDate: d(schoolYear + 1, 3, 1), endDate: d(schoolYear + 1, 4, 31) }; // Apr 1 - May 31
+        case 'half_year_1':
+          return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear, 11, 31) }; // Sep 1 - Dec 31
+        case 'half_year_2':
+          return { startDate: d(schoolYear + 1, 0, 9), endDate: d(schoolYear + 1, 4, 31) }; // Jan 9 - May 31
+        case 'year':
+          return { startDate: d(schoolYear, 8, 1), endDate: d(schoolYear + 1, 4, 31) }; // Sep 1 - May 31
+        default:
+          throw new BadRequestException('Неизвестный periodPreset');
+      }
     }
   }
 

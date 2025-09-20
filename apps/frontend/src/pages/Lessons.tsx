@@ -13,7 +13,20 @@ import {
 import { Button, Input, Select, Table, Modal, Loading } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatDateTime } from '../utils';
-import { Lesson, LessonFilters, StudyPlan, LessonType } from '../types/lesson';
+import { Lesson, StudyPlan, LessonType } from '../types/lesson';
+
+type LessonFiltersExt = {
+  studyPlanId?: number;
+  search?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  order?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  period?: string;
+};
+import { useTenantConfig } from '../hooks/useTenantConfig';
 import { lessonService } from '../services/lessonService';
 import { studyPlanService } from '../services/studyPlanService';
 import { getLessonTypeLabel, getLessonTypeColor, getLessonTypeOptions } from '../utils/lessonTypeUtils';
@@ -42,13 +55,16 @@ const LessonsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [lessonsLoading, setLessonsLoading] = useState(true);
 
-  const [filters, setFilters] = useState<LessonFilters>({
+  const { config: tenantConfig } = useTenantConfig();
+
+  const [filters, setFilters] = useState<LessonFiltersExt>({
     studyPlanId: searchParams.get('studyPlanId') ? parseInt(searchParams.get('studyPlanId')!) : undefined,
     search: '',
     page: 1,
     limit: 10,
     sortBy: 'date',
-    order: 'desc'
+    order: 'desc',
+    period: ''
   });
 
   const [pagination, setPagination] = useState({
@@ -160,7 +176,7 @@ const LessonsPage: React.FC = () => {
     }
   };
 
-  const updateFilters = (newFilters: Partial<LessonFilters>) => {
+  const updateFilters = (newFilters: Partial<LessonFiltersExt>) => {
     setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
   };
 
@@ -379,16 +395,16 @@ const LessonsPage: React.FC = () => {
 
           {/* Filters Row 1 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <Select
-                placeholder="Порядок"
-                value={filters.order === "asc" || filters.order === "desc" ? filters.order : "desc"}
-                onChange={(value) => updateFilters({ order: value === "asc" || value === "desc" ? value : undefined })}
-                options={[
-                  { value: 'asc', label: 'По возрастанию' },
-                  { value: 'desc', label: 'По убыванию' }
-                ]}
-                className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px]"
-              />
+            <Select
+              placeholder="Порядок"
+              value={filters.order === "asc" || filters.order === "desc" ? filters.order : "desc"}
+              onChange={(value) => updateFilters({ order: value === "asc" || value === "desc" ? value : undefined })}
+              options={[
+                { value: 'asc', label: 'По возрастанию' },
+                { value: 'desc', label: 'По убыванию' }
+              ]}
+              className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px]"
+            />
 
             <Select
               placeholder="Учебный план"
@@ -409,31 +425,86 @@ const LessonsPage: React.FC = () => {
 
           {/* Filters Row 2 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="relative">
-              <label className="block text-xs sm:text-sm font-medium text-gray-600 mb-1 sm:hidden">
-                Дата от
-              </label>
-              <Input
-                type="date"
-                placeholder="Дата от"
-                value={filters.dateFrom || ''}
-                onChange={(e) => updateFilters({ dateFrom: e.target.value })}
-                className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px] px-3 sm:px-4 py-2.5 sm:py-3"
-              />
-            </div>
-
-            <div className="relative">
-              <label className="block text-xs sm:text-sm font-medium text-gray-600 mb-1 sm:hidden">
-                Дата до
-              </label>
-              <Input
-                type="date"
-                placeholder="Дата до"
-                value={filters.dateTo || ''}
-                onChange={(e) => updateFilters({ dateTo: e.target.value })}
-                className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px] px-3 sm:px-4 py-2.5 sm:py-3"
-              />
-            </div>
+            <Select
+              label="Период"
+              value={filters.period || ''}
+              onChange={(value) => {
+                let dateFrom = '';
+                let dateTo = '';
+                const year = new Date().getFullYear();
+                if (tenantConfig?.periodType === 'semester') {
+                  if (value === 'half_year_1') {
+                    dateFrom = `${year}-09-01`;
+                    dateTo = `${year}-12-31`;
+                  } else if (value === 'half_year_2') {
+                    dateFrom = `${year}-01-01`;
+                    dateTo = `${year}-05-31`;
+                  } else if (value === 'year') {
+                    dateFrom = `${year}-09-01`;
+                    dateTo = `${year + 1}-05-31`;
+                  }
+                } else {
+                  if (value === 'quarter1') {
+                    dateFrom = `${year}-09-02`;
+                    dateTo = `${year}-10-26`;
+                  } else if (value === 'quarter2') {
+                    dateFrom = `${year}-11-03`;
+                    dateTo = `${year}-12-28`;
+                  } else if (value === 'quarter3') {
+                    dateFrom = `${year + 1}-01-08`;
+                    dateTo = `${year + 1}-03-18`;
+                  } else if (value === 'quarter4') {
+                    dateFrom = `${year + 1}-03-30`;
+                    dateTo = `${year + 1}-05-25`;
+                  } else if (value === 'year') {
+                    dateFrom = `${year}-09-02`;
+                    dateTo = `${year + 1}-05-25`;
+                  }
+                }
+                updateFilters({
+                  period: value,
+                  dateFrom,
+                  dateTo
+                });
+              }}
+              options={
+                tenantConfig?.periodType === 'semester'
+                  ? [
+                    { value: '', label: 'Выберите период' },
+                    { value: 'half_year_1', label: '1 семестр' },
+                    { value: 'half_year_2', label: '2 семестр' },
+                    { value: 'year', label: 'Учебный год' },
+                    { value: 'custom', label: 'Произвольный' }
+                  ]
+                  : [
+                    { value: '', label: 'Выберите период' },
+                    { value: 'quarter1', label: '1 четверть' },
+                    { value: 'quarter2', label: '2 четверть' },
+                    { value: 'quarter3', label: '3 четверть' },
+                    { value: 'quarter4', label: '4 четверть' },
+                    { value: 'year', label: 'Учебный год' },
+                    { value: 'custom', label: 'Произвольный' }
+                  ]
+              }
+            />
+            {filters.period === 'custom' && (
+              <>
+                <Input
+                  type="date"
+                  placeholder="Дата от"
+                  value={filters.dateFrom || ''}
+                  onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+                  className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px] px-3 sm:px-4 py-2.5 sm:py-3"
+                />
+                <Input
+                  type="date"
+                  placeholder="Дата до"
+                  value={filters.dateTo || ''}
+                  onChange={(e) => updateFilters({ dateTo: e.target.value })}
+                  className="text-sm sm:text-base min-h-[44px] sm:min-h-[48px] px-3 sm:px-4 py-2.5 sm:py-3"
+                />
+              </>
+            )}
           </div>
 
           {/* Sort and Stats */}

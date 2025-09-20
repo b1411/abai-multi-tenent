@@ -35,6 +35,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useBranding } from '../hooks/useSystem';
 import type { BrandingSettings } from '../types/system';
+import { useTenantConfig } from '../hooks/useTenantConfig';
 
 // Types
 interface Student {
@@ -111,33 +112,45 @@ interface GradeDetail {
   type: 'Контрольная работа' | 'Самостоятельная работа' | 'Устный ответ' | 'Домашнее задание' | 'Тест' | 'Итоговая оценка за день' | 'Итоговая оценка за неделю' | 'Итоговая оценка за четверть' | 'Итоговая оценка за год' | 'Итоговая оценка';
 }
 
-const PERIOD_OPTIONS: { value: string; label: string }[] = [
-  { value: 'day', label: 'День' },
-  { value: 'week', label: 'Неделя' },
-  { value: 'school_quarter_1', label: '1 четверть (шк.)' },
-  { value: 'school_quarter_2', label: '2 четверть (шк.)' },
-  { value: 'school_quarter_3', label: '3 четверть (шк.)' },
-  { value: 'school_quarter_4', label: '4 четверть (шк.)' },
-  { value: 'quarter', label: 'Акад. четверть (текущая)' },
-  { value: 'fall_semester', label: 'Осенний семестр' },
-  { value: 'spring_semester', label: 'Весенний семестр' },
-  { value: 'semester', label: 'Семестр (legacy)' },
-  { value: 'year', label: 'Год' },
-  { value: 'trimester_1', label: '1 триместр' },
-  { value: 'trimester_2', label: '2 триместр' },
-  { value: 'trimester_3', label: '3 триместр' },
-  { value: 'custom', label: 'Произвольный' }
-];
+const getPeriodOptions = (periodType?: string) => {
+  if (periodType === 'semester') {
+    return [
+      { value: 'day', label: 'День' },
+      { value: 'week', label: 'Неделя' },
+      { value: 'fall_semester', label: 'Осенний семестр' },
+      { value: 'spring_semester', label: 'Весенний семестр' },
+      { value: 'semester', label: 'Семестр (legacy)' },
+      { value: 'year', label: 'Год' },
+      { value: 'custom', label: 'Произвольный' }
+    ];
+  }
+  // default: четверти
+  return [
+    { value: 'day', label: 'День' },
+    { value: 'week', label: 'Неделя' },
+    { value: 'school_quarter_1', label: '1 четверть (шк.)' },
+    { value: 'school_quarter_2', label: '2 четверть (шк.)' },
+    { value: 'school_quarter_3', label: '3 четверть (шк.)' },
+    { value: 'school_quarter_4', label: '4 четверть (шк.)' },
+    { value: 'quarter', label: 'Акад. четверть (текущая)' },
+    { value: 'year', label: 'Год' },
+    { value: 'custom', label: 'Произвольный' }
+  ];
+};
 
 const EducationalReports: React.FC = () => {
   const { settings: branding } = useBranding();
+  const { config: tenantConfig } = useTenantConfig();
+
+  // Динамические периоды
+  const PERIOD_OPTIONS = getPeriodOptions(tenantConfig?.periodType);
 
   const [filters, setFilters] = useState<ReportFilters>({
     class: '',
     subject: '',
     level: '',
     search: '',
-    period: 'school_quarter_1'
+    period: tenantConfig?.periodType === 'semester' ? 'fall_semester' : 'school_quarter_1'
   });
 
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -258,7 +271,7 @@ const EducationalReports: React.FC = () => {
 
           const allGrades = Object.values(grades).flat();
           const averageGrade = allGrades.length > 0 ? educationalReportsApi.calculateAverageGrade(allGrades) : 0;
-          const qualityPercentage = allGrades.length > 0 ? educationalReportsApi.calculateQualityPercentage(allGrades) : 0;
+          const qualityPercentage = allGrades.length > 0 ? educationalReportsApi.calculateQualityPercentage(allGrades, tenantConfig?.gradeSystem || 5) : 0;
 
           return {
             id: apiStudent.id,
@@ -392,7 +405,9 @@ const EducationalReports: React.FC = () => {
         (allSubjectGrades.reduce((sum, g) => sum + g, 0) / allSubjectGrades.length) * 10
       ) / 10;
 
-      const quality = educationalReportsApi.calculateQualityPercentage(allSubjectGrades);
+      const quality = tenantConfig?.gradeSystem === 100
+        ? Math.round((allSubjectGrades.filter(g => g >= 75).length / allSubjectGrades.length) * 100)
+        : educationalReportsApi.calculateQualityPercentage(allSubjectGrades);
 
       let studentsAbove4 = 0;
       let studentsBelow3 = 0;
@@ -400,8 +415,13 @@ const EducationalReports: React.FC = () => {
         const sg = s.grades[filters.subject] || [];
         if (sg.length > 0) {
           const personalAvg = sg.reduce((sum, g) => sum + g, 0) / sg.length;
-          if (personalAvg >= 4) studentsAbove4 += 1;
-          if (personalAvg < 3) studentsBelow3 += 1;
+          if (tenantConfig?.gradeSystem === 100) {
+            if (personalAvg >= 75) studentsAbove4 += 1;
+            if (personalAvg < 60) studentsBelow3 += 1;
+          } else {
+            if (personalAvg >= 4) studentsAbove4 += 1;
+            if (personalAvg < 3) studentsBelow3 += 1;
+          }
         }
       });
 
@@ -560,7 +580,7 @@ const EducationalReports: React.FC = () => {
           ? educationalReportsApi.calculateAverageGrade(allGrades)
           : 0;
         const qualityPercentage = allGrades.length > 0
-          ? educationalReportsApi.calculateQualityPercentage(allGrades)
+          ? educationalReportsApi.calculateQualityPercentage(allGrades, tenantConfig?.gradeSystem || 5)
           : 0;
 
         return {
@@ -1135,6 +1155,12 @@ const EducationalReports: React.FC = () => {
   };
 
   const getGradeColor = (grade: number) => {
+    if (tenantConfig?.gradeSystem === 100) {
+      if (grade >= 90) return 'text-green-600 bg-green-50';
+      if (grade >= 75) return 'text-blue-600 bg-blue-50';
+      if (grade >= 60) return 'text-yellow-600 bg-yellow-50';
+      return 'text-red-600 bg-red-50';
+    }
     if (grade >= 4.5) return 'text-green-600 bg-green-50';
     if (grade >= 3.5) return 'text-blue-600 bg-blue-50';
     if (grade >= 2.5) return 'text-yellow-600 bg-yellow-50';
@@ -1990,7 +2016,10 @@ const EducationalReports: React.FC = () => {
                       <div className="text-sm">
                         <span className="text-gray-600">Качество: </span>
                         <span className="font-bold text-green-600">
-                          {Math.round((selectedGradeDetails.grades.filter(g => g.grade >= 4).length / selectedGradeDetails.grades.length) * 100)}%
+                          {tenantConfig?.gradeSystem === 100
+                            ? Math.round((selectedGradeDetails.grades.filter(g => g.grade >= 75).length / selectedGradeDetails.grades.length) * 100)
+                            : Math.round((selectedGradeDetails.grades.filter(g => g.grade >= 4).length / selectedGradeDetails.grades.length) * 100)
+                          }%
                         </span>
                       </div>
                     </>

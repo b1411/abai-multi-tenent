@@ -19,6 +19,7 @@ import { Spinner } from '../components/ui/Spinner';
 import type { StudyPlanResponse } from '../types/studyPlan';
 import { studyPlanService } from '../services/studyPlanService';
 import { teacherService } from '../services/teacherService';
+import { useTenantConfig } from '../hooks/useTenantConfig';
 
 interface GradeModalProps {
     isOpen: boolean;
@@ -46,6 +47,7 @@ const GradeModal: React.FC<GradeModalProps> = ({
     initialResult,
     onSave
 }) => {
+    const { config: tenantConfig } = useTenantConfig();
     const [lessonScore, setLessonScore] = useState(initialResult?.lessonScore || '');
     const [lessonScoreComment, setLessonScoreComment] = useState(initialResult?.lessonScorecomment || '');
     const [homeworkScore, setHomeworkScore] = useState(initialResult?.homeworkScore || '');
@@ -55,6 +57,10 @@ const GradeModal: React.FC<GradeModalProps> = ({
         (initialResult?.absentReason || '');
     const [absentComment, setAbsentComment] = useState(initialResult?.absentComment || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const minGrade = tenantConfig?.gradeSystem === 100 ? 0 : 1;
+    const maxGrade = tenantConfig?.gradeSystem === 100 ? 100 : 5;
+    const gradePlaceholder = tenantConfig?.gradeSystem === 100 ? 'Оценка (0-100)' : 'Оценка (1-5)';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -156,13 +162,13 @@ const GradeModal: React.FC<GradeModalProps> = ({
                             <div className="space-y-4">
                                 <h4 className="font-medium text-gray-900">Классная работа</h4>
                                 <Input
-                                    label="Оценка (1-5)"
+                                    label={gradePlaceholder}
                                     type="number"
-                                    min="1"
-                                    max="5"
+                                    min={minGrade}
+                                    max={maxGrade}
                                     value={lessonScore}
                                     onChange={(e) => setLessonScore(e.target.value)}
-                                    placeholder="Оценка за урок"
+                                    placeholder={gradePlaceholder}
                                 />
                                 <Input
                                     label="Комментарий"
@@ -176,13 +182,13 @@ const GradeModal: React.FC<GradeModalProps> = ({
                             <div className="space-y-4">
                                 <h4 className="font-medium text-gray-900">Домашняя работа</h4>
                                 <Input
-                                    label="Оценка (1-5)"
+                                    label={gradePlaceholder}
                                     type="number"
-                                    min="1"
-                                    max="5"
+                                    min={minGrade}
+                                    max={maxGrade}
                                     value={homeworkScore}
                                     onChange={(e) => setHomeworkScore(e.target.value)}
-                                    placeholder="Оценка за ДЗ"
+                                    placeholder={gradePlaceholder}
                                 />
                                 <Input
                                     label="Комментарий"
@@ -341,6 +347,7 @@ const GradeInfoModal: React.FC<GradeInfoModalProps> = ({
 
 const AcademicJournal: React.FC = () => {
     const { user } = useAuth();
+    const { config: tenantConfig } = useTenantConfig();
     
     // Устанавливаем промежуток в месяц по умолчанию
     const getDefaultDateRange = () => {
@@ -650,9 +657,6 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
     const renderGradeCell = (studentId: number, lessonId: number) => {
         const result = getResultForStudentAndLesson(studentId, lessonId);
 
-        // Отладочная информация
-        console.log(`Проверяем оценку для студента ${studentId}, урок ${lessonId}:`, result);
-
         if (!result) {
             return canEdit ? (
                 <button
@@ -668,7 +672,6 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
             );
         }
 
-        // Показываем оценки или отсутствие
         if (result.attendance === false) {
             return (
                 <button
@@ -681,7 +684,6 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
             );
         }
 
-        // Показываем средний балл или отдельные оценки
         const grades = [result.lessonScore, result.homeworkScore].filter((grade): grade is number => grade !== undefined && grade !== null);
         if (grades.length === 0) {
             return (
@@ -696,20 +698,31 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
 
         const averageGrade = grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
 
+        // Динамический цвет и отображение баллов
+        const getDynamicGradeColor = (grade: number) => {
+            if (tenantConfig?.gradeSystem === 100) {
+                if (grade >= 90) return 'bg-green-600';
+                if (grade >= 75) return 'bg-blue-600';
+                if (grade >= 60) return 'bg-yellow-600';
+                return 'bg-red-600';
+            }
+            return journalService.getGradeColor(grade);
+        };
+
         const titleLines: string[] = [];
         if (result.lessonScore) titleLines.push(`Урок: ${result.lessonScore}`);
         if (result.homeworkScore) titleLines.push(`ДЗ: ${result.homeworkScore}`);
-titleLines.push(`Средний: ${averageGrade}`);
+        titleLines.push(`Средний: ${averageGrade}`);
         if (result.lessonScorecomment) titleLines.push(`Комментарий: ${result.lessonScorecomment}`);
         const title = titleLines.join('\n');
 
         return (
             <button
                 onClick={() => handleGradeClick(studentId, lessonId)}
-                className={`relative w-12 h-12 rounded-full text-white font-medium hover:opacity-90 transition-opacity ${journalService.getGradeColor(averageGrade)}`}
+                className={`relative w-12 h-12 rounded-full text-white font-medium hover:opacity-90 transition-opacity ${getDynamicGradeColor(averageGrade)}`}
                 title={title}
             >
-{averageGrade}
+                {tenantConfig?.gradeSystem === 100 ? Math.round(averageGrade) : averageGrade}
                 {result.lessonScorecomment && (
                     <span
                         className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500"
@@ -770,19 +783,85 @@ titleLines.push(`Средний: ${averageGrade}`);
                             ]}
                         />
 
-                        <Input
-                            label="Дата начала"
-                            type="date"
-                            value={filters.startDate || ''}
-                            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                        <Select
+                            label="Период"
+                            value={filters.period || ''}
+                            onChange={(value) => {
+                                let startDate = '';
+                                let endDate = '';
+                                const year = new Date().getFullYear();
+                                if (tenantConfig?.periodType === 'semester') {
+                                    if (value === 'half_year_1') {
+                                        startDate = `${year}-09-01`;
+                                        endDate = `${year}-12-31`;
+                                    } else if (value === 'half_year_2') {
+                                        startDate = `${year}-01-01`;
+                                        endDate = `${year}-05-31`;
+                                    } else if (value === 'year') {
+                                        startDate = `${year}-09-01`;
+                                        endDate = `${year + 1}-05-31`;
+                                    }
+                                } else {
+                                    if (value === 'quarter1') {
+                                        startDate = `${year}-09-02`;
+                                        endDate = `${year}-10-26`;
+                                    } else if (value === 'quarter2') {
+                                        startDate = `${year}-11-03`;
+                                        endDate = `${year}-12-28`;
+                                    } else if (value === 'quarter3') {
+                                        startDate = `${year + 1}-01-08`;
+                                        endDate = `${year + 1}-03-18`;
+                                    } else if (value === 'quarter4') {
+                                        startDate = `${year + 1}-03-30`;
+                                        endDate = `${year + 1}-05-25`;
+                                    } else if (value === 'year') {
+                                        startDate = `${year}-09-02`;
+                                        endDate = `${year + 1}-05-25`;
+                                    }
+                                }
+                                setFilters(prev => ({
+                                    ...prev,
+                                    period: value,
+                                    startDate,
+                                    endDate
+                                }));
+                            }}
+                            options={
+                                tenantConfig?.periodType === 'semester'
+                                    ? [
+                                        { value: '', label: 'Выберите период' },
+                                        { value: 'half_year_1', label: '1 семестр' },
+                                        { value: 'half_year_2', label: '2 семестр' },
+                                        { value: 'year', label: 'Учебный год' },
+                                        { value: 'custom', label: 'Произвольный' }
+                                    ]
+                                    : [
+                                        { value: '', label: 'Выберите период' },
+                                        { value: 'quarter1', label: '1 четверть' },
+                                        { value: 'quarter2', label: '2 четверть' },
+                                        { value: 'quarter3', label: '3 четверть' },
+                                        { value: 'quarter4', label: '4 четверть' },
+                                        { value: 'year', label: 'Учебный год' },
+                                        { value: 'custom', label: 'Произвольный' }
+                                    ]
+                            }
                         />
-
-                        <Input
-                            label="Дата окончания"
-                            type="date"
-                            value={filters.endDate || ''}
-                            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                        />
+                        {filters.period === 'custom' && (
+                            <>
+                                <Input
+                                    label="Дата начала"
+                                    type="date"
+                                    value={filters.startDate || ''}
+                                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                                />
+                                <Input
+                                    label="Дата окончания"
+                                    type="date"
+                                    value={filters.endDate || ''}
+                                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                                />
+                            </>
+                        )}
                     </div>
                 </div>
 

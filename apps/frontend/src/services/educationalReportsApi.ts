@@ -203,9 +203,14 @@ class EducationalReportsApi {
 
   /**
    * Утилита для расчета качества знаний (приказ 125)
+   * gradeSystem: 5 или 100
    */
-  calculateQualityPercentage(grades: number[]): number {
+  calculateQualityPercentage(grades: number[], gradeSystem: number = 5): number {
     if (grades.length === 0) return 0;
+    if (gradeSystem === 100) {
+      const qualityGrades = grades.filter(grade => grade >= 75).length;
+      return Math.round((qualityGrades / grades.length) * 100);
+    }
     const qualityGrades = grades.filter(grade => grade >= 4).length;
     return Math.round((qualityGrades / grades.length) * 100);
   }

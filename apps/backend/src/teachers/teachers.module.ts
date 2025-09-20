@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ScheduleService } from 'src/schedule/schedule.service';
 import { SystemService } from '../system/system.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TenantConfigService } from 'src/common/tenant-config.service';
 
 @Module({
   controllers: [TeachersController, PayrollController, SubstitutionController],
@@ -24,8 +25,9 @@ import { NotificationsService } from '../notifications/notifications.service';
     PayrollNotificationsService,
     PrismaService,
     ScheduleService,
-  SystemService,
-  NotificationsService
+    TenantConfigService,
+    SystemService,
+    NotificationsService
   ],
   exports: [
     TeachersService,
@@ -36,4 +38,4 @@ import { NotificationsService } from '../notifications/notifications.service';
     PayrollNotificationsService,
   ],
 })
-export class TeachersModule {}
+export class TeachersModule { }

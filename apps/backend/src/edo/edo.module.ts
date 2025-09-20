@@ -6,10 +6,11 @@ import { TemplatesService } from './templates.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from 'src/jwt/jwt.service';
+import { TenantConfigService } from 'src/common/tenant-config.service';
 
 @Module({
     controllers: [EdoController, TemplatesController],
-    providers: [EdoService, TemplatesService, PrismaService, UsersService, JwtService],
+    providers: [EdoService, TemplatesService, PrismaService, UsersService, JwtService, TenantConfigService],
     exports: [EdoService, TemplatesService],
 })
 export class EdoModule { }

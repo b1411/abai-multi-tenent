@@ -6,9 +6,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { PaginateResponseDto } from 'src/common/dtos/paginate.dto';
 import { Lesson, Prisma } from 'generated/prisma';
 
+import { TenantConfigService } from '../common/tenant-config.service';
+
 @Injectable()
 export class LessonsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantConfig: TenantConfigService
+  ) { }
 
   async create(createLessonDto: CreateLessonDto): Promise<Lesson> {
     return this.prisma.lesson.create({

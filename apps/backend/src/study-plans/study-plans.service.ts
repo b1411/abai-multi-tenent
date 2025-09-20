@@ -12,12 +12,23 @@ import * as pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import { ImportProgressService } from './import-progress.service';
 
+import { TenantConfigService } from '../common/tenant-config.service';
+
 @Injectable()
 export class StudyPlansService {
+    private readonly prisma: PrismaService;
+    private readonly aiAssistant: AiAssistantService;
+    private readonly tenantConfig: TenantConfigService;
+
     constructor(
-        private readonly prisma: PrismaService,
-        private readonly aiAssistant: AiAssistantService
-    ) { }
+        prisma: PrismaService,
+        aiAssistant: AiAssistantService,
+        tenantConfig: TenantConfigService
+    ) {
+        this.prisma = prisma;
+        this.aiAssistant = aiAssistant;
+        this.tenantConfig = tenantConfig;
+    }
 
     // Общий include для всех методов
     private getStudyPlanInclude() {

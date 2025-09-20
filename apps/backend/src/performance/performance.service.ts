@@ -18,9 +18,14 @@ import {
   StudentWithSubjectsDto,
 } from './dto/performance-response.dto';
 
+import { TenantConfigService } from '../common/tenant-config.service';
+
 @Injectable()
 export class PerformanceService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private tenantConfig: TenantConfigService
+  ) { }
 
   async getStatistics(filter: PerformanceFilterDto): Promise<StatisticsResponseDto> {
     // Получаем реальные данные по студентам и группам
@@ -628,11 +633,11 @@ export class PerformanceService {
     const quizRate = avgMaxScore > 0 ? Math.round((avgQuizScore / avgMaxScore) * 100) : 0;
 
     return [
-      { subject: 'Оценки', value: Math.round((avgGrade / 5) * 100) }, // Преобразуем из 5-балльной в проценты
+      { subject: 'Оценки', value: Math.round((avgGrade / this.tenantConfig.gradeSystem) * 100) },
       { subject: 'Посещаемость', value: Math.round(attendanceRate) },
       { subject: 'Домашние задания', value: Math.round(assignmentRate) },
       { subject: 'Тесты', value: quizRate },
-      { subject: 'Общая успеваемость', value: Math.round(((avgGrade / 5) * 100 + attendanceRate + assignmentRate + quizRate) / 4) },
+      { subject: 'Общая успеваемость', value: Math.round(((avgGrade / this.tenantConfig.gradeSystem) * 100 + attendanceRate + assignmentRate + quizRate) / 4) },
     ];
   }
 
@@ -1723,11 +1728,11 @@ export class PerformanceService {
     const quizRate = avgMaxScore > 0 ? Math.round((avgQuizScore / avgMaxScore) * 100) : 0;
 
     return [
-      { subject: 'Оценки', value: Math.round((avgGrade / 5) * 100) },
+      { subject: 'Оценки', value: Math.round((avgGrade / this.tenantConfig.gradeSystem) * 100) },
       { subject: 'Посещаемость', value: Math.round(attendanceRate) },
       { subject: 'Домашние задания', value: Math.round(assignmentRate) },
       { subject: 'Тесты', value: quizRate },
-      { subject: 'Общая успеваемость', value: Math.round(((avgGrade / 5) * 100 + attendanceRate + assignmentRate + quizRate) / 4) },
+      { subject: 'Общая успеваемость', value: Math.round(((avgGrade / this.tenantConfig.gradeSystem) * 100 + attendanceRate + assignmentRate + quizRate) / 4) },
     ];
   }
 

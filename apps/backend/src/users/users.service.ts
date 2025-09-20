@@ -4,9 +4,17 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 
+import { TenantConfigService } from '../common/tenant-config.service';
+
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) { }
+  private prisma: PrismaService;
+  private tenantConfig: TenantConfigService;
+
+  constructor(prisma: PrismaService, tenantConfig: TenantConfigService) {
+    this.prisma = prisma;
+    this.tenantConfig = tenantConfig;
+  }
 
   async create(createUserDto: CreateUserDto) {
     // Проверяем уникальность email

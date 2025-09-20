@@ -46,6 +46,8 @@ import { MailModule } from './mail/mail.module';
 import { AiTutorsModule } from './ai-tutors/ai-tutors.module';
 import { AiChatModule } from './ai-chat/ai-chat.module';
 import * as path from 'node:path';
+import { TenantConfigController } from './common/tenant-config.controller';
+import { TenantConfigService } from './common/tenant-config.service';
 
 const envFile = (() => {
   const p = process.env.ENV_FILE; // например "envs/.env.client1" или "/root/app/.env.client1"
@@ -101,7 +103,7 @@ const envFile = (() => {
     AiTutorsModule,
     AiChatModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, PrismaService, JwtService],
+  controllers: [AppController, TenantConfigController],
+  providers: [AppService, PrismaService, JwtService, TenantConfigService],
 })
 export class AppModule { }

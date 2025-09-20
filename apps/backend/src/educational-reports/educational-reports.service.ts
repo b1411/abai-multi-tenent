@@ -219,10 +219,11 @@ export class EducationalReportsService {
     });
 
     // Вычисляем статистику для каждого предмета
+    const gradeSystem = Number(process.env.TENANT_GRADE_SYSTEM) || 5;
     return Array.from(subjectsMap.values()).map(subject => {
       const grades = subject.grades.map(g => g.grade);
-      const averageGrade = this.calculateAverageGrade(grades);
-      const qualityPercentage = this.calculateQualityPercentage(grades);
+      const averageGrade = this.calculateAverageGrade(grades, gradeSystem);
+      const qualityPercentage = this.calculateQualityPercentage(grades, gradeSystem);
 
       return {
         ...subject,
@@ -285,21 +286,31 @@ export class EducationalReportsService {
   // ============ УТИЛИТЫ ДЛЯ РАСЧЕТОВ (ПРИКАЗ 125) ============
 
   /**
-   * Расчет качества знаний согласно приказу 125
-   * Качество знаний - процент оценок "4" и "5" от общего количества оценок
+   * Расчет качества знаний с учётом системы баллов
+   * Для 5-балльной: процент оценок >=4
+   * Для 100-балльной: процент оценок >=75
    */
-  calculateQualityPercentage(grades: number[]): number {
+  calculateQualityPercentage(grades: number[], gradeSystem: number = 5): number {
     if (grades.length === 0) return 0;
+    if (gradeSystem === 100) {
+      const qualityGrades = grades.filter(grade => grade >= 75).length;
+      return Math.round((qualityGrades / grades.length) * 100);
+    }
     const qualityGrades = grades.filter(grade => grade >= 4).length;
     return Math.round((qualityGrades / grades.length) * 100);
   }
 
   /**
-   * Расчет среднего балла с округлением до десятых
+   * Расчет среднего балла с учётом системы баллов
+   * Для 5-балльной: округление до десятых
+   * Для 100-балльной: округление до целых
    */
-  calculateAverageGrade(grades: number[]): number {
+  calculateAverageGrade(grades: number[], gradeSystem: number = 5): number {
     if (grades.length === 0) return 0;
     const sum = grades.reduce((acc, grade) => acc + grade, 0);
+    if (gradeSystem === 100) {
+      return Math.round(sum / grades.length);
+    }
     return Math.round((sum / grades.length) * 10) / 10;
   }
 

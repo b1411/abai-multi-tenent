@@ -15,6 +15,7 @@ import { financeService } from '../services/financeService';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import { getAcademicQuarterForDate } from '../utils/academicQuarter';
+import { useTenantConfig } from '../hooks/useTenantConfig';
 
 const Budget: React.FC = () => {
   const { user } = useAuth();
@@ -22,16 +23,19 @@ const Budget: React.FC = () => {
   const [analytics, setAnalytics] = useState<BudgetAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const defaultQuarterInfo = getAcademicQuarterForDate(new Date());
-  const [filters, setFilters] = useState<BudgetFilters>({
-    period: `${defaultQuarterInfo.academicYearStartYear} Q${defaultQuarterInfo.index}`,
+  const { config: tenantConfig } = useTenantConfig();
+  const defaultPeriodType = tenantConfig?.periodType || 'quarter';
+  const currentYear = new Date().getFullYear();
+  const [filters, setFilters] = useState<BudgetFilters & { periodType?: string }>({
+    periodType: defaultPeriodType,
+    period: '',
     type: '',
     category: '',
     status: '',
     responsible: ''
   });
-  const [selectedYear, setSelectedYear] = useState(defaultQuarterInfo.academicYearStartYear.toString());
-  const [selectedQuarter, setSelectedQuarter] = useState(`Q${defaultQuarterInfo.index}`);
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [selectedPeriod, setSelectedPeriod] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
 
@@ -47,11 +51,7 @@ const Budget: React.FC = () => {
     }
   }, [filters.period]);
 
-  // Обновляем период при изменении года или квартала
-  useEffect(() => {
-    const newPeriod = selectedYear && selectedQuarter ? `${selectedYear} ${selectedQuarter}` : '';
-    setFilters(prev => ({ ...prev, period: newPeriod }));
-  }, [selectedYear, selectedQuarter]);
+  // Удалено: selectedQuarter, теперь используем selectedPeriod
 
   const loadBudgetData = async () => {
     try {
@@ -196,19 +196,67 @@ const Budget: React.FC = () => {
 
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Акад. четверть
+              Период
             </label>
             <select
-              value={selectedQuarter}
-              onChange={(e) => setSelectedQuarter(e.target.value)}
+              value={selectedPeriod}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedPeriod(val);
+                let period = '';
+                if (tenantConfig?.periodType === 'semester') {
+                  if (val === 'half_year_1') period = `${selectedYear} 1 семестр`;
+                  else if (val === 'half_year_2') period = `${selectedYear} 2 семестр`;
+                  else if (val === 'year') period = `${selectedYear} учебный год`;
+                } else {
+                  if (val === 'quarter1') period = `${selectedYear} 1 четверть`;
+                  else if (val === 'quarter2') period = `${selectedYear} 2 четверть`;
+                  else if (val === 'quarter3') period = `${selectedYear} 3 четверть`;
+                  else if (val === 'quarter4') period = `${selectedYear} 4 четверть`;
+                  else if (val === 'year') period = `${selectedYear} учебный год`;
+                }
+                setFilters(prev => ({
+                  ...prev,
+                  periodType: tenantConfig?.periodType,
+                  period: val === 'custom' ? '' : period
+                }));
+              }}
               className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">Все четверти</option>
-              <option value="Q1">Q1 (02.09–26.10)</option>
-              <option value="Q2">Q2 (03.11–28.12)</option>
-              <option value="Q3">Q3 (08.01–18.03)</option>
-              <option value="Q4">Q4 (30.03–25.05)</option>
+              <option value="">Все периоды</option>
+              {tenantConfig?.periodType === 'semester'
+                ? [
+                    <option key="half_year_1" value="half_year_1">1 семестр</option>,
+                    <option key="half_year_2" value="half_year_2">2 семестр</option>,
+                    <option key="year" value="year">Учебный год</option>,
+                    <option key="custom" value="custom">Произвольный</option>
+                  ]
+                : [
+                    <option key="quarter1" value="quarter1">1 четверть (02.09–26.10)</option>,
+                    <option key="quarter2" value="quarter2">2 четверть (03.11–28.12)</option>,
+                    <option key="quarter3" value="quarter3">3 четверть (08.01–18.03)</option>,
+                    <option key="quarter4" value="quarter4">4 четверть (30.03–25.05)</option>,
+                    <option key="year" value="year">Учебный год</option>,
+                    <option key="custom" value="custom">Произвольный</option>
+                  ]
+              }
             </select>
+            {selectedPeriod === 'custom' && (
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="date"
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md"
+                  onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                  placeholder="Дата от"
+                />
+                <input
+                  type="date"
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md"
+                  onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                  placeholder="Дата до"
+                />
+              </div>
+            )}
           </div>
 
           <div>

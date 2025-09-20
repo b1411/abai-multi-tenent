@@ -64,6 +64,8 @@ interface ScheduleModalInternalProps extends ScheduleModalProps {
   classrooms: ClassroomOption[];
 }
 
+import { useTenantConfig } from '../hooks/useTenantConfig';
+
 const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
   isOpen,
   onClose,
@@ -75,6 +77,7 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
   studyPlans,
   classrooms
 }) => {
+  const { config: tenantConfig } = useTenantConfig();
   const [selectedStudyPlan, setSelectedStudyPlan] = useState<StudyPlanOption | null>(null);
   const [lessonFormat, setLessonFormat] = useState<'offline' | 'online'>('offline');
 
@@ -439,14 +442,23 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
                     required
                   >
                     <option value="">Не выбрано</option>
-                    <option value="quarter1">1 четверть</option>
-                    <option value="quarter2">2 четверть</option>
-                    <option value="quarter3">3 четверть</option>
-                    <option value="quarter4">4 четверть</option>
-                    <option value="half_year_1">1 полугодие</option>
-                    <option value="half_year_2">2 полугодие</option>
-                    <option value="year">Учебный год</option>
-                    <option value="custom">Свой диапазон</option>
+                    {tenantConfig?.periodType === 'semester' ? (
+                      <>
+                        <option value="half_year_1">1 полугодие</option>
+                        <option value="half_year_2">2 полугодие</option>
+                        <option value="year">Учебный год</option>
+                        <option value="custom">Свой диапазон</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="quarter1">1 четверть</option>
+                        <option value="quarter2">2 четверть</option>
+                        <option value="quarter3">3 четверть</option>
+                        <option value="quarter4">4 четверть</option>
+                        <option value="year">Учебный год</option>
+                        <option value="custom">Свой диапазон</option>
+                      </>
+                    )}
                   </select>
                   <div className="text-xs text-gray-500 mt-1">
                     Выберите готовый период или свой диапазон дат

@@ -21,11 +21,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SystemService } from '../system/system.service';
 
+import { TenantConfigService } from '../common/tenant-config.service';
+
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
+  private prisma: PrismaService;
+  private systemService: SystemService;
+  private tenantConfig: TenantConfigService;
 
-  constructor(private prisma: PrismaService, private systemService: SystemService) { }
+  constructor(prisma: PrismaService, systemService: SystemService, tenantConfig: TenantConfigService) {
+    this.prisma = prisma;
+    this.systemService = systemService;
+    this.tenantConfig = tenantConfig;
+  }
 
   async generateReport(generateReportDto: GenerateReportDto, userId: string): Promise<FinancialReport> {
     const reportId = uuidv4();

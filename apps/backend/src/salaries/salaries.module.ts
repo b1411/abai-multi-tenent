@@ -8,10 +8,11 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { TeacherWorkedHoursService } from 'src/teachers/teacher-worked-hours.service';
 import { ScheduleService } from 'src/schedule/schedule.service';
 import { SystemService } from 'src/system/system.service';
+import { TenantConfigService } from 'src/common/tenant-config.service';
 
 @Module({
     controllers: [SalariesController],
-    providers: [SalariesService, PrismaService, JwtService, PayrollNotificationsService, NotificationsService, TeacherWorkedHoursService, ScheduleService, SystemService],
+    providers: [SalariesService, PrismaService, JwtService, PayrollNotificationsService, NotificationsService, TeacherWorkedHoursService, ScheduleService, SystemService, TenantConfigService],
     exports: [SalariesService],
 })
 export class SalariesModule { }

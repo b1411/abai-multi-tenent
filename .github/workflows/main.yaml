@@ -15,11 +15,10 @@ jobs:
                   username: ${{ secrets.SSH_USERNAME }}
                   password: ${{ secrets.SSH_PASSWORD }}
                   script: |
-                      cd $HOME/abai-multi-tenent
+                      cd app
                       git checkout main
                       git pull
-                      npx lerna run db:push --  --accept-data-loss
+                      ./migrator.sh
                       pnpm i
-                      npx lerna run build
-                      curl --basic --user "${{ secrets.ALWAYSDATA_TOKEN }} account=${{ secrets.ALWAYSDATA_ACCOUNT }}:" --request POST https://api.alwaysdata.com/v1/site/${{ secrets.ALWAYSDATA_BACKEND_SITE_ID }}/restart/
-                      curl --basic --user "${{ secrets.ALWAYSDATA_TOKEN }} account=${{ secrets.ALWAYSDATA_ACCOUNT }}:" --request POST https://api.alwaysdata.com/v1/site/${{ secrets.ALWAYSDATA_FRONTEND_SITE_ID }}/restart/
+                      npx lerna run build -- scope backend
+                      pm2 restart all

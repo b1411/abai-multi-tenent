@@ -42,10 +42,11 @@ export interface Post {
   author: User;
   createdAt: string;
   updatedAt: string;
-  images: PostImage[];
+  images: string[];
   files: PostFile[];
   reactions: Reaction[];
   comments: Comment[];
+  visibility?: 'ALL' | 'ADMIN' | 'PARENT';
   _count: {
     reactions: number;
     comments: number;
@@ -54,8 +55,9 @@ export interface Post {
 
 export interface CreatePostData {
   content: string;
-  images?: File[];
+  images?: string[];
   files?: File[];
+  visibility?: 'ALL' | 'ADMIN' | 'PARENT';
 }
 
 export interface CreateCommentData {

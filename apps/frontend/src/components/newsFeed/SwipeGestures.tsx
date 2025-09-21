@@ -55,13 +55,6 @@ const SwipeGestures: React.FC<SwipeGesturesProps> = ({
         {children}
       </motion.div>
       
-      {/* Swipe indicators */}
-      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 text-2xl opacity-20 pointer-events-none">
-        ❤️
-      </div>
-      <div className="absolute top-1/2 right-4 transform -translate-y-1/2 text-2xl opacity-20 pointer-events-none">
-        😍
-      </div>
     </motion.div>
   );
 };

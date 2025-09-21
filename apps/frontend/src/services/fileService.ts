@@ -35,7 +35,7 @@ class FileService {
     formData.append('file', file);
     formData.append('category', category);
 
-    return await apiClient.postFormData<UploadedFile>('/files/upload', formData);
+    return await apiClient.postFormData<UploadedFile>('files/upload', formData);
   }
 
   /**
@@ -49,7 +49,7 @@ class FileService {
     });
     formData.append('category', category);
 
-    return await apiClient.postFormData<UploadedFile[]>('/files/upload-multiple', formData);
+    return await apiClient.postFormData<UploadedFile[]>('files/upload-multiple', formData);
   }
 
   /**
@@ -92,14 +92,14 @@ class FileService {
    * Получить информацию о файле
    */
   async getFile(id: number): Promise<UploadedFile> {
-    return await apiClient.get<UploadedFile>(`/files/${id}`);
+    return await apiClient.get<UploadedFile>(`files/${id}`);
   }
 
   /**
    * Удалить файл
    */
   async deleteFile(id: number): Promise<{ message: string }> {
-    return await apiClient.delete<{ message: string }>(`/files/${id}`);
+    return await apiClient.delete<{ message: string }>(`files/${id}`);
   }
 
   /**

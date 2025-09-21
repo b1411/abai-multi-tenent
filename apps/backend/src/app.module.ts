@@ -31,6 +31,7 @@ import { KpiModule } from './kpi/kpi.module';
 import { KtpModule } from './ktp/ktp.module';
 import { VacationsModule } from './vacations/vacations.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
+import { PostsModule } from './posts/posts.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SupplyModule } from './supply/supply.module';
@@ -84,6 +85,7 @@ const envFile = (() => {
     KtpModule,
     VacationsModule,
     LoyaltyModule,
+    PostsModule,
     FeedbackModule,
     InventoryModule,
     SupplyModule,

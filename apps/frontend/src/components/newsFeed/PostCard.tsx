@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, AlertCircle } from 'lucide-react';
 import { Post, ReactionType } from '../../types/newsFeed';
 import UserAvatar from './UserAvatar';
 import TimeAgo from './TimeAgo';
 import LikeButton from './LikeButton';
 import CommentThread from './CommentThread';
 import FilePreview from './FilePreview';
+import { useAuth } from '../../hooks/useAuth';
 
 interface PostCardProps {
   post: Post;
   onReaction: (postId: string, type: ReactionType) => void;
   onRemoveReaction: (postId: string) => void;
   onAddComment: (postId: string, content: string) => void;
+  editPost?: (postId: string, data: Partial<Post>) => void;
+  deletePost?: (postId: string) => void;
   currentUserId?: string;
   className?: string;
+  onToggleComments?: () => void;
 }
 
 const PostCard: React.FC<PostCardProps> = ({
@@ -22,11 +26,20 @@ const PostCard: React.FC<PostCardProps> = ({
   onReaction,
   onRemoveReaction,
   onAddComment,
-  currentUserId = '1', // Mock current user ID
-  className = ''
+  editPost,
+  deletePost,
+  currentUserId, // Mock current user ID
+  className = '',
+  onToggleComments
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [editVisibility, setEditVisibility] = useState(post.visibility ?? 'ALL');
+  const { user } = useAuth();
+
+  currentUserId = user?.id.toString();
 
   // Find current user's reaction
   const currentUserReaction = post.reactions.find(
@@ -91,15 +104,31 @@ const PostCard: React.FC<PostCardProps> = ({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[140px] z-10"
               >
-                <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 mr-1" />
                   Пожаловаться
                 </button>
                 {post.author.id === currentUserId && (
                   <>
-                    <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                      onClick={() => {
+                        setIsEditing(true);
+                        setShowMenu(false);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-1" />
                       Редактировать
                     </button>
-                    <button className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <button
+                      className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                      onClick={() => {
+                        if (typeof deletePost === 'function' && window.confirm('Удалить пост?')) {
+                          deletePost(post.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
                       Удалить
                     </button>
                   </>
@@ -111,15 +140,85 @@ const PostCard: React.FC<PostCardProps> = ({
 
         {/* Post content */}
         <div className="mb-3 md:mb-4">
-          <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-sm md:text-base">
-            {post.content}
-          </p>
+          {isEditing ? (
+            <div className="flex flex-col gap-2">
+              <textarea
+                className="w-full border rounded-lg p-2 text-sm"
+                value={editContent}
+                onChange={e => setEditContent(e.target.value)}
+                rows={3}
+              />
+              <div className="mt-2">
+                <label className="text-xs text-gray-500 mr-2">Видимость:</label>
+                <select
+                  value={editVisibility}
+                  onChange={e => setEditVisibility(e.target.value as 'ALL' | 'ADMIN' | 'PARENT')}
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  <option value="ALL">Все</option>
+                  <option value="ADMIN">Только админы</option>
+                  <option value="PARENT">Только родители</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="px-4 py-1 rounded bg-blue-500 text-white text-sm"
+                  onClick={() => {
+                    setIsEditing(false);
+                    if ((editContent !== post.content || editVisibility !== post.visibility) && typeof editPost === 'function') {
+                      editPost(post.id, { content: editContent, visibility: editVisibility });
+                    }
+                  }}
+                >
+                  Сохранить
+                </button>
+                <button
+                  className="px-4 py-1 rounded bg-gray-200 text-gray-700 text-sm"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditContent(post.content);
+                    setEditVisibility(post.visibility ?? 'ALL');
+                  }}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-sm md:text-base">
+              {post.content}
+            </p>
+          )}
         </div>
 
         {/* Media attachments */}
         {(post.images.length > 0 || post.files.length > 0) && (
           <div className="mb-3 md:mb-4">
-            <FilePreview images={post.images} files={post.files} />
+            <FilePreview
+              images={
+                Array.isArray(post.images) && typeof post.images[0] === 'string'
+                  ? post.images.map((url, idx) => ({
+                      id: idx.toString(),
+                      imageUrl: url,
+                      fileName: url.split('/').pop() || `image_${idx + 1}`
+                    }))
+                  : (post.images as any[]).map((img, idx) => ({
+                      id: img.id?.toString() || idx.toString(),
+                      imageUrl: img.imageUrl || img.url || '',
+                      fileName: img.fileName
+                        ? img.fileName
+                        : typeof img.imageUrl === 'string'
+                          ? img.imageUrl.split('/').pop() || `image_${idx + 1}`
+                          : `image_${idx + 1}`
+                    }))
+              }
+              files={post.files.map(f => ({
+                id: f.id,
+                fileUrl: (f as any).url ?? f.fileUrl,
+                fileName: (f as any).name ? (f as any).name.split('/').pop() : f.fileName,
+                fileType: (f as any).name ? (f as any).name.split('.').pop() : f.fileType
+              }))}
+            />
           </div>
         )}
 
@@ -132,13 +231,20 @@ const PostCard: React.FC<PostCardProps> = ({
               onReaction={handleReaction}
               onRemoveReaction={handleRemoveReaction}
             />
-            
+
             <CommentThread
               comments={post.comments}
               isOpen={showComments}
-              onToggle={() => setShowComments(!showComments)}
+              onToggle={onToggleComments ? onToggleComments : () => setShowComments(!showComments)}
               onAddComment={handleAddComment}
             />
+            <button
+              className="ml-2 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition"
+              onClick={onToggleComments}
+              type="button"
+            >
+              Комментарии
+            </button>
           </div>
 
           {/* Post stats */}

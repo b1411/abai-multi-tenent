@@ -9,6 +9,48 @@ generator client {
   output   = "../generated/prisma"
 }
 
+enum PostVisibility {
+  ADMIN
+  ALL
+  PARENT
+}
+
+// --- News Feed (Wall Posts) ---
+model Post {
+  id         String         @id @default(uuid())
+  content    String         @db.Text
+  authorId   Int
+  author     User           @relation("UserPosts", fields: [authorId], references: [id])
+  visibility PostVisibility @default(ALL)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  images     String[]       @default([])
+  files      File[]
+  reactions  Reaction[]
+  comments   Comment[]
+}
+
+model Reaction {
+  id     String @id @default(uuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id])
+  type   String
+  userId Int
+  user   User   @relation("UserReactions", fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  content   String   @db.Text
+  authorId  Int
+  author    User     @relation("UserComments", fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
 datasource db {
   provider  = "postgresql"
   directUrl = env("DIRECT_URL")
@@ -102,6 +144,11 @@ model User {
   feedbackResponses FeedbackResponse[]  @relation("UserFeedbackResponses")
   feedbackStatus    UserFeedbackStatus? @relation("UserFeedbackStatus")
 
+  // News Feed relations
+  posts     Post[]     @relation("UserPosts")
+  reactions Reaction[] @relation("UserReactions")
+  comments  Comment[]  @relation("UserComments")
+
   // Chat relations
   createdChats     ChatRoom[]        @relation("CreatedChats")
   chatParticipants ChatParticipant[]
@@ -138,34 +185,34 @@ model User {
   aiSuggestionsApplied     AiSuggestion[]     @relation("AiSuggestionAppliedBy")
 
   // AI tutor/chat relations
-  aiTutorsCreated          AiTutor[]
-  aiChatThreads            AiChatThread[]
+  aiTutorsCreated AiTutor[]
+  aiChatThreads   AiChatThread[]
 }
 
 model Student {
-  id                 Int                  @id @default(autoincrement())
-  userId             Int                  @unique
-  classId            Int?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  deletedAt          DateTime?
-  user               User                 @relation(fields: [userId], references: [id])
-  group              Group                @relation(fields: [groupId], references: [id])
-  groupId            Int
-  Parents            Parent[]
-  lessonsResults     LessonResult[]
-  HomeworkSubmission HomeworkSubmission[]
-  quizAttempts       QuizAttempt[]
-  EmotionalState     EmotionalState?
-  emotionalStateHistory EmotionalStateHistory[]
-  Payment            Payment[]
-  reviews            StudentReview[]
-  repeatPurchases    RepeatPurchase[]
-  documents          Document[]
-  remarks            StudentRemark[]
-  comments           StudentComment[]
-  olympiadResults    OlympiadResult[]
-  admissions         StudentAdmission[]
+  id                       Int                       @id @default(autoincrement())
+  userId                   Int                       @unique
+  classId                  Int?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  deletedAt                DateTime?
+  user                     User                      @relation(fields: [userId], references: [id])
+  group                    Group                     @relation(fields: [groupId], references: [id])
+  groupId                  Int
+  Parents                  Parent[]
+  lessonsResults           LessonResult[]
+  HomeworkSubmission       HomeworkSubmission[]
+  quizAttempts             QuizAttempt[]
+  EmotionalState           EmotionalState?
+  emotionalStateHistory    EmotionalStateHistory[]
+  Payment                  Payment[]
+  reviews                  StudentReview[]
+  repeatPurchases          RepeatPurchase[]
+  documents                Document[]
+  remarks                  StudentRemark[]
+  comments                 StudentComment[]
+  olympiadResults          OlympiadResult[]
+  admissions               StudentAdmission[]
   personalDevelopmentPlans PersonalDevelopmentPlan[]
   extraEducations          ExtraEducation[]
 }
@@ -343,6 +390,8 @@ model File {
   VacationDocument   VacationDocument[]
   DocumentFile       DocumentFile[]
   aiTutorFiles       AiTutorFile[]
+  Post               Post?               @relation(fields: [postId], references: [id])
+  postId             String?
 }
 
 model Quiz {
@@ -696,22 +745,22 @@ model EmotionalState {
 model EmotionalStateHistory {
   id                 Int      @id @default(autoincrement())
   studentId          Int
-  submissionId       Int?     // FeedbackResponse.id (идемпотентность snapshot)
+  submissionId       Int? // FeedbackResponse.id (идемпотентность snapshot)
   student            Student  @relation(fields: [studentId], references: [id])
   mood               Int?
   concentration      Int?
   socialization      Int?
   motivation         Int?
-  stress             Int?     // 0-100 (расчёт: 100 - avg(mood, motivation))
-  engagement         Int?     // 0-100 (расчёт: avg(motivation, socialization))
-  moodTrend          String?  // up/down/neutral относительно предыдущего snapshot
+  stress             Int? // 0-100 (расчёт: 100 - avg(mood, motivation))
+  engagement         Int? // 0-100 (расчёт: avg(motivation, socialization))
+  moodTrend          String? // up/down/neutral относительно предыдущего snapshot
   concentrationTrend String?
   socializationTrend String?
   motivationTrend    String?
   createdAt          DateTime @default(now())
 
-  @@index([studentId, createdAt])
   @@unique([studentId, submissionId])
+  @@index([studentId, createdAt])
 }
 
 // --- Vacation management ---
@@ -2082,49 +2131,49 @@ model AiSuggestionAudit {
 //
 
 model AiTutor {
-  id                Int            @id @default(autoincrement())
+  id                Int     @id @default(autoincrement())
   subject           String
   name              String?
   avatarUrl         String?
-  extraInstructions String?        @db.Text
-  knowledgeText     String?        @db.Text
+  extraInstructions String? @db.Text
+  knowledgeText     String? @db.Text
   vectorStoreId     String?
-  isPublic          Boolean        @default(true)
+  isPublic          Boolean @default(true)
 
   createdBy Int
-  creator   User           @relation(fields: [createdBy], references: [id])
+  creator   User @relation(fields: [createdBy], references: [id])
 
-  files    AiTutorFile[]
-  threads  AiChatThread[]
+  files   AiTutorFile[]
+  threads AiChatThread[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 }
 
 model AiTutorFile {
-  id         Int     @id @default(autoincrement())
-  aiTutorId  Int
-  aiTutor    AiTutor @relation(fields: [aiTutorId], references: [id], onDelete: Cascade)
-  fileId     Int
-  file       File    @relation(fields: [fileId], references: [id])
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  aiTutorId Int
+  aiTutor   AiTutor  @relation(fields: [aiTutorId], references: [id], onDelete: Cascade)
+  fileId    Int
+  file      File     @relation(fields: [fileId], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([aiTutorId, fileId])
 }
 
 model AiChatThread {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   tutorId   Int
-  tutor     AiTutor  @relation(fields: [tutorId], references: [id])
+  tutor     AiTutor   @relation(fields: [tutorId], references: [id])
   ownerId   Int
-  owner     User     @relation(fields: [ownerId], references: [id])
+  owner     User      @relation(fields: [ownerId], references: [id])
   title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  messages  AiChatMessage[]
+  messages AiChatMessage[]
 
   @@unique([tutorId, ownerId])
 }
@@ -2136,13 +2185,13 @@ enum AiChatRole {
 }
 
 model AiChatMessage {
-  id         Int          @id @default(autoincrement())
-  threadId   Int
-  thread     AiChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  role       AiChatRole
-  content    String       @db.Text
+  id          Int          @id @default(autoincrement())
+  threadId    Int
+  thread      AiChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role        AiChatRole
+  content     String       @db.Text
   attachments Json?
-  createdAt  DateTime     @default(now())
+  createdAt   DateTime     @default(now())
 
   @@index([threadId, createdAt])
 }
@@ -2165,33 +2214,33 @@ enum PdpGoalStatus {
 }
 
 model PersonalDevelopmentPlan {
-  id          Int      @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   studentId   Int
-  student     Student  @relation(fields: [studentId], references: [id])
+  student     Student       @relation(fields: [studentId], references: [id])
   subject     String
   status      PdpPlanStatus @default(DRAFT)
   mentor      String?
-  description String? @db.Text
-  progress    Int      @default(0)
+  description String?       @db.Text
+  progress    Int           @default(0)
   skills      String[]
   goals       PdpGoal[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   deletedAt   DateTime?
 
   @@index([studentId])
 }
 
 model PdpGoal {
-  id        Int      @id @default(autoincrement())
+  id        Int                     @id @default(autoincrement())
   planId    Int
   plan      PersonalDevelopmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   title     String
-  status    PdpGoalStatus @default(PENDING)
+  status    PdpGoalStatus           @default(PENDING)
   deadline  DateTime?
   order     Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
   deletedAt DateTime?
 
   @@index([planId])
@@ -2202,39 +2251,39 @@ model PdpGoal {
 //
 
 model ExtraEducation {
-  id           String    @id @default(uuid())
+  id           String             @id @default(uuid())
   studentId    Int
-  student      Student   @relation(fields: [studentId], references: [id])
+  student      Student            @relation(fields: [studentId], references: [id])
   name         String
   category     String
   organization String
-  progress     Int       @default(0)
-  status       String    // IN_PROGRESS | COMPLETED | PLANNED
+  progress     Int                @default(0)
+  status       String // IN_PROGRESS | COMPLETED | PLANNED
   startDate    DateTime
   endDate      DateTime?
   mentor       String
   mentorTitle  String?
-  description  String?   @db.Text
+  description  String?            @db.Text
   location     String
-  participants Int        @default(0)
+  participants Int                @default(0)
   skills       String[]
   achievements ExtraAchievement[]
   schedule     ExtraSchedule[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   deletedAt    DateTime?
 
   @@index([studentId])
 }
 
 model ExtraAchievement {
-  id         String         @id @default(uuid())
-  activityId String
-  activity   ExtraEducation @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  title      String
-  description String?       @db.Text
-  date       DateTime
-  level      String         // WIN | PARTICIPANT | PROJECT | CERT
+  id          String         @id @default(uuid())
+  activityId  String
+  activity    ExtraEducation @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  title       String
+  description String?        @db.Text
+  date        DateTime
+  level       String // WIN | PARTICIPANT | PROJECT | CERT
 }
 
 model ExtraSchedule {

@@ -16,7 +16,8 @@ interface FilePreviewProps {
   className?: string;
 }
 
-const getFileIcon = (fileType: string) => {
+const getFileIcon = (fileType: string | undefined) => {
+  if (!fileType) return <File className="w-8 h-8 text-gray-500" />;
   switch (fileType.toLowerCase()) {
     case 'pdf':
       return <FileText className="w-8 h-8 text-red-500" />;

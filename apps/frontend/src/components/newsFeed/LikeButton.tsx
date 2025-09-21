@@ -50,9 +50,9 @@ const LikeButton: React.FC<LikeButtonProps> = ({
   };
 
   return (
-    <div className={`flex items-center space-x-2 ${className}`}>
+    <div className={`flex items-center space-x-1 ${className}`}>
       {/* Main reaction button */}
-      <div className="relative">
+      <div className="relative flex items-center space-x-1">
         <motion.button
           onClick={handleQuickReaction}
           onMouseDown={(e) => {
@@ -97,21 +97,14 @@ const LikeButton: React.FC<LikeButtonProps> = ({
 
       {/* Reaction summary */}
       {totalReactions > 0 && (
-        <motion.button
-          onClick={() => setShowReactionsList(!showReactionsList)}
-          className="flex items-center space-x-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <div className="flex items-center -space-x-1">
-            {topReactions.map((type) => (
-              <span key={type} className="text-base">
-                {reactionConfig[type].emoji}
-              </span>
-            ))}
-          </div>
-          <span>{totalReactions}</span>
-        </motion.button>
+        <div className="flex items-center space-x-1">
+          {topReactions.map((type) => (
+            <span key={type} className="text-base">
+              {reactionConfig[type].emoji}
+            </span>
+          ))}
+          <span className="text-xs">{totalReactions}</span>
+        </div>
       )}
 
       {/* Reactions list modal */}

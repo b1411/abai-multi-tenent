@@ -24,6 +24,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ onCreatePost, className = '' })
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [visibility, setVisibility] = useState<'ALL' | 'ADMIN' | 'PARENT'>('ALL');
 
   // Image dropzone
   const imageDropzone = useDropzone({
@@ -52,23 +53,41 @@ const CreatePost: React.FC<CreatePostProps> = ({ onCreatePost, className = '' })
     }
   });
 
+  const handleImageUpload = async (file: File): Promise<string> => {
+    try {
+      const { fileService } = await import('../../services/fileService');
+      const validation = fileService.validateFile(file, {
+        maxSize: 10 * 1024 * 1024,
+        allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      });
+      if (!validation.valid) throw new Error(validation.error);
+      const uploaded = await fileService.uploadFile(file, 'post-images');
+      return uploaded.url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
+      const imageUrls = await Promise.all(selectedImages.map(handleImageUpload));
       await onCreatePost({
         content: content.trim(),
-        images: selectedImages,
-        files: selectedFiles
+        images: imageUrls,
+        files: selectedFiles,
+        visibility
       });
-      
-      // Reset form
+
       setContent('');
       setSelectedImages([]);
       setSelectedFiles([]);
       setIsExpanded(false);
+      setVisibility('ALL');
     } finally {
       setIsSubmitting(false);
     }
@@ -120,6 +139,18 @@ const CreatePost: React.FC<CreatePostProps> = ({ onCreatePost, className = '' })
                 }
               }}
             />
+            <div className="mt-2">
+              <label className="text-xs text-gray-500 mr-2">Видимость:</label>
+              <select
+                value={visibility}
+                onChange={e => setVisibility(e.target.value as 'ALL' | 'ADMIN' | 'PARENT')}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value="ALL">Все</option>
+                <option value="ADMIN">Только админы</option>
+                <option value="PARENT">Только родители</option>
+              </select>
+            </div>
           </div>
         </div>
 

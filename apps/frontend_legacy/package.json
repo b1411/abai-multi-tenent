@@ -1,6 +1,6 @@
 {
   "name": "frontend_legacy",
-  "version": "2.9.1",
+  "version": "2.15.0",
   "description": "Modern LMS platform with Notion-like interface",
   "main": "index.js",
   "dependencies": {

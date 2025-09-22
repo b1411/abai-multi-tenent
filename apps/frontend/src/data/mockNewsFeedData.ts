@@ -11,7 +11,7 @@ const mockUsers: User[] = [
     avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b739?w=150&h=150&fit=crop&crop=face'
   },
   {
-    id: '2', 
+    id: '2',
     name: 'Мурат',
     surname: 'Токтаров',
     email: 'murat@abai.edu.kz',
@@ -22,7 +22,7 @@ const mockUsers: User[] = [
     id: '3',
     name: 'Асель',
     surname: 'Жакупова',
-    email: 'asel@abai.edu.kz', 
+    email: 'asel@abai.edu.kz',
     role: 'STUDENT',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face'
   },
@@ -37,7 +37,7 @@ const mockUsers: User[] = [
   {
     id: '5',
     name: 'Жанар',
-    surname: 'Кенжебаева', 
+    surname: 'Кенжебаева',
     email: 'zhanar@abai.edu.kz',
     role: 'HR',
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face'
@@ -53,11 +53,8 @@ export const mockPosts: Post[] = [
     createdAt: '2025-01-25T10:30:00Z',
     updatedAt: '2025-01-25T10:30:00Z',
     images: [
-      {
-        id: '1',
-        imageUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800&h=600&fit=crop',
-        fileName: 'olympiad_winners.jpg'
-      }
+      /*  */
+      'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800&h=600&fit=crop',
     ],
     files: [],
     reactions: [
@@ -74,7 +71,7 @@ export const mockPosts: Post[] = [
         createdAt: '2025-01-25T10:45:00Z'
       },
       {
-        id: '2', 
+        id: '2',
         content: 'Спасибо большое! Это был действительно сложный конкурс, но мы справились!',
         author: mockUsers[2],
         createdAt: '2025-01-25T11:00:00Z'
@@ -131,11 +128,7 @@ export const mockPosts: Post[] = [
     createdAt: '2025-01-25T08:45:00Z',
     updatedAt: '2025-01-25T08:45:00Z',
     images: [
-      {
-        id: '2',
-        imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=600&fit=crop',
-        fileName: 'pizza_party.jpg'
-      }
+      'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=600&fit=crop',
     ],
     files: [],
     reactions: [
@@ -196,11 +189,8 @@ export const mockPosts: Post[] = [
     createdAt: '2025-01-24T20:15:00Z',
     updatedAt: '2025-01-24T20:15:00Z',
     images: [
-      {
-        id: '3',
-        imageUrl: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=800&h=600&fit=crop',
-        fileName: 'quantum_physics_board.jpg'
-      }
+      'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=800&h=600&fit=crop',
+
     ],
     files: [],
     reactions: [
@@ -234,11 +224,8 @@ export const mockPosts: Post[] = [
     createdAt: '2025-01-24T18:45:00Z',
     updatedAt: '2025-01-24T18:45:00Z',
     images: [
-      {
-        id: '4',
-        imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop',
-        fileName: 'sports_competition.jpg'
-      }
+      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop',
+
     ],
     files: [],
     reactions: [

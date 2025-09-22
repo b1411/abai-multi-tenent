@@ -86,6 +86,10 @@ const HomeworkForm: React.FC<HomeworkFormProps> = ({
     if (!value) {
       setSelectedLesson(null);
       setFormData(prev => ({ ...prev, lessonId: undefined }));
+    } else if (selectedLesson && value !== selectedLesson.name) {
+      // Если пользователь вводит текст, отличный от выбранного урока, сбрасываем выбор
+      setSelectedLesson(null);
+      setFormData(prev => ({ ...prev, lessonId: undefined }));
     }
   };
 

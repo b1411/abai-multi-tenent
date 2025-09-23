@@ -234,7 +234,17 @@ const HomeworkForm: React.FC<HomeworkFormProps> = ({
                 value={lessonSearchQuery}
                 onChange={(e) => handleLessonInputChange(e.target.value)}
                 onFocus={() => setShowLessonDropdown(true)}
-                onBlur={() => setTimeout(() => setShowLessonDropdown(false), 200)}
+                onBlur={() => {
+                  // Не закрываем dropdown сразу, чтобы дать время на клик по элементу
+                  setTimeout(() => {
+                    // Проверяем, не находится ли фокус на элементе списка
+                    const activeElement = document.activeElement;
+                    const dropdown = document.querySelector('[data-lesson-dropdown]');
+                    if (!dropdown?.contains(activeElement)) {
+                      setShowLessonDropdown(false);
+                    }
+                  }, 150);
+                }}
                 placeholder="Поиск урока..."
                 className="w-full border border-gray-300 rounded-md px-3 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={loading}
@@ -242,7 +252,10 @@ const HomeworkForm: React.FC<HomeworkFormProps> = ({
               <BookOpen className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               
               {showLessonDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                <div 
+                  data-lesson-dropdown
+                  className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                >
                   {loadingLessons ? (
                     <div className="px-3 py-2 text-sm text-gray-500">
                       <div className="flex items-center">
@@ -255,7 +268,9 @@ const HomeworkForm: React.FC<HomeworkFormProps> = ({
                       <div
                         key={lesson.id}
                         onClick={() => handleLessonSelect(lesson)}
+                        onMouseDown={(e) => e.preventDefault()} // Предотвращаем потерю фокуса
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        tabIndex={0} // Делаем элемент фокусируемым
                       >
                         <div className="font-medium text-sm text-gray-900">{lesson.name}</div>
                         <div className="text-xs text-gray-500">
@@ -278,7 +293,9 @@ const HomeworkForm: React.FC<HomeworkFormProps> = ({
                         setLessonSearchQuery('');
                         setShowLessonDropdown(false);
                       }}
+                      onMouseDown={(e) => e.preventDefault()}
                       className="px-3 py-2 hover:bg-red-50 cursor-pointer border-t border-gray-200 text-red-600 text-sm"
+                      tabIndex={0}
                     >
                       Убрать привязку к уроку
                     </div>

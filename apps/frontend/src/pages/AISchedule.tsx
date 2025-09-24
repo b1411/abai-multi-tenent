@@ -40,7 +40,7 @@ const KAZAKHSTAN_HOLIDAYS_2024_2025: { [key: string]: string } = {
   '2024-01-07': 'Православное Рождество',
   '2024-03-08': 'Международный женский день',
   '2024-03-21': 'Наурыз',
-  '2024-03-22': 'Наурыз', 
+  '2024-03-22': 'Наурыз',
   '2024-03-23': 'Наурыз',
   '2024-05-01': 'День единства народа',
   '2024-05-07': 'День защитника Отечества',
@@ -100,81 +100,6 @@ const buildAcademicQuarters = (baseYear: number) => ({
 const NOW = new Date();
 const CURRENT_BASE_YEAR = NOW.getMonth() >= 7 ? NOW.getFullYear() : NOW.getFullYear() - 1;
 const ACADEMIC_QUARTERS = buildAcademicQuarters(CURRENT_BASE_YEAR);
-
-// Моковые данные для демонстрации
-const MOCK_GROUPS = [
-  { id: 1, name: '10А', courseNumber: 10, studentsCount: 28 },
-  { id: 2, name: '10Б', courseNumber: 10, studentsCount: 26 },
-  { id: 3, name: '11А', courseNumber: 11, studentsCount: 24 },
-  { id: 4, name: '11Б', courseNumber: 11, studentsCount: 25 }
-];
-
-const MOCK_SUBJECTS: { [key: number]: any[] } = {
-  1: [ // 10А
-    { id: 1, name: 'Математика', teacherId: 1, teacherName: 'Иванова А.С.', hoursPerWeek: 4, roomType: 'обычный' },
-    { id: 2, name: 'Русский язык', teacherId: 2, teacherName: 'Петров Б.И.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 3, name: 'История', teacherId: 3, teacherName: 'Сидорова В.П.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 4, name: 'Физика', teacherId: 4, teacherName: 'Козлов Г.М.', hoursPerWeek: 3, roomType: 'лаборатория' },
-    { id: 5, name: 'Химия', teacherId: 5, teacherName: 'Морозова Д.А.', hoursPerWeek: 2, roomType: 'лаборатория' },
-    { id: 6, name: 'Биология', teacherId: 6, teacherName: 'Волкова Е.Н.', hoursPerWeek: 2, roomType: 'лаборатория' },
-    { id: 7, name: 'География', teacherId: 7, teacherName: 'Орлов И.К.', hoursPerWeek: 1, roomType: 'обычный' },
-    { id: 8, name: 'Английский язык', teacherId: 8, teacherName: 'Смит Дж.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 9, name: 'Физкультура', teacherId: 9, teacherName: 'Быстров С.В.', hoursPerWeek: 2, roomType: 'спортзал' },
-    { id: 10, name: 'Информатика', teacherId: 10, teacherName: 'Программистов К.А.', hoursPerWeek: 2, roomType: 'компьютерный' }
-  ],
-  2: [ // 10Б - похожие предметы, но другие преподаватели для некоторых
-    { id: 11, name: 'Математика', teacherId: 1, teacherName: 'Иванова А.С.', hoursPerWeek: 4, roomType: 'обычный' },
-    { id: 12, name: 'Русский язык', teacherId: 11, teacherName: 'Литературова О.И.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 13, name: 'История', teacherId: 3, teacherName: 'Сидорова В.П.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 14, name: 'Физика', teacherId: 4, teacherName: 'Козлов Г.М.', hoursPerWeek: 3, roomType: 'лаборатория' },
-    { id: 15, name: 'Химия', teacherId: 12, teacherName: 'Реактивов П.Т.', hoursPerWeek: 2, roomType: 'лаборатория' },
-    { id: 16, name: 'Биология', teacherId: 6, teacherName: 'Волкова Е.Н.', hoursPerWeek: 2, roomType: 'лаборатория' },
-    { id: 17, name: 'География', teacherId: 7, teacherName: 'Орлов И.К.', hoursPerWeek: 1, roomType: 'обычный' },
-    { id: 18, name: 'Английский язык', teacherId: 13, teacherName: 'Браун М.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 19, name: 'Физкультура', teacherId: 9, teacherName: 'Быстров С.В.', hoursPerWeek: 2, roomType: 'спортзал' },
-    { id: 20, name: 'Информатика', teacherId: 10, teacherName: 'Программистов К.А.', hoursPerWeek: 2, roomType: 'компьютерный' }
-  ],
-  3: [ // 11А - более углубленные предметы
-    { id: 21, name: 'Алгебра', teacherId: 14, teacherName: 'Функциональная Л.М.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 22, name: 'Геометрия', teacherId: 14, teacherName: 'Функциональная Л.М.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 23, name: 'Русский язык', teacherId: 2, teacherName: 'Петров Б.И.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 24, name: 'Литература', teacherId: 2, teacherName: 'Петров Б.И.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 25, name: 'История Казахстана', teacherId: 15, teacherName: 'Историк З.Н.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 26, name: 'Всемирная история', teacherId: 3, teacherName: 'Сидорова В.П.', hoursPerWeek: 1, roomType: 'обычный' },
-    { id: 27, name: 'Физика', teacherId: 4, teacherName: 'Козлов Г.М.', hoursPerWeek: 4, roomType: 'лаборатория' },
-    { id: 28, name: 'Английский язык', teacherId: 8, teacherName: 'Смит Дж.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 29, name: 'Физкультура', teacherId: 16, teacherName: 'Спортсменка А.Б.', hoursPerWeek: 2, roomType: 'спортзал' },
-    { id: 30, name: 'Информатика', teacherId: 17, teacherName: 'Кодер В.Г.', hoursPerWeek: 3, roomType: 'компьютерный' }
-  ],
-  4: [ // 11Б
-    { id: 31, name: 'Алгебра', teacherId: 1, teacherName: 'Иванова А.С.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 32, name: 'Геометрия', teacherId: 1, teacherName: 'Иванова А.С.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 33, name: 'Русский язык', teacherId: 11, teacherName: 'Литературова О.И.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 34, name: 'Литература', teacherId: 11, teacherName: 'Литературова О.И.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 35, name: 'История Казахстана', teacherId: 15, teacherName: 'Историк З.Н.', hoursPerWeek: 2, roomType: 'обычный' },
-    { id: 36, name: 'Всемирная история', teacherId: 3, teacherName: 'Сидорова В.П.', hoursPerWeek: 1, roomType: 'обычный' },
-    { id: 37, name: 'Химия', teacherId: 12, teacherName: 'Реактивов П.Т.', hoursPerWeek: 3, roomType: 'лаборатория' },
-    { id: 38, name: 'Биология', teacherId: 18, teacherName: 'Ботаник Р.С.', hoursPerWeek: 3, roomType: 'лаборатория' },
-    { id: 39, name: 'Английский язык', teacherId: 13, teacherName: 'Браун М.', hoursPerWeek: 3, roomType: 'обычный' },
-    { id: 40, name: 'Физкультура', teacherId: 16, teacherName: 'Спортсменка А.Б.', hoursPerWeek: 2, roomType: 'спортзал' }
-  ]
-};
-
-const MOCK_CLASSROOMS = [
-  // Корпус А
-  { id: 1, name: '101', building: 'Корпус А', type: 'обычный', capacity: 30, description: 'Обычный класс для теоретических занятий' },
-  { id: 2, name: '102', building: 'Корпус А', type: 'обычный', capacity: 32, description: 'Просторный класс с мультимедиа' },
-  { id: 3, name: '103', building: 'Корпус А', type: 'обычный', capacity: 28, description: 'Класс для малых групп' },
-  { id: 4, name: '201', building: 'Корпус А', type: 'лаборатория', capacity: 25, description: 'Физическая лаборатория' },
-  { id: 5, name: '202', building: 'Корпус А', type: 'лаборатория', capacity: 24, description: 'Химическая лаборатория' },
-  { id: 6, name: '301', building: 'Корпус А', type: 'актовый зал', capacity: 100, description: 'Большой актовый зал' },
-  
-  // Корпус Б
-  { id: 7, name: '104', building: 'Корпус Б', type: 'компьютерный', capacity: 20, description: 'Компьютерный класс №1' },
-  { id: 8, name: '105', building: 'Корпус Б', type: 'компьютерный', capacity: 22, description: 'Компьютерный класс №2' },
-  { id: 9, name: '204', building: 'Корпус Б', type: 'лаборатория', capacity: 26, description: 'Биологическая лаборатория' },
-  { id: 10, name: '301Б', building: 'Корпус Б', type: 'спортзал', capacity: 40, description: 'Спортивный зал' }
-];
 
 // Типы данных
 interface TeacherPreference {
@@ -262,13 +187,13 @@ const AISchedulePage: React.FC = () => {
   const [existingLessons, setExistingLessons] = useState<any[]>([]);
   // Переключатель отображения недели A/B для biweekly шаблонов
   const [biweeklyView, setBiweeklyView] = useState<'A' | 'B'>('A');
-  
+
   // Состояние для кастомизации предметов
   const [customSubjectHours, setCustomSubjectHours] = useState<{ [key: string]: number }>({});
   const [selectedSubject, setSelectedSubject] = useState<any>(null);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [activeModalTab, setActiveModalTab] = useState<'details' | 'preferences'>('details');
-  
+
   // Состояние для пожеланий педагогов
   const [teacherPreferences, setTeacherPreferences] = useState<{ [key: string]: TeacherPreference[] }>({});
 
@@ -367,7 +292,7 @@ const AISchedulePage: React.FC = () => {
           id: `exist-${it.id}`,
           date: it.date || it.startDate || quarterSettings.startDate,
           startTime: it.startTime,
-            endTime: it.endTime,
+          endTime: it.endTime,
           subject: it.subject || 'Предмет',
           groupId: Number(it.groupId || it.classId) || 0,
           groupName: String(it.classId || it.groupName || it.groupId || ''),
@@ -517,10 +442,10 @@ const AISchedulePage: React.FC = () => {
   const updateTeacherPreference = (teacherId: number, preferenceId: string, enabled: boolean) => {
     const key = `teacher-${teacherId}`;
     const currentPrefs = getTeacherPreferences(teacherId);
-    const updatedPrefs = currentPrefs.map(pref => 
+    const updatedPrefs = currentPrefs.map(pref =>
       pref.id === preferenceId ? { ...pref, enabled } : pref
     );
-    
+
     setTeacherPreferences({
       ...teacherPreferences,
       [key]: updatedPrefs
@@ -563,13 +488,13 @@ const AISchedulePage: React.FC = () => {
     while (current <= end) {
       const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay(); // воскресенье = 7
       const dateStr = current.toISOString().split('T')[0];
-      
-      if (quarterSettings.workingDays.includes(dayOfWeek) && 
-          !KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] && 
-          !quarterSettings.customHolidays.includes(dateStr)) {
+
+      if (quarterSettings.workingDays.includes(dayOfWeek) &&
+        !KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] &&
+        !quarterSettings.customHolidays.includes(dateStr)) {
         count++;
       }
-      
+
       current.setDate(current.getDate() + 1);
     }
 
@@ -715,9 +640,9 @@ const AISchedulePage: React.FC = () => {
   const generateDemoScheduleWithConflicts = (): GeneratedLesson[] => {
     const workingDates = getAllWorkingDates().slice(0, 10); // Берем первые 10 рабочих дней
     const demoSchedule: GeneratedLesson[] = [];
-    
+
     if (workingDates.length === 0) return [];
-    
+
     let lessonId = 1;
 
     // Создаем уроки с намеренными конфликтами для демонстрации
@@ -1016,10 +941,10 @@ const AISchedulePage: React.FC = () => {
         generationType: 'full'
       };
 
-  const draftRes = await scheduleService.flowDraft(params);
-  // Просим локальный оптимизатор вернуть шаблоны + debug логи
-  params.debug = true;
-  const optimized: OptimizedScheduleResponse = await scheduleService.flowOptimizeLocal({ draft: draftRes.draft, params });
+      const draftRes = await scheduleService.flowDraft(params);
+      // Просим локальный оптимизатор вернуть шаблоны + debug логи
+      params.debug = true;
+      const optimized: OptimizedScheduleResponse = await scheduleService.flowOptimizeLocal({ draft: draftRes.draft, params });
       setFlowDraft(draftRes.draft);
       setFlowOptimized(optimized);
       const validation = await scheduleService.flowValidate(optimized);
@@ -1036,7 +961,7 @@ const AISchedulePage: React.FC = () => {
         const dateMap = new Map<number, string>();
         for (let i = 0; i < 7; i++) {
           const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
+          d.setDate(monday.getDate() + i);
           const dow = d.getDay() === 0 ? 7 : d.getDay();
           dateMap.set(dow, d.toISOString().split('T')[0]);
         }
@@ -1119,11 +1044,11 @@ const AISchedulePage: React.FC = () => {
       setGeneratedSchedule(weekLessons);
       const workingDates = getAllWorkingDates();
       setScheduleStats({
-  totalLessons: weekLessons.length,
-  totalDays: workingDates.length,
-  averagePerDay: (weekLessons.length / Math.max(1, workingDates.length)).toFixed(1),
-  subjectsCount: weekLessons.length ? new Set(weekLessons.map(s => s.subject)).size : 0,
-  teachersCount: weekLessons.length ? new Set(weekLessons.map(s => s.teacherId)).size : 0
+        totalLessons: weekLessons.length,
+        totalDays: workingDates.length,
+        averagePerDay: (weekLessons.length / Math.max(1, workingDates.length)).toFixed(1),
+        subjectsCount: weekLessons.length ? new Set(weekLessons.map(s => s.subject)).size : 0,
+        teachersCount: weekLessons.length ? new Set(weekLessons.map(s => s.teacherId)).size : 0
       });
       setCurrentStep(6);
     } catch (e) {
@@ -1144,18 +1069,18 @@ const AISchedulePage: React.FC = () => {
       const dow = cursor.getUTCDay() === 0 ? 7 : cursor.getUTCDay();
       const dateStr = cursor.toISOString().split('T')[0];
       if (quarterSettings.workingDays.includes(dow) &&
-          !KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] &&
-          !quarterSettings.customHolidays.includes(dateStr)) {
+        !KAZAKHSTAN_HOLIDAYS_2024_2025[dateStr] &&
+        !quarterSettings.customHolidays.includes(dateStr)) {
         working.push(dateStr);
       }
-      cursor = new Date(cursor.getTime() + 24*60*60*1000);
+      cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
     }
     return working;
   };
 
   const getRandomDateForSubject = (workingDates: string[], subject: any, activePrefs: TeacherPreference[]): string | null => {
     let availableDates = [...workingDates];
-    
+
     // Применяем фильтры по дням недели из пожеланий
     const dayPrefs = activePrefs.filter(pref => pref.type === 'day');
     if (dayPrefs.length > 0) {
@@ -1174,7 +1099,7 @@ const AISchedulePage: React.FC = () => {
         });
       });
     }
-    
+
     return availableDates.length > 0 ? availableDates[Math.floor(Math.random() * availableDates.length)] : null;
   };
 
@@ -1182,7 +1107,7 @@ const AISchedulePage: React.FC = () => {
     const startHour = parseInt(scheduleConstraints.workingHours.start.split(':')[0]);
     const endHour = parseInt(scheduleConstraints.workingHours.end.split(':')[0]);
     let possibleHours: number[] = [];
-    
+
     for (let h = startHour; h < endHour; h++) {
       possibleHours.push(h);
     }
@@ -1209,25 +1134,25 @@ const AISchedulePage: React.FC = () => {
     if (possibleHours.length === 0) {
       possibleHours = [startHour + 1]; // Fallback
     }
-    
+
     const hour = possibleHours[Math.floor(Math.random() * possibleHours.length)];
     const start = `${hour.toString().padStart(2, '0')}:00`;
     const lessonEndHour = hour;
     const lessonEndMinute = scheduleConstraints.lessonDuration;
     const end = `${lessonEndHour.toString().padStart(2, '0')}:${lessonEndMinute.toString().padStart(2, '0')}`;
-    
+
     return { start, end };
   };
 
   const getBestClassroomForSubject = (subject: any, activePrefs: TeacherPreference[]) => {
-    const selectedRooms = classrooms.filter(room => 
+    const selectedRooms = classrooms.filter(room =>
       selectedClassrooms.includes(room.id)
     );
-    
+
     // Применяем аудиторные предпочтения
     const classroomPrefs = activePrefs.filter(pref => pref.type === 'classroom');
     let suitableRooms = [...selectedRooms];
-    
+
     classroomPrefs.forEach(pref => {
       if (pref.title.includes('202 аудитории') && pref.value) {
         const preferredRoom = selectedRooms.find(room => room.name === pref.value);
@@ -1243,16 +1168,16 @@ const AISchedulePage: React.FC = () => {
 
     // Ищем подходящие по типу
     let roomsByType = suitableRooms.filter(room => room.type === subject.roomType);
-    
+
     if (roomsByType.length === 0) {
       roomsByType = suitableRooms.filter(room => room.type === 'обычный');
     }
-    
+
     if (roomsByType.length === 0) {
       roomsByType = suitableRooms;
     }
-    
-    return roomsByType.length > 0 
+
+    return roomsByType.length > 0
       ? roomsByType[Math.floor(Math.random() * roomsByType.length)]
       : null;
   };
@@ -1260,18 +1185,18 @@ const AISchedulePage: React.FC = () => {
   const hasConflict = (schedule: GeneratedLesson[], date: string, time: { start: string; end: string }, teacherId: number, classroomId: number, groupId: number): boolean => {
     return schedule.some(lesson => {
       if (lesson.date !== date) return false;
-      
+
       // Проверяем пересечение времени
-      const timeOverlap = lesson.startTime === time.start || 
-                         (lesson.startTime < time.start && lesson.endTime > time.start) ||
-                         (lesson.startTime < time.end && lesson.endTime > time.end);
-      
+      const timeOverlap = lesson.startTime === time.start ||
+        (lesson.startTime < time.start && lesson.endTime > time.start) ||
+        (lesson.startTime < time.end && lesson.endTime > time.end);
+
       if (!timeOverlap) return false;
-      
+
       // Проверяем конфликты: один преподаватель, одна аудитория или одна группа
-      return lesson.teacherId === teacherId || 
-             lesson.classroomId === classroomId || 
-             lesson.groupId === groupId;
+      return lesson.teacherId === teacherId ||
+        lesson.classroomId === classroomId ||
+        lesson.groupId === groupId;
     });
   };
 
@@ -1284,44 +1209,44 @@ const AISchedulePage: React.FC = () => {
     const startHour = parseInt(scheduleConstraints.workingHours.start.split(':')[0]);
     const endHour = parseInt(scheduleConstraints.workingHours.end.split(':')[0]);
     const possibleHours = [];
-    
+
     for (let h = startHour; h < endHour; h++) {
       possibleHours.push(h);
     }
-    
+
     const hour = possibleHours[Math.floor(Math.random() * possibleHours.length)];
     const start = `${hour.toString().padStart(2, '0')}:00`;
     const lessonEndHour = hour;
     const lessonEndMinute = scheduleConstraints.lessonDuration;
     const end = `${lessonEndHour.toString().padStart(2, '0')}:${lessonEndMinute.toString().padStart(2, '0')}`;
-    
+
     return { start, end };
   };
 
   const getRandomClassroom = (roomType: string) => {
     // Фильтруем только выбранные аудитории
-    const selectedRooms = classrooms.filter(room => 
+    const selectedRooms = classrooms.filter(room =>
       selectedClassrooms.includes(room.id)
     );
-    
+
     // Ищем подходящие по типу среди выбранных
-    let suitableRooms = selectedRooms.filter(room => 
+    let suitableRooms = selectedRooms.filter(room =>
       room.type === roomType
     );
-    
+
     // Если нет точного соответствия, используем обычные классы
     if (suitableRooms.length === 0) {
-      suitableRooms = selectedRooms.filter(room => 
+      suitableRooms = selectedRooms.filter(room =>
         room.type === 'обычный'
       );
     }
-    
+
     // Если все еще нет подходящих, берем любую выбранную
     if (suitableRooms.length === 0) {
       suitableRooms = selectedRooms;
     }
-    
-    return suitableRooms.length > 0 
+
+    return suitableRooms.length > 0
       ? suitableRooms[Math.floor(Math.random() * suitableRooms.length)]
       : null;
   };
@@ -1333,8 +1258,8 @@ const AISchedulePage: React.FC = () => {
 
   // UTC безопасный парсер YYYY-MM-DD -> Date
   const parseYMDUtc = (ymd: string) => {
-    const [y,m,d] = ymd.split('-').map(Number);
-    return new Date(Date.UTC(y, (m||1)-1, d||1));
+    const [y, m, d] = ymd.split('-').map(Number);
+    return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
   };
 
   const getDayNameFromDateStr = (dateStr: string) => {
@@ -1438,15 +1363,14 @@ const AISchedulePage: React.FC = () => {
               const Icon = step.icon;
               const isActive = currentStep === step.num;
               const isCompleted = currentStep > step.num;
-              
+
               return (
                 <div key={step.num} className="flex items-center">
                   <div className="flex flex-col items-center min-w-[120px]">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all ${
-                      isCompleted ? 'bg-green-500 text-white' :
-                      isActive ? 'bg-blue-500 text-white' :
-                      'bg-gray-200 text-gray-400'
-                    }`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all ${isCompleted ? 'bg-green-500 text-white' :
+                        isActive ? 'bg-blue-500 text-white' :
+                          'bg-gray-200 text-gray-400'
+                      }`}>
                       {isCompleted ? <CheckCircle className="h-6 w-6" /> : <Icon className="h-6 w-6" />}
                     </div>
                     <div className="text-center">
@@ -1495,11 +1419,10 @@ const AISchedulePage: React.FC = () => {
                       {Object.entries(ACADEMIC_QUARTERS).map(([num, quarter]) => (
                         <div
                           key={num}
-                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                            quarterSettings.quarterNumber === parseInt(num)
+                          className={`p-4 border rounded-lg cursor-pointer transition-all ${quarterSettings.quarterNumber === parseInt(num)
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                            }`}
                           onClick={() => setQuarterSettings({
                             ...quarterSettings,
                             quarterNumber: parseInt(num) as 1 | 2 | 3 | 4,
@@ -1596,11 +1519,10 @@ const AISchedulePage: React.FC = () => {
                   {groups.map(group => (
                     <div
                       key={group.id}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                        selectedGroups.includes(group.id)
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedGroups.includes(group.id)
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                        }`}
                       onClick={() => {
                         if (selectedGroups.includes(group.id)) {
                           setSelectedGroups(selectedGroups.filter(id => id !== group.id));
@@ -1670,13 +1592,12 @@ const AISchedulePage: React.FC = () => {
                       {getSelectedSubjects().map((subject, index) => {
                         const subjectKey = `${subject.groupId}-${subject.id}`;
                         const isCustomized = customSubjectHours[subjectKey] !== undefined;
-                        
+
                         return (
-                          <div 
-                            key={index} 
-                            className={`p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                              isCustomized ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                            }`}
+                          <div
+                            key={index}
+                            className={`p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md ${isCustomized ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                              }`}
                             onClick={() => openSubjectModal(subject)}
                           >
                             <div className="flex items-center justify-between">
@@ -1686,9 +1607,8 @@ const AISchedulePage: React.FC = () => {
                                   {subject.groupName} • {subject.teacherName}
                                 </div>
                                 <div className="flex items-center space-x-2 mt-1">
-                                  <div className={`text-xs font-medium ${
-                                    isCustomized ? 'text-blue-600' : 'text-gray-600'
-                                  }`}>
+                                  <div className={`text-xs font-medium ${isCustomized ? 'text-blue-600' : 'text-gray-600'
+                                    }`}>
                                     {subject.hoursPerWeek} ч/нед
                                   </div>
                                   {isCustomized && (
@@ -1721,8 +1641,8 @@ const AISchedulePage: React.FC = () => {
                   <Button variant="outline" onClick={prevStep}>
                     <ChevronLeft className="h-4 w-4 mr-2" /> Назад
                   </Button>
-                  <Button 
-                    onClick={nextStep} 
+                  <Button
+                    onClick={nextStep}
                     disabled={selectedGroups.length === 0}
                     className="px-6"
                   >
@@ -1760,18 +1680,17 @@ const AISchedulePage: React.FC = () => {
                           {classrooms.filter(c => c.building === building && selectedClassrooms.includes(c.id)).length} из {classrooms.filter(c => c.building === building).length} выбрано
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {classrooms
                           .filter(classroom => classroom.building === building)
                           .map(classroom => (
                             <div
                               key={classroom.id}
-                              className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                                selectedClassrooms.includes(classroom.id)
+                              className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedClassrooms.includes(classroom.id)
                                   ? 'border-blue-500 bg-blue-50'
                                   : 'border-gray-200 hover:border-gray-300'
-                              }`}
+                                }`}
                               onClick={() => {
                                 if (selectedClassrooms.includes(classroom.id)) {
                                   setSelectedClassrooms(selectedClassrooms.filter(id => id !== classroom.id));
@@ -1818,8 +1737,8 @@ const AISchedulePage: React.FC = () => {
                   <Button variant="outline" onClick={prevStep}>
                     <ChevronLeft className="h-4 w-4 mr-2" /> Назад
                   </Button>
-                  <Button 
-                    onClick={nextStep} 
+                  <Button
+                    onClick={nextStep}
                     disabled={selectedClassrooms.length === 0}
                     className="px-6"
                   >
@@ -1848,7 +1767,7 @@ const AISchedulePage: React.FC = () => {
                   {/* Рабочее время */}
                   <div className="space-y-4">
                     <h3 className="font-medium text-gray-900">Рабочее время</h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm text-gray-700 mb-1">Начало дня</label>
@@ -1926,7 +1845,7 @@ const AISchedulePage: React.FC = () => {
                   {/* Предпочтения */}
                   <div className="space-y-4">
                     <h3 className="font-medium text-gray-900">Предпочтения</h3>
-                    
+
                     <div>
                       <label className="block text-sm text-gray-700 mb-2">
                         Не ставить первым уроком:
@@ -2029,7 +1948,7 @@ const AISchedulePage: React.FC = () => {
                         <div>{getWorkingDaysCount()} рабочих дней</div>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-medium text-gray-800 mb-2">Классы</h4>
                       <div className="text-gray-600">
@@ -2038,7 +1957,7 @@ const AISchedulePage: React.FC = () => {
                         <div>{[...new Set(getSelectedSubjects().map(s => s.teacherId))].length} преподавателей</div>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-medium text-gray-800 mb-2">Аудитории</h4>
                       <div className="text-gray-600">
@@ -2047,7 +1966,7 @@ const AISchedulePage: React.FC = () => {
                         <div>{Array.from(new Set(classrooms.filter(c => selectedClassrooms.includes(c.id)).map(c => c.type))).length} типов</div>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-medium text-gray-800 mb-2">Ограничения</h4>
                       <div className="text-gray-600">
@@ -2131,8 +2050,8 @@ const AISchedulePage: React.FC = () => {
 
                 {/* Кнопка полноэкранного режима */}
                 <div className="flex justify-end mb-4">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setIsFullscreen(true)}
                     className="flex items-center space-x-2"
                   >
@@ -2205,10 +2124,10 @@ const AISchedulePage: React.FC = () => {
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
                       <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto mb-3" />
                       <h3 className="font-medium text-yellow-800 mb-2">Внимание!</h3>
-                        <p className="text-yellow-700 text-sm">
-                          Это действие создаст {getWeeklyPatterns().length} записей в базе данных (weekly-паттерны за выбранный период).
-                          Убедитесь, что расписание проверено и готово к использованию.
-                        </p>
+                      <p className="text-yellow-700 text-sm">
+                        Это действие создаст {getWeeklyPatterns().length} записей в базе данных (weekly-паттерны за выбранный период).
+                        Убедитесь, что расписание проверено и готово к использованию.
+                      </p>
                     </div>
 
                     <Button
@@ -2244,8 +2163,8 @@ const AISchedulePage: React.FC = () => {
                       Интерактивная сетка расписания
                     </h2>
                     <p className="text-sm text-gray-600">
-                      {ACADEMIC_QUARTERS[quarterSettings.quarterNumber].label} • 
-                      {generatedSchedule.length} уроков • 
+                      {ACADEMIC_QUARTERS[quarterSettings.quarterNumber].label} •
+                      {generatedSchedule.length} уроков •
                       {[...new Set(generatedSchedule.map(l => l.teacherId))].length} преподавателей
                     </p>
                   </div>
@@ -2255,12 +2174,12 @@ const AISchedulePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setBiweeklyView('A')}
-                        className={`px-2 py-0.5 rounded ${biweeklyView==='A' ? 'bg-indigo-600 text-white' : 'hover:bg-white'}`}
+                        className={`px-2 py-0.5 rounded ${biweeklyView === 'A' ? 'bg-indigo-600 text-white' : 'hover:bg-white'}`}
                       >A</button>
                       <button
                         type="button"
                         onClick={() => setBiweeklyView('B')}
-                        className={`px-2 py-0.5 rounded ${biweeklyView==='B' ? 'bg-indigo-600 text-white' : 'hover:bg-white'}`}
+                        className={`px-2 py-0.5 rounded ${biweeklyView === 'B' ? 'bg-indigo-600 text-white' : 'hover:bg-white'}`}
                       >B</button>
                     </div>
                   )}
@@ -2336,7 +2255,7 @@ const AISchedulePage: React.FC = () => {
                     }
                   `}
                 </style>
-                <div 
+                <div
                   className="schedule-container-with-scrollbar h-full border rounded-lg bg-white shadow-sm"
                   style={{
                     overflow: 'scroll',
@@ -2431,22 +2350,20 @@ const AISchedulePage: React.FC = () => {
               {/* Вкладки */}
               <div className="flex border-b">
                 <button
-                  className={`px-6 py-3 text-sm font-medium border-b-2 ${
-                    activeModalTab === 'details'
+                  className={`px-6 py-3 text-sm font-medium border-b-2 ${activeModalTab === 'details'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                   onClick={() => setActiveModalTab('details')}
                 >
                   <BookOpen className="h-4 w-4 inline mr-2" />
                   Детали предмета
                 </button>
                 <button
-                  className={`px-6 py-3 text-sm font-medium border-b-2 ${
-                    activeModalTab === 'preferences'
+                  className={`px-6 py-3 text-sm font-medium border-b-2 ${activeModalTab === 'preferences'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                   onClick={() => setActiveModalTab('preferences')}
                 >
                   <Heart className="h-4 w-4 inline mr-2" />
@@ -2501,7 +2418,7 @@ const AISchedulePage: React.FC = () => {
                             if (!isNaN(hours) && hours > 0 && hours <= 8) {
                               const subjectKey = `${selectedSubject.groupId}-${selectedSubject.id}`;
                               updateSubjectHours(subjectKey, hours);
-                              
+
                               setSelectedSubject({
                                 ...selectedSubject,
                                 hoursPerWeek: hours
@@ -2558,7 +2475,7 @@ const AISchedulePage: React.FC = () => {
                       const categoryPrefs = getTeacherPreferences(selectedSubject.teacherId)
                         .filter(pref => pref.type === category.type);
                       const activeCount = categoryPrefs.filter(pref => pref.enabled).length;
-                      
+
                       return (
                         <div key={category.type} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-3">
@@ -2571,7 +2488,7 @@ const AISchedulePage: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="space-y-2">
                             {categoryPrefs.map(preference => (
                               <div key={preference.id} className="flex items-start space-x-3">
@@ -2580,16 +2497,15 @@ const AISchedulePage: React.FC = () => {
                                   id={preference.id}
                                   checked={preference.enabled}
                                   onChange={(e) => updateTeacherPreference(
-                                    selectedSubject.teacherId, 
-                                    preference.id, 
+                                    selectedSubject.teacherId,
+                                    preference.id,
                                     e.target.checked
                                   )}
                                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
                                 />
                                 <label htmlFor={preference.id} className="flex-1">
-                                  <div className={`text-sm font-medium ${
-                                    preference.enabled ? 'text-gray-900' : 'text-gray-600'
-                                  }`}>
+                                  <div className={`text-sm font-medium ${preference.enabled ? 'text-gray-900' : 'text-gray-600'
+                                    }`}>
                                     {preference.title}
                                   </div>
                                   <div className="text-xs text-gray-500 mt-1">

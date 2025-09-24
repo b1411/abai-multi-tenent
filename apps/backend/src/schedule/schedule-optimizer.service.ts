@@ -1,3 +1,5 @@
+//schedule-optimizer.service.ts
+
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Classroom } from '../../generated/prisma';
@@ -23,6 +25,16 @@ type DraftItem = {
   repeat?: string;
 };
 
+type DayIdx = {
+  slots: { start: string; end: string; startMin: number; endMin: number }[];
+  slotByStart: Map<string, number>;
+  teacherBusy: Map<number, boolean[]>;
+  groupBusy: Map<number, boolean[]>;
+  roomBusy: Map<number, boolean[]>; // roomId -> slots[]
+  groupCount: Map<number, number>;
+  teacherCount: Map<number, number>;
+};
+
 type WorkingHours = { start: string; end: string };
 
 export interface OptimizerParams {
@@ -44,6 +56,7 @@ export interface OptimizerParams {
     heavyLate?: number;
     transitions?: number;
     harmony?: number;
+    timeConsistency?: number;
   };
   /** Включает подробное логирование процесса оптимизации */
   debug?: boolean;
@@ -54,8 +67,52 @@ export interface OptimizerParams {
 @Injectable()
 export class ScheduleOptimizerService {
   private readonly logger = new Logger(ScheduleOptimizerService.name);
+  private _datesCache: string[] | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
+
+  private canPlace(it: DraftItem, d: DayIdx, params: OptimizerParams): boolean {
+    const s = d.slotByStart.get(it.startTime);
+    if (s == null) return false;
+
+    // занятость
+    if (d.teacherBusy.get(it.teacherId)?.[s] || d.groupBusy.get(it.groupId)?.[s]) return false;
+    if (it.roomId && d.roomBusy.get(Number(it.roomId))?.[s]) return false;
+
+    // лимиты на день (и для teacher, и для group)
+    const maxPerDay = params.maxLessonsPerDay ?? Infinity;
+    if ((d.groupCount.get(it.groupId) ?? 0) >= maxPerDay) return false;
+    if ((d.teacherCount.get(it.teacherId) ?? 0) >= maxPerDay) return false;
+
+    // обед
+    if (params.lunchBreakTime && this.overlap(it.startTime, it.endTime, params.lunchBreakTime.start, params.lunchBreakTime.end)) return false;
+
+    // maxConsecutive: посмотри соседние слоты только для этой группы
+    if (params.maxConsecutiveHours) {
+      let chain = 1;
+      const leftBusy  = s>0               && d.groupBusy.get(it.groupId)?.[s-1];
+      const rightBusy = s<d.slots.length-1&& d.groupBusy.get(it.groupId)?.[s+1];
+      if (leftBusy)  chain++;
+      if (rightBusy) chain++;
+      if (chain > params.maxConsecutiveHours) return false;
+    }
+    return true;
+  }
+
+  private occupy(it: DraftItem, d: DayIdx, on: boolean) {
+    const s = d.slotByStart.get(it.startTime);
+    if (s == null) return; // мягко пропускаем офф-грид; можно ещё залогировать в debug
+    if (!d.teacherBusy.has(it.teacherId)) d.teacherBusy.set(it.teacherId, Array(d.slots.length).fill(false));
+    if (!d.groupBusy.has(it.groupId)) d.groupBusy.set(it.groupId, Array(d.slots.length).fill(false));
+    d.teacherBusy.get(it.teacherId)[s] = on;
+    d.groupBusy.get(it.groupId)[s] = on;
+    if (it.roomId) {
+      if (!d.roomBusy.has(Number(it.roomId))) d.roomBusy.set(Number(it.roomId), Array(d.slots.length).fill(false));
+      d.roomBusy.get(Number(it.roomId))[s] = on;
+    }
+    d.groupCount.set(it.groupId, Math.max(0, (d.groupCount.get(it.groupId) ?? 0) + (on ? 1 : -1)));
+    d.teacherCount.set(it.teacherId, Math.max(0, (d.teacherCount.get(it.teacherId) ?? 0) + (on ? 1 : -1)));
+  }
 
   async optimize(
     draft: DraftItem[],
@@ -87,6 +144,7 @@ export class ScheduleOptimizerService {
       heavyLate: params.weights?.heavyLate ?? 2,
       transitions: params.weights?.transitions ?? 4,
       harmony: params.weights?.harmony ?? 2,
+      timeConsistency: params.weights?.timeConsistency ?? 1,
     };
     log('Weights resolved', weights);
 
@@ -140,10 +198,71 @@ export class ScheduleOptimizerService {
 
     // Seed plan from draft (cloned)
     let plan: DraftItem[] = draft.map(d => ({ ...d }));
+    // Hydrate missing group sizes by querying groups once
+    try {
+      const groupIds = Array.from(new Set(plan.map(p => p.groupId).filter(Boolean)));
+      if (groupIds.length) {
+        const groups = await this.prisma.group.findMany({ where: { id: { in: groupIds } }, include: { students: true } });
+        const groupSizeMap = new Map<number, number>();
+        groups.forEach(g => groupSizeMap.set(g.id, g.students?.length ?? 0));
+        for (const p of plan) {
+          if (!p.groupSize) p.groupSize = groupSizeMap.get(p.groupId) ?? p.groupSize ?? 0;
+        }
+      }
+    } catch (e) {
+      this.logger.debug('Failed to hydrate group sizes: ' + String(e));
+    }
     log('Initial plan seeded');
 
+    // Build dayIdx for fast O(1) checks
+    const dayIdx = new Map<string, DayIdx>();
+    for (const [date, slotStrings] of timeSlotsByDate) {
+      const slots = slotStrings.map(s => {
+        const [sh, sm] = s.start.split(':').map(Number);
+        const [eh, em] = s.end.split(':').map(Number);
+        return { ...s, startMin: sh * 60 + sm, endMin: eh * 60 + em };
+      });
+      const idx: DayIdx = {
+        slots,
+        slotByStart: new Map(slots.map((s, i) => [s.start, i])),
+        teacherBusy: new Map(),
+        groupBusy: new Map(),
+        roomBusy: new Map(),
+        groupCount: new Map(),
+        teacherCount: new Map(),
+      };
+      dayIdx.set(date, idx);
+    }
+    // Occupy existing schedules
+    for (const e of existingSchedules) {
+      const d = e.date.toISOString().split('T')[0];
+      const idx = dayIdx.get(d);
+      if (idx) {
+        const fakeIt: DraftItem = { teacherId: e.teacherId, groupId: e.groupId, roomId: e.classroomId, startTime: e.startTime, date: d, subject: '', endTime: e.endTime };
+        this.occupy(fakeIt, idx, true);
+      }
+    }
+    // Occupy current plan
+    for (const it of plan) {
+      const idx = dayIdx.get(it.date);
+      if (idx) this.occupy(it, idx, true);
+    }
+
+    // Build indexed maps to avoid repeated filters in validations
+    const existingByDate = new Map<string, { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]>();
+    for (const e of existingSchedules) {
+      const d = this.toLocalDateStr(e.date);
+      (existingByDate.get(d) ?? existingByDate.set(d,[]).get(d)).push(e);
+    }
+    const vacationsByTeacher = new Map<number, { teacherId: number; startDate: Date; endDate: Date }[]>();
+    for (const v of teacherVacations) {
+      const arr = vacationsByTeacher.get(v.teacherId) || [];
+      arr.push(v);
+      vacationsByTeacher.set(v.teacherId, arr);
+    }
+
     // Hard constraints validation
-    let hardViolations = this.listHardViolations(plan, existingSchedules, teacherVacations, roomById, params.minBreakMinutes ?? 10, params);
+    let hardViolations = this.listHardViolations(plan, existingByDate, vacationsByTeacher, roomById, params.minBreakMinutes ?? 10, params);
     if (hardViolations.length) {
       this.logger.warn(`Initial hard violations: ${hardViolations.length}`);
       log('Sample violations', { sample: hardViolations.slice(0, 10) });
@@ -152,64 +271,60 @@ export class ScheduleOptimizerService {
     }
     if (hardViolations.length) {
       // Try to quickly fix by moving conflicting items to first available free slot/room
-      plan = this.quickFeasibleRepair(plan, timeSlotsByDate, roomById, existingSchedules, teacherVacations, params);
-      hardViolations = this.listHardViolations(plan, existingSchedules, teacherVacations, roomById, params.minBreakMinutes ?? 10, params);
+      plan = this.quickFeasibleRepair(plan, timeSlotsByDate, roomById, existingByDate, vacationsByTeacher, params, dayIdx);
+      hardViolations = this.listHardViolations(plan, existingByDate, vacationsByTeacher, roomById, params.minBreakMinutes ?? 10, params);
       log('After quick repair', { remainingViolations: hardViolations.length });
     }
 
     // Local search optimization
-    const maxIterations = 800;
-    const timeBudgetMs = 3000; // 3s
+    const maxIterations = 300;
+    const timeBudgetMs = 1000; // 1s
     const startTs = Date.now();
-    let bestPlan = plan.map(p => ({ ...p }));
-    let bestScore = this.softScore(bestPlan, weights, roomById, params);
+    let bestPlan = plan.map(p => ({ ...p })); // Keep best plan copy
+    let bestScore = this.softScore(plan, weights, roomById, params);
     let iterations = 0;
     log('Begin local search', { maxIterations, timeBudgetMs, initialScore: bestScore });
 
     while (iterations < maxIterations && (Date.now() - startTs) < timeBudgetMs) {
       iterations++;
-      const candidate = bestPlan.map(p => ({ ...p }));
-
       // Random move: 0 - move time, 1 - change room, 2 - swap two items
       const moveType = Math.floor(Math.random() * 3);
+      let moved = false;
       if (moveType === 0) {
-        this.moveRandomToAnotherSlot(candidate, timeSlotsByDate);
+        moved = this.tryMoveRandomToAnotherSlot(plan, timeSlotsByDate, dayIdx, params);
       } else if (moveType === 1) {
-        this.changeRandomRoom(candidate, classrooms);
+        moved = this.tryChangeRandomRoom(plan, classrooms, dayIdx, params);
       } else {
-        this.swapTwoItems(candidate);
+        moved = this.trySwapTwoItems(plan, dayIdx, params);
       }
-
-      // Keep only feasible candidates
-  const violations = this.listHardViolations(candidate, existingSchedules, teacherVacations, roomById, params.minBreakMinutes ?? 10, params);
-      if (violations.length) continue;
-
-      const score = this.softScore(candidate, weights, roomById, params);
-      if (score < bestScore) {
-        bestPlan = candidate;
-        bestScore = score;
-        log('Improved plan', { iterations, bestScore });
+      if (moved) {
+        const score = this.softScore(plan, weights, roomById, params);
+        if (score < bestScore) {
+          bestScore = score;
+          bestPlan = plan.map(p => ({ ...p })); // Update best plan
+          log('Improved plan', { iterations, bestScore });
+        }
       }
-      if (dbg && iterations % 100 === 0) {
+      if (dbg && iterations % 50 === 0) {
         log('Progress checkpoint', { iterations, elapsedMs: Date.now() - startTs, currentBest: bestScore });
       }
     }
     log('Local search finished', { iterations, elapsedMs: Date.now() - startTs, bestScore });
 
-
     // Дополнительная стадия уплотнения (минимизация окон) после основного поиска
     log('Start compaction phase');
-  const compacted = this.compactPlan(
+    const compacted = this.compactPlan(
       bestPlan.map(p => ({ ...p })),
       timeSlotsByDate,
       classrooms,
-      existingSchedules,
-      teacherVacations,
+      existingByDate,
+      vacationsByTeacher,
       roomById,
       params.minBreakMinutes ?? 10,
-      params
+      params,
+      dayIdx
     );
-    const compactViolations = this.listHardViolations(compacted, existingSchedules, teacherVacations, roomById, params.minBreakMinutes ?? 10, params);
+    const compactViolations = this.listHardViolations(compacted, existingByDate, vacationsByTeacher, roomById, params.minBreakMinutes ?? 10, params);
     let finalPlan = bestPlan;
     if (!compactViolations.length) {
       finalPlan = compacted;
@@ -253,9 +368,10 @@ export class ScheduleOptimizerService {
       teacherVacations,
       roomById,
       params.minBreakMinutes ?? 10,
-      params
+      params,
+      dayIdx
     );
-    const minViol = this.listHardViolations(minimized, existingSchedules, teacherVacations, roomById, params.minBreakMinutes ?? 10, params);
+  const minViol = this.listHardViolations(minimized, existingByDate, vacationsByTeacher, roomById, params.minBreakMinutes ?? 10, params);
     if (!minViol.length) {
       log('Window minimization applied');
       finalPlan = minimized;
@@ -278,6 +394,21 @@ export class ScheduleOptimizerService {
     const totalElapsed = Date.now() - startedAt;
     this.logger.log(`OPTIMIZER: done in ${totalElapsed} ms iterations=${iterations} templates=${aggregated.templates.length} singles=${aggregated.singles.length} score=${bestScore}`);
 
+    // жёсткое исправление любых пересечений с обедом
+    if (params.lunchBreakTime) {
+      finalPlan = this.forceFixLunchOverlaps(
+        finalPlan,
+        timeSlotsByDate,
+        classrooms,
+        existingByDate,
+        vacationsByTeacher,
+        roomById,
+        params.minBreakMinutes ?? 10,
+        params,
+        dayIdx
+      );
+    }
+
     return {
       generatedSchedule: finalPlan,
       confidence: finalConfidence,
@@ -293,8 +424,8 @@ export class ScheduleOptimizerService {
 
   private listHardViolations(
     plan: DraftItem[],
-    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[],
-    vacations: { teacherId: number; startDate: Date; endDate: Date }[],
+    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[] | Map<string, { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]>,
+    vacations: { teacherId: number; startDate: Date; endDate: Date }[] | Map<number, { teacherId: number; startDate: Date; endDate: Date }[]>,
     roomById: Map<string, Classroom>,
     minBreakMinutes: number,
     params?: OptimizerParams
@@ -330,8 +461,9 @@ export class ScheduleOptimizerService {
       if (it.roomId) seenR.add(kR);
 
       // Overlaps with existing DB schedules
-      const dayExisting = existing.filter(e => this.sameDateStr(e.date, d));
-      for (const e of dayExisting) {
+        // Normalize existing (array or map) to dayExisting
+        const dayExisting = Array.isArray(existing) ? existing.filter(e => this.toLocalDateStr(e.date) === d) : (existing.get(d) || []);
+        for (const e of dayExisting) {
         if (this.overlap(it.startTime, it.endTime, e.startTime, e.endTime)) {
           if (e.teacherId === it.teacherId) errs.push(`TEACHER_BUSY:${it.teacherId}:${d}:${it.startTime}`);
           if (e.groupId === it.groupId) errs.push(`GROUP_BUSY:${it.groupId}:${d}:${it.startTime}`);
@@ -347,8 +479,9 @@ export class ScheduleOptimizerService {
         }
       }
 
-      // Vacation
-      if (vacations.some(v => v.teacherId === it.teacherId && this.dateInRange(d, v.startDate, v.endDate))) {
+      // Vacation (vacations may be array or map by teacher)
+      const vacList = Array.isArray(vacations) ? vacations.filter(v => v.teacherId === it.teacherId) : (vacations.get(it.teacherId) || []);
+      if (vacList.some(v => this.dateInRange(d, v.startDate, v.endDate))) {
         errs.push(`TEACHER_VACATION:${it.teacherId}:${d}`);
       }
     }
@@ -455,7 +588,7 @@ export class ScheduleOptimizerService {
   private softScore(plan: DraftItem[], w: Record<string, number>, roomById: Map<string, Classroom>, params: OptimizerParams): number {
     const b = this.softScoreBreakdown(plan, w, roomById, params);
     // Sum weighted penalties
-    return b.windows + b.fairness + b.preferences + b.heavyLate + b.transitions + b.harmony;
+    return b.windows + b.fairness + b.preferences + b.heavyLate + b.transitions + b.harmony + b.timeConsistency;
   }
 
   private softScoreBreakdown(plan: DraftItem[], w: Record<string, number>, roomById: Map<string, Classroom>, params: OptimizerParams) {
@@ -465,6 +598,7 @@ export class ScheduleOptimizerService {
     const heavyLatePenalty = this.heavyLatePenalty(plan) * w.heavyLate;
     const transitionPenalty = this.transitionPenalty(plan, roomById, params.minBreakMinutes ?? 10) * w.transitions;
     const harmonyPenalty = this.harmonyPenalty(plan, roomById) * w.harmony;
+    const timeConsistencyPenalty = this.timeConsistencyPenalty(plan) * w.timeConsistency;
 
     return {
       windows: windowsPenalty,
@@ -473,6 +607,7 @@ export class ScheduleOptimizerService {
       heavyLate: heavyLatePenalty,
       transitions: transitionPenalty,
       harmony: harmonyPenalty,
+      timeConsistency: timeConsistencyPenalty,
     };
   }
 
@@ -482,33 +617,59 @@ export class ScheduleOptimizerService {
     plan: DraftItem[],
     slotsByDate: Map<string, { start: string; end: string }[]>,
     roomById: Map<string, Classroom>,
-    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[],
-    vacations: { teacherId: number; startDate: Date; endDate: Date }[],
-    params: OptimizerParams
+    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[] | Map<string, { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]>,
+    vacations: { teacherId: number; startDate: Date; endDate: Date }[] | Map<number, { teacherId: number; startDate: Date; endDate: Date }[]>,
+    params: OptimizerParams,
+    dayIdx: Map<string, DayIdx>
   ): DraftItem[] {
     const repaired: DraftItem[] = [];
     for (const it of plan) {
-      const rooms = Array.from(roomById.values());
-      const candidates = slotsByDate.get(it.date) || [];
+      const d = dayIdx.get(it.date);
+      if (!d) {
+        repaired.push(it); // keep as is
+        continue;
+      }
+      // Free current
+      this.occupy(it, d, false);
+
+      const rooms = Array.from(roomById.values()).filter(r => (it.groupSize ? r.capacity >= it.groupSize : true));
       let placed: DraftItem | null = null;
 
-      // try same slot first with alternative room
-  const sameSlotRoom = this.pickFeasibleRoom(it, rooms, repaired, existing, vacations, roomById, params.minBreakMinutes ?? 10, params);
-      if (sameSlotRoom) {
-        placed = { ...it, roomId: String(sameSlotRoom.id), roomType: sameSlotRoom.type, roomCapacity: sameSlotRoom.capacity };
-      } else {
-        // try different slot on same day
-        for (const s of candidates) {
-          const alt: DraftItem = { ...it, startTime: s.start, endTime: s.end };
-          const room = this.pickFeasibleRoom(alt, rooms, repaired, existing, vacations, roomById, params.minBreakMinutes ?? 10, params);
-          if (room) {
-            placed = { ...alt, roomId: String(room.id), roomType: room.type, roomCapacity: room.capacity };
-            break;
-          }
+      // try same slot with alternative room
+      for (const r of rooms) {
+        const candidate = { ...it, roomId: String(r.id) };
+        if (this.canPlace(candidate, d, params)) {
+          placed = { ...candidate, roomType: r.type, roomCapacity: r.capacity };
+          this.occupy(placed, d, true);
+          break;
         }
       }
-      if (placed) repaired.push(placed);
-      else repaired.push(it); // keep as is; will be handled by optimizer
+
+      if (!placed) {
+        // try different slot on same day
+        const candidates = slotsByDate.get(it.date) || [];
+        for (const s of candidates) {
+          if (s.start === it.startTime) continue; // already tried
+          const alt: DraftItem = { ...it, startTime: s.start, endTime: s.end };
+          for (const r of rooms) {
+            const candidate = { ...alt, roomId: String(r.id) };
+            if (this.canPlace(candidate, d, params)) {
+              placed = { ...candidate, roomType: r.type, roomCapacity: r.capacity };
+              this.occupy(placed, d, true);
+              break;
+            }
+          }
+          if (placed) break;
+        }
+      }
+
+      if (placed) {
+        repaired.push(placed);
+      } else {
+        // revert and keep original
+        this.occupy(it, d, true);
+        repaired.push(it);
+      }
     }
     return repaired;
   }
@@ -517,8 +678,8 @@ export class ScheduleOptimizerService {
     it: DraftItem,
     rooms: Classroom[],
     partialPlan: DraftItem[],
-    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[],
-    vacations: { teacherId: number; startDate: Date; endDate: Date }[],
+    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[] | Map<string, { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]>,
+    vacations: { teacherId: number; startDate: Date; endDate: Date }[] | Map<number, { teacherId: number; startDate: Date; endDate: Date }[]>,
     roomById: Map<string, Classroom>,
   minBreakMinutes: number,
   params?: OptimizerParams
@@ -573,15 +734,18 @@ export class ScheduleOptimizerService {
     plan: DraftItem[],
     slotsByDate: Map<string, { start: string; end: string }[]>,
     classrooms: Classroom[],
-    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[],
-    vacations: { teacherId: number; startDate: Date; endDate: Date }[],
+    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[] | Map<string, { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]>,
+    vacations: { teacherId: number; startDate: Date; endDate: Date }[] | Map<number, { teacherId: number; startDate: Date; endDate: Date }[]>,
     roomById: Map<string, Classroom>,
     minBreakMinutes: number,
-    params?: OptimizerParams
+    params: OptimizerParams | undefined,
+    dayIdx: Map<string, DayIdx>
   ): DraftItem[] {
     const byDate = this.groupBy(plan, p => p.date);
     for (const [date, dayItems] of byDate) {
       const slots = (slotsByDate.get(date) || []).slice().sort((a,b)=>a.start.localeCompare(b.start));
+      const d = dayIdx.get(date);
+      if (!d) continue;
       // Группируем по группе, чтобы уплотнять каждую отдельно
       const byGroup = this.groupBy(dayItems, p => String(p.groupId));
       for (const [, lessons] of byGroup) {
@@ -594,26 +758,42 @@ export class ScheduleOptimizerService {
               const slot = slots[s];
               // Если урок уже стоит раньше или в этом слоте, пропускаем
               if (slot.start >= lesson.startTime) break; // дальше слоты только позже
+              // Free current slot
+              this.occupy(lesson, d, false);
               const candidate: DraftItem = { ...lesson, startTime: slot.start, endTime: slot.end };
               // Проверим конфликт по аудитории: если текущая занята в это новое время - попробуем подобрать другую
-              if (candidate.roomId && this.roomBusy(String(candidate.roomId), candidate.date, candidate.startTime, candidate.endTime, plan.filter(p=>p!==lesson), existing)) {
-                const newRoom = this.pickFeasibleRoom(candidate, classrooms, plan.filter(p=>p!==lesson), existing, vacations, roomById, minBreakMinutes, params);
-                if (newRoom) {
-                  candidate.roomId = String(newRoom.id); candidate.roomType = newRoom.type; candidate.roomCapacity = newRoom.capacity;
-                } else {
-                  continue; // не нашли аудиторию для раннего сдвига
+              let roomChanged = false;
+              const sIdx = d.slotByStart.get(slot.start);
+              if (candidate.roomId && sIdx != null && d.roomBusy.get(Number(candidate.roomId))?.[sIdx]) {
+                // try find another room
+                for (const r of classrooms.filter(c => (lesson.groupSize ? c.capacity >= lesson.groupSize : true))) {
+                  const candRoom = { ...candidate, roomId: String(r.id) };
+                  if (this.canPlace(candRoom, d, params)) {
+                    candidate.roomId = String(r.id); candidate.roomType = r.type; candidate.roomCapacity = r.capacity;
+                    roomChanged = true;
+                    break;
+                  }
+                }
+                if (!roomChanged) {
+                  // Revert and continue
+                  this.occupy(lesson, d, true);
+                  continue;
                 }
               }
-              const testPlan = plan.map(p => p === lesson ? candidate : p);
-              const violations = this.listHardViolations(testPlan, existing, vacations, roomById, minBreakMinutes, params);
-              if (!violations.length) {
+              if (this.canPlace(candidate, d, params)) {
                 // Применяем сдвиг
                 lesson.startTime = candidate.startTime;
                 lesson.endTime = candidate.endTime;
-                lesson.roomId = candidate.roomId;
-                lesson.roomType = candidate.roomType;
-                lesson.roomCapacity = candidate.roomCapacity as any;
+                if (roomChanged) {
+                  lesson.roomId = candidate.roomId;
+                  lesson.roomType = candidate.roomType;
+                  lesson.roomCapacity = candidate.roomCapacity as any;
+                }
+                this.occupy(lesson, d, true);
                 slotIdx = s + 1; // следующий урок начнем рассматривать с последующих слотов
+              } else {
+                // Revert
+                this.occupy(lesson, d, true);
               }
             }
         }
@@ -627,17 +807,20 @@ export class ScheduleOptimizerService {
     plan: DraftItem[],
     slotsByDate: Map<string, { start: string; end: string }[]>,
     classrooms: Classroom[],
-    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[],
-    vacations: { teacherId: number; startDate: Date; endDate: Date }[],
+    existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[] | Map<string, { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]>,
+    vacations: { teacherId: number; startDate: Date; endDate: Date }[] | Map<number, { teacherId: number; startDate: Date; endDate: Date }[]>,
     roomById: Map<string, Classroom>,
     minBreakMinutes: number,
-    params?: OptimizerParams
+    params: OptimizerParams | undefined,
+    dayIdx: Map<string, DayIdx>
   ): DraftItem[] {
     // Стратегия: для каждой группы и дня пытаемся убрать одиночные окна между уроками
     const byGroupDate = this.groupBy(plan, p => `${p.groupId}|${p.date}`);
     for (const [, lessons] of byGroupDate) {
       if (lessons.length < 3) continue; // минимум 3 чтобы могло быть окно
       lessons.sort((a,b)=>a.startTime.localeCompare(b.startTime));
+      const d = dayIdx.get(lessons[0].date);
+      if (!d) continue;
       // Проход: ищем pattern [L1][WINDOW][L2]
       for (let i=0; i<lessons.length-2; i++) {
         const first = lessons[i];
@@ -655,43 +838,65 @@ export class ScheduleOptimizerService {
             if (s.start >= last.startTime) break;
             // занято ли это окно уже другим уроком группы
             if (lessons.some(l => l !== middle && this.overlap(l.startTime, l.endTime, s.start, s.end))) continue;
+            // Free middle
+            this.occupy(middle, d, false);
             // Кандидат переноса middle
             const candidate: DraftItem = { ...middle, startTime: s.start, endTime: s.end };
             // Проверим аудиторию
-            if (candidate.roomId && this.roomBusy(String(candidate.roomId), candidate.date, candidate.startTime, candidate.endTime, plan.filter(p=>p!==middle), existing)) {
-              const newRoom = this.pickFeasibleRoom(candidate, classrooms, plan.filter(p=>p!==middle), existing, vacations, roomById, minBreakMinutes, params);
-              if (newRoom) {
-                candidate.roomId = String(newRoom.id); candidate.roomType = newRoom.type; candidate.roomCapacity = newRoom.capacity;
-              } else continue;
+            let roomChanged = false;
+            const sIdx = d.slotByStart.get(s.start);
+            if (candidate.roomId && sIdx != null && d.roomBusy.get(Number(candidate.roomId))?.[sIdx]) {
+              // try find another room
+              for (const r of classrooms.filter(c => (middle.groupSize ? c.capacity >= middle.groupSize : true))) {
+                const candRoom = { ...candidate, roomId: String(r.id) };
+                if (this.canPlace(candRoom, d, params)) {
+                  candidate.roomId = String(r.id); candidate.roomType = r.type; candidate.roomCapacity = r.capacity;
+                  roomChanged = true;
+                  break;
+                }
+              }
+              if (!roomChanged) {
+                this.occupy(middle, d, true); // revert
+                continue;
+              }
             }
-            const newPlan = plan.map(p => p === middle ? candidate : p);
-            const viol = this.listHardViolations(newPlan, existing, vacations, roomById, minBreakMinutes, params);
-            if (!viol.length) {
+            if (this.canPlace(candidate, d, params)) {
               middle.startTime = candidate.startTime;
               middle.endTime = candidate.endTime;
-              middle.roomId = candidate.roomId;
-              middle.roomType = candidate.roomType;
-              middle.roomCapacity = candidate.roomCapacity;
+              if (roomChanged) {
+                middle.roomId = candidate.roomId;
+                middle.roomType = candidate.roomType;
+                middle.roomCapacity = candidate.roomCapacity;
+              }
+              this.occupy(middle, d, true);
               break; // окно устранено
+            } else {
+              this.occupy(middle, d, true); // revert
             }
           }
         }
         // Попробуем swap middle с first или last если это уберёт окно
         const trySwap = (a: DraftItem, b: DraftItem) => {
-          const swappedPlan = plan.map(p => {
-            if (p === a) return { ...a, date: b.date, startTime: b.startTime, endTime: b.endTime, roomId: b.roomId };
-            if (p === b) return { ...b, date: a.date, startTime: a.startTime, endTime: a.endTime, roomId: a.roomId };
-            return p;
-          });
-          const viol = this.listHardViolations(swappedPlan, existing, vacations, roomById, minBreakMinutes, params);
-          if (!viol.length) {
-            a.startTime = swappedPlan.find(p=>p.tempId===a.tempId)?.startTime || a.startTime;
-            a.endTime = swappedPlan.find(p=>p.tempId===a.tempId)?.endTime || a.endTime;
-            b.startTime = swappedPlan.find(p=>p.tempId===b.tempId)?.startTime || b.startTime;
-            b.endTime = swappedPlan.find(p=>p.tempId===b.tempId)?.endTime || b.endTime;
+          // Free both
+          this.occupy(a, d, false);
+          this.occupy(b, d, false);
+          // Swap
+          const origA = { ...a };
+          const origB = { ...b };
+          a.startTime = origB.startTime; a.endTime = origB.endTime; a.roomId = origB.roomId; a.roomType = origB.roomType; a.roomCapacity = origB.roomCapacity;
+          b.startTime = origA.startTime; b.endTime = origA.endTime; b.roomId = origA.roomId; b.roomType = origA.roomType; b.roomCapacity = origA.roomCapacity;
+          if (this.canPlace(a, d, params) && this.canPlace(b, d, params)) {
+            this.occupy(a, d, true);
+            this.occupy(b, d, true);
             return true;
+          } else {
+            // Revert
+            a.startTime = origA.startTime; a.endTime = origA.endTime; a.roomId = origA.roomId; a.roomType = origA.roomType; a.roomCapacity = origA.roomCapacity;
+            b.startTime = origB.startTime; b.endTime = origB.endTime; b.roomId = origB.roomId; b.roomType = origB.roomType; b.roomCapacity = origB.roomCapacity;
+            this.occupy(a, d, true);
+            this.occupy(b, d, true);
+            return false;
           }
-          return false;
         };
         // Если большая дыра после middle — попробуем swap middle и last
         if (gap2 >= 10 && gap2 <= 60) {
@@ -790,6 +995,20 @@ export class ScheduleOptimizerService {
     return penalty;
   }
 
+  private timeConsistencyPenalty(plan: DraftItem[]): number {
+    // Penalize variance in start times for same subject/group/dayOfWeek
+    let penalty = 0;
+    const byKey = this.groupBy(plan, p => `${p.groupId}|${p.subject}|${(new Date(p.date)).getDay() || 7}`);
+    for (const [, arr] of byKey) {
+      const starts = arr.map(x => this.timeToMin(x.startTime));
+      if (starts.length <= 1) continue;
+      const avg = starts.reduce((a, b) => a + b, 0) / starts.length;
+      const variance = starts.reduce((s, c) => s + (c - avg) * (c - avg), 0) / starts.length;
+      penalty += variance / 60; // normalize to minutes
+    }
+    return penalty;
+  }
+
   // --- Utilities ---
 
   private buildDailySlotsMap(start: Date, end: Date, wh: WorkingHours, lessonDuration: number, breakMinutes: number, excludeWeekends?: boolean) {
@@ -823,10 +1042,6 @@ export class ScheduleOptimizerService {
     return !(aEnd <= bStart || aStart >= bEnd);
   }
 
-  private sameDateStr(a: Date, bStr: string) {
-    return a.toISOString().split('T')[0] === bStr;
-  }
-
   private timeToMin(t: string): number {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
@@ -858,13 +1073,21 @@ export class ScheduleOptimizerService {
     return map;
   }
 
-  private roomBusy(roomId: string, date: string, start: string, end: string, partial: DraftItem[], existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]): boolean {
+  private roomBusy(roomId: string, date: string, start: string, end: string, partial: DraftItem[], existing: { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[] | Map<string, { date: Date; startTime: string; endTime: string; teacherId: number; groupId: number; classroomId: number | null }[]>): boolean {
     for (const p of partial) {
       if (String(p.roomId ?? '') === roomId && p.date === date && this.overlap(p.startTime, p.endTime, start, end)) return true;
     }
-    for (const e of existing) {
-      if (!e.classroomId) continue;
-      if (String(e.classroomId) === roomId && this.sameDateStr(e.date, date) && this.overlap(e.startTime, e.endTime, start, end)) return true;
+    if (Array.isArray(existing)) {
+      for (const e of existing) {
+        if (!e.classroomId) continue;
+        if (String(e.classroomId) === roomId && this.toLocalDateStr(e.date) === date && this.overlap(e.startTime, e.endTime, start, end)) return true;
+      }
+    } else {
+      const day = existing.get(date) || [];
+      for (const e of day) {
+        if (!e.classroomId) continue;
+        if (String(e.classroomId) === roomId && this.overlap(e.startTime, e.endTime, start, end)) return true;
+      }
     }
     return false;
   }
@@ -998,6 +1221,181 @@ export class ScheduleOptimizerService {
       });
     }
     return { templates, singles };
+  }
+
+  // --- New fast try methods using DayIdx ---
+
+  private tryMoveRandomToAnotherSlot(plan: DraftItem[], timeSlotsByDate: Map<string, { start: string; end: string }[]>, dayIdx: Map<string, DayIdx>, params: OptimizerParams): boolean {
+    if (!plan.length) return false;
+    const idx = Math.floor(Math.random() * plan.length);
+    const it = plan[idx];
+    const day = dayIdx.get(it.date);
+    if (!day) return false;
+
+    // Free current slot
+    this.occupy(it, day, false);
+
+    // Try random other slot on same day or different day
+    const dates = this._datesCache ?? (this._datesCache = Array.from(timeSlotsByDate.keys()));
+    const newDate = dates[Math.floor(Math.random()*dates.length)];
+    const slots = timeSlotsByDate.get(newDate);
+    const slot = slots[Math.floor(Math.random()*slots.length)];
+    const newSlot = { start: slot.start, end: slot.end, date: newDate };
+    const newDay = dayIdx.get(newSlot.date);
+    if (!newDay) {
+      this.occupy(it, day, true); // revert
+      return false;
+    }
+
+    const newIt = { ...it, date: newSlot.date, startTime: newSlot.start, endTime: newSlot.end };
+    if (this.canPlace(newIt, newDay, params)) {
+      // Apply move
+      plan[idx] = newIt;
+      this.occupy(newIt, newDay, true);
+      return true;
+    } else {
+      // Revert
+      this.occupy(it, day, true);
+      return false;
+    }
+  }
+
+  private tryChangeRandomRoom(plan: DraftItem[], classrooms: Classroom[], dayIdx: Map<string, DayIdx>, params: OptimizerParams): boolean {
+    if (!plan.length) return false;
+    const idx = Math.floor(Math.random() * plan.length);
+    const it = plan[idx];
+    const day = dayIdx.get(it.date);
+    if (!day) return false;
+
+    // Free current room
+    this.occupy(it, day, false);
+
+    // Try random other room
+    const s = day.slotByStart.get(it.startTime);
+    if (s == null) {
+      this.occupy(it, day, true); // revert
+      return false;
+    }
+    const availableRooms = classrooms.filter(c => (it.groupSize ? c.capacity >= it.groupSize : true) && !day.roomBusy.get(c.id)?.[s]);
+    if (!availableRooms.length) {
+      this.occupy(it, day, true); // revert
+      return false;
+    }
+    const newRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
+    const newIt = { ...it, roomId: newRoom.id, roomType: newRoom.type, roomCapacity: newRoom.capacity };
+
+    if (this.canPlace(newIt, day, params)) {
+      // Apply change
+      plan[idx] = newIt;
+      this.occupy(newIt, day, true);
+      return true;
+    } else {
+      // Revert
+      this.occupy(it, day, true);
+      return false;
+    }
+  }
+
+  private trySwapTwoItems(plan: DraftItem[], dayIdx: Map<string, DayIdx>, params: OptimizerParams): boolean {
+    if (plan.length < 2) return false;
+    const idx1 = Math.floor(Math.random() * plan.length);
+    let idx2 = Math.floor(Math.random() * plan.length);
+    while (idx2 === idx1) idx2 = Math.floor(Math.random() * plan.length);
+
+    const it1 = plan[idx1];
+    const it2 = plan[idx2];
+    const day1 = dayIdx.get(it1.date);
+    const day2 = dayIdx.get(it2.date);
+    if (!day1 || !day2) return false;
+
+    // Free both
+    this.occupy(it1, day1, false);
+    this.occupy(it2, day2, false);
+
+    // Swap slots/rooms
+    const swapped1 = { ...it1, date: it2.date, startTime: it2.startTime, endTime: it2.endTime, roomId: it2.roomId, roomType: it2.roomType, roomCapacity: it2.roomCapacity };
+    const swapped2 = { ...it2, date: it1.date, startTime: it1.startTime, endTime: it1.endTime, roomId: it1.roomId, roomType: it1.roomType, roomCapacity: it1.roomCapacity };
+
+    if (this.canPlace(swapped1, day2, params) && this.canPlace(swapped2, day1, params)) {
+      // Apply swap
+      plan[idx1] = swapped1;
+      plan[idx2] = swapped2;
+      this.occupy(swapped1, day2, true);
+      this.occupy(swapped2, day1, true);
+      return true;
+    } else {
+      // Revert
+      this.occupy(it1, day1, true);
+      this.occupy(it2, day2, true);
+      return false;
+    }
+  }
+
+  private forceFixLunchOverlaps(
+    plan: DraftItem[],
+    slotsByDate: Map<string, { start: string; end: string }[]>,
+    classrooms: Classroom[],
+    existingByDate: Map<string, any[]>,
+    vacationsByTeacher: Map<number, any[]>,
+    roomById: Map<string, Classroom>,
+    minBreakMinutes: number,
+    params: OptimizerParams,
+    dayIdx: Map<string, DayIdx>
+  ): DraftItem[] {
+    const out: DraftItem[] = [];
+    const lunch = params.lunchBreakTime;
+    const dates = Array.from(slotsByDate.keys()).sort();
+
+    for (const it of plan) {
+      if (!this.overlap(it.startTime, it.endTime, lunch.start, lunch.end)) {
+        out.push(it);
+        continue;
+      }
+      // пробуем слоты в этот день, исключая обед
+      const idx = dayIdx.get(it.date);
+      const daySlots = (slotsByDate.get(it.date) || [])
+        .filter(s => !this.overlap(s.start, s.end, lunch.start, lunch.end));
+      let placed: DraftItem | null = null;
+
+      if (idx) {
+        for (const s of daySlots) {
+          const cand = { ...it, startTime: s.start, endTime: s.end };
+          // при конфликте аудитории — подберём другую
+          if (cand.roomId && idx.roomBusy.get(Number(cand.roomId))?.[idx.slotByStart.get(s.start)]) {
+            for (const r of classrooms.filter(c => (it.groupSize ? c.capacity >= it.groupSize : true))) {
+              const withRoom = { ...cand, roomId: String(r.id), roomType: r.type, roomCapacity: r.capacity };
+              if (this.canPlace(withRoom, idx, params)) { placed = withRoom; break; }
+            }
+          } else if (this.canPlace(cand, idx, params)) {
+            placed = cand;
+          }
+          if (placed) break;
+        }
+      }
+
+      // если не получилось — ищем ближайший рабочий день
+      if (!placed) {
+        const curIdx = dates.indexOf(it.date);
+        const order = [...dates.slice(curIdx+1), ...dates.slice(0, curIdx)];
+        for (const d of order) {
+          const di = dayIdx.get(d);
+          if (!di) continue;
+          for (const s of (slotsByDate.get(d) || []).filter(s => !this.overlap(s.start, s.end, lunch.start, lunch.end))) {
+            const cand = { ...it, date: d, startTime: s.start, endTime: s.end };
+            if (this.canPlace(cand, di, params)) { placed = cand; break; }
+          }
+          if (placed) break;
+        }
+      }
+
+      if (placed) out.push(placed);
+      // иначе — выкидываем, чтобы не возвращать нарушение
+    }
+    return out;
+  }
+
+  private toLocalDateStr(d: Date) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Almaty', year:'numeric', month:'2-digit', day:'2-digit'}).format(d);
   }
 }
 

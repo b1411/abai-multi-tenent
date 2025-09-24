@@ -1,3 +1,5 @@
+// ScheduleGrid.tsx
+
 import React, { useState, useMemo } from 'react';
 import {
   DndContext,
@@ -79,6 +81,7 @@ interface TimeSlot {
   time: string;
   hour: number;
   minute: number;
+  isLunchSlot?: boolean;
 }
 
 interface ScheduleGridProps {
@@ -96,6 +99,9 @@ interface ScheduleGridProps {
   slotStepMinutes?: number;
   /** Существующее расписание (не перетаскивается), для подсветки конфликтов */
   externalLessons?: ScheduleLesson[];
+  lessonDurationMinutes?: number;   // например 45
+  breakMinutes?: number;            // например 10
+  lunchBreakTime?: { start: string; end: string }; // например {start:'12:00', end:'13:00'}
 }
 
 // Компонент урока в сетке
@@ -467,7 +473,9 @@ const TimeSlotCell: React.FC<{
   externalLessons?: ScheduleLesson[]; // существующие
   onDropLesson: (lessonId: string, date: string, time: string) => void;
   allLessons: ScheduleLesson[]; // все новые уроки (для быстрой валидации)
-}> = ({ date, timeSlot, lessons, externalLessons = [], onDropLesson, allLessons }) => {
+  isLunchSlot?: boolean;
+  lunchBreakTime: { start: string; end: string };
+}> = ({ date, timeSlot, lessons, externalLessons = [], onDropLesson, allLessons, isLunchSlot = false, lunchBreakTime }) => {
   const cellLessons = lessons.filter(
     lesson => lesson.date === date && lesson.startTime === timeSlot.time
   );
@@ -477,6 +485,7 @@ const TimeSlotCell: React.FC<{
   
   const { isOver, setNodeRef } = useDroppable({
     id: dropId,
+    disabled: !!timeSlot.isLunchSlot,
   });
 
   // Проверяем наличие конфликтов в этой ячейке
@@ -494,6 +503,15 @@ const TimeSlotCell: React.FC<{
       groups.length !== uniqueGroups.length ||
       (classrooms.length > 0 && classrooms.length !== uniqueClassrooms.length);
   }, [cellLessons, cellExternal]);
+
+  // Функция для проверки пересечения времени с обедом
+  const crossesLunch = (startTime: string, endTime: string) => {
+    const start = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+    const end = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+    const lunchStart = parseInt(lunchBreakTime.start.split(':')[0]) * 60 + parseInt(lunchBreakTime.start.split(':')[1]);
+    const lunchEnd = parseInt(lunchBreakTime.end.split(':')[0]) * 60 + parseInt(lunchBreakTime.end.split(':')[1]);
+    return start < lunchEnd && end > lunchStart;
+  };
 
   const style = {
     backgroundColor: isOver ? '#f0f9ff' : hasConflicts ? '#fef2f2' : undefined,
@@ -536,18 +554,22 @@ const TimeSlotCell: React.FC<{
             </div>
           ))}
           {cellLessons.map(lesson => (
-            <DraggableLessonCard
-              key={lesson.id}
-              lesson={lesson}
-              onClick={() => {}}
-            />
+            <div key={lesson.id} className="relative">
+              <DraggableLessonCard
+                lesson={lesson}
+                onClick={() => {}}
+              />
+              {crossesLunch(lesson.startTime, lesson.endTime) && (
+                <span className="absolute top-1 right-1 text-[10px] bg-red-600 text-white rounded px-1">обед</span>
+              )}
+            </div>
           ))}
         </div>
       )}
       {cellLessons.length === 0 && cellExternal.length === 0 && (
         <div className="h-full w-full flex items-center justify-center text-gray-300">
           <div className="text-xs">
-            {isOver ? 'Отпустите здесь' : 'Свободно'}
+            {isLunchSlot ? 'Обеденный перерыв' : isOver ? 'Отпустите здесь' : 'Свободно'}
           </div>
         </div>
       )}
@@ -562,6 +584,9 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   workingHours,
   slotStepMinutes,
   externalLessons = [],
+  lessonDurationMinutes,
+  breakMinutes,
+  lunchBreakTime = { start: '12:00', end: '13:00' },
 }) => {
   const [selectedLesson, setSelectedLesson] = useState<ScheduleLesson | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -598,10 +623,14 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     const [endH, endM] = workingHours.end.split(':').map(Number);
     const step = typeof slotStepMinutes === 'number' && slotStepMinutes > 0 ? slotStepMinutes : 60;
 
-    // Если конец рабочего дня раньше 18:00, расширяем до 18:00 для удобства обзора
-    const endLimit = Math.max(endH * 60 + (endM || 0), 18 * 60);
+    const startMinutes = startH * 60 + (startM || 0);
+    const endMinutes = endH * 60 + (endM || 0);
 
-    let current = startH * 60 + (startM || 0);
+    // Разбираем обеденный перерыв
+    const [lunchStartH, lunchStartM] = lunchBreakTime.start.split(':').map(Number);
+    const [lunchEndH, lunchEndM] = lunchBreakTime.end.split(':').map(Number);
+    const lunchStartMinutes = lunchStartH * 60 + (lunchStartM || 0);
+    const lunchEndMinutes = lunchEndH * 60 + (lunchEndM || 0);
 
     const toTimeStr = (mins: number) => {
       const h = Math.floor(mins / 60);
@@ -609,17 +638,30 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
       return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     };
 
-    while (current <= endLimit) {
-      slots.push({
-        time: toTimeStr(current),
-        hour: Math.floor(current / 60),
-        minute: current % 60,
-      });
-      current += step;
-    }
+    // Функция для генерации слотов в диапазоне
+    const buildSlots = (from: number, to: number) => {
+      let current = from;
+      while (current + step <= to) {
+        const slotEnd = current + step;
+        const isLunch = current < lunchEndMinutes && slotEnd > lunchStartMinutes;
+        slots.push({
+          time: toTimeStr(current),
+          hour: Math.floor(current / 60),
+          minute: current % 60,
+          isLunchSlot: isLunch,
+        });
+        current += step;
+      }
+    };
+
+    // Слоты до обеденного перерыва
+    buildSlots(startMinutes, lunchStartMinutes);
+
+    // Слоты после обеденного перерыва
+    buildSlots(lunchEndMinutes, endMinutes);
 
     return slots;
-  }, [workingHours, slotStepMinutes]);
+  }, [workingHours, slotStepMinutes, lunchBreakTime]);
 
   // Генерируем рабочие дни
   const workingDays = useMemo(() => {
@@ -774,6 +816,33 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
       const [, targetDate, targetTime] = overIdString.split('::');
 
       console.log('Target date:', targetDate, 'Target time:', targetTime); // Для отладки
+      
+      // Проверяем, не перемещается ли урок в обеденный перерыв
+      const targetMinutes = parseInt(targetTime.split(':')[0]) * 60 + parseInt(targetTime.split(':')[1]);
+      const lessonEndMinutes = targetMinutes + (lessonDurationMinutes || 45);
+      const lunchStartMinutes = parseInt(lunchBreakTime.start.split(':')[0]) * 60 + parseInt(lunchBreakTime.start.split(':')[1]);
+      const lunchEndMinutes = parseInt(lunchBreakTime.end.split(':')[0]) * 60 + parseInt(lunchBreakTime.end.split(':')[1]);
+      
+      if (targetMinutes < lunchEndMinutes && lessonEndMinutes > lunchStartMinutes) {
+        // Урок пересекается с обеденным перерывом
+        setPendingMove({
+          lesson,
+          targetDate,
+          targetTime,
+          conflicts: [{
+            type: 'time',
+            severity: 'error',
+            title: 'Обеденный перерыв',
+            description: 'Нельзя планировать уроки во время обеденного перерыва',
+            suggestions: [
+              'Выберите время до или после обеденного перерыва',
+              'Перенесите урок на другое время'
+            ]
+          }]
+        });
+        setShowConflictModal(true);
+        return;
+      }
       
       // Проверяем, не перемещается ли урок в то же место
       if (lesson.date === targetDate && lesson.startTime === targetTime) {
@@ -1051,6 +1120,8 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                             lessons={filteredLessons}
                             externalLessons={externalLessons}
                             allLessons={lessons}
+                            isLunchSlot={timeSlot.isLunchSlot}
+                            lunchBreakTime={lunchBreakTime}
                             onDropLesson={(lessonId, newDate, newTime) => {
                               const updatedLessons = lessons.map(lesson => {
                                 if (lesson.id === lessonId) {

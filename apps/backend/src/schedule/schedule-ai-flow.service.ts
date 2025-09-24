@@ -1,3 +1,5 @@
+// schedule-ai-flow.service.ts
+
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
@@ -14,6 +16,7 @@ import { ScheduleOptimizerService, OptimizerParams } from './schedule-optimizer.
 @Injectable()
 export class ScheduleAiFlowService {
   private readonly logger = new Logger(ScheduleAiFlowService.name);
+  private readonly TZ = process.env.SCHEDULE_TZ || 'Asia/Almaty';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -42,7 +45,7 @@ export class ScheduleAiFlowService {
 
     interface OccupySlot { teachers:Set<number>; groups:Set<number>; rooms:Set<number>; }
     const occupancy = new Map<string, Map<string, OccupySlot>>();
-    const reserve = (date: string, start: string, end: string, teacherId: number, groupId: number, roomId?: number) => {
+  const reserve = (date: string, start: string, end: string, teacherId: number, groupId: number, roomId?: number) => {
       const keyTime = `${start}-${end}`;
       if (!occupancy.has(date)) occupancy.set(date, new Map());
       const dayMap = occupancy.get(date);
@@ -52,6 +55,16 @@ export class ScheduleAiFlowService {
       slot.groups.add(groupId);
       if (roomId) slot.rooms.add(roomId);
     };
+    const overlaps = (aStart:string,aEnd:string,bStart:string,bEnd:string) => !(aEnd <= bStart || aStart >= bEnd);
+    const hasRoomConflictLoose = (date: string, start: string, end: string, roomId: number) => {
+      const dayMap = occupancy.get(date);
+      if (!dayMap) return false;
+      for (const [key, slot] of dayMap.entries()) {
+        const [s, e] = key.split('-');
+        if (overlaps(String(s), String(e), String(start), String(end)) && slot.rooms.has(roomId)) return true;
+      }
+      return false;
+    };
     const hasConflict = (date: string, start: string, end: string, teacherId: number, groupId: number, roomId?: number) => {
       const keyTime = `${start}-${end}`;
       const dayMap = occupancy.get(date);
@@ -60,6 +73,7 @@ export class ScheduleAiFlowService {
       if (!slot) return false;
       return slot.teachers.has(teacherId) || slot.groups.has(groupId) || (roomId ? slot.rooms.has(roomId) : false);
     };
+    
     const pickClassroom = (subject: string, groupSize: number, date: string, start: string, end: string) => {
       const subj = subject.toUpperCase();
       const preferred: string[] = [];
@@ -114,7 +128,10 @@ export class ScheduleAiFlowService {
     const planDaySelection: Record<number, number[]> = {};
     for (const sp of studyPlans) {
       // Фильтруем только группы, которые реально выбраны пользователем
-      const targetGroups = sp.group.filter(g => params.groupIds.includes(g.id));
+      const targetGroups =
+        params.groupIds?.length
+          ? sp.group.filter(g => params.groupIds.includes(g.id))
+          : sp.group; // ← fallback
       if (!targetGroups.length) continue;
 
       // Общие параметры для плана (применим к каждой группе отдельно)
@@ -129,30 +146,33 @@ export class ScheduleAiFlowService {
       const rotated = [...allowedDows.slice(rot), ...allowedDows.slice(0, rot)];
   let selectedDows = rotated.slice(0, daysPerWeek);
       planDaySelection[sp.id] = selectedDows;
-      const perDayQuota = Math.max(1, Math.min(timeSlots.length, Math.ceil(weeklyLessons / selectedDows.length)));
-
       for (const grp of targetGroups) {
-        // Равномерный выбор дней для этой группы на основе текущей загрузки (для всех weeklyLessons)
+        // Пересчитываем квоту по дням уже для конкретной группы (selectedDows может быть переопределён ниже)
+        // selectedDows будет переопределяться далее по groupDayUsage, поэтому вычислим perDayQuota после этого.
+    // Равномерный выбор дней для этой группы на основе текущей загрузки (для всех weeklyLessons)
         let usage = groupDayUsage.get(grp.id);
         if (!usage) { usage = new Map(); groupDayUsage.set(grp.id, usage); }
         const neededDays = daysPerWeek;
   const dayCandidates = [...allowedDows].sort((a,b)=> (usage.get(a)||0) - (usage.get(b)||0));
         selectedDows = dayCandidates.slice(0, neededDays);
+    const perDayQuota = Math.max(1, Math.min(timeSlots.length, Math.ceil(weeklyLessons / selectedDows.length)));
         let placed = 0;
         const cursor = new Date(start);
         const perWeekPlaced = new Map<number, number>();
-        let slotCursor = ((Number(sp.id) + grp.id) % timeSlots.length) || 0;
+        const baseSlotCursor = ((Number(sp.id) + grp.id) % timeSlots.length) || 0;
+        let slotCursor = baseSlotCursor;
         while (cursor <= end && placed < totalLessons) {
-          const dateStr = cursor.toISOString().split('T')[0];
+          const dateStr = this.toLocalDateStr(cursor);
           if (holidaySet.has(dateStr)) { cursor.setDate(cursor.getDate()+1); continue; }
           if (this.isWorkingDay(cursor, params.constraints.excludeWeekends)) {
-            const dow = cursor.getDay();
-            const dowNormalized = dow === 0 ? 7 : dow;
+            // Сброс slotCursor по понедельникам для стабильности
+            if (this.localWeekday(cursor) === 1) slotCursor = baseSlotCursor;
+            const dowNormalized = this.localWeekday(cursor);
             let placedTodayCount = 0;
             const rotatedSlots = timeSlots.length ? [...timeSlots.slice(slotCursor), ...timeSlots.slice(0, slotCursor)] : [];
             for (let idx=0; idx<rotatedSlots.length; idx++) {
               const slot = rotatedSlots[idx];
-              if (!selectedDows.includes(dow)) break; // выходим ранно, этот день не в списке для плана
+              if (!selectedDows.includes(dowNormalized)) break; // выходим ранно, этот день не в списке для плана
               if (placed >= totalLessons) break;
               if (placedTodayCount >= perDayQuota) break;
               const slotStart = slot.start;
@@ -171,7 +191,7 @@ export class ScheduleAiFlowService {
               if (this.wouldExceedConsecutive(draft, [groupId], cursor, String(slotStart), String(slotEnd), Number(params.constraints.maxConsecutiveHours), Number(breakDuration))) continue;
               const groupSize = groupSizeMap.get(groupId) || 0;
               const classroom = pickClassroom(sp.name, groupSize, dateStr, slotStart, slotEnd);
-              if (classroom && hasConflict(dateStr, slotStart, slotEnd, sp.teacherId, groupId, classroom.id)) continue;
+              if (classroom && hasRoomConflictLoose(dateStr, slotStart, slotEnd, Number(classroom.id))) continue;
               draft.push({
                 tempId: `${sp.id}-${groupId}-${placed}`,
                 studyPlanId: sp.id,
@@ -184,7 +204,7 @@ export class ScheduleAiFlowService {
                 day: this.dayName(cursor),
                 startTime: slotStart,
                 endTime: slotEnd,
-                roomId: classroom?.id?.toString() || '',
+                roomId: classroom?.id ? Number(classroom.id) : undefined,
                 roomType: classroom?.type || '',
                 roomCapacity: classroom?.capacity,
                 groupSize,
@@ -197,13 +217,12 @@ export class ScheduleAiFlowService {
               placed++;
               perWeekPlaced.set(currentWeekIndex, (perWeekPlaced.get(currentWeekIndex) || 0) + 1);
               // учёт использования дня для weeklyLessons=1
-              const dowNorm = dow === 0 ? 7 : dow;
+              const dowNorm = dowNormalized;
               let usageLocal = groupDayUsage.get(groupId);
               if (!usageLocal) { usageLocal = new Map(); groupDayUsage.set(groupId, usageLocal); }
               usageLocal.set(dowNorm, (usageLocal.get(dowNorm) || 0) + 1);
             }
           }
-          if (timeSlots.length) slotCursor = (slotCursor + 1) % timeSlots.length;
           cursor.setDate(cursor.getDate() + 1);
         }
       }
@@ -216,11 +235,11 @@ export class ScheduleAiFlowService {
       const startMs = start.getTime();
       const weeksTotal = this.diffWeeksAdjusted(start, end, params.constraints.excludeWeekends);
       const timeSlotStarts = timeSlots.map(s=>s.start);
-
+      const startOfWeekMon = (d:Date) => { const x = new Date(d); const dow = this.localWeekday(x); x.setDate(x.getDate() - (dow - 1)); x.setHours(0,0,0,0); return x; };
+      const weekStartMs = startOfWeekMon(start).getTime();
       const findDateFor = (weekIdx: number, dow: number) => {
-        const baseDate = new Date(startMs + weekIdx*msWeek);
-        // move to Monday of that week
-        const baseDow = baseDate.getDay() || 7; // 1..7
+        const baseDate = new Date(weekStartMs + weekIdx*msWeek);
+        const baseDow = this.localWeekday(baseDate); // 1..7
         const diff = dow - baseDow;
         baseDate.setDate(baseDate.getDate() + diff);
         return baseDate;
@@ -237,7 +256,7 @@ export class ScheduleAiFlowService {
           const byDow = new Map<number, any[]>();
           for (const lesson of weekLessons) {
             const d = new Date(String(lesson.date));
-            const dn = d.getDay() === 0 ? 7 : d.getDay();
+            const dn = this.localWeekday(d);
             if (!byDow.has(dn)) byDow.set(dn, []);
             byDow.get(dn).push(lesson);
           }
@@ -251,27 +270,58 @@ export class ScheduleAiFlowService {
             const donor = donorDows.find(dd => dd[1].length>1);
             if (!donor) break;
             const donorLessons = donor[1];
-            // Возьмем последний (обычно более поздний) чтобы минимально ломать последовательность
             const moved = donorLessons.pop();
             if (!moved) continue;
-            // Найти свободный слот в целевом дне подряд к началу
             const newDateObj = findDateFor(w, targetDow);
-            const newDateStr = newDateObj.toISOString().split('T')[0];
-            // Подберем первый слот без конфликтов
+            const newDateStr = this.toLocalDateStr(newDateObj);
+            // Skip holidays and non-working days
+            if (holidaySet.has(newDateStr) || !this.isWorkingDay(newDateObj, params.constraints.excludeWeekends)) { donorLessons.push(moved); continue; }
+            // Try to find a valid slot that satisfies all original constraints
+            let assigned = false;
             for (const slotStart of timeSlotStarts) {
               const slot = timeSlots.find(s=>s.start===slotStart);
               if (!slot) continue;
               if (this.hasGroupConflict(draft.filter(l=>l!==moved), gId, newDateObj, slot.start, slot.end)) continue;
               if (this.hasTeacherConflict(draft.filter(l=>l!==moved), Number(moved.teacherId), newDateObj, slot.start, slot.end)) continue;
-              // Переназначаем
+              // respect maxLessonsPerDay
+              if (this.countGroupDayLessons(draft.filter(l=>l!==moved), gId, newDateStr) >= maxLessonsPerDay) continue;
+              // lunch break
+              if (lunchBreak && this.intervalOverlap(String(slot.start), String(slot.end), String(lunchBreak.start), String(lunchBreak.end))) continue;
+              // noFirst/noLast
+              if (noFirst.has(String(moved.subject).toLowerCase()) && slot.start === firstSlotStart) continue;
+              if (noLast.has(String(moved.subject).toLowerCase()) && slot.start === lastSlotStart) continue;
+              // preferred days for subject
+              const subjPref = preferredDaysMap[moved.subject];
+              const dowNorm = this.localWeekday(newDateObj);
+              if (subjPref && subjPref.length && !subjPref.includes(dowNorm)) continue;
+              // consecutive hours
+              if (this.wouldExceedConsecutive(draft.filter(l=>l!==moved), [gId], newDateObj, String(slot.start), String(slot.end), Number(params.constraints.maxConsecutiveHours), Number(breakDuration))) continue;
+              // room handling: if original had room, try to keep it but check conflicts
+              const origRoom = moved.roomId ? Number(moved.roomId) : undefined;
+              if (origRoom && hasConflict(String(newDateStr), String(slot.start), String(slot.end), Number(moved.teacherId), gId, Number(origRoom))) {
+                // try pick another
+                const room = pickClassroom(String(moved.subject), Number(moved.groupSize) || 0, String(newDateStr), String(slot.start), String(slot.end));
+                if (!room) continue;
+                moved.roomId = Number(room.id);
+              } else if (origRoom) {
+                moved.roomId = Number(origRoom);
+              } else {
+                const room = pickClassroom(String(moved.subject), Number(moved.groupSize) || 0, String(newDateStr), String(slot.start), String(slot.end));
+                if (room) moved.roomId = Number(room.id);
+              }
+              // Final assignment
               moved.date = newDateStr;
               moved.day = this.dayName(newDateObj);
               moved.startTime = slot.start;
               moved.endTime = slot.end;
-              // Обновим донор/целевые структуры
               if (!byDow.has(targetDow)) byDow.set(targetDow, []);
               byDow.get(targetDow).push(moved);
+              assigned = true;
               break;
+            }
+            if (!assigned) {
+              // Revert donor pop if couldn't place
+              donorLessons.push(moved);
             }
           }
         }
@@ -310,10 +360,20 @@ export class ScheduleAiFlowService {
             slotIdx++;
             continue;
           }
-          // Смена аудитории при необходимости
+          // Дополнительные проверки при уплотнении (lunch, noFirst/noLast, preferredDays, maxLessonsPerDay, holidays, wouldExceedConsecutive)
+          const newDateStr = this.toLocalDateStr(dateObj);
+          if (holidaySet.has(newDateStr) || !this.isWorkingDay(dateObj, params.constraints.excludeWeekends)) { slotIdx++; continue; }
+          if (this.countGroupDayLessons(draft.filter(x=>x!==lesson), Number(lesson.groupId), newDateStr) >= maxLessonsPerDay) { slotIdx++; continue; }
+          if (lunchBreak && this.intervalOverlap(String(targetSlot.start), String(targetSlot.end), String(lunchBreak.start), String(lunchBreak.end))) { slotIdx++; continue; }
+          if (noFirst.has(String(lesson.subject).toLowerCase()) && targetSlot.start === firstSlotStart) { slotIdx++; continue; }
+          if (noLast.has(String(lesson.subject).toLowerCase()) && targetSlot.start === lastSlotStart) { slotIdx++; continue; }
+          const subjPref2 = preferredDaysMap[lesson.subject];
+          const dowNorm2 = this.localWeekday(dateObj);
+          if (subjPref2 && subjPref2.length && !subjPref2.includes(dowNorm2)) { slotIdx++; continue; }
+          if (this.wouldExceedConsecutive(draft.filter(x=>x!==lesson), [Number(lesson.groupId)], dateObj, String(targetSlot.start), String(targetSlot.end), Number(params.constraints.maxConsecutiveHours), Number(breakDuration))) { slotIdx++; continue; }
+          // Смена аудитории при необходимости: если помещение конфликтует — снимем и подберём новое ниже в финальном проходе
           if (lesson.roomId) {
-            // Т.к. мы не держим тут occupancy per room для новых позиций, просто сбросим roomId чтобы оптимизатор позже подобрал или оставим null
-            lesson.roomId = '';
+            lesson.roomId = undefined;
           }
           lesson.startTime = targetSlot.start;
           lesson.endTime = targetSlot.end;
@@ -348,16 +408,32 @@ export class ScheduleAiFlowService {
       this.logger.warn('Stats expectation calculation failed', e);
     }
 
-    return { draft, stats: { draftCount: draft.length, classroomsAssigned: draft.filter(d=>d.roomId).length } };
-  }
+    // --- Финальная пересборка occupancy и попытка подобрать аудитории для уроков без roomId ---
+    try {
+      // Rebuild occupancy from scratch
+      occupancy.clear();
+      const reserveLocal = (date: string, start: string, end: string, teacherId: number, groupId: number, roomId?: number) => reserve(date, start, end, teacherId, groupId, roomId);
+      for (const l of draft) {
+        const rid = l.roomId ? Number(l.roomId) : undefined;
+  if (rid) reserveLocal(this.toLocalDateStr(new Date(String(l.date))), String(l.startTime), String(l.endTime), Number(l.teacherId), Number(l.groupId), Number(rid));
+      }
+      // Assign rooms for lessons without roomId
+      for (const l of draft) {
+        if (l.roomId) continue;
+        const groupSize = l.groupSize || groupSizeMap.get(Number(l.groupId)) || 0;
+        const room = pickClassroom(String(l.subject), Number(groupSize) || 0, String(l.date), String(l.startTime), String(l.endTime));
+        if (!room) continue;
+        // check again for conflict with room (loose overlap)
+  if (!hasRoomConflictLoose(this.toLocalDateStr(new Date(String(l.date))), String(l.startTime), String(l.endTime), Number(room.id))) {
+          l.roomId = Number(room.id);
+          reserveLocal(this.toLocalDateStr(new Date(String(l.date))), String(l.startTime), String(l.endTime), Number(l.teacherId), Number(l.groupId), Number(room.id));
+        }
+      }
+    } catch (e) {
+      this.logger.warn('Final classroom assignment failed', e);
+    }
 
-  async aiOptimize(draft: any[], params: GenerateScheduleDto) {
-    return this.ai.optimizeScheduleDraft(draft, {
-      startDate: params.startDate,
-      endDate: params.endDate,
-      workingHours: params.constraints.workingHours,
-      maxConsecutiveHours: params.constraints.maxConsecutiveHours
-    });
+    return { draft, stats: { draftCount: draft.length, classroomsAssigned: draft.filter(d=>d.roomId).length } };
   }
 
   async optimizeLocal(draft: any[], params: GenerateScheduleDto) {
@@ -388,7 +464,7 @@ export class ScheduleAiFlowService {
   maxLessonsPerDay: (params as any)?.constraints?.maxLessonsPerDay,
       excludeWeekends: params.constraints.excludeWeekends,
       minBreakMinutes: (params as any)?.constraints?.minBreakDuration ?? 10,
-  lessonDurationMinutes: 45, // синхронизировано с heuristicDraft
+  lessonDurationMinutes: Number((params as any)?.constraints?.lessonDuration ?? 45), // синхронизировано с heuristicDraft
   breakMinutes: (params as any)?.constraints?.minBreakDuration ?? 10,
   holidays: (params as any)?.constraints?.customHolidays || (params as any)?.customHolidays || [],
   lunchBreakTime: (params as any)?.constraints?.lunchBreakTime,
@@ -399,23 +475,46 @@ export class ScheduleAiFlowService {
   return this.optimizer.optimize(typedDraft, mapped);
   }
 
+    async aiOptimize(draft: any[], params: GenerateScheduleDto) {
+    return this.ai.optimizeScheduleDraft(draft, {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      workingHours: params.constraints.workingHours,
+      maxConsecutiveHours: params.constraints.maxConsecutiveHours
+    });
+  }
+
   async validateConflicts(generated: any) {
-    const conflicts: any[] = [];
-    const byKey = new Map<string, any[]>();
-  for (const item of (generated.generatedSchedule || [])) {
-      const keyTeacher = `T:${item.teacherId}:${item.date}:${item.startTime}`;
-      this.pushKey(byKey, keyTeacher, item);
-      const keyGroup = `G:${item.groupId}:${item.date}:${item.startTime}`;
-      this.pushKey(byKey, keyGroup, item);
-      const keyRoom = `R:${item.roomId}:${item.date}:${item.startTime}`;
-      this.pushKey(byKey, keyRoom, item);
-    }
-    for (const [k, arr] of byKey.entries()) {
-      if (arr.length > 1) {
-        conflicts.push({ type: 'overlap', key: k, count: arr.length, items: arr.map(i=>i.subject) });
+    const overlaps = (a:any,b:any) => !(a.endTime <= b.startTime || a.startTime >= b.endTime);
+    const listOverlaps = (items: any[], keyFn:(x:any)=>string) => {
+      const out:any[] = [];
+      const buckets = new Map<string, any[]>();
+      for (const it of items) {
+        const k = `${keyFn(it)}|${it.date}`;
+        if (!buckets.has(k)) buckets.set(k, []);
+        buckets.get(k).push(it);
       }
-    }
-  return Promise.resolve({ conflicts, isOk: conflicts.length === 0 });
+      for (const [, arr] of buckets) {
+        arr.sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
+        for (let i=0;i<arr.length-1;i++) {
+          const a = arr[i], b = arr[i+1];
+          if (overlaps(a,b)) out.push({ a, b });
+        }
+      }
+      return out;
+    };
+
+  const items: any[] = (generated.generatedSchedule || []);
+    const T = listOverlaps(items, (x:any)=>`T:${x.teacherId}`);
+    const G = listOverlaps(items, (x:any)=>`G:${x.groupId}`);
+    const R = listOverlaps(items.filter((x:any)=>x.roomId), (x:any)=>`R:${x.roomId}`);
+
+    const conflicts = [
+      ...T.map(({a,b})=>({type:'TEACHER_OVERLAP', items:[a,b]})),
+      ...G.map(({a,b})=>({type:'GROUP_OVERLAP', items:[a,b]})),
+      ...R.map(({a,b})=>({type:'ROOM_OVERLAP', items:[a,b]})),
+    ];
+    return Promise.resolve({ conflicts, isOk: conflicts.length === 0 });
   }
 
   async apply(generated: any) {
@@ -425,7 +524,9 @@ export class ScheduleAiFlowService {
 
     if (templates.length || singles.length) {
       this.logger.log(`APPLY: persisting ${templates.length} templates and ${singles.length} singles`);
-      // Persist templates
+      
+      // Prepare template data for bulk insert
+      const templateData: any[] = [];
       for (const tpl of templates) {
         try {
           if (!tpl.groupId || !tpl.teacherId || !tpl.dayOfWeek) continue;
@@ -435,32 +536,31 @@ export class ScheduleAiFlowService {
             studyPlan = await this.prisma.studyPlan.findFirst({ where: { name: tpl.subject } });
           }
           if (!studyPlan) continue;
-          const schedule = await this.prisma.schedule.create({
-            data: {
-              studyPlanId: studyPlan.id,
-              groupId: Number(tpl.groupId),
-              teacherId: Number(tpl.teacherId),
-              classroomId: tpl.roomId ? Number(tpl.roomId) : undefined,
-              dayOfWeek: tpl.dayOfWeek,
-              startTime: tpl.startTime,
-              endTime: tpl.endTime,
-              startDate: tpl.startDate ? new Date(String(tpl.startDate)) : undefined,
-              endDate: tpl.endDate ? new Date(String(tpl.endDate)) : undefined,
-              repeat: tpl.repeat,
-              isTemplate: true,
-              excludedDates: (tpl.excludedDates || []).map((d: string) => new Date(d)),
-              type: 'REGULAR',
-              status: 'SCHEDULED',
-              isAiGenerated: true,
-              aiConfidence: generated.confidence || 0
-            }
+          templateData.push({
+            studyPlanId: studyPlan.id,
+            groupId: Number(tpl.groupId),
+            teacherId: Number(tpl.teacherId),
+            classroomId: tpl.roomId ? Number(tpl.roomId) : undefined,
+            dayOfWeek: tpl.dayOfWeek,
+            startTime: tpl.startTime,
+            endTime: tpl.endTime,
+            startDate: tpl.startDate ? new Date(String(tpl.startDate)) : undefined,
+            endDate: tpl.endDate ? new Date(String(tpl.endDate)) : undefined,
+            repeat: tpl.repeat,
+            isTemplate: true,
+            excludedDates: (tpl.excludedDates || []).map((d: string) => new Date(d)),
+            type: 'REGULAR',
+            status: 'SCHEDULED',
+            isAiGenerated: true,
+            aiConfidence: generated.confidence || 0
           });
-          created.push(schedule);
         } catch (e) {
           this.logger.warn('Skip template item', e);
         }
       }
-      // Persist singles
+      
+      // Prepare single data for bulk insert
+      const singleData: any[] = [];
       for (const s of singles) {
         try {
           if (!s.groupId || !s.teacherId || !s.date) continue;
@@ -471,31 +571,48 @@ export class ScheduleAiFlowService {
           }
           if (!studyPlan) continue;
           const dayOfWeek = this.dayNum(new Date(String(s.date)));
-          const schedule = await this.prisma.schedule.create({
-            data: {
-              studyPlanId: studyPlan.id,
-              groupId: Number(s.groupId),
-              teacherId: Number(s.teacherId),
-              classroomId: s.roomId ? Number(s.roomId) : undefined,
-              dayOfWeek: dayOfWeek === 0 ? 7 : dayOfWeek,
-              startTime: s.startTime,
-              endTime: s.endTime,
-              date: new Date(String(s.date)),
-              repeat: 'once',
-              isTemplate: false,
-              excludedDates: [],
-              type: 'REGULAR',
-              status: 'SCHEDULED',
-              isAiGenerated: true,
-              aiConfidence: generated.confidence || 0
-            }
+          singleData.push({
+            studyPlanId: studyPlan.id,
+            groupId: Number(s.groupId),
+            teacherId: Number(s.teacherId),
+            classroomId: s.roomId ? Number(s.roomId) : undefined,
+            dayOfWeek: dayOfWeek === 0 ? 7 : dayOfWeek,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            date: new Date(String(s.date)),
+            repeat: 'once',
+            isTemplate: false,
+            excludedDates: [],
+            type: 'REGULAR',
+            status: 'SCHEDULED',
+            isAiGenerated: true,
+            aiConfidence: generated.confidence || 0
           });
-          created.push(schedule);
         } catch (e) {
           this.logger.warn('Skip single item', e);
         }
       }
-      return { createdCount: created.length, created };
+      
+      // Bulk insert templates
+      if (templateData.length) {
+        const templateResult = await this.prisma.schedule.createMany({
+          data: templateData,
+          skipDuplicates: true
+        });
+        this.logger.log(`Created ${templateResult.count} template schedules`);
+      }
+      
+      // Bulk insert singles
+      if (singleData.length) {
+        const singleResult = await this.prisma.schedule.createMany({
+          data: singleData,
+          skipDuplicates: true
+        });
+        this.logger.log(`Created ${singleResult.count} single schedules`);
+      }
+      
+      const totalCreated = (templateData.length ? await this.prisma.schedule.count({ where: { isAiGenerated: true, aiConfidence: generated.confidence || 0 } }) : 0) + (singleData.length ? await this.prisma.schedule.count({ where: { isAiGenerated: true, aiConfidence: generated.confidence || 0 } }) : 0);
+      return { createdCount: totalCreated, created: [] };
     }
 
     // Fallback: legacy flat records
@@ -555,7 +672,7 @@ export class ScheduleAiFlowService {
     let days = 0;
     const cur = new Date(a);
     while (cur <= b) {
-      const dow = cur.getDay();
+      const dow = this.localWeekday(cur);
       const working = excludeWeekends ? (dow>=1 && dow<=5) : (dow>=1 && dow<=6); // исключаем воскресенье
       if (working) days++;
       cur.setDate(cur.getDate()+1);
@@ -563,26 +680,29 @@ export class ScheduleAiFlowService {
     const divisor = excludeWeekends ? 5 : 6; // считаем субботу учебным днём если не excludeWeekends
     return Math.max(1, Math.ceil(days / divisor));
   }
-  private isWorkingDay(d: Date, excludeWeekends?: boolean) { const dow=d.getDay(); return excludeWeekends ? (dow>=1 && dow<=5) : true; }
-  private dayName(d: Date) { return ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()]; }
-  private dayNum(d: Date) { return d.getDay(); }
+  private isWorkingDay(d: Date, excludeWeekends?: boolean) {
+    const dow = d.getDay(); // 0=Sun..6=Sat
+    return excludeWeekends ? (dow >= 1 && dow <= 5) : (dow >= 1 && dow <= 6);
+  }
+  private dayName(d: Date) { const wd = this.localWeekday(d); return ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][wd-1]; }
+  private dayNum(d: Date) { return this.localWeekday(d); }
   private hasTeacherConflict(draft: any[], teacherId: number, date: Date, startTime: string, endTime: string) {
-    const dateStr = date.toISOString().split('T')[0];
+  const dateStr = this.toLocalDateStr(date);
     return draft.some(i => i.teacherId === teacherId && i.date === dateStr && !(i.endTime <= startTime || i.startTime >= endTime));
   }
   private hasGroupConflict(draft: any[], groupId: number, date: Date, startTime: string, endTime: string) {
-    const dateStr = date.toISOString().split('T')[0];
+  const dateStr = this.toLocalDateStr(date);
     return draft.some(i => Number(i.groupId) === Number(groupId) && i.date === dateStr && !(i.endTime <= startTime || i.startTime >= endTime));
   }
   private wouldExceedConsecutive(draft: any[], groupIds: number[], date: Date, startTime: string, endTime: string, maxConsecutive: number, breakMinutes: number) {
     if (!maxConsecutive) return false;
-    const dateStr = date.toISOString().split('T')[0];
+  const dateStr = this.toLocalDateStr(date);
     const sameDay = draft
       .filter(i => groupIds.includes(Number(i.groupId)) && i.date === dateStr)
       .sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
 
     // Вставляем виртуально новый слот и пересчитываем максимальную цепочку подряд без разрывов
-    const augmented = [...sameDay, { startTime, endTime }].sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
+  const augmented = [...sameDay, { startTime, endTime }].sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
     let longest = 1;
     let current = 1;
     for (let i=1;i<augmented.length;i++) {
@@ -606,5 +726,15 @@ export class ScheduleAiFlowService {
   private minutesBetween(aEnd: string, bStart: string) { const toMin = (t:string)=>{const [h,m]=t.split(':').map(Number);return h*60+m;}; return toMin(bStart)-toMin(aEnd); }
   private intervalOverlap(aStart:string,aEnd:string,bStart:string,bEnd:string) {
     return !(aEnd <= bStart || aStart >= bEnd);
+  }
+  private toLocalDateStr(d: Date) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: this.TZ, year:'numeric', month:'2-digit', day:'2-digit'}).format(d);
+  }
+  private localWeekday(d: Date) { // 1..7, пн..вс
+    const s = this.toLocalDateStr(d);
+    const [y,m,dd] = s.split('-').map(Number);
+    const loc = new Date(y, m-1, dd, 0,0,0);
+    const wd = loc.getDay();
+    return wd === 0 ? 7 : wd;
   }
 }

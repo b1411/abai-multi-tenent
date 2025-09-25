@@ -454,9 +454,9 @@ const HomeworkPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Домашние задания</h1>
           <p className="text-gray-500 mt-1">
@@ -478,7 +478,7 @@ const HomeworkPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
           <div className="text-sm text-gray-500">Всего</div>
@@ -503,7 +503,7 @@ const HomeworkPage: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           <div className="lg:col-span-1">
             <Input
               placeholder="Поиск по названию..."
@@ -538,7 +538,7 @@ const HomeworkPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4 pt-4 border-t border-gray-200">
           <div className="text-sm text-gray-500">
             Найдено: {pagination.total} заданий
           </div>
@@ -563,13 +563,13 @@ const HomeworkPage: React.FC = () => {
               key={homework.id}
               ref={el => homeworkRefs.current[homework.id] = el}
               id={`homework-${homework.id}`}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-3 mb-3">
                     <BookOpen className="h-5 w-5 text-blue-500" />
-                    <h3 className="text-lg font-semibold text-gray-900">{homework.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 break-words">{homework.name}</h3>
                     <StatusBadge status={getHomeworkStatus(homework)} />
                   </div>
 
@@ -592,7 +592,7 @@ const HomeworkPage: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex items-center space-x-6 text-sm text-gray-500">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
                       {formatDate(homework.deadline)}
@@ -611,7 +611,7 @@ const HomeworkPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 ml-4">
+                <div className="flex w-full md:w-auto items-center gap-2 md:ml-4 justify-start md:justify-end flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -647,8 +647,8 @@ const HomeworkPage: React.FC = () => {
 
       {/* Pagination */}
       {pagination.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 px-4 sm:px-6 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-gray-500">
               Показано {(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} из {pagination.total}
             </div>

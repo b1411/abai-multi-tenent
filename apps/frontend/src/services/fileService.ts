@@ -106,6 +106,20 @@ class FileService {
    * Скачать файл
    */
   async downloadFile(id: number, filename?: string): Promise<void> {
+    // iOS/Safari fallback: open direct URL with token so the browser handles the file
+    const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+    const token = localStorage.getItem('token') || '';
+    const ua = navigator.userAgent || navigator.vendor || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    if (isIOS || isSafari) {
+      const urlWithToken = `${baseApi}/files/${id}/download?token=${encodeURIComponent(token)}`;
+      const w = window.open(urlWithToken, '_blank');
+      if (!w) {
+        window.location.href = urlWithToken;
+      }
+      return;
+    }
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/'}files/${id}/download`, {
         method: 'GET',
@@ -118,6 +132,11 @@ class FileService {
         throw new Error('Ошибка при скачивании файла');
       }
 
+      // If backend redirected to an external storage, let the browser load it natively
+      if ((response as any).redirected && response.url && response.url.startsWith('http')) {
+        window.location.href = response.url;
+        return;
+      }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -129,7 +148,9 @@ class FileService {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading file:', error);
-      throw error;
+      // Final fallback for mobile browsers: navigate directly with token
+      const urlWithToken = `${(import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '')}/files/${id}/download?token=${encodeURIComponent(localStorage.getItem('token') || '')}`;
+      window.location.href = urlWithToken;
     }
   }
 

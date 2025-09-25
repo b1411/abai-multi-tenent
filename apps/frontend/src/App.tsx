@@ -73,6 +73,7 @@ import AdminChats from './pages/AdminChats';
 import NotificationsPage from './pages/Notifications';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import AttendanceCheckIn from './pages/AttendanceCheckIn';
 import NotFound from './pages/NotFound';
 import AISchedule from './pages/AISchedule';
 import StaffCompositionPage from './pages/StaffCompositionPage';
@@ -92,6 +93,7 @@ const App: React.FC = () => {
                   <Route path="/login" element={<Login />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/attendance/check-in" element={<AttendanceCheckIn />} />
                   <Route
                     path="/"
                     element={

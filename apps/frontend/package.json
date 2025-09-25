@@ -38,6 +38,7 @@
     "react-dom": "^18.3.1",
     "react-grid-layout": "^1.4.4",
     "react-icons": "^5.5.0",
+    "react-qr-code": "^2.0.11",
     "react-player": "^2.16.0",
     "react-resizable": "^3.0.5",
     "react-router-dom": "^6.28.0",

@@ -46,6 +46,7 @@ import { EdoModule } from './edo/edo.module';
 import { MailModule } from './mail/mail.module';
 import { AiTutorsModule } from './ai-tutors/ai-tutors.module';
 import { AiChatModule } from './ai-chat/ai-chat.module';
+import { AttendanceSessionsModule } from './attendance-sessions/attendance-sessions.module';
 import * as path from 'node:path';
 import { TenantConfigController } from './common/tenant-config.controller';
 import { TenantConfigService } from './common/tenant-config.service';
@@ -104,6 +105,7 @@ const envFile = (() => {
     MailModule,
     AiTutorsModule,
     AiChatModule,
+    AttendanceSessionsModule,
   ],
   controllers: [AppController, TenantConfigController],
   providers: [AppService, PrismaService, JwtService, TenantConfigService],

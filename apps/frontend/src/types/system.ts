@@ -74,7 +74,8 @@ export interface CreateUserDto {
   email: string;
   password: string;
   role: string;
-  department: string;
+  department?: string;
+  status?: 'active' | 'inactive';
 }
 
 export interface UpdateUserDto {

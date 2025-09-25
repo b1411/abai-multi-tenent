@@ -1,11 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSystemSettingsDto } from './dto/system-settings.dto';
-import { CreateSystemUserDto, UpdateSystemUserDto, UserFilterDto, UserStatus } from './dto/user.dto';
+import { CreateSystemUserDto, UpdateSystemUserDto, UserFilterDto } from './dto/user.dto';
 import { CreateRoleDto, UpdateRoleDto } from './dto/role.dto';
 import { UserRole } from 'generated/prisma';
 import * as crypto from 'crypto';
-import { hash as bcrypthash } from 'bcryptjs';
 
 @Injectable()
 export class SystemService {
@@ -68,13 +67,6 @@ export class SystemService {
       ];
     }
 
-    // Status filter handling
-    if (filter?.status === UserStatus.INACTIVE) {
-      (where).deletedAt = { not: null };
-    } else if (filter?.status === UserStatus.ACTIVE) {
-      (where).deletedAt = null;
-    }
-
     if (filter?.role) {
       where.role = filter.role.toUpperCase();
     }
@@ -89,7 +81,6 @@ export class SystemService {
         role: true,
         phone: true,
         avatar: true,
-        deletedAt: true,
         createdAt: true,
         updatedAt: true,
         student: {
@@ -127,58 +118,11 @@ export class SystemService {
     }));
   }
 
-  async searchStudents(search: string) {
-    const students = await this.prisma.student.findMany({
-      where: {
-        deletedAt: null,
-        user: {
-          deletedAt: null,
-          OR: search
-            ? [
-                { name: { contains: search, mode: 'insensitive' } },
-                { surname: { contains: search, mode: 'insensitive' } },
-                { email: { contains: search, mode: 'insensitive' } },
-              ]
-            : undefined,
-        },
-      },
-      select: {
-        id: true,
-        user: { select: { name: true, surname: true, email: true } },
-        group: { select: { name: true } },
-      },
-      take: 20,
-      orderBy: { id: 'desc' },
-    });
-    return students.map((s) => ({
-      id: s.id,
-      name: `${s.user.name} ${s.user.surname}`.trim(),
-      email: s.user.email,
-      group: s.group?.name || null,
-    }));
-  }
-
-  async setParentChildren(userIdStr: string, childrenIds: number[]) {
-    const userId = parseInt(userIdStr);
-    if (!userId) throw new BadRequestException('Invalid user id');
-
-    await this.prisma.parent.upsert({
-      where: { userId },
-      update: {},
-      create: { userId },
-    });
-
-    await this.prisma.parent.update({
-      where: { userId },
-      data: { students: { set: (childrenIds || []).map((id) => ({ id: Number(id) })) } },
-    });
-    return { ok: true };
-  }
-
   async getUserById(id: string) {
     const user = await this.prisma.user.findFirst({
       where: {
         id: parseInt(id),
+        deletedAt: null,
       },
       select: {
         id: true,
@@ -188,7 +132,6 @@ export class SystemService {
         role: true,
         phone: true,
         avatar: true,
-        deletedAt: true,
         createdAt: true,
         updatedAt: true,
         student: {
@@ -219,7 +162,7 @@ export class SystemService {
       role: user.role.toLowerCase(),
       department: user.student?.group?.name ||
         (user.teacher ? 'Преподавательский состав' : 'Администрация'),
-      status: user.deletedAt ? 'inactive' : 'active',
+      status: 'active',
       lastLogin: null,
       phone: user.phone,
       avatar: user.avatar,
@@ -239,7 +182,7 @@ export class SystemService {
     }
 
     // Хешируем пароль (в реальном приложении нужно установить bcrypt)
-    const hashedPassword = await bcrypthash(data.password, 10);
+    const hashedPassword = data.password; // Временно без хеширования
 
     // Определяем роль из enum
     const role = data.role.toUpperCase() as UserRole;
@@ -257,7 +200,6 @@ export class SystemService {
         hashedPassword,
         role,
         phone: null,
-        deletedAt: data.status === 'inactive' ? new Date() : null,
       },
       select: {
         id: true,
@@ -267,27 +209,10 @@ export class SystemService {
         role: true,
         phone: true,
         avatar: true,
-        deletedAt: true,
         createdAt: true,
         updatedAt: true,
       },
     });
-
-    // If created user is a teacher, create Teacher profile
-    if (role === 'TEACHER') {
-      try {
-        await this.prisma.teacher.create({
-          data: {
-            userId: user.id,
-            employmentType: 'STAFF'
-          }
-        });
-      } catch {
-        // Если не удалось создать профиль преподавателя, удаляем пользователя
-        await this.prisma.user.delete({ where: { id: user.id } });
-        throw new BadRequestException('Не удалось создать профиль преподавателя');
-      }
-    }
 
     return {
       id: user.id.toString(),
@@ -295,7 +220,7 @@ export class SystemService {
       email: user.email,
       role: user.role.toLowerCase(),
       department: data.department || 'Администрация',
-      status: user.deletedAt ? 'inactive' : 'active',
+      status: 'active',
       lastLogin: null,
       phone: user.phone,
       avatar: user.avatar,
@@ -308,7 +233,7 @@ export class SystemService {
     const userId = parseInt(id);
 
     const existingUser = await this.prisma.user.findFirst({
-      where: { id: userId },
+      where: { id: userId, deletedAt: null },
     });
 
     if (!existingUser) {
@@ -337,29 +262,12 @@ export class SystemService {
       updateData.email = data.email;
     }
 
-    // Handle status changes: active|inactive
-    if (data.status) {
-      updateData.deletedAt = data.status === UserStatus.INACTIVE ? new Date() : null;
-    }
-
     if (data.role) {
       const role = data.role.toUpperCase() as UserRole;
       if (!Object.values(UserRole).includes(role)) {
         throw new BadRequestException('Неверная роль пользователя');
       }
       updateData.role = role;
-      // Ensure Teacher profile exists if role is TEACHER
-      if (role === 'TEACHER') {
-        try {
-          await this.prisma.teacher.upsert({
-            where: { userId: userId },
-            update: {},
-            create: { userId: userId, employmentType: 'STAFF' },
-          });
-        } catch {
-          throw new BadRequestException('Не удалось создать профиль преподавателя');
-        }
-      }
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -373,7 +281,6 @@ export class SystemService {
         role: true,
         phone: true,
         avatar: true,
-        deletedAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -385,7 +292,7 @@ export class SystemService {
       email: updatedUser.email,
       role: updatedUser.role.toLowerCase(),
       department: data.department || 'Администрация',
-      status: updatedUser.deletedAt ? 'inactive' : 'active',
+      status: 'active',
       lastLogin: null,
       phone: updatedUser.phone,
       avatar: updatedUser.avatar,
@@ -511,8 +418,8 @@ export class SystemService {
     return newRole;
   }
 
-  updateRole(id: string, data: UpdateRoleDto) {
-    const roles = this.getRoles();
+  async updateRole(id: string, data: UpdateRoleDto) {
+    const roles = await this.getRoles();
     const role = roles.find(r => r.id === id);
     if (!role) {
       throw new NotFoundException('Роль не найдена');
@@ -529,8 +436,8 @@ export class SystemService {
     };
   }
 
-  deleteRole(id: string) {
-    const roles = this.getRoles();
+  async deleteRole(id: string) {
+    const roles = await this.getRoles();
     const role = roles.find(r => r.id === id);
     if (!role) {
       throw new NotFoundException('Роль не найдена');
@@ -538,7 +445,7 @@ export class SystemService {
     return { message: 'Роль удалена' };
   }
 
-  getAvailablePermissions() {
+  async getAvailablePermissions() {
     return [
       {
         module: 'Пользователи',
@@ -800,7 +707,7 @@ export class SystemService {
         where: { key: 'academic_hour_duration' }
       });
       return setting ? parseInt(setting.value, 10) : 45; // По умолчанию 45 минут
-    } catch {
+    } catch (error) {
       console.warn('SystemSettings таблица не найдена, используем значение по умолчанию: 45 минут');
       return 45;
     }
@@ -880,3 +787,4 @@ export class SystemService {
     }
   }
 }
+

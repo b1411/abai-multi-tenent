@@ -56,6 +56,13 @@ export class SystemController {
     return { data: users };
   }
 
+  // Students lookup for assigning to parents
+  @Get('students')
+  async searchStudents(@Query('search') search?: string) {
+    const students = await this.systemService.searchStudents(search || '');
+    return { data: students };
+  }
+
   @Get('users/:id')
   async getUserById(@Param('id') id: string) {
     const user = await this.systemService.getUserById(id);
@@ -86,6 +93,13 @@ export class SystemController {
     return { data: result };
   }
 
+  // Assign children to parent
+  @Post('parents/:id/children')
+  async setParentChildren(@Param('id') id: string, @Body() body: { childrenIds: number[] }) {
+    const result = await this.systemService.setParentChildren(id, body.childrenIds || []);
+    return { data: result };
+  }
+
   // Roles & Permissions
   @Get('roles')
   getRoles() {
@@ -100,20 +114,20 @@ export class SystemController {
   }
 
   @Put('roles/:id')
-  async updateRole(@Param('id') id: string, @Body() data: UpdateRoleDto) {
-    const role = await this.systemService.updateRole(id, data);
+  updateRole(@Param('id') id: string, @Body() data: UpdateRoleDto) {
+    const role = this.systemService.updateRole(id, data);
     return { data: role };
   }
 
   @Delete('roles/:id')
-  async deleteRole(@Param('id') id: string) {
-    const result = await this.systemService.deleteRole(id);
+  deleteRole(@Param('id') id: string) {
+    const result = this.systemService.deleteRole(id);
     return result;
   }
 
   @Get('permissions')
-  async getAvailablePermissions() {
-    const permissions = await this.systemService.getAvailablePermissions();
+  getAvailablePermissions() {
+    const permissions = this.systemService.getAvailablePermissions();
     return { data: permissions };
   }
 

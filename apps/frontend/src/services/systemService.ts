@@ -108,6 +108,20 @@ class SystemService {
     });
   }
 
+  // Students lookup and parent assignment
+  async searchStudents(search: string): Promise<ApiResponse<Array<{ id: number; name: string; email: string; group: string | null }>>> {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    return this.request(`system/students?${params.toString()}`);
+  }
+
+  async setParentChildren(userId: string, childrenIds: Array<string | number>): Promise<ApiResponse<{ ok: boolean }>> {
+    return this.request(`system/parents/${userId}/children`, {
+      method: 'POST',
+      body: JSON.stringify({ childrenIds: childrenIds.map((x) => Number(x)) }),
+    });
+  }
+
   // Roles & Permissions
   async getRoles(): Promise<ApiResponse<Role[]>> {
     return this.request('system/roles');

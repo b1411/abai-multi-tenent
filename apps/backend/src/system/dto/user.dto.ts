@@ -1,4 +1,5 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsBoolean } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsEnum, IsBoolean, IsArray, ArrayNotEmpty, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -28,6 +29,15 @@ export class CreateSystemUserDto {
   @IsOptional()
   @IsString()
   department?: string;
+
+  @IsOptional()
+  @IsEnum(UserStatus)
+  status?: UserStatus;
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  childrenIds?: number[];
 }
 
 export class UpdateSystemUserDto {
@@ -50,6 +60,11 @@ export class UpdateSystemUserDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  childrenIds?: number[];
 }
 
 export class UserFilterDto {

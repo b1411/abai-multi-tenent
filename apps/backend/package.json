@@ -31,8 +31,7 @@
     "db:version": "npx prisma -v",
     "swagger:export": "npm run build && tsx scripts/export-swagger-minimal.ts",
     "swagger:export:yaml": "npm run swagger:export",
-    "docs:generate": "npm run swagger:export && echo '📚 Документация обновлена в папке docs/'",
-    "postinstall": "npx npm-run-all db:generate"
+    "docs:generate": "npm run swagger:export && echo '📚 Документация обновлена в папке docs/'"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.0.2",

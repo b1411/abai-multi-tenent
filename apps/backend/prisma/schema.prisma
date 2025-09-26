@@ -249,6 +249,13 @@ model Teacher {
   studyPlans     StudyPlan[]
   schedules      Schedule[]
   employmentType EmploymentType    @default(STAFF)
+  specialization String?
+  qualification  String?
+  experience     Int?
+  department     String?
+  position       String?
+  category       String?
+  hireDate       DateTime?
   workloads      TeacherWorkload[]
   vacations      Vacation[]
   substituteFor  Vacation[]        @relation("VacationSubstitute")

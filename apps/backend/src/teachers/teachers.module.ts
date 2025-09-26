@@ -13,6 +13,7 @@ import { ScheduleService } from 'src/schedule/schedule.service';
 import { SystemService } from '../system/system.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TenantConfigService } from 'src/common/tenant-config.service';
+import { JwtService } from 'src/jwt/jwt.service';
 
 @Module({
   controllers: [TeachersController, PayrollController, SubstitutionController],
@@ -27,6 +28,7 @@ import { TenantConfigService } from 'src/common/tenant-config.service';
     ScheduleService,
     TenantConfigService,
     SystemService,
+    JwtService,
     NotificationsService
   ],
   exports: [

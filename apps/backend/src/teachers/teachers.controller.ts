@@ -1,4 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import { AuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/role.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { TeachersService } from './teachers.service';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
@@ -7,7 +10,7 @@ import { TeacherWorkedHoursService } from './teacher-worked-hours.service';
 import { PayrollCalculationService } from './payroll-calculation.service';
 import { CreateTeacherSalaryRateDto } from './dto/create-teacher-salary-rate.dto';
 import { UpdateTeacherSalaryRateDto } from './dto/update-teacher-salary-rate.dto';
-
+import { UpdateTeacherProfileDto } from './dto/update-teacher-profile.dto';
 @Controller('teachers')
 export class TeachersController {
   constructor(
@@ -47,6 +50,20 @@ export class TeachersController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.teachersService.findOne(+id);
+  }
+
+  @Patch(':id/profile')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('ADMIN', 'HR', 'TEACHER')
+  async updateProfile(@Param('id') id: string, @Body() updateTeacherProfileDto: UpdateTeacherProfileDto, @Req() req: any) {
+    // Проверяем, что преподаватель может редактировать только свой профиль
+    if (req.user.role === 'TEACHER') {
+      const teacher = await this.teachersService.findByUser(req.user.id);
+      if (!teacher || teacher.id !== +id) {
+        throw new Error('Teachers can only update their own profile');
+      }
+    }
+    return this.teachersService.updateProfile(+id, updateTeacherProfileDto);
   }
 
   @Patch(':id')

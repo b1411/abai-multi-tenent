@@ -1,27 +1,39 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class Teacher {
-  @ApiProperty({ description: 'ID Р·Р°РїРёСЃРё РїСЂРµРїРѕРґР°РІР°С‚РµР»СЏ' })
+  @ApiProperty({ description: 'ID записи преподавателя' })
   id: number;
 
-  @ApiProperty({ description: 'ID РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ' })
+  @ApiProperty({ description: 'ID пользователя' })
   userId: number;
 
-  @ApiPropertyOptional({ description: 'РЎРїРµС†РёР°Р»РёР·Р°С†РёСЏ РїСЂРµРїРѕРґР°РІР°С‚РµР»СЏ', nullable: true })
+  @ApiPropertyOptional({ description: 'Профильная специализация', nullable: true })
   specialization: string | null;
 
-  @ApiPropertyOptional({ description: 'РљРІР°Р»РёС„РёРєР°С†РёСЏ РїСЂРµРїРѕРґР°РІР°С‚РµР»СЏ', nullable: true })
+  @ApiPropertyOptional({ description: 'Квалификация', nullable: true })
   qualification: string | null;
 
-  @ApiPropertyOptional({ description: 'РћРїС‹С‚ СЂР°Р±РѕС‚С‹ РІ РіРѕРґР°С…', nullable: true })
+  @ApiPropertyOptional({ description: 'Опыт работы (в годах)', nullable: true })
   experience: number | null;
 
-  @ApiProperty({ description: 'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ Р·Р°РїРёСЃРё' })
+  @ApiPropertyOptional({ description: 'Отдел или кафедра', nullable: true })
+  department: string | null;
+
+  @ApiPropertyOptional({ description: 'Должность', nullable: true })
+  position: string | null;
+
+  @ApiPropertyOptional({ description: 'Педагогическая категория', nullable: true })
+  category: string | null;
+
+  @ApiPropertyOptional({ description: 'Дата приема на работу', nullable: true })
+  hireDate: Date | null;
+
+  @ApiProperty({ description: 'Дата создания записи' })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Р”Р°С‚Р° РѕР±РЅРѕРІР»РµРЅРёСЏ Р·Р°РїРёСЃРё' })
+  @ApiProperty({ description: 'Дата последнего обновления' })
   updatedAt: Date;
 
-  @ApiPropertyOptional({ description: 'Р”Р°С‚Р° СѓРґР°Р»РµРЅРёСЏ Р·Р°РїРёСЃРё', nullable: true })
+  @ApiPropertyOptional({ description: 'Дата удаления', nullable: true })
   deletedAt: Date | null;
 }

@@ -1,11 +1,27 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
+import { UpdateTeacherProfileDto } from './dto/update-teacher-profile.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class TeachersService {
   constructor(private prisma: PrismaService) { }
+
+  private mapTeacherData(data: Partial<CreateTeacherDto>, options: { includeUserId?: boolean } = {}) {
+    const { hireDate, ...rest } = data as any;
+    const mapped: any = { ...rest };
+
+    if (!options.includeUserId) {
+      delete mapped.userId;
+    }
+
+    if (hireDate !== undefined) {
+      mapped.hireDate = hireDate ? new Date(hireDate) : null;
+    }
+
+    return mapped;
+  }
 
   async create(createTeacherDto: CreateTeacherDto) {
     // Проверяем существование пользователя
@@ -33,8 +49,10 @@ export class TeachersService {
       throw new ConflictException('User is already a teacher');
     }
 
+    const data = this.mapTeacherData(createTeacherDto, { includeUserId: true });
+
     return this.prisma.teacher.create({
-      data: createTeacherDto,
+      data,
       include: {
         user: {
           select: {
@@ -225,6 +243,31 @@ export class TeachersService {
     return this.prisma.teacher.update({
       where: { id },
       data: updateTeacherDto,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            surname: true,
+            middlename: true,
+            phone: true,
+            avatar: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateProfile(id: number, updateTeacherProfileDto: UpdateTeacherProfileDto) {
+    await this.findOne(id); // Проверяем существование
+
+    const data = this.mapTeacherData(updateTeacherProfileDto);
+
+    return this.prisma.teacher.update({
+      where: { id },
+      data,
       include: {
         user: {
           select: {

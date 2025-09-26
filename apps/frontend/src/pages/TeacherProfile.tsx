@@ -17,6 +17,7 @@ import { formatCurrency } from '../utils/formatters';
 import { salaryService } from '../services/salaryService';
 import { useTeachers } from '../hooks/useTeachers';
 import TeacherSalaryRateForm from '../components/TeacherSalaryRateForm';
+import TeacherProfileEditModal from '../components/TeacherProfileEditModal';
 
 // Хук для получения текущего пользователя (заглушка)
 const useAuth = () => {
@@ -55,6 +56,7 @@ const TeacherProfile: React.FC = () => {
   const [salaryRate, setSalaryRate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showRateForm, setShowRateForm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [recentSalaries, setRecentSalaries] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,15 +120,20 @@ const TeacherProfile: React.FC = () => {
       } else {
         await salaryService.createTeacherSalaryRate(parseInt(teacherId!), rateData);
       }
-      
+
       // Перезагружаем данные
       await loadTeacherData();
       setShowRateForm(false);
-      
+
     } catch (error) {
       console.error('Ошибка при сохранении ставки:', error);
       throw error;
     }
+  };
+
+  const handleSaveProfile = async (updatedTeacher: any) => {
+    setTeacher(updatedTeacher);
+    setShowEditModal(false);
   };
 
   if (loading) {
@@ -166,9 +173,21 @@ const TeacherProfile: React.FC = () => {
             <FaUser className="w-12 h-12 text-blue-600" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-2">
-              {teacher.user.surname} {teacher.user.name} {teacher.user.middlename}
-            </h1>
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl font-bold">
+                {teacher.user.surname} {teacher.user.name} {teacher.user.middlename}
+              </h1>
+              {/* Кнопка редактирования - только для админов, HR или самого преподавателя */}
+              {(user.role === 'ADMIN' || user.role === 'HR' || isOwnProfile) && (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center"
+                >
+                  <FaEdit className="mr-2" />
+                  Редактировать
+                </button>
+              )}
+            </div>
             <p className="text-blue-100 text-lg">{teacher.position}</p>
             <p className="text-blue-200">{teacher.department}</p>
             {isOwnProfile && (
@@ -434,6 +453,14 @@ const TeacherProfile: React.FC = () => {
         teacherName={`${teacher.user.surname} ${teacher.user.name}`}
         currentRate={salaryRate}
         isLoading={loading}
+      />
+
+      {/* Модальное окно редактирования профиля */}
+      <TeacherProfileEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        teacher={teacher}
+        onSave={handleSaveProfile}
       />
     </div>
   );

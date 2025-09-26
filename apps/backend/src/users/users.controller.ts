@@ -82,8 +82,12 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   @ApiResponse({ status: 409, description: 'Email уже используется' })
   @ApiParam({ name: 'id', description: 'ID пользователя' })
-  @Roles('ADMIN', 'HR')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  @Roles('ADMIN', 'HR', 'TEACHER')
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Req() req: any) {
+    // Если учитель обновляет свой профиль — разрешаем
+    if (req.user.role === 'TEACHER' && req.user.id !== +id) {
+      throw new Error('Teachers can only update their own profile');
+    }
     return this.usersService.update(+id, updateUserDto);
   }
 

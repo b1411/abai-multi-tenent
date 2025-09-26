@@ -14,6 +14,7 @@ import {
   Edit,
   Trash2,
   RefreshCw,
+  QrCode,
   GripVertical
 } from 'lucide-react';
 import {
@@ -65,6 +66,175 @@ interface ScheduleModalInternalProps extends ScheduleModalProps {
 }
 
 import { useTenantConfig } from '../hooks/useTenantConfig';
+
+import AttendanceQrModal from '../components/attendance/AttendanceQrModal';
+import attendanceSessionService from '../services/attendanceSessionService';
+import { AttendanceSession } from '../types/attendance';
+
+const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+
+const DAY_TO_INDEX: Record<ScheduleItem['day'], number> = {
+  monday: 0,
+  tuesday: 1,
+  wednesday: 2,
+  thursday: 3,
+  friday: 4,
+  saturday: 5,
+  sunday: 6
+};
+
+const parseDateOnly = (value?: string | null): Date | null => {
+  if (!value) {
+    return null;
+  }
+  const datePart = String(value).split('T')[0];
+  const [yearStr, monthStr, dayStr] = datePart.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (!year || !month || !day) {
+    return null;
+  }
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
+const getTodayUtc = (): Date => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+};
+
+const formatDateUtc = (date: Date): string => {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const addDaysUtc = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+};
+
+const getWeekdayIndex = (date: Date): number => {
+  return (date.getUTCDay() + 6) % 7;
+};
+
+const alignToWeekdayUtc = (date: Date, targetIndex: number): Date => {
+  const result = new Date(date);
+  const currentIndex = getWeekdayIndex(result);
+  let diff = targetIndex - currentIndex;
+  if (diff < 0) {
+    diff += 7;
+  }
+  result.setUTCDate(result.getUTCDate() + diff);
+  return result;
+};
+
+const compareUtcDates = (a: Date, b: Date): number => {
+  const valueA = Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate());
+  const valueB = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+  if (valueA < valueB) {
+    return -1;
+  }
+  if (valueA > valueB) {
+    return 1;
+  }
+  return 0;
+};
+
+const resolveLessonDate = (item: ScheduleItem): string | null => {
+  const directDate = item.date ? String(item.date).split('T')[0] : null;
+
+  if (item.repeat === 'once') {
+    if (directDate) {
+      return directDate;
+    }
+    if (item.startDate) {
+      return String(item.startDate).split('T')[0];
+    }
+    return null;
+  }
+
+  const targetIndex = DAY_TO_INDEX[item.day];
+  if (targetIndex === undefined) {
+    return directDate;
+  }
+
+  const today = getTodayUtc();
+  const startDate = parseDateOnly(item.startDate);
+  const endDate = parseDateOnly(item.endDate);
+  let searchCursor = today;
+
+  if (startDate && compareUtcDates(searchCursor, startDate) < 0) {
+    searchCursor = startDate;
+  }
+
+  let anchorBase = parseDateOnly(item.startDate) || parseDateOnly(item.date);
+  if (!anchorBase) {
+    anchorBase = alignToWeekdayUtc(searchCursor, targetIndex);
+  }
+  const anchor = alignToWeekdayUtc(anchorBase, targetIndex);
+
+  for (let i = 0; i < 104; i++) {
+    const candidate = alignToWeekdayUtc(searchCursor, targetIndex);
+
+    if (startDate && compareUtcDates(candidate, startDate) < 0) {
+      searchCursor = addDaysUtc(startDate, 1);
+      continue;
+    }
+
+    if (endDate && compareUtcDates(candidate, endDate) > 0) {
+      return null;
+    }
+
+    if (item.repeat === 'biweekly') {
+      const diffWeeks = Math.round((candidate.getTime() - anchor.getTime()) / WEEK_IN_MS);
+      if (diffWeeks < 0 || diffWeeks % 2 !== 0) {
+        searchCursor = addDaysUtc(candidate, 1);
+        continue;
+      }
+    }
+
+    return formatDateUtc(candidate);
+  }
+
+  if (startDate) {
+    return formatDateUtc(startDate);
+  }
+
+  return directDate;
+};
+
+const ensureTimeFormat = (time?: string): string => {
+  if (!time) {
+    return '00:00';
+  }
+  const match = /^([0-9]{2}):([0-9]{2})/.exec(time);
+  if (match) {
+    return `${match[1]}:${match[2]}`;
+  }
+  const [hours = '00', minutes = '00'] = time.split(':');
+  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+};
+
+const composeLocalDateTime = (date: string | null, time?: string): string => {
+  if (!date) {
+    return '';
+  }
+  return `${date}T${ensureTimeFormat(time)}`;
+};
+
+const localDateTimeToIso = (value: string): string | null => {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString();
+};
 
 const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
   isOpen,
@@ -557,7 +727,7 @@ const ScheduleModal: React.FC<ScheduleModalInternalProps> = ({
   );
 };
 
-const DraggableScheduleItem = ({ item, canEdit, onEdit, onDelete }: { item: ScheduleItem, canEdit: boolean, onEdit: (item: ScheduleItem) => void, onDelete: (id: string) => void }) => {
+const DraggableScheduleItem = ({ item, canEdit, canGenerate, onEdit, onDelete, onGenerate }: { item: ScheduleItem; canEdit: boolean; canGenerate: boolean; onEdit: (item: ScheduleItem) => void; onDelete: (id: string) => void; onGenerate: (item: ScheduleItem) => void }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
     data: { item },
@@ -603,20 +773,33 @@ const DraggableScheduleItem = ({ item, canEdit, onEdit, onDelete }: { item: Sche
       </div>
 
       {/* Action Buttons */}
-      {canEdit && (
+      {(canGenerate || canEdit) && (
         <div className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(item); }}
-            className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
-          >
-            <Edit className="h-3 w-3 text-gray-500" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
-            className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
-          >
-            <Trash2 className="h-3 w-3 text-red-500" />
-          </button>
+          {canGenerate && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onGenerate(item); }}
+              className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100 text-blue-600"
+              aria-label="Показать QR"
+            >
+              <QrCode className="h-3 w-3" />
+            </button>
+          )}
+          {canEdit && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+                className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
+              >
+                <Edit className="h-3 w-3 text-gray-500" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+                className="bg-white p-1 rounded-full shadow-sm hover:bg-gray-100"
+              >
+                <Trash2 className="h-3 w-3 text-red-500" />
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -658,6 +841,12 @@ const SchedulePage: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<Partial<ScheduleItem> | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrLesson, setQrLesson] = useState<ScheduleItem | null>(null);
+  const [qrDatetimeLocal, setQrDatetimeLocal] = useState<string>('');
+  const [qrSession, setQrSession] = useState<AttendanceSession | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
   // Убраны состояния AI модалок
 
   // Состояние для данных фильтров
@@ -1002,6 +1191,9 @@ const SchedulePage: React.FC = () => {
   const canEditSchedule = () => {
     return role === 'ADMIN';
   };
+
+  const canGenerateQr = () => role === 'ADMIN' || role === 'TEACHER';
+
 
   const exportToExcel = () => {
     const items = getFilteredSchedule();
@@ -1572,8 +1764,76 @@ const SchedulePage: React.FC = () => {
     }
   };
 
-  const handleRoomClick = (roomId: string) => {
-    console.log(`Выбрана аудитория ${roomId}`);
+    const handleRoomClick = (roomId: string) => {
+    console.log(`Аудитория ${roomId}`);
+  };
+
+  const generateQrSession = async (lesson: ScheduleItem, datetimeLocal: string) => {
+    const occursAtIso = localDateTimeToIso(datetimeLocal);
+    if (!occursAtIso) {
+      setQrError('Не удалось обработать дату занятия. Проверьте значение.');
+      return;
+    }
+
+    setQrLoading(true);
+    setQrError(null);
+    setQrSession(null);
+    try {
+      const sessionResponse = await attendanceSessionService.createSession({
+        scheduleItemId: lesson.id,
+        occursAt: occursAtIso
+      });
+      setQrSession(sessionResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось создать QR-сессию';
+      setQrError(message);
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleGenerateQr = (lesson: ScheduleItem) => {
+    if (!canGenerateQr()) {
+      return;
+    }
+    const resolvedDate = resolveLessonDate(lesson);
+    const localValue = composeLocalDateTime(resolvedDate, lesson.startTime);
+    setQrLesson(lesson);
+    setQrSession(null);
+    setQrError(null);
+    setQrModalOpen(true);
+    setQrDatetimeLocal(localValue);
+    if (localValue) {
+      void generateQrSession(lesson, localValue);
+    } else {
+      setQrError('Не удалось автоматически определить дату занятия. Укажите её вручную.');
+    }
+  };
+
+  const handleQrGenerateClick = () => {
+    if (!qrLesson) {
+      return;
+    }
+    if (!qrDatetimeLocal) {
+      setQrError('Укажите дату и время занятия.');
+      return;
+    }
+    void generateQrSession(qrLesson, qrDatetimeLocal);
+  };
+
+  const handleQrModalClose = () => {
+    setQrModalOpen(false);
+    setQrLesson(null);
+    setQrSession(null);
+    setQrError(null);
+    setQrLoading(false);
+    setQrDatetimeLocal('');
+  };
+
+  const handleQrDatetimeChange = (value: string) => {
+    setQrDatetimeLocal(value);
+    setQrError(null);
+    setQrSession(null);
   };
 
   const sensors = useSensors(useSensor(PointerSensor));
@@ -2065,6 +2325,11 @@ const handleDragEnd = async (event: DragEndEvent) => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Статус
                     </th>
+                    {canGenerateQr() && (
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        QR
+                      </th>
+                    )}
                     {canEditSchedule() && (
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Действия
@@ -2150,6 +2415,17 @@ const handleDragEnd = async (event: DragEndEvent) => {
                             item.status === 'completed' ? 'Завершено' : 'Отменено'}
                         </span>
                       </td>
+                      {canGenerateQr() && (
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => handleGenerateQr(item)}
+                            className="inline-flex items-center justify-end text-blue-600 hover:text-blue-800 transition-colors"
+                          >
+                            <QrCode className="h-5 w-5" />
+                            <span className="ml-2 hidden xl:inline">QR</span>
+                          </button>
+                        </td>
+                      )}
                       {canEditSchedule() && (
                         <td className="px-6 py-4 whitespace-normal break-words text-sm text-right">
                           <div className="flex space-x-2 justify-end">
@@ -2199,6 +2475,14 @@ const handleDragEnd = async (event: DragEndEvent) => {
                           </div>
 
                           <div className="flex items-center space-x-2">
+                            {canGenerateQr() && (
+                              <button
+                                onClick={() => handleGenerateQr(item)}
+                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center touch-manipulation transition-colors"
+                              >
+                                <QrCode className="w-4 h-4" />
+                              </button>
+                            )}
                             {canEditSchedule() && (
                               <>
                                 <button
@@ -2388,8 +2672,10 @@ const handleDragEnd = async (event: DragEndEvent) => {
                                 key={item.id}
                                 item={item}
                                 canEdit={canEditSchedule()}
+                                canGenerate={canGenerateQr()}
                                 onEdit={handleEditClick}
                                 onDelete={handleDeleteClick}
+                                onGenerate={handleGenerateQr}
                               />
                             ))}
                           </DroppableCell>
@@ -2446,8 +2732,10 @@ const handleDragEnd = async (event: DragEndEvent) => {
                                 key={item.id}
                                 item={item}
                                 canEdit={canEditSchedule()}
+                                canGenerate={canGenerateQr()}
                                 onEdit={handleEditClick}
                                 onDelete={handleDeleteClick}
+                                onGenerate={handleGenerateQr}
                               />
                             ))}
                           </DroppableCell>
@@ -2598,6 +2886,18 @@ const handleDragEnd = async (event: DragEndEvent) => {
 
         {/* Удалены AI модалки */}
       </div>
+
+      <AttendanceQrModal
+        isOpen={qrModalOpen}
+        lesson={qrLesson}
+        occursAtLocal={qrDatetimeLocal}
+        session={qrSession}
+        loading={qrLoading}
+        error={qrError}
+        onClose={handleQrModalClose}
+        onOccursAtChange={handleQrDatetimeChange}
+        onGenerate={handleQrGenerateClick}
+      />
     </>
   );
 };

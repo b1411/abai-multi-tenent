@@ -95,6 +95,11 @@ enum AbsentReason {
   OTHER
 }
 
+enum AttendanceSessionParticipant {
+  TEACHER
+  STUDENT
+}
+
 enum LessonType {
   REGULAR // Обычный урок
   CONTROL_WORK // Контрольная работа
@@ -183,6 +188,7 @@ model User {
   classroomBookingsCreated ClassroomBooking[] @relation("ClassroomBookingsCreated")
   aiSuggestionsCreated     AiSuggestion[]     @relation("AiSuggestionAuthor")
   aiSuggestionsApplied     AiSuggestion[]     @relation("AiSuggestionAppliedBy")
+  attendanceSessionsCreated AttendanceSession[] @relation("AttendanceSessionsCreatedBy")
 
   // AI tutor/chat relations
   aiTutorsCreated AiTutor[]
@@ -656,6 +662,7 @@ model Schedule {
   rescheduledFrom  Schedule[]         @relation("ScheduleReschedule")
   originalSchedule Schedule?          @relation("ScheduleReschedule", fields: [rescheduledTo], references: [id])
   conflicts        ScheduleConflict[]
+  attendanceSessions AttendanceSession[]
 
   @@index([date, teacherId])
   @@index([date, classroomId])
@@ -664,6 +671,25 @@ model Schedule {
 }
 
 // Модель для отслеживания конфликтов в расписании
+model AttendanceSession {
+  id              String                       @id @default(uuid())
+  scheduleId      String
+  schedule        Schedule                     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  token           String                       @unique
+  occursAt        DateTime
+  expiresAt       DateTime
+  participantType AttendanceSessionParticipant @default(TEACHER)
+  createdByUserId Int
+  createdBy       User                         @relation("AttendanceSessionsCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime                     @default(now())
+  consumedAt      DateTime?
+  invalidatedAt   DateTime?
+  metadata        Json?
+
+  @@index([scheduleId])
+  @@index([createdByUserId])
+}
+
 model ScheduleConflict {
   id          String       @id @default(uuid())
   scheduleId  String

@@ -367,6 +367,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, isOpen, onClose, onSave }) 
 const UsersPage: React.FC = () => {
   const { users, loading, error, createUser, updateUser, deleteUser, resetPassword, refetch } = useUsers();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -374,9 +375,9 @@ const UsersPage: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = user.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      user.role.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     const matchesRole = !roleFilter || user.role === roleFilter;
     const matchesStatus = !statusFilter || user.status === statusFilter;
 
@@ -420,9 +421,17 @@ const UsersPage: React.FC = () => {
     }
   };
 
+  // Debounce search query
   React.useEffect(() => {
-    refetch({ search: searchQuery, role: roleFilter, status: statusFilter });
-  }, [searchQuery, roleFilter, statusFilter]);
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  React.useEffect(() => {
+    refetch({ search: debouncedSearchQuery, role: roleFilter, status: statusFilter });
+  }, [debouncedSearchQuery, roleFilter, statusFilter]);
 
   if (loading) {
     return (
@@ -485,7 +494,7 @@ const UsersPage: React.FC = () => {
       </div>
 
       {/* Десктоп таблица */}
-      <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+      <div className="hidden lg:block bg-white rounded-lg shadow overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>

@@ -6,6 +6,8 @@ export enum UserRole {
   TEACHER = 'teacher',
   STUDENT = 'student',
   PARENT = 'parent',
+  HR = 'hr',
+  FINANCIST = 'financist',
 }
 
 export enum UserStatus {

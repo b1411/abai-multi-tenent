@@ -135,10 +135,10 @@ export class SystemService {
           deletedAt: null,
           OR: search
             ? [
-                { name: { contains: search, mode: 'insensitive' } },
-                { surname: { contains: search, mode: 'insensitive' } },
-                { email: { contains: search, mode: 'insensitive' } },
-              ]
+              { name: { contains: search, mode: 'insensitive' } },
+              { surname: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ]
             : undefined,
         },
       },

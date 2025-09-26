@@ -301,6 +301,8 @@ const UserModal: React.FC<UserModalProps> = ({ user, isOpen, onClose, onSave }) 
                     }
                   }}
                 >
+                  <option value="hr">HR-менеджер</option>
+                  <option value="financist">Финансист</option>
                   <option value="admin">Администратор</option>
                   <option value="teacher">Учитель</option>
                   <option value="student">Студент</option>
@@ -463,6 +465,8 @@ const UsersPage: React.FC = () => {
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
         >
+          <option value="hr">HR-менеджер</option>
+          <option value="financist">Финансист</option>
           <option value="">Все роли</option>
           <option value="admin">Администратор</option>
           <option value="teacher">Учитель</option>

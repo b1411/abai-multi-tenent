@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FaUser,
@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fa';
 import { formatCurrency } from '../utils/formatters';
 import { useTeachers } from '../hooks/useTeachers';
+import { userService } from '../services/userService';
 import { salaryService } from '../services/salaryService';
 import TeacherSalaryRateForm from '../components/TeacherSalaryRateForm';
 
@@ -35,6 +36,40 @@ const Teachers: React.FC = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [currentTeacherRate, setCurrentTeacherRate] = useState<any>(null);
   const [teacherStats, setTeacherStats] = useState<{ [key: number]: any }>({});
+
+  // Другие сотрудники (HR / Финансисты)
+  const [otherStaff, setOtherStaff] = useState<any[]>([]);
+  const [loadingOtherStaff, setLoadingOtherStaff] = useState<boolean>(false);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        setLoadingOtherStaff(true);
+        const [hrs, fins] = await Promise.all([
+          userService.getUsersByRole('HR'),
+          userService.getUsersByRole('FINANCIST'),
+        ]);
+        if (!alive) return;
+        const merged = [...(hrs || []), ...(fins || [])];
+        setOtherStaff(merged);
+      } catch (e) {
+        if (!alive) return;
+        setOtherStaff([]);
+      } finally {
+        if (alive) setLoadingOtherStaff(false);
+      }
+    };
+    load();
+    return () => { alive = false; };
+  }, []);
+
+  const filteredOtherStaff = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return otherStaff.filter((u: any) =>
+      !q || u?.name?.toLowerCase().includes(q) || u?.email?.toLowerCase().includes(q)
+    );
+  }, [otherStaff, searchQuery]);
 
   // Фильтрация преподавателей
   const filteredTeachers = useMemo(() => {
@@ -131,6 +166,8 @@ const Teachers: React.FC = () => {
     );
   }
 
+  const showOtherStaffLoading = loadingOtherStaff;
+
   if (error) {
     return (
       <div className="text-center text-red-500 py-12">
@@ -144,7 +181,7 @@ const Teachers: React.FC = () => {
       {/* Заголовок и действия */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Преподаватели</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Сотрудники</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">Управление профилями и ставками преподавателей</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -389,7 +426,7 @@ const Teachers: React.FC = () => {
           <FaUsers className="mx-auto h-12 w-12 text-gray-300 mb-4" />
           <p className="text-gray-500">
             {searchQuery || selectedDepartment !== 'all' || selectedCategory !== 'all'
-              ? 'Преподаватели не найдены по заданным критериям'
+              ? 'Сотрудники не найдены по заданным критериям'
               : 'Список преподавателей пуст'
             }
           </p>
@@ -397,6 +434,69 @@ const Teachers: React.FC = () => {
       )}
 
       {/* Форма управления ставками */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Другие сотрудники</h2>
+          <span className="text-sm text-gray-500">{filteredOtherStaff.length}</span>
+        </div>
+
+        {showOtherStaffLoading && (
+          <div className="flex justify-center items-center h-24">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+          </div>
+        )}
+
+        {!showOtherStaffLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {filteredOtherStaff.map((u: any) => {
+              const R = (u.role || '').toUpperCase();
+              const roleLabel = R === 'HR' ? 'HR' : (R === 'FINANCIST' ? 'Финансист' : R === 'ADMIN' ? 'Администратор' : u.role);
+              return (
+                <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{u.surname ? `${u.surname} ${u.name}` : (u.name || '')}</h3>
+                      </div>
+                      <div className="mt-1">
+                        <span className="inline-flex items-center gap-2 text-xs sm:text-sm px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                          <FaUserTie className="w-3.5 h-3.5" />
+                          {roleLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <FaEnvelope className="text-gray-400 w-4 h-4" />
+                      <span className="text-gray-600 truncate">{u.email}</span>
+                    </div>
+                    {u.department && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <FaGraduationCap className="text-gray-400 w-4 h-4" />
+                        <span className="text-gray-600">{u.department}</span>
+                      </div>
+                    )}
+                    {u.status && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {u.status === 'active' ? 'Активен' : 'Неактивен'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!showOtherStaffLoading && filteredOtherStaff.length === 0 && (
+          <div className="text-center py-10 text-gray-500">Нет сотрудников других ролей</div>
+        )}
+      </div>
+
       <TeacherSalaryRateForm
         isOpen={showSalaryRateForm}
         onClose={() => {

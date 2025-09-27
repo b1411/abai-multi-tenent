@@ -257,7 +257,7 @@ export class SystemService {
         hashedPassword,
         role,
         phone: null,
-        deletedAt: data.status === 'inactive' ? new Date() : null,
+        deletedAt: data.status === UserStatus.INACTIVE ? new Date() : null,
       },
       select: {
         id: true,
@@ -405,13 +405,26 @@ export class SystemService {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    // Мягкое удаление
+    // Удаляем связанные профили перед мягким удалением пользователя
+    await this.prisma.student.deleteMany({
+      where: { userId: userId },
+    });
+
+    await this.prisma.teacher.deleteMany({
+      where: { userId: userId },
+    });
+
+    await this.prisma.parent.deleteMany({
+      where: { userId: userId },
+    });
+
+    // Мягкое удаление пользователя
     await this.prisma.user.update({
       where: { id: userId },
       data: { deletedAt: new Date() },
     });
 
-    return { message: 'Пользователь удален' };
+    return { message: 'Пользователь и его профиль удалены' };
   }
 
   async resetUserPassword(id: string) {
@@ -702,7 +715,7 @@ export class SystemService {
   }
 
   // Integrations
-  async getIntegrations() {
+  getIntegrations() {
     return [
       {
         id: '1',
@@ -737,7 +750,7 @@ export class SystemService {
     ];
   }
 
-  async createIntegration(data: any) {
+  createIntegration(data: any) {
     const newIntegration = {
       id: Date.now().toString(),
       ...data,
@@ -747,8 +760,8 @@ export class SystemService {
     return newIntegration;
   }
 
-  async updateIntegration(id: string, data: any) {
-    const integrations = await this.getIntegrations();
+  updateIntegration(id: string, data: any) {
+    const integrations = this.getIntegrations();
     const integration = integrations.find(i => i.id === id);
     if (!integration) {
       throw new NotFoundException('Интеграция не найдена');
@@ -756,8 +769,8 @@ export class SystemService {
     return { ...integration, ...data };
   }
 
-  async deleteIntegration(id: string) {
-    const integrations = await this.getIntegrations();
+  deleteIntegration(id: string) {
+    const integrations = this.getIntegrations();
     const integration = integrations.find(i => i.id === id);
     if (!integration) {
       throw new NotFoundException('Интеграция не найдена');
@@ -765,8 +778,8 @@ export class SystemService {
     return { message: 'Интеграция удалена' };
   }
 
-  async connectIntegration(id: string) {
-    const integrations = await this.getIntegrations();
+  connectIntegration(id: string) {
+    const integrations = this.getIntegrations();
     const integration = integrations.find(i => i.id === id);
     if (!integration) {
       throw new NotFoundException('Интеграция не найдена');
@@ -774,8 +787,8 @@ export class SystemService {
     return { ...integration, status: 'connected', lastSync: new Date().toISOString() };
   }
 
-  async disconnectIntegration(id: string) {
-    const integrations = await this.getIntegrations();
+  disconnectIntegration(id: string) {
+    const integrations = this.getIntegrations();
     const integration = integrations.find(i => i.id === id);
     if (!integration) {
       throw new NotFoundException('Интеграция не найдена');
@@ -783,8 +796,8 @@ export class SystemService {
     return { ...integration, status: 'disconnected' };
   }
 
-  async syncIntegration(id: string) {
-    const integrations = await this.getIntegrations();
+  syncIntegration(id: string) {
+    const integrations = this.getIntegrations();
     const integration = integrations.find(i => i.id === id);
     if (!integration) {
       throw new NotFoundException('Интеграция не найдена');
@@ -842,7 +855,7 @@ export class SystemService {
         value: setting.value,
         description: setting.description
       }));
-    } catch (error) {
+    } catch {
       console.warn('SystemSettings таблица не найдена, возвращаем настройки по умолчанию');
       return [
         {
@@ -874,7 +887,7 @@ export class SystemService {
         value: updated.value,
         description: updated.description
       };
-    } catch (error) {
+    } catch {
       console.warn('SystemSettings таблица не найдена, настройка не сохранена');
       return { key, value, description: null };
     }

@@ -20,7 +20,7 @@ model Post {
   id         String         @id @default(uuid())
   content    String         @db.Text
   authorId   Int
-  author     User           @relation("UserPosts", fields: [authorId], references: [id])
+  author     User           @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
   visibility PostVisibility @default(ALL)
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
@@ -33,10 +33,10 @@ model Post {
 model Reaction {
   id     String @id @default(uuid())
   postId String
-  post   Post   @relation(fields: [postId], references: [id])
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
   type   String
   userId Int
-  user   User   @relation("UserReactions", fields: [userId], references: [id])
+  user   User   @relation("UserReactions", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
 }
@@ -44,10 +44,10 @@ model Reaction {
 model Comment {
   id        String   @id @default(uuid())
   postId    String
-  post      Post     @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   content   String   @db.Text
   authorId  Int
-  author    User     @relation("UserComments", fields: [authorId], references: [id])
+  author    User     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
 
@@ -202,8 +202,8 @@ model Student {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   deletedAt                DateTime?
-  user                     User                      @relation(fields: [userId], references: [id])
-  group                    Group                     @relation(fields: [groupId], references: [id])
+  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group                    Group                     @relation(fields: [groupId], references: [id], onDelete: Cascade)
   groupId                  Int
   Parents                  Parent[]
   lessonsResults           LessonResult[]
@@ -225,11 +225,11 @@ model Student {
 
 model LessonResult {
   id                   Int                 @id @default(autoincrement())
-  Student              Student?            @relation(fields: [studentId], references: [id])
+  Student              Student?            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId            Int
-  Lesson               Lesson?             @relation(fields: [lessonId], references: [id])
+  Lesson               Lesson?             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   lessonId             Int
-  Homework             HomeworkSubmission? @relation(fields: [homeworkId], references: [id])
+  Homework             HomeworkSubmission? @relation(fields: [homeworkId], references: [id], onDelete: SetNull)
   homeworkId           Int?                @unique
   lessonScore          Int?
   lessonScorecomment   String?
@@ -251,7 +251,7 @@ model Teacher {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   deletedAt      DateTime?
-  user           User              @relation(fields: [userId], references: [id])
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   studyPlans     StudyPlan[]
   schedules      Schedule[]
   employmentType EmploymentType    @default(STAFF)
@@ -293,7 +293,7 @@ model Parent {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   relation  String?
   students  Student[]
 }
@@ -313,7 +313,7 @@ model Group {
 
   // Классный руководитель (куратор) - опционально
   curatorTeacherId Int?
-  curator          Teacher? @relation(fields: [curatorTeacherId], references: [id])
+  curator          Teacher? @relation(fields: [curatorTeacherId], references: [id], onDelete: SetNull)
 }
 
 model StudyPlan {
@@ -324,7 +324,7 @@ model StudyPlan {
   updatedAt         DateTime           @updatedAt
   deletedAt         DateTime?
   teacherId         Int
-  teacher           Teacher            @relation(fields: [teacherId], references: [id])
+  teacher           Teacher            @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   group             Group[]
   lessons           Lesson[]
   schedules         Schedule[]
@@ -462,11 +462,11 @@ model Answer {
 
 model HomeworkSubmission {
   id           Int                      @id @default(autoincrement())
-  student      Student                  @relation(fields: [studentId], references: [id])
+  student      Student                  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId    Int
-  homework     Homework                 @relation(fields: [homeworkId], references: [id])
+  homework     Homework                 @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
   homeworkId   Int
-  fileUrl      File                     @relation(fields: [fileId], references: [id])
+  fileUrl      File                     @relation(fields: [fileId], references: [id], onDelete: Cascade)
   fileId       Int                      @unique
   comment      String?
   status       HomeworkSubmissionStatus @default(PENDING)
@@ -516,7 +516,7 @@ model Notification {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   message   String
   read      Boolean   @default(false)
@@ -535,7 +535,7 @@ model Classroom {
   equipment     String[] // Оборудование
   description   String?            @db.Text
   responsibleId Int?
-  responsible   User?              @relation("ResponsibleClassrooms", fields: [responsibleId], references: [id])
+  responsible   User?              @relation("ResponsibleClassrooms", fields: [responsibleId], references: [id], onDelete: SetNull)
   fileIds       Int[]              @default([])
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
@@ -554,7 +554,7 @@ enum ClassroomBookingStatus {
 model ClassroomBooking {
   id                String                 @id @default(uuid())
   classroomId       Int
-  classroom         Classroom              @relation(fields: [classroomId], references: [id])
+  classroom         Classroom              @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   date              DateTime
   startTime         String
   endTime           String
@@ -564,7 +564,7 @@ model ClassroomBooking {
   description       String?
   status            ClassroomBookingStatus @default(PENDING)
   createdById       Int
-  createdBy         User                   @relation("ClassroomBookingsCreated", fields: [createdById], references: [id])
+  createdBy         User                   @relation("ClassroomBookingsCreated", fields: [createdById], references: [id], onDelete: Cascade)
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
   deletedAt         DateTime?
@@ -599,17 +599,17 @@ enum ConflictType {
 model Schedule {
   id          String     @id @default(uuid())
   studyPlanId Int
-  studyPlan   StudyPlan  @relation(fields: [studyPlanId], references: [id])
+  studyPlan   StudyPlan  @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
   groupId     Int
-  group       Group      @relation(fields: [groupId], references: [id])
+  group       Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   teacherId   Int
-  teacher     Teacher    @relation(fields: [teacherId], references: [id])
+  teacher     Teacher    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   classroomId Int?
-  classroom   Classroom? @relation(fields: [classroomId], references: [id])
+  classroom   Classroom? @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 
   // Связь с конкретным уроком
   lessonId Int?
-  lesson   Lesson? @relation(fields: [lessonId], references: [id])
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   // Время проведения
   dayOfWeek    Int // 1-7: понедельник-воскресенье
@@ -634,7 +634,7 @@ model Schedule {
 
   // Замещения
   substituteId     Int?
-  substitute       Teacher? @relation("ScheduleSubstitute", fields: [substituteId], references: [id])
+  substitute       Teacher? @relation("ScheduleSubstitute", fields: [substituteId], references: [id], onDelete: SetNull)
   substituteReason String? // Причина замещения
 
   // AI-оптимизация
@@ -756,7 +756,7 @@ model ScheduleTemplate {
 // Текущие агрегированные значения эмоционального состояния
 model EmotionalState {
   id                 Int      @id @default(autoincrement())
-  student            Student  @relation(fields: [studentId], references: [id])
+  student            Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId          Int      @unique
   mood               Int // 0-100
   moodDesc           String
@@ -779,7 +779,7 @@ model EmotionalStateHistory {
   id                 Int      @id @default(autoincrement())
   studentId          Int
   submissionId       Int? // FeedbackResponse.id (идемпотентность snapshot)
-  student            Student  @relation(fields: [studentId], references: [id])
+  student            Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   mood               Int?
   concentration      Int?
   socialization      Int?
@@ -815,14 +815,14 @@ enum VacationStatus {
 
 model Vacation {
   id           Int                @id @default(autoincrement())
-  teacher      Teacher            @relation(fields: [teacherId], references: [id])
+  teacher      Teacher            @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   teacherId    Int
   type         VacationType
   startDate    DateTime
   endDate      DateTime
   days         Int
   status       VacationStatus     @default(pending)
-  substitute   Teacher?           @relation("VacationSubstitute", fields: [substituteId], references: [id])
+  substitute   Teacher?           @relation("VacationSubstitute", fields: [substituteId], references: [id], onDelete: SetNull)
   substituteId Int?
   comment      String?
   workTasks    String? // Задачи для передачи замещающему
@@ -857,7 +857,7 @@ model VacationDocument {
 model Payment {
   id              Int               @id @default(autoincrement())
   studentId       Int
-  student         Student           @relation(fields: [studentId], references: [id])
+  student         Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   serviceType     String // tuition, extra, meals, transportation
   serviceName     String
   amount          Int
@@ -923,7 +923,7 @@ model FinancialReport {
   data        String    @db.Text // JSON data
   fileUrl     String?
   generatedBy Int
-  user        User      @relation(fields: [generatedBy], references: [id])
+  user        User      @relation(fields: [generatedBy], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -934,7 +934,7 @@ model FinancialReport {
 model TeacherWorkload {
   id            Int       @id @default(autoincrement())
   teacherId     Int
-  teacher       Teacher   @relation(fields: [teacherId], references: [id])
+  teacher       Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   academicYear  String
   standardHours Int       @default(0)
   actualHours   Int       @default(0)
@@ -1047,7 +1047,7 @@ enum AllowanceType {
 model Salary {
   id          Int               @id @default(autoincrement())
   teacherId   Int
-  teacher     Teacher           @relation(fields: [teacherId], references: [id])
+  teacher     Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   hourlyRate  Float // Часовая ставка в тенге
   hoursWorked Float // Отработанные часы
   baseSalary  Int // Базовая зарплата в тенге (hourlyRate * hoursWorked)
@@ -1126,11 +1126,11 @@ model SalaryTemplate {
 model StudentReview {
   id          Int       @id @default(autoincrement())
   studentId   Int
-  student     Student   @relation(fields: [studentId], references: [id])
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacherId   Int
-  teacher     Teacher   @relation("StudentReviewsTeacher", fields: [teacherId], references: [id])
+  teacher     Teacher   @relation("StudentReviewsTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
   groupId     Int
-  group       Group     @relation("StudentReviewsGroup", fields: [groupId], references: [id])
+  group       Group     @relation("StudentReviewsGroup", fields: [groupId], references: [id], onDelete: Cascade)
   rating      Int // 1-5
   comment     String    @db.Text
   likes       Int       @default(0)
@@ -1149,7 +1149,7 @@ model ReviewReaction {
   reviewId  Int
   review    StudentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   userId    Int
-  user      User          @relation("UserReviewReactions", fields: [userId], references: [id])
+  user      User          @relation("UserReviewReactions", fields: [userId], references: [id], onDelete: Cascade)
   type      String // "like", "helpful"
   createdAt DateTime      @default(now())
 
@@ -1159,11 +1159,11 @@ model ReviewReaction {
 model RepeatPurchase {
   id               Int      @id @default(autoincrement())
   studentId        Int
-  student          Student  @relation(fields: [studentId], references: [id])
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   firstPurchaseId  Int
-  firstPurchase    Payment  @relation("FirstPurchase", fields: [firstPurchaseId], references: [id])
+  firstPurchase    Payment  @relation("FirstPurchase", fields: [firstPurchaseId], references: [id], onDelete: Cascade)
   secondPurchaseId Int
-  secondPurchase   Payment  @relation("SecondPurchase", fields: [secondPurchaseId], references: [id])
+  secondPurchase   Payment  @relation("SecondPurchase", fields: [secondPurchaseId], references: [id], onDelete: Cascade)
   daysBetween      Int // Количество дней между покупками
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -1225,9 +1225,9 @@ model FeedbackTemplate {
 model FeedbackResponse {
   id          Int              @id @default(autoincrement())
   userId      Int
-  user        User             @relation("UserFeedbackResponses", fields: [userId], references: [id])
+  user        User             @relation("UserFeedbackResponses", fields: [userId], references: [id], onDelete: Cascade)
   templateId  Int
-  template    FeedbackTemplate @relation(fields: [templateId], references: [id])
+  template    FeedbackTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   answers     Json // Ответы на вопросы
   isCompleted Boolean          @default(false)
   submittedAt DateTime?
@@ -1235,7 +1235,7 @@ model FeedbackResponse {
 
   // Связь с конкретным преподавателем (для фидбеков о преподавателях)
   aboutTeacherId Int?
-  aboutTeacher   Teacher? @relation(fields: [aboutTeacherId], references: [id])
+  aboutTeacher   Teacher? @relation(fields: [aboutTeacherId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1246,7 +1246,7 @@ model FeedbackResponse {
 model UserFeedbackStatus {
   id                    Int       @id @default(autoincrement())
   userId                Int       @unique
-  user                  User      @relation("UserFeedbackStatus", fields: [userId], references: [id])
+  user                  User      @relation("UserFeedbackStatus", fields: [userId], references: [id], onDelete: Cascade)
   hasCompletedMandatory Boolean   @default(false)
   lastCompletedAt       DateTime?
   currentPeriod         String? // "2025-01"
@@ -1515,7 +1515,7 @@ model ChatRoom {
   name         String? // Название группового чата
   isGroup      Boolean           @default(false)
   createdBy    Int
-  creator      User              @relation("CreatedChats", fields: [createdBy], references: [id])
+  creator      User              @relation("CreatedChats", fields: [createdBy], references: [id], onDelete: Cascade)
   participants ChatParticipant[]
   messages     ChatMessage[]
   createdAt    DateTime          @default(now())
@@ -1526,9 +1526,9 @@ model ChatRoom {
 model ChatParticipant {
   id       Int       @id @default(autoincrement())
   userId   Int
-  user     User      @relation(fields: [userId], references: [id])
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   chatId   Int
-  chat     ChatRoom  @relation(fields: [chatId], references: [id])
+  chat     ChatRoom  @relation(fields: [chatId], references: [id], onDelete: Cascade)
   joinedAt DateTime  @default(now())
   isActive Boolean   @default(true)
   lastRead DateTime?
@@ -1540,13 +1540,13 @@ model ChatMessage {
   id        Int           @id @default(autoincrement())
   content   String        @db.Text
   senderId  Int
-  sender    User          @relation("SentMessages", fields: [senderId], references: [id])
+  sender    User          @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   chatId    Int
-  chat      ChatRoom      @relation(fields: [chatId], references: [id])
+  chat      ChatRoom      @relation(fields: [chatId], references: [id], onDelete: Cascade)
   isRead    Boolean       @default(false)
   isEdited  Boolean       @default(false)
   replyToId Int?
-  replyTo   ChatMessage?  @relation("MessageReplies", fields: [replyToId], references: [id])
+  replyTo   ChatMessage?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies   ChatMessage[] @relation("MessageReplies")
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -1576,13 +1576,13 @@ model Task {
   status      TaskStatus    @default(PENDING)
   priority    TaskPriority  @default(MEDIUM)
   assigneeId  Int?
-  assignee    User?         @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  assignee    User?         @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: Cascade)
   createdById Int
-  createdBy   User          @relation("CreatedTasks", fields: [createdById], references: [id])
+  createdBy   User          @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
   dueDate     DateTime?
   completedAt DateTime?
   categoryId  Int?
-  category    TaskCategory? @relation(fields: [categoryId], references: [id])
+  category    TaskCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   tags        String[] // массив тегов
   attachments String[] // массив URL файлов
   createdAt   DateTime      @default(now())
@@ -1618,7 +1618,7 @@ model CalendarEvent {
   isAllDay       Boolean            @default(false)
   location       String?
   createdById    Int
-  createdBy      User               @relation("CreatedEvents", fields: [createdById], references: [id])
+  createdBy      User               @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Cascade)
   participants   EventParticipant[]
   reminders      EventReminder[]
   color          String             @default("#3B82F6")
@@ -1633,9 +1633,9 @@ model CalendarEvent {
 model EventParticipant {
   id        Int           @id @default(autoincrement())
   userId    Int
-  user      User          @relation(fields: [userId], references: [id])
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   eventId   Int
-  event     CalendarEvent @relation(fields: [eventId], references: [id])
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   status    EventStatus   @default(PENDING)
   comment   String? // Комментарий участника
   createdAt DateTime      @default(now())
@@ -1647,9 +1647,9 @@ model EventParticipant {
 model EventReminder {
   id        Int           @id @default(autoincrement())
   eventId   Int
-  event     CalendarEvent @relation(fields: [eventId], references: [id])
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   userId    Int
-  user      User          @relation(fields: [userId], references: [id])
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   minutes   Int // Минут до события
   sent      Boolean       @default(false)
   method    String        @default("email") // email, sms, push
@@ -1686,7 +1686,7 @@ enum SessionStatus {
 model UserSession {
   id             String        @id @default(uuid())
   userId         Int
-  user           User          @relation(fields: [userId], references: [id])
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionToken   String        @unique
   ipAddress      String?
   userAgent      String?       @db.Text
@@ -1713,7 +1713,7 @@ model UserSession {
 model UserOnlineStatus {
   id           Int      @id @default(autoincrement())
   userId       Int      @unique
-  user         User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   isOnline     Boolean  @default(false)
   lastSeen     DateTime @default(now())
   currentPage  String? // текущая страница
@@ -1728,9 +1728,9 @@ model UserOnlineStatus {
 model ActivityLog {
   id        String       @id @default(uuid())
   userId    Int
-  user      User         @relation(fields: [userId], references: [id])
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionId String?
-  session   UserSession? @relation(fields: [sessionId], references: [id])
+  session   UserSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   // Тип и детали активности
   type        ActivityType
@@ -1774,7 +1774,7 @@ model ActivityLog {
 model PasswordResetToken {
   id        Int       @id @default(autoincrement())
   userId    Int
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
@@ -1835,7 +1835,7 @@ model StudentRemark {
   studentId Int
   student   Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacherId Int
-  teacher   User       @relation("TeacherRemarks", fields: [teacherId], references: [id])
+  teacher   User       @relation("TeacherRemarks", fields: [teacherId], references: [id], onDelete: Cascade)
   type      RemarkType @default(GENERAL)
   title     String
   content   String     @db.Text
@@ -1861,7 +1861,7 @@ model StudentComment {
   studentId Int
   student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacherId Int
-  teacher   User        @relation("TeacherComments", fields: [teacherId], references: [id])
+  teacher   User        @relation("TeacherComments", fields: [teacherId], references: [id], onDelete: Cascade)
   title     String
   content   String      @db.Text
   type      CommentType @default(GENERAL)
@@ -1888,13 +1888,13 @@ model Document {
 
   // Создатель и ответственный
   createdById   Int
-  createdBy     User  @relation("CreatedDocuments", fields: [createdById], references: [id])
+  createdBy     User  @relation("CreatedDocuments", fields: [createdById], references: [id], onDelete: Cascade)
   responsibleId Int?
-  responsible   User? @relation("ResponsibleDocuments", fields: [responsibleId], references: [id])
+  responsible   User? @relation("ResponsibleDocuments", fields: [responsibleId], references: [id], onDelete: Cascade)
 
   // Связи с сущностями
   studentId Int?
-  student   Student? @relation(fields: [studentId], references: [id])
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   // Файлы и согласования
   files     DocumentFile[]
@@ -1913,9 +1913,9 @@ model Document {
 model DocumentApproval {
   id         String   @id @default(uuid())
   documentId String
-  document   Document @relation(fields: [documentId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   approverId Int
-  approver   User     @relation(fields: [approverId], references: [id])
+  approver   User     @relation(fields: [approverId], references: [id], onDelete: Cascade)
 
   status      ApprovalStatus @default(PENDING)
   comment     String?
@@ -1931,9 +1931,9 @@ model DocumentApproval {
 model DocumentFile {
   id         String   @id @default(uuid())
   documentId String
-  document   Document @relation(fields: [documentId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   fileId     Int
-  file       File     @relation(fields: [fileId], references: [id])
+  file       File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }
@@ -1942,9 +1942,9 @@ model DocumentFile {
 model DocumentComment {
   id         String   @id @default(uuid())
   documentId String
-  document   Document @relation(fields: [documentId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   authorId   Int
-  author     User     @relation(fields: [authorId], references: [id])
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   content    String   @db.Text
 
   createdAt DateTime @default(now())
@@ -1960,7 +1960,7 @@ model DocumentTemplate {
   isActive  Boolean      @default(true)
 
   createdById Int
-  createdBy   User @relation(fields: [createdById], references: [id])
+  createdBy   User @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2056,7 +2056,7 @@ enum SchoolType {
 model TeacherAchievement {
   id          Int             @id @default(autoincrement())
   teacherId   Int
-  teacher     Teacher         @relation(fields: [teacherId], references: [id])
+  teacher     Teacher         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   type        AchievementType
   title       String
   description String?         @db.Text
@@ -2078,9 +2078,9 @@ model TeacherAchievement {
 model OlympiadResult {
   id             Int       @id @default(autoincrement())
   studentId      Int
-  student        Student   @relation(fields: [studentId], references: [id])
+  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacherId      Int
-  teacher        Teacher   @relation(fields: [teacherId], references: [id])
+  teacher        Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   olympiadName   String
   subject        String
   level          String // "Школьный", "Городской", "Республиканский", "Международный"
@@ -2099,9 +2099,9 @@ model OlympiadResult {
 model StudentAdmission {
   id            Int        @id @default(autoincrement())
   studentId     Int
-  student       Student    @relation(fields: [studentId], references: [id])
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacherId     Int
-  teacher       Teacher    @relation(fields: [teacherId], references: [id])
+  teacher       Teacher    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   schoolType    SchoolType
   schoolName    String
   admissionYear Int
@@ -2136,14 +2136,14 @@ model AiSuggestion {
   curriculumPlanId Int
   curriculumPlan   CurriculumPlan      @relation(fields: [curriculumPlanId], references: [id], onDelete: Cascade)
   authorId         Int
-  author           User                @relation("AiSuggestionAuthor", fields: [authorId], references: [id])
+  author           User                @relation("AiSuggestionAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   suggestion       String              @db.Text
   diff             Json?
   status           String              @default("PENDING") // PENDING, APPLIED, REJECTED
   metadata         Json?
   createdAt        DateTime            @default(now())
   appliedBy        Int?
-  appliedByUser    User?               @relation("AiSuggestionAppliedBy", fields: [appliedBy], references: [id])
+  appliedByUser    User?               @relation("AiSuggestionAppliedBy", fields: [appliedBy], references: [id], onDelete: Cascade)
   appliedAt        DateTime?
   auditLogs        AiSuggestionAudit[]
 }
@@ -2174,13 +2174,13 @@ model AiTutor {
   isPublic          Boolean @default(true)
 
   createdBy Int
-  creator   User @relation(fields: [createdBy], references: [id])
+  creator   User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
   files   AiTutorFile[]
   threads AiChatThread[]
 
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime  @default(now())
   deletedAt DateTime?
 }
 
@@ -2189,7 +2189,7 @@ model AiTutorFile {
   aiTutorId Int
   aiTutor   AiTutor  @relation(fields: [aiTutorId], references: [id], onDelete: Cascade)
   fileId    Int
-  file      File     @relation(fields: [fileId], references: [id])
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([aiTutorId, fileId])
@@ -2198,9 +2198,9 @@ model AiTutorFile {
 model AiChatThread {
   id        Int       @id @default(autoincrement())
   tutorId   Int
-  tutor     AiTutor   @relation(fields: [tutorId], references: [id])
+  tutor     AiTutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   ownerId   Int
-  owner     User      @relation(fields: [ownerId], references: [id])
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   title     String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -2249,7 +2249,7 @@ enum PdpGoalStatus {
 model PersonalDevelopmentPlan {
   id          Int           @id @default(autoincrement())
   studentId   Int
-  student     Student       @relation(fields: [studentId], references: [id])
+  student     Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subject     String
   status      PdpPlanStatus @default(DRAFT)
   mentor      String?
@@ -2286,7 +2286,7 @@ model PdpGoal {
 model ExtraEducation {
   id           String             @id @default(uuid())
   studentId    Int
-  student      Student            @relation(fields: [studentId], references: [id])
+  student      Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   name         String
   category     String
   organization String

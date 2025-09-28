@@ -1114,9 +1114,9 @@ export class AiAssistantService {
   }
 
   /**
-   * Генерирует предложения действий (action proposals) от LLM.
+   * Генерирует предложения сообщений (message suggestions) от LLM.
    * Ожидаемый формат ответа от LLM: JSON внутри ```json ... ``` или просто JSON.
-   * Формат: { actions: [ { actionId, label, description?, argsPreview?: {...}, rationale?: string } ] }
+   * Формат: { suggestions: [ { text: string, description?: string } ] }
    */
   async generateActionProposals(message: string, userId?: number, context?: any, files?: Express.Multer.File[]) {
     this.ensureKey();
@@ -1125,7 +1125,7 @@ export class AiAssistantService {
         userId: userId ?? null,
         type: 'API_REQUEST',
         action: 'AI_GENERATE_ACTIONS_REQUEST',
-        description: 'Requested generation of agent action proposals (alternatives)',
+        description: 'Requested generation of message suggestions',
         method: 'POST',
         url: '/ai-assistant/generate-actions',
         requestData: { message: message?.substring(0, 2000), context },
@@ -1168,88 +1168,52 @@ export class AiAssistantService {
       prompt += `\n\nFILES:${parts.join('')}`;
     }
 
-    // Инструкция модели: сгенерировать ВАРИАНТЫ ДЕЙСТВИЙ (action proposals), не ответы.
-    const toolsDescriptor = this.toolsRegistry.map(t => ({
-      id: t.id, name: t.name, description: t.description, inputSchema: t.inputSchema ?? null, requiredRoles: t.requiredRoles ?? []
-    }));
-    const systemInstr = `Ты — Neuro Abai ассистент для учителя. Сгенерируй до 5 ВАРИАНТОВ ДЕЙСТВИЙ в JSON.
+    // Инструкция модели: сгенерировать ВАРИАНТЫ СООБЩЕНИЙ (message suggestions), не ответы.
+    const systemInstr = `Ты — Neuro Abai ассистент для учителя. Сгенерируй до 5 ВАРИАНТОВ СООБЩЕНИЙ в JSON.
 Только JSON (возможно в \`\`\`json). Формат:
 {
-  "actions": [
-    { "type":"chatReply", "label":"...", "message":"..." },
-    { "type":"agentTool", "actionId":"<toolId>", "label":"...", "argsPreview": { ... }, "message":"(краткое пояснение, 1-3 предложения)" },
-    { "type":"askForConsent", "label":"...", "message":"..." }
+  "suggestions": [
+    { "text": "...", "description": "..." },
+    { "text": "...", "description": "..." }
   ]
 }
-- Используй инструменты строго из списка TOOLS ниже и их inputSchema при формировании argsPreview.
-- Сообщения короткие (<=300 символов), на русском, без markdown.
-- Никаких "альтернативных ответов" как текста — именно варианты действий.`;
-    const modelInput = `${prompt}
-
-TOOLS:
-${JSON.stringify(toolsDescriptor).substring(0, 18000)}`;
+- Сообщения должны быть релевантными продолжениями разговора или дополнительными запросами, которые пользователь мог бы отправить.
+- Тексты короткие (<=300 символов), на русском, без markdown.
+- Никаких "альтернативных ответов" как текста — именно варианты сообщений.`;
+    const modelInput = `${prompt}`;
 
     try {
       const aiText = await this.postOpenAIResponseText({ instructions: systemInstr, input: modelInput, temperature: 0.4 });
       const cleaned = this.sanitizeJsonText(aiText);
 
-      // Нормализуем ответ: если модель вернула JSON с actions / alternatives — формируем готовые карточки (plain message).
-      let actions: any[] = [];
+      // Нормализуем ответ: если модель вернула JSON с suggestions — формируем готовые предложения.
+      let suggestions: any[] = [];
       try {
         const parsed = JSON.parse(cleaned);
 
-        // Case: structured actions returned
-        if (parsed && Array.isArray(parsed.actions) && parsed.actions.length) {
-          actions = parsed.actions.map((a: any, idx: number) => {
-            const rawMsg = (a.message || a.description || a.label || '');
-            let msg = String(rawMsg || '').trim();
-            if (msg.startsWith('```')) msg = this.sanitizeJsonText(msg);
-            msg = msg.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
-            if (msg.length > 300) msg = msg.slice(0, 297).trim() + '...';
+        // Case: structured suggestions returned
+        if (parsed && Array.isArray(parsed.suggestions) && parsed.suggestions.length) {
+          suggestions = parsed.suggestions.map((s: any, idx: number) => {
+            let text = String(s.text || s || '').trim();
+            if (text.startsWith('```')) text = this.sanitizeJsonText(text);
+            text = text.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
+            if (text.length > 300) text = text.slice(0, 297).trim() + '...';
             return {
-              actionId: a.actionId ?? null,
-              type: a.type ?? (a.actionId ? 'agentTool' : 'chatReply'),
-              label: a.label ?? `Действие ${idx + 1}`,
-              description: a.description ?? '',
-              argsPreview: a.argsPreview ?? a.args ?? null,
-              message: msg || (a.type === 'agentTool' ? 'Действие агента' : `Действие ${idx + 1}`),
-              rationale: a.rationale ?? 'Автосгенерированный вариант действия от Neuro Abai'
-            };
-          });
-        }
-        // Case: alternatives array
-        else if (parsed && Array.isArray(parsed.alternatives) && parsed.alternatives.length) {
-          actions = parsed.alternatives.map((s: any, idx: number) => {
-            let msg = String(s || '').trim();
-            if (msg.startsWith('```')) msg = this.sanitizeJsonText(msg);
-            msg = msg.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
-            if (msg.length > 300) msg = msg.slice(0, 297).trim() + '...';
-            return {
-              actionId: null,
-              type: 'chatReply',
-              label: `Действие ${idx + 1}`,
-              description: '',
-              argsPreview: null,
-              message: msg,
-              rationale: 'Автосгенерированный вариант действия от Neuro Abai'
+              text: text,
+              description: s.description || `Вариант ${idx + 1}`
             };
           });
         }
         // Case: raw array of strings
         else if (Array.isArray(parsed) && parsed.length) {
-          actions = parsed.map((s: any, idx: number) => {
-            let msg = String(s || '').trim();
-            if (msg.startsWith('```')) msg = this.sanitizeJsonText(msg);
-            msg = msg.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
-            if (msg.length > 300) msg = msg.slice(0, 297).trim() + '...';
+          suggestions = parsed.map((s: any, idx: number) => {
+            let text = String(s || '').trim();
+            if (text.startsWith('```')) text = this.sanitizeJsonText(text);
+            text = text.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
+            if (text.length > 300) text = text.slice(0, 297).trim() + '...';
             return {
-              actionId: null,
-              type: 'chatReply',
-              label: `Действие ${idx + 1}`,
-              description: '',
-              argsPreview: null,
-              message: msg,
-              rationale: 'Автосгенерированный вариант действия от Neuro Abai'
+              text: text,
+              description: `Вариант ${idx + 1}`
             };
           });
         }
@@ -1269,42 +1233,37 @@ ${JSON.stringify(toolsDescriptor).substring(0, 18000)}`;
         }
 
         alternatives = alternatives.slice(0, 5);
-        actions = alternatives.map((text, idx) => {
+        suggestions = alternatives.map((text, idx) => {
           let msg = String(text || '').trim();
           if (msg.startsWith('```')) msg = this.sanitizeJsonText(msg);
           msg = msg.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
           if (msg.length > 300) msg = msg.slice(0, 297).trim() + '...';
           return {
-            actionId: null,
-            type: 'chatReply' as const,
-            label: `Действие ${idx + 1}`,
-            description: '',
-            argsPreview: null,
-            message: msg,
-            rationale: 'Автосгенерированный вариант действия от Neuro Abai'
+            text: msg,
+            description: `Вариант ${idx + 1}`
           };
         });
       }
 
       // Ограничим до 5 вариантов
-      if (!actions || actions.length === 0) actions = [{ actionId: null, type: 'chatReply', label: 'Действие 1', description: '', argsPreview: null, message: cleaned.replace(/\r?\n+/g, ' ').trim().slice(0, 300), rationale: 'Автосгенерированный вариант действия от Neuro Abai' }];
-      actions = actions.slice(0, 5);
+      if (!suggestions || suggestions.length === 0) suggestions = [{ text: cleaned.replace(/\r?\n+/g, ' ').trim().slice(0, 300), description: 'Вариант 1' }];
+      suggestions = suggestions.slice(0, 5);
 
       await this.prisma.activityLog.create({
         data: {
           userId: userId ?? null,
           type: 'API_REQUEST',
           action: 'AI_GENERATE_ACTIONS_SUCCESS',
-          description: `Generated ${actions.length} action proposals`,
+          description: `Generated ${suggestions.length} message suggestions`,
           method: 'POST',
           url: '/ai-assistant/generate-actions',
           requestData: { message: message?.substring(0, 2000), context },
-          responseData: { actionsCount: actions.length },
+          responseData: { suggestionsCount: suggestions.length },
           success: true
         }
       });
 
-      return { success: true, actions, raw: cleaned, logId: logEntry.id };
+      return { success: true, suggestions, raw: cleaned, logId: logEntry.id };
     } catch (e: any) {
       const errMsg = e?.message ?? String(e);
       const errStack = e?.stack ? String(e.stack).substring(0, 2000) : undefined;
@@ -1323,7 +1282,7 @@ ${JSON.stringify(toolsDescriptor).substring(0, 18000)}`;
       });
       this.logger.error('generateActionProposals failed', { message: errMsg, stack: errStack });
       // Throw with detail to help debugging clients (kept concise)
-      throw new BadRequestException(`Failed to generate action proposals from LLM: ${errMsg}`);
+      throw new BadRequestException(`Failed to generate message suggestions from LLM: ${errMsg}`);
     }
   }
 }

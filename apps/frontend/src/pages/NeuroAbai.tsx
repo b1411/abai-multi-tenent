@@ -142,7 +142,7 @@ export default function NeuroAbai() {
   const [selectedSuggestion, setSelectedSuggestion] = useState<any>(null);
   const [applying, setApplying] = useState(false);
   const [curriculumPlanId, setCurriculumPlanId] = useState<string>('');
-  const [actionsMap, setActionsMap] = useState<Record<number, any[]>>({});
+  const [suggestionsMap, setSuggestionsMap] = useState<Record<number, any[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const ENABLE_ACTIONS = true;
 
@@ -237,16 +237,16 @@ export default function NeuroAbai() {
         const newMessages = [...prev, ({ role: 'assistant', content: reply, attachments: attached } as Message)];
         const idx = newMessages.length - 1;
 
-        // asynchronously request structured action proposals using the same convo and files
+        // asynchronously request structured message suggestions using the same convo and files
         if (ENABLE_ACTIONS) {
           (async () => {
             try {
               const ga = await neuroAbaiService.generateActions({ messages: convo, context: { scenario }, files: filesToSend });
-              if (ga?.actions && Array.isArray(ga.actions) && ga.actions.length > 0) {
-                setActionsMap(prevMap => ({ ...prevMap, [idx]: ga.actions }));
+              if (ga?.suggestions && Array.isArray(ga.suggestions) && ga.suggestions.length > 0) {
+                setSuggestionsMap(prevMap => ({ ...prevMap, [idx]: ga.suggestions }));
               } else if (ga?.raw) {
-                const parsed = parseActionsFromContent(ga.raw);
-                if (parsed.length > 0) setActionsMap(prevMap => ({ ...prevMap, [idx]: parsed }));
+                const parsed = parseSuggestionsFromContent(ga.raw);
+                if (parsed.length > 0) setSuggestionsMap(prevMap => ({ ...prevMap, [idx]: parsed }));
               }
             } catch (err) {
               console.warn('generateActions failed', err);
@@ -267,18 +267,18 @@ export default function NeuroAbai() {
   };
 
   // parse structured action proposals from assistant message content
-  const parseActionsFromContent = (content: string) => {
+  const parseSuggestionsFromContent = (content: string) => {
     try {
       const jsonBlock = content.match(/```json([\s\S]*?)```/);
       const payload = jsonBlock ? jsonBlock[1] : null;
       const raw = payload ? payload : (content.match(/(\{[\s\S]*\})/)?.[1] ?? null);
       if (!raw) return [];
       const parsed = JSON.parse(raw.trim());
-      // Если модель вернула объект { actions: [...] } — вернуть actions
-      if (parsed?.actions && Array.isArray(parsed.actions)) return parsed.actions;
+      // Если модель вернула объект { suggestions: [...] } — вернуть suggestions
+      if (parsed?.suggestions && Array.isArray(parsed.suggestions)) return parsed.suggestions;
       return Array.isArray(parsed) ? parsed : [parsed];
     } catch (e) {
-      console.warn('parseActionsFromContent error', e);
+      console.warn('parseSuggestionsFromContent error', e);
     }
     return [];
   };
@@ -512,12 +512,12 @@ export default function NeuroAbai() {
 
             {messages.map((m, idx) => {
               const content = m.content || '';
-              const actionsFromContent = m.role === 'assistant' ? parseActionsFromContent(content) : [];
+              const suggestionsFromContent = m.role === 'assistant' ? parseSuggestionsFromContent(content) : [];
               const cleaned = m.role === 'assistant' ? stripActionJsonFromContent(content) : content;
               const rendered = m.role === 'assistant' ? DOMPurify.sanitize((marked.parse(cleaned) as string)) : null;
-              const actions = actionsMap[idx] && Array.isArray(actionsMap[idx]) && actionsMap[idx].length > 0
-                ? actionsMap[idx]
-                : actionsFromContent;
+              const suggestions = suggestionsMap[idx] && Array.isArray(suggestionsMap[idx]) && suggestionsMap[idx].length > 0
+                ? suggestionsMap[idx]
+                : suggestionsFromContent;
 
               return (
                 <ChatBubble key={idx} variant={m.role === 'user' ? 'sent' : 'received'}>
@@ -560,89 +560,30 @@ export default function NeuroAbai() {
                       </div>
                     )}
 
-                    {ENABLE_ACTIONS && actions.length > 0 && (
+                    {ENABLE_ACTIONS && suggestions.length > 0 && (
                       <div className="mt-2">
-                        <div className="text-xs font-semibold text-gray-600 mb-2">Варианты действий</div>
+                        <div className="text-xs font-semibold text-gray-600 mb-2">Предлагаемые сообщения</div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {actions.map((a: any, i: number) => {
-                          const rawMsg = a.message ?? a.argsPreview?.message ?? '';
-                          const resKey = actionKey(a, idx);
-                          const previewText = String(rawMsg).replace(/\s+/g, ' ').trim();
-                          const displayText = previewText.length > MAX_PREVIEW_LENGTH ? previewText.slice(0, MAX_PREVIEW_LENGTH) + '...' : previewText;
+                        {suggestions.map((s: any, i: number) => {
+                          const text = s.text || s;
+                          const description = s.description || `Вариант ${i + 1}`;
                           return (
                             <div key={i} className="p-3 bg-white rounded-md border flex flex-col max-w-full overflow-hidden">
-                              <div className="text-sm font-medium mb-1">{a.label || a.name || a.actionId || 'Действие'}</div>
-                              <div className="text-xs text-gray-700 mb-3 break-words">{displayText}</div>
+                              <div className="text-sm font-medium mb-1">{description}</div>
+                              <div className="text-xs text-gray-700 mb-3 break-words">{text}</div>
                               <div className="flex flex-wrap gap-2 w-full items-stretch">
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      // вставить готовый запрос в поле ввода
-                                      setInput(a.message ?? a.argsPreview?.message ?? a.label ?? '');
-                                      setCurrentAction(null);
-                                      setCurrentActionMessageIndex(null);
-                                      setActionPreviewResult(null);
-                                    }}
-                                    className="w-full sm:w-auto text-xs px-3 py-1 rounded-md bg-blue-600 text-white whitespace-nowrap"
-                                  >
-                                    Вставить в ввод
-                                  </button>
-
-                                  {a.type !== 'chatReply' && (
-                                  <>
-                                    <button
-                                      onClick={() => { handleActionClick(a, idx); handleActionPreview(a); }}
-                                      disabled={actionPreviewLoading}
-                                      className="w-full sm:w-auto text-xs px-3 py-1 rounded-md bg-yellow-500 text-white whitespace-nowrap disabled:opacity-50"
-                                    >
-                                      {actionPreviewLoading ? 'Предпросмотр...' : 'Предпросмотр'}
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        const label = a.label || a.name || a.actionId || 'Действие';
-                                        const msg = extractPlainMessageFromResponse(a.message ?? a.argsPreview?.message ?? '');
-                                        handleSend(`Выполнить: ${label}\n${msg}`);
-                                      }}
-                                      className="w-full sm:w-auto text-xs px-3 py-1 rounded-md bg-green-600 text-white whitespace-nowrap disabled:opacity-50"
-                                    >
-                                      Выполнить
-                                    </button>
-                                  </>
-                                  )}
-                                </>
-
                                 <button
-                                  onClick={() => { setCurrentAction(null); setCurrentActionMessageIndex(null); setActionPreviewResult(null); }}
-                                  className="w-full sm:w-auto text-xs px-3 py-1 rounded-md border whitespace-nowrap"
+                                  onClick={() => handleSend(text)}
+                                  className="flex-1 px-3 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
                                 >
-                                  Отмена
+                                  Отправить
                                 </button>
                               </div>
-
-                              {currentAction && currentActionMessageIndex === idx &&
-                                ((currentAction.actionId || currentAction.id || currentAction.label) === (a.actionId || a.id || a.label)) &&
-                                actionPreviewResult?.message && (
-                                <div className="mt-2 text-xs text-gray-600">
-                                  <div className="font-medium">{actionPreviewIsResult ? 'Результат:' : 'Предпросмотр:'}</div>
-                                  <div className="max-h-24 overflow-auto bg-white p-2 rounded text-gray-800 whitespace-pre-wrap">
-                                    {actionPreviewResult.message}
-                                  </div>
-                                </div>
-                              )}
-
-                              {actionResultsMap[resKey] && (
-                                <div className="mt-2 text-xs text-gray-600">
-                                  <div className="font-medium">Результат:</div>
-                                  <div className="max-h-24 overflow-auto bg-white p-2 rounded text-gray-800 whitespace-pre-wrap">
-                                    {actionResultsMap[resKey]}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           );
                         })}
+                        </div>
                       </div>
-                    </div>
                     )}
                   </div>
                 </ChatBubble>

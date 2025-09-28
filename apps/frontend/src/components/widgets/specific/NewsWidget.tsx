@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Bell, Calendar, Users, ExternalLink } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 
 interface NewsItem {
   id: string | number;
@@ -23,35 +22,8 @@ interface NewsWidgetProps {
 }
 
 const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('news');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading news data:', error);
-      setWidgetData({ news: [] });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const news: NewsItem[] = (widgetData as NewsData)?.news || [];
 
@@ -135,7 +107,7 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
       <div className="h-full flex flex-col p-1 min-w-0">
         {/* News list */}
         <div className="flex-1 overflow-auto space-y-2 min-w-0">
-          {news.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((newsItem: NewsItem) => (
+          {news.slice(0, widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4).map((newsItem: NewsItem) => (
             <div key={newsItem.id} className={`p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 border-l-4 overflow-hidden ${getPriorityColor(newsItem.priority)}`}>
               <div className="flex items-start justify-between mb-2 min-w-0 gap-2">
                 <div className="flex items-center space-x-2 min-w-0 flex-1">
@@ -148,7 +120,7 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
               </div>
               <div className="mb-2 min-w-0">
                 <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1" title={newsItem.title}>{newsItem.title}</h4>
-                {widget.size !== 'small' && (
+                {widget.size.height !== 'small' && (
                   <p className="text-xs text-gray-600 line-clamp-2" title={newsItem.summary}>{newsItem.summary}</p>
                 )}
               </div>
@@ -164,20 +136,14 @@ const NewsWidget: React.FC<NewsWidgetProps> = ({ data, widget }) => {
           ))}
         </div>
 
-        {news.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
+        {news.length > (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${news.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} новостей`}>
-              и еще {news.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} новостей
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${news.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} новостей`}>
+              и еще {news.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} новостей
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

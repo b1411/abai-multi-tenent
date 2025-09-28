@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import useWidgets from '../hooks/useWidgets';
 import AddWidgetButton from '../components/widgets/dashboard/AddWidgetButton';
 import WidgetSelectionModal from '../components/widgets/dashboard/WidgetSelectionModal';
-import DashboardCanvas from '../components/widgets/dashboard/DashboardCanvas';
+import GridDashboardCanvas from '../components/widgets/dashboard/GridDashboardCanvas';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -87,7 +87,7 @@ const Dashboard: React.FC = () => {
       {/* Dashboard Canvas */}
       <div className="w-full">
         <div className="max-w-7xl mx-auto w-full px-1.5 sm:px-6">
-          <DashboardCanvas
+          <GridDashboardCanvas
             widgets={widgets}
             onUpdateWidget={updateWidget}
             onDeleteWidget={deleteWidget}

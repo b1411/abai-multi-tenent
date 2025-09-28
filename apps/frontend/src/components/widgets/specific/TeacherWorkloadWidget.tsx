@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Clock, User, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface TeacherInfo {
@@ -31,59 +30,8 @@ interface TeacherWorkloadWidgetProps {
 }
 
 const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('teacher-workload');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading teacher workload data:', error);
-      setWidgetData({
-        averageHours: 24.5,
-        totalTeachers: 87,
-        teachers: [
-          { 
-            name: 'Аманжолова Г.К.', 
-            hours: 28, 
-            subjects: ['Математика', 'Алгебра'], 
-            groups: 6,
-            status: 'overloaded'
-          },
-          { 
-            name: 'Султанов Д.Б.', 
-            hours: 22, 
-            subjects: ['История'], 
-            groups: 4,
-            status: 'normal'
-          }
-        ],
-        distribution: {
-          overloaded: 12,
-          optimal: 45,
-          underloaded: 30
-        }
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const workload: TeacherWorkloadData = widgetData || {
     averageHours: 0,
@@ -165,7 +113,7 @@ const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, wid
         <div className="flex-1 overflow-auto min-w-0">
           <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Учителя">Учителя</div>
           <div className="space-y-2">
-            {workload.teachers.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((teacher: TeacherInfo, index: number) => {
+            {workload.teachers.slice(0, widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6).map((teacher: TeacherInfo, index: number) => {
               const subjectsFull = teacher.subjects.join(', ');
               const subjectsShort = teacher.subjects.length > 2 ? `${teacher.subjects.slice(0,2).join(', ')} +${teacher.subjects.length - 2}` : subjectsFull;
               return (
@@ -205,20 +153,14 @@ const TeacherWorkloadWidget: React.FC<TeacherWorkloadWidgetProps> = ({ data, wid
           </div>
         </div>
 
-        {workload.teachers.length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6) && (
+        {workload.teachers.length > (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${workload.teachers.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6)} учителей`}>
-              и еще {workload.teachers.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6)} учителей
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${workload.teachers.length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6)} учителей`}>
+              и еще {workload.teachers.length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6)} учителей
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

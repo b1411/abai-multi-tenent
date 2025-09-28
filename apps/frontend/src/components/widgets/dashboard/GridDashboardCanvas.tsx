@@ -26,6 +26,26 @@ const GridDashboardCanvas: React.FC<GridDashboardCanvasProps> = ({
   const [layouts, setLayouts] = useState<{ [key: string]: Layout[] }>({});
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [selectedWidget, setSelectedWidget] = useState<Widget | null>(null);
+
+  const getSizeWidth = (size: Widget['size']) => {
+    switch (size.width) {
+      case 'small': return 2;
+      case 'medium': return 3;
+      case 'large': return 4;
+      default: return 3;
+    }
+  };
+
+  const getSizeHeight = (size: Widget['size']) => {
+    switch (size.height) {
+      case 'small': return 2;
+      case 'medium': return 2;
+      case 'large': return 3;
+      default: return 2;
+    }
+  };
 
   // Convert widgets to grid layout format
   const generateLayouts = useMemo(() => {
@@ -53,24 +73,6 @@ const GridDashboardCanvas: React.FC<GridDashboardCanvasProps> = ({
   useEffect(() => {
     setLayouts(generateLayouts);
   }, [generateLayouts]);
-
-  const getSizeWidth = (size: string) => {
-    switch (size) {
-      case 'small': return 2;
-      case 'medium': return 3;
-      case 'large': return 4;
-      default: return 3;
-    }
-  };
-
-  const getSizeHeight = (size: string) => {
-    switch (size) {
-      case 'small': return 2;
-      case 'medium': return 2;
-      case 'large': return 3;
-      default: return 2;
-    }
-  };
 
   const handleLayoutChange = (layout: Layout[], layouts: { [key: string]: Layout[] }) => {
     setLayouts(layouts);
@@ -110,6 +112,17 @@ const GridDashboardCanvas: React.FC<GridDashboardCanvasProps> = ({
 
   const handleResizeStop = () => {
     setIsResizing(false);
+  };
+
+  const handleSettings = (widget: Widget) => {
+    setSelectedWidget(widget);
+    setShowSettings(true);
+  };
+
+  const handleUpdateWidget = (updatedWidget: Widget) => {
+    onUpdateWidget(updatedWidget);
+    setShowSettings(false);
+    setSelectedWidget(null);
   };
 
   const resetLayout = () => {
@@ -251,7 +264,7 @@ const GridDashboardCanvas: React.FC<GridDashboardCanvasProps> = ({
                   
                   <div className="flex items-center space-x-1">
                     <button
-                      onClick={() => onUpdateWidget(widget)}
+                      onClick={() => handleSettings(widget)}
                       className="p-1.5 rounded-lg hover:bg-white/80 transition-all duration-200 opacity-60 hover:opacity-100"
                       title="Настройки"
                     >
@@ -281,6 +294,125 @@ const GridDashboardCanvas: React.FC<GridDashboardCanvasProps> = ({
           ))}
         </ResponsiveGridLayout>
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && selectedWidget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Настройки виджета</h3>
+              <button
+                onClick={() => {
+                  setShowSettings(false);
+                  setSelectedWidget(null);
+                }}
+                className="p-1 rounded hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Widget Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Название виджета
+                </label>
+                <input
+                  type="text"
+                  value={selectedWidget.title}
+                  onChange={(e) => {
+                    setSelectedWidget({
+                      ...selectedWidget,
+                      title: e.target.value
+                    });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Widget Size */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ширина виджета
+                  </label>
+                  <select
+                    value={selectedWidget.size.width}
+                    onChange={(e) => {
+                      const newWidth = e.target.value as 'small' | 'medium' | 'large';
+                      setSelectedWidget({
+                        ...selectedWidget,
+                        size: { ...selectedWidget.size, width: newWidth },
+                        position: {
+                          ...selectedWidget.position,
+                          width: getSizeWidth({ ...selectedWidget.size, width: newWidth })
+                        }
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="small">Маленькая</option>
+                    <option value="medium">Средняя</option>
+                    <option value="large">Большая</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Высота виджета
+                  </label>
+                  <select
+                    value={selectedWidget.size.height}
+                    onChange={(e) => {
+                      const newHeight = e.target.value as 'small' | 'medium' | 'large';
+                      setSelectedWidget({
+                        ...selectedWidget,
+                        size: { ...selectedWidget.size, height: newHeight },
+                        position: {
+                          ...selectedWidget.position,
+                          height: getSizeHeight({ ...selectedWidget.size, height: newHeight })
+                        }
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="small">Маленькая</option>
+                    <option value="medium">Средняя</option>
+                    <option value="large">Большая</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-2 pt-4">
+                <button
+                  onClick={() => {
+                    setShowSettings(false);
+                    setSelectedWidget(null);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedWidget) {
+                      handleUpdateWidget({
+                        ...selectedWidget,
+                        updatedAt: new Date().toISOString()
+                      });
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

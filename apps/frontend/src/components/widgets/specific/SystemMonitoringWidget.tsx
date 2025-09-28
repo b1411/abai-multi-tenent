@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Monitor, Cpu, HardDrive, Wifi, Database, Server, AlertTriangle, CheckCircle } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface MonitoringService {
@@ -35,43 +34,8 @@ interface SystemMonitoringWidgetProps {
 }
 
 const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('system-monitoring');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading system monitoring data:', error);
-      setWidgetData({
-        serverStatus: 'healthy',
-        cpuUsage: 45.2,
-        memoryUsage: 67.8,
-        services: [
-          { name: 'Web Server', status: 'running', uptime: '15 дней', load: 34 },
-          { name: 'Database', status: 'running', uptime: '30 дней', load: 67 }
-        ]
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const monitoring: SystemMonitoringData = widgetData || {
     serverStatus: 'unknown',
@@ -167,7 +131,7 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
         <div className="flex-1 overflow-auto min-w-0">
           <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Сервисы">Сервисы</div>
           <div className="space-y-2">
-            {monitoring.services.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((service: MonitoringService, index: number) => (
+            {monitoring.services.slice(0, widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6).map((service: MonitoringService, index: number) => (
               <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
                 <div className="flex items-center justify-between mb-1 min-w-0 gap-2">
                   <div className="flex items-center space-x-2 min-w-0">
@@ -198,7 +162,7 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
         </div>
 
         {/* Performance metrics for large widgets */}
-        {widget.size === 'large' && (
+        {widget.size.height === 'large' && (
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
             <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Производительность">Производительность</div>
             <div className="grid grid-cols-2 gap-2 min-w-0">
@@ -223,7 +187,7 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
         )}
 
         {/* Recent alerts */}
-        {widget.size !== 'small' && monitoring.alerts && monitoring.alerts.length > 0 && (
+        {widget.size.height !== 'small' && monitoring.alerts && monitoring.alerts.length > 0 && (
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
             <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Последние события">Последние события</div>
             <div className="space-y-1">
@@ -237,20 +201,14 @@ const SystemMonitoringWidget: React.FC<SystemMonitoringWidgetProps> = ({ data, w
           </div>
         )}
 
-        {monitoring.services.length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6) && (
+        {monitoring.services.length > (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${monitoring.services.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6)} сервисов`}>
-              и еще {monitoring.services.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6)} сервисов
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${monitoring.services.length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6)} сервисов`}>
+              и еще {monitoring.services.length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6)} сервисов
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

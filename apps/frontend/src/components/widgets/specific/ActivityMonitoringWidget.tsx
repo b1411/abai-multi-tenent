@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Activity, Users, Clock, Eye, MapPin, Smartphone } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface TopActivity { name: string; users: number; percentage: number; }
@@ -21,52 +20,8 @@ interface ActivityMonitoringWidgetProps {
 }
 
 const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState<ActivityMonitoringData | null>(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('activity-monitoring');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading activity monitoring data:', error);
-      // Fallback to mock data on error
-      setWidgetData({
-        activeUsers: 847,
-        onlineStudents: 623,
-        onlineTeachers: 45,
-        averageSessionTime: '2h 34m',
-        topActivities: [
-          { name: 'Чтение материалов', users: 234, percentage: 82 },
-          { name: 'Выполнение заданий', users: 189, percentage: 67 },
-          { name: 'Просмотр расписания', users: 156, percentage: 55 },
-          { name: 'Участие в чатах', users: 134, percentage: 47 }
-        ],
-        recentActivity: [
-          { user: 'Нурланова А.С.', action: 'Вошла в систему', time: '2 мин назад', type: 'login' },
-          { user: 'Байжанов К.С.', action: 'Создал задание', time: '5 мин назад', type: 'content' },
-          { user: 'Жумабекова М.Т.', action: 'Сдала домашнее задание', time: '8 мин назад', type: 'submission' }
-        ]
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const data_to_use: ActivityMonitoringData = widgetData || {
     activeUsers: 0,
@@ -138,7 +93,7 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
 
         {/* Activities based on widget size */}
         <div className="flex-1 overflow-auto">
-          {widget.size === 'large' ? (
+          {widget.size.height === 'large' ? (
             <div className="space-y-2">
               <div className="text-xs font-medium text-gray-600 mb-2">
                 Популярные активности
@@ -163,7 +118,7 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
               <div className="text-xs font-medium text-gray-600 mb-2">
                 Последняя активность
               </div>
-              {data_to_use.recentActivity?.slice(0, widget.size === 'small' ? 2 : 3).map((activity: RecentActivity, index: number) => (
+              {data_to_use.recentActivity?.slice(0, widget.size.height === 'small' ? 2 : 3).map((activity: RecentActivity, index: number) => (
                 <div key={index} className="flex items-center space-x-2 p-2 rounded-lg bg-white border border-gray-200 min-w-0 overflow-hidden">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     activity.type === 'login' ? 'bg-green-400' :
@@ -186,12 +141,6 @@ const ActivityMonitoringWidget: React.FC<ActivityMonitoringWidgetProps> = ({ dat
           )}
         </div>
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

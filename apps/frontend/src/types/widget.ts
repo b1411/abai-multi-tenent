@@ -4,7 +4,7 @@ export interface Widget {
   id: string;
   type: WidgetType;
   title: string;
-  size: WidgetSize;
+  size: WidgetDimensions;
   position: Position;
   data?: any;
   config?: WidgetConfig;
@@ -154,6 +154,11 @@ export type WidgetType =
 
 export type WidgetSize = 'small' | 'medium' | 'large';
 
+export interface WidgetDimensions {
+  width: 'small' | 'medium' | 'large';
+  height: 'small' | 'medium' | 'large';
+}
+
 export type WidgetCategory = 'education' | 'management' | 'finance' | 'family' | 'system' | 'personal';
 
 export interface Position {
@@ -187,7 +192,7 @@ export interface WidgetTemplate {
   description: string;
   category: WidgetCategory;
   icon: string;
-  defaultSize: WidgetSize;
+  defaultSize: WidgetDimensions;
   availableRoles: UserRole[];
   preview?: string;
 }
@@ -277,7 +282,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Расписание занятий на сегодня и завтра',
     category: 'education',
     icon: 'Calendar',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['STUDENT']
   },
   {
@@ -286,7 +291,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Невыполненные задания со сроками',
     category: 'education',
     icon: 'BookOpen',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['STUDENT']
   },
   {
@@ -295,7 +300,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Последние оценки и средний балл',
     category: 'education',
     icon: 'Star',
-    defaultSize: 'small',
+    defaultSize: { width: 'small', height: 'small' },
     availableRoles: ['STUDENT']
   },
   {
@@ -304,7 +309,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Процент посещения и пропуски',
     category: 'education',
     icon: 'CheckCircle',
-    defaultSize: 'small',
+    defaultSize: { width: 'small', height: 'small' },
     availableRoles: ['STUDENT']
   },
 
@@ -315,7 +320,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Расписание с информацией о группах',
     category: 'education',
     icon: 'Calendar',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['TEACHER']
   },
   {
@@ -324,7 +329,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Список групп с быстрым доступом',
     category: 'education',
     icon: 'Users',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['TEACHER']
   },
   {
@@ -333,7 +338,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Последние оценки и посещаемость учеников',
     category: 'education',
     icon: 'BookOpen',
-    defaultSize: 'large',
+    defaultSize: { width: 'large', height: 'large' },
     availableRoles: ['TEACHER']
   },
 
@@ -344,7 +349,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Количество студентов, учителей, групп',
     category: 'management',
     icon: 'BarChart',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -353,7 +358,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Доходы, расходы, задолженности',
     category: 'finance',
     icon: 'DollarSign',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN', 'FINANCIST']
   },
   {
@@ -362,7 +367,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Критические уведомления и предупреждения',
     category: 'system',
     icon: 'AlertTriangle',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -371,7 +376,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Общая статистика посещаемости по школе',
     category: 'education',
     icon: 'Users',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -380,7 +385,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Распределение учебной нагрузки',
     category: 'management',
     icon: 'Clock',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -389,7 +394,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Занятость и расписание кабинетов',
     category: 'management',
     icon: 'Building',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -398,7 +403,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Анализ успеваемости по школе',
     category: 'education',
     icon: 'TrendingUp',
-    defaultSize: 'large',
+    defaultSize: { width: 'large', height: 'large' },
     availableRoles: ['ADMIN']
   },
   {
@@ -407,7 +412,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Важные события и мероприятия',
     category: 'management',
     icon: 'Calendar',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -416,7 +421,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Состояние серверов и производительность',
     category: 'system',
     icon: 'Monitor',
-    defaultSize: 'large',
+    defaultSize: { width: 'large', height: 'large' },
     availableRoles: ['ADMIN']
   },
 
@@ -427,7 +432,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Общие показатели успеваемости по школе',
     category: 'education',
     icon: 'GraduationCap',
-    defaultSize: 'large',
+    defaultSize: { width: 'large', height: 'large' },
     availableRoles: ['ADMIN']
   },
   {
@@ -436,7 +441,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Статистика поступления и выбытия',
     category: 'education',
     icon: 'UserPlus',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -445,7 +450,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Обзор расписаний по всем классам',
     category: 'education',
     icon: 'Calendar',
-    defaultSize: 'large',
+    defaultSize: { width: 'large', height: 'large' },
     availableRoles: ['ADMIN']
   },
   {
@@ -454,7 +459,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Статистика экзаменационных оценок',
     category: 'education',
     icon: 'FileText',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -463,7 +468,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Статистика выполненных заданий',
     category: 'education',
     icon: 'CheckSquare',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -472,7 +477,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Эффективность проведения уроков',
     category: 'education',
     icon: 'BookOpen',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -481,7 +486,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Выполнение учебной программы',
     category: 'education',
     icon: 'Target',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['ADMIN']
   },
   {
@@ -490,7 +495,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Детальная аналитика по учебным предметам',
     category: 'education',
     icon: 'PieChart',
-    defaultSize: 'large',
+    defaultSize: { width: 'large', height: 'large' },
     availableRoles: ['ADMIN']
   },
 
@@ -501,7 +506,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Оценки и динамика успеваемости',
     category: 'family',
     icon: 'TrendingUp',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['PARENT']
   },
   {
@@ -510,7 +515,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Уроки на сегодня и завтра',
     category: 'family',
     icon: 'Clock',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['PARENT']
   },
 
@@ -521,7 +526,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Последние объявления и новости',
     category: 'personal',
     icon: 'Bell',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['STUDENT', 'TEACHER', 'ADMIN', 'PARENT', 'FINANCIST', 'HR']
   },
   {
@@ -530,7 +535,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Личные заметки и напоминания',
     category: 'personal',
     icon: 'CheckSquare',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['STUDENT', 'TEACHER', 'ADMIN', 'PARENT', 'FINANCIST', 'HR']
   },
   {
@@ -539,7 +544,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Текущая погода и прогноз',
     category: 'personal',
     icon: 'Cloud',
-    defaultSize: 'small',
+    defaultSize: { width: 'small', height: 'small' },
     availableRoles: ['STUDENT', 'TEACHER', 'ADMIN', 'PARENT', 'FINANCIST', 'HR']
   },
   {
@@ -548,7 +553,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     description: 'Предстоящие дни рождения сотрудников',
     category: 'personal',
     icon: 'Gift',
-    defaultSize: 'medium',
+    defaultSize: { width: 'medium', height: 'medium' },
     availableRoles: ['HR', 'ADMIN']
   }
 ];

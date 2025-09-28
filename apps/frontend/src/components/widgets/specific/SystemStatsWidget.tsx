@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Users, GraduationCap, BookOpen, Activity } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface SystemStatsData {
@@ -18,41 +17,8 @@ interface SystemStatsWidgetProps {
 }
 
 const SystemStatsWidget: React.FC<SystemStatsWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState<SystemStatsData | null>(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('system-stats');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading system stats data:', error);
-      setWidgetData({
-        totalStudents: 1247,
-        totalTeachers: 87,
-        totalGroups: 42,
-        totalSubjects: 18,
-        activeUsers: 956
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const {
     totalStudents,
@@ -138,7 +104,7 @@ const SystemStatsWidget: React.FC<SystemStatsWidgetProps> = ({ data, widget }) =
         </div>
 
         {/* Additional stats - only for medium and large */}
-        {widget.size !== 'small' && (
+        {widget.size.height !== 'small' && (
           <div className="space-y-2 flex-1">
             <div className="p-3 rounded-lg bg-green-50 border border-green-200">
               <div className="flex items-center justify-between">

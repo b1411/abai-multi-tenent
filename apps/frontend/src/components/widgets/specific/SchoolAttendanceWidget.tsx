@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Users, TrendingUp, TrendingDown, Calendar, CheckCircle } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface TodayAttendance {
@@ -37,53 +36,8 @@ interface SchoolAttendanceWidgetProps {
 }
 
 const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('school-attendance');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading school attendance data:', error);
-      setWidgetData({
-        overall: 92.3,
-        trend: '+2.1%',
-        trendDirection: 'up',
-        byGrade: [
-          { grade: '1-й класс', attendance: 94.2, students: 156 },
-          { grade: '2-й класс', attendance: 93.8, students: 148 }
-        ],
-        today: {
-          present: 1087,
-          absent: 95,
-          late: 23,
-          total: 1205
-        },
-        weeklyTrend: [
-          { day: 'Пн', percentage: 89.2 },
-          { day: 'Вт', percentage: 91.5 }
-        ]
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const attendance: SchoolAttendanceData = widgetData || {
     overall: 0,
@@ -159,7 +113,7 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
         <div className="flex-1 overflow-auto min-w-0">
           <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="По классам">По классам</div>
       <div className="space-y-2 min-w-0">
-            {(attendance.byGrade || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6).map((grade: GradeAttendanceItem, index: number) => (
+            {(attendance.byGrade || []).slice(0, widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6).map((grade: GradeAttendanceItem, index: number) => (
         <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden min-w-0">
                 <div className="flex items-center justify-between min-w-0 gap-2">
                   <div className="flex-1 min-w-0">
@@ -184,7 +138,7 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
         </div>
 
         {/* Weekly trend for large widgets */}
-        {widget.size === 'large' && (
+        {widget.size.height === 'large' && (
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
             <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Тренд недели">Тренд недели</div>
             <div className="grid grid-cols-5 gap-1">
@@ -198,20 +152,14 @@ const SchoolAttendanceWidget: React.FC<SchoolAttendanceWidgetProps> = ({ data, w
           </div>
         )}
 
-        {(attendance.byGrade || []).length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6) && (
+        {(attendance.byGrade || []).length > (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6) && (
           <div className="mt-2 text-center">
             <div className="text-xs text-gray-500">
-              и еще {(attendance.byGrade || []).length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 6)} классов
+              и еще {(attendance.byGrade || []).length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 6)} классов
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

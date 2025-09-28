@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { CheckCircle, XCircle, Clock, Calendar, TrendingUp, User } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface RecentAttendanceRecord {
@@ -23,39 +22,8 @@ interface AttendanceWidgetProps {
 }
 
 const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('attendance');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading attendance data:', error);
-      setWidgetData({ 
-        percentage: 0, 
-        totalClasses: 0, 
-        attended: 0 
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   // Adapt API data to widget format
   const attendance = widgetData ? {
@@ -174,7 +142,7 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
         </div>
 
         {/* Weekly trend for medium and large widgets */}
-        {widget.size !== 'small' && weeklyStats && (
+        {widget.size.height !== 'small' && weeklyStats && (
           <div className="mb-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-gray-700">Эта неделя</div>
@@ -197,7 +165,7 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
         <div className="flex-1 overflow-auto">
           <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Последние дни">Последние дни</div>
           <div className="space-y-2">
-            {recentAttendance?.slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((record: RecentAttendanceRecord, index: number) => (
+            {recentAttendance?.slice(0, widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 5).map((record: RecentAttendanceRecord, index: number) => (
               <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 min-w-0 gap-2 overflow-hidden">
                 <div className="flex items-center space-x-3 min-w-0 flex-1 overflow-hidden">
                   <div className="flex-shrink-0">
@@ -207,7 +175,7 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
                     <div className="text-sm font-medium text-gray-900 truncate">
                       {new Date(record.date).toLocaleDateString('ru-RU')}
                     </div>
-                    {record.note && widget.size !== 'small' && (
+                    {record.note && widget.size.height !== 'small' && (
                       <div className="text-xs text-gray-500 truncate">
                         {record.note}
                       </div>
@@ -216,7 +184,7 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
                   <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${getStatusColor(record.status)}`}>{getStatusName(record.status)}</span>
-                  {widget.size === 'large' && (
+                  {widget.size.height === 'large' && (
                     <div className="text-xs text-gray-500 mt-1 whitespace-nowrap">
                       {record.lessons} уроков
                     </div>
@@ -227,10 +195,10 @@ const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ data, widget }) => 
           </div>
         </div>
 
-        {recentAttendance && recentAttendance.length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5) && (
+        {recentAttendance && recentAttendance.length > (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 5) && (
           <div className="mt-2 text-center">
             <div className="text-xs text-gray-500">
-              и еще {recentAttendance.length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5)} дней
+              и еще {recentAttendance.length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 5)} дней
             </div>
           </div>
         )}

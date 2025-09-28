@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { TrendingUp, PieChart, Award, BarChart3, Users } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface GradeDistributionItem { grade: string; count: number; percentage: number; }
@@ -23,60 +22,8 @@ interface GradeAnalyticsWidgetProps {
 }
 
 const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('grade-analytics');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading grade analytics data:', error);
-      setWidgetData({
-        averageGrade: 4.1,
-        totalGrades: 1247,
-        trend: '+0.15',
-        trendDirection: 'up',
-        gradeDistribution: [
-          { grade: '5', count: 312, percentage: 25.0 },
-          { grade: '4', count: 458, percentage: 36.7 },
-          { grade: '3', count: 387, percentage: 31.0 },
-          { grade: '2', count: 90, percentage: 7.3 }
-        ],
-        topSubjects: [
-          { subject: 'Физкультура', average: 4.8, count: 156 },
-          { subject: 'Искусство', average: 4.6, count: 142 },
-          { subject: 'Математика', average: 4.2, count: 287 },
-          { subject: 'История', average: 4.1, count: 198 },
-          { subject: 'Физика', average: 3.9, count: 234 }
-        ],
-        classesPerformance: [
-          { class: '10А', average: 4.5, students: 28 },
-          { class: '9Б', average: 4.3, students: 26 },
-          { class: '11А', average: 4.2, students: 24 },
-          { class: '8В', average: 4.0, students: 29 },
-          { class: '10Б', average: 3.8, students: 27 }
-        ]
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const analytics: GradeAnalyticsData = widgetData || {
     averageGrade: 0,
@@ -155,11 +102,11 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
 
         {/* Top subjects */}
         <div className="flex-1 overflow-auto min-w-0">
-          <div className="text-xs font-medium text-gray-600 mb-2 truncate" title={widget.size === 'small' ? 'Лучшие предметы' : 'Средний балл по предметам'}>
-            {widget.size === 'small' ? 'Лучшие предметы' : 'Средний балл по предметам'}
+          <div className="text-xs font-medium text-gray-600 mb-2 truncate" title={widget.size.height === 'small' ? 'Лучшие предметы' : 'Средний балл по предметам'}>
+            {widget.size.height === 'small' ? 'Лучшие предметы' : 'Средний балл по предметам'}
           </div>
           <div className="space-y-2">
-            {(analytics.topSubjects || []).slice(0, widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5).map((subject: SubjectStat, index: number) => (
+            {(analytics.topSubjects || []).slice(0, widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 5).map((subject: SubjectStat, index: number) => (
               <div key={index} className="p-2 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
                 <div className="flex items-center justify-between min-w-0 gap-2">
                   <div className="flex items-center space-x-2 min-w-0">
@@ -168,7 +115,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate" title={subject.subject}>{subject.subject}</div>
-                      {widget.size !== 'small' && (
+                      {widget.size.height !== 'small' && (
                         <div className="text-xs text-gray-500 truncate" title={`${subject.count.toLocaleString('ru-RU')} оценок`}>
                           {formatNumberShort(subject.count)} оценок
                         </div>
@@ -195,7 +142,7 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
         </div>
 
         {/* Class performance for large widgets */}
-        {widget.size === 'large' && (
+        {widget.size.height === 'large' && (
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
             <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Лучшие классы">Лучшие классы</div>
             <div className="grid grid-cols-2 gap-2 min-w-0">
@@ -214,20 +161,14 @@ const GradeAnalyticsWidget: React.FC<GradeAnalyticsWidgetProps> = ({ data, widge
           </div>
         )}
 
-        {(analytics.topSubjects || []).length > (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5) && (
+        {(analytics.topSubjects || []).length > (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 5) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${(analytics.topSubjects || []).length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5)} предметов`}>
-              и еще {(analytics.topSubjects || []).length - (widget.size === 'small' ? 3 : widget.size === 'medium' ? 4 : 5)} предметов
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${(analytics.topSubjects || []).length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 5)} предметов`}>
+              и еще {(analytics.topSubjects || []).length - (widget.size.height === 'small' ? 3 : widget.size.height === 'medium' ? 4 : 5)} предметов
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

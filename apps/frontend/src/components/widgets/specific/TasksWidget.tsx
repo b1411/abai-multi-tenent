@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { CheckSquare, Square, Plus, Clock, Flag } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface TaskItem {
@@ -25,39 +24,8 @@ interface TasksWidgetProps {
 }
 
 const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('tasks');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading tasks data:', error);
-      setWidgetData({ 
-        tasks: [],
-        completedCount: 0,
-        totalCount: 0
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const tasks: TaskItem[] = widgetData?.tasks || [];
   const completedCount = widgetData?.completedCount ?? tasks.filter(t => t.completed).length;
@@ -144,7 +112,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
 
         {/* Tasks list */}
         <div className="flex-1 overflow-auto space-y-2 min-w-0">
-          {tasks.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((task: TaskItem) => (
+          {tasks.slice(0, widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4).map((task: TaskItem) => (
             <div key={task.id} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
               <div className="flex items-start space-x-3 min-w-0">
                 <div className="flex-shrink-0 mt-0.5">
@@ -173,7 +141,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
         </div>
 
         {/* Add task button for large widgets */}
-        {widget.size === 'large' && (
+        {widget.size.height === 'large' && (
           <div className="mt-3">
             <button className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-all duration-200 flex items-center justify-center space-x-2">
               <Plus className="h-4 w-4" />
@@ -182,20 +150,14 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ data, widget }) => {
           </div>
         )}
 
-        {tasks.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
+        {tasks.length > (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${tasks.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} задач`}>
-              и еще {tasks.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} задач
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${tasks.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} задач`}>
+              и еще {tasks.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} задач
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

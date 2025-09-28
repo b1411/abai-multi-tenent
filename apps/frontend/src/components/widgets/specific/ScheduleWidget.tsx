@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Clock, MapPin } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 
 interface LessonItem {
   id?: string | number;
@@ -19,35 +18,8 @@ interface ScheduleWidgetProps {
 }
 
 const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('schedule');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading schedule data:', error);
-      setWidgetData({ lessons: [] });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const lessons: LessonItem[] = widgetData?.lessons || [];
 
@@ -66,7 +38,7 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
     <div className="h-full relative overflow-hidden">
       <div className="h-full flex flex-col p-1 min-w-0">
         <div className="flex-1 overflow-auto space-y-2 min-w-0">
-          {lessons.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((lesson: LessonItem, index: number) => (
+          {lessons.slice(0, widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4).map((lesson: LessonItem, index: number) => (
             <div key={lesson.id || index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
               <div className="flex items-start space-x-3 min-w-0">
                 <div className="flex-shrink-0 w-12 text-center">
@@ -94,10 +66,10 @@ const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ data, widget }) => {
           ))}
         </div>
         
-        {lessons.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
+        {lessons.length > (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${lessons.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уроков`}>
-              и еще {lessons.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уроков
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${lessons.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} уроков`}>
+              и еще {lessons.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} уроков
             </div>
           </div>
         )}

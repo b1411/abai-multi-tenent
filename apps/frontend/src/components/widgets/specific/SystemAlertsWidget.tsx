@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { AlertTriangle, AlertCircle, Info, Clock } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface SystemAlertItem {
@@ -24,35 +23,8 @@ interface SystemAlertsWidgetProps {
 }
 
 const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('system-alerts');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading system alerts data:', error);
-  setWidgetData({ critical: 0, warnings: 0, info: 0, alerts: [] });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const { critical = 0, warnings = 0, info = 0, alerts = [] } = (widgetData || {}) as Partial<SystemAlertsData>;
 
@@ -114,13 +86,13 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
 
         {/* Alerts list */}
         <div className="flex-1 space-y-2 overflow-auto min-w-0">
-          {alerts.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((alert: SystemAlertItem) => (
+          {alerts.slice(0, widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4).map((alert: SystemAlertItem) => (
             <div key={alert.id} className={`p-3 rounded-lg border hover:shadow-sm transition-all duration-200 overflow-hidden ${getAlertColor(alert.type)}`}>
               <div className="flex items-start space-x-2 min-w-0">
                 <div className="flex-shrink-0 mt-0.5">{getAlertIcon(alert.type)}</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 line-clamp-2" title={alert.message}>{alert.message}</p>
-                  {widget.size !== 'small' && (
+                  {widget.size.height !== 'small' && (
                     <div className="flex items-center text-xs text-gray-500 mt-1 whitespace-nowrap" title={new Date(alert.time).toLocaleString('ru-RU')}>
                       <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
                       {new Date(alert.time).toLocaleString('ru-RU')}
@@ -132,20 +104,14 @@ const SystemAlertsWidget: React.FC<SystemAlertsWidgetProps> = ({ data, widget })
           ))}
         </div>
 
-        {alerts.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
+        {alerts.length > (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4) && (
           <div className="text-center mt-2">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${alerts.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уведомлений`}>
-              и еще {alerts.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} уведомлений
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${alerts.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} уведомлений`}>
+              и еще {alerts.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} уведомлений
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

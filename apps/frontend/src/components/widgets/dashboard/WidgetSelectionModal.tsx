@@ -198,15 +198,15 @@ const WidgetSelectionModal: React.FC<WidgetSelectionModalProps> = ({
                           <div className="flex items-center justify-between">
                             <span className={`
                               inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                              ${widget.defaultSize === 'small' 
-                                ? 'bg-gray-100 text-gray-800' 
-                                : widget.defaultSize === 'medium'
+                              ${widget.defaultSize.width === 'small' && widget.defaultSize.height === 'small'
+                                ? 'bg-gray-100 text-gray-800'
+                                : (widget.defaultSize.width === 'medium' || widget.defaultSize.height === 'medium')
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-purple-100 text-purple-800'
                               }
                             `}>
-                              {widget.defaultSize === 'small' ? 'Маленький' :
-                               widget.defaultSize === 'medium' ? 'Средний' : 'Большой'}
+                              {widget.defaultSize.width === 'small' && widget.defaultSize.height === 'small' ? 'Маленький' :
+                               (widget.defaultSize.width === 'medium' || widget.defaultSize.height === 'medium') ? 'Средний' : 'Большой'}
                             </span>
                             
                             {isAdded ? (

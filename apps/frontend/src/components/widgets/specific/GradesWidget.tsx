@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { Star, TrendingUp, TrendingDown, BookOpen } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 interface RecentGradeItem {
@@ -24,39 +23,8 @@ interface GradesWidgetProps {
 }
 
 const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('grades');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading grades data:', error);
-      setWidgetData({ 
-        averageGrade: 0, 
-        recentGrades: [],
-        trend: 'stable'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const grades = widgetData?.recentGrades || [];
   const averageGrade = widgetData?.averageGrade || 0;
@@ -105,7 +73,7 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
 
         {/* Recent grades list */}
         <div className="flex-1 overflow-auto space-y-2 min-w-0">
-          {grades.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((gradeItem: RecentGradeItem, index: number) => (
+          {grades.slice(0, widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4).map((gradeItem: RecentGradeItem, index: number) => (
             <div key={index} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
               <div className="flex items-center justify-between min-w-0 gap-2">
                 <div className="flex-1 min-w-0">
@@ -128,7 +96,7 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
         </div>
 
         {/* Grade distribution for large widgets */}
-        {widget.size === 'large' && data?.gradeDistribution && (
+        {widget.size.height === 'large' && data?.gradeDistribution && (
           <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
             <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Распределение оценок">Распределение оценок</div>
             <div className="grid grid-cols-4 gap-2 min-w-0">
@@ -144,10 +112,10 @@ const GradesWidget: React.FC<GradesWidgetProps> = ({ data, widget }) => {
           </div>
         )}
 
-        {grades.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
+        {grades.length > (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${grades.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} оценок`}>
-              и еще {grades.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} оценок
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${grades.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} оценок`}>
+              и еще {grades.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} оценок
             </div>
           </div>
         )}

@@ -44,15 +44,39 @@ const Widget: React.FC<WidgetProps> = ({
   };
 
   const getSizeClasses = () => {
-    switch (widget.size) {
-      case 'small':
-  return 'h-60 min-h-60 sm:h-64 sm:min-h-64';
-      case 'medium':
-  return 'h-72 min-h-72 sm:h-80 sm:min-h-80';
-      case 'large':
-  return 'h-[28rem] min-h-[28rem] sm:h-96 sm:min-h-96';
-      default:
-  return 'h-72 min-h-72 sm:h-80 sm:min-h-80';
+    const heightClasses = {
+      small: 'h-60 min-h-60 sm:h-64 sm:min-h-64',
+      medium: 'h-72 min-h-72 sm:h-80 sm:min-h-80',
+      large: 'h-[28rem] min-h-[28rem] sm:h-96 sm:min-h-96'
+    };
+
+    const widthClasses = {
+      small: 'w-80 min-w-80',
+      medium: 'w-96 min-w-96',
+      large: 'w-[32rem] min-w-[32rem]'
+    };
+
+    const height = heightClasses[widget.size.height] || heightClasses.medium;
+    const width = widthClasses[widget.size.width] || widthClasses.medium;
+
+    return `${height} ${width}`;
+  };
+
+  const getSizeWidth = (width: 'small' | 'medium' | 'large') => {
+    switch (width) {
+      case 'small': return 2;
+      case 'medium': return 3;
+      case 'large': return 4;
+      default: return 3;
+    }
+  };
+
+  const getSizeHeight = (height: 'small' | 'medium' | 'large') => {
+    switch (height) {
+      case 'small': return 2;
+      case 'medium': return 2;
+      case 'large': return 3;
+      default: return 2;
     }
   };
 
@@ -164,29 +188,64 @@ const Widget: React.FC<WidgetProps> = ({
               </div>
 
               {/* Widget Size */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Размер виджета
-                </label>
-                <select
-                  value={widget.size}
-                  onChange={(e) => {
-                    const newSize = e.target.value as 'small' | 'medium' | 'large';
-                    console.log('Size changed from', widget.size, 'to', newSize);
-                    if (onUpdate) {
-                      onUpdate({ 
-                        ...widget, 
-                        size: newSize,
-                        updatedAt: new Date().toISOString()
-                      });
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="small">Маленький</option>
-                  <option value="medium">Средний</option>
-                  <option value="large">Большой</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ширина виджета
+                  </label>
+                  <select
+                    value={widget.size.width}
+                    onChange={(e) => {
+                      const newWidth = e.target.value as 'small' | 'medium' | 'large';
+                      console.log('Width changed from', widget.size.width, 'to', newWidth);
+                      if (onUpdate) {
+                        onUpdate({
+                          ...widget,
+                          size: { ...widget.size, width: newWidth },
+                          position: {
+                            ...widget.position,
+                            width: getSizeWidth(newWidth)
+                          },
+                          updatedAt: new Date().toISOString()
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="small">Маленькая</option>
+                    <option value="medium">Средняя</option>
+                    <option value="large">Большая</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Высота виджета
+                  </label>
+                  <select
+                    value={widget.size.height}
+                    onChange={(e) => {
+                      const newHeight = e.target.value as 'small' | 'medium' | 'large';
+                      console.log('Height changed from', widget.size.height, 'to', newHeight);
+                      if (onUpdate) {
+                        onUpdate({
+                          ...widget,
+                          size: { ...widget.size, height: newHeight },
+                          position: {
+                            ...widget.position,
+                            height: getSizeHeight(newHeight)
+                          },
+                          updatedAt: new Date().toISOString()
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="small">Маленькая</option>
+                    <option value="medium">Средняя</option>
+                    <option value="large">Большая</option>
+                  </select>
+                </div>
               </div>
 
               {/* Action Buttons */}

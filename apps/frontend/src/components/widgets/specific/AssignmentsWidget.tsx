@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { BookOpen, Clock, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
-import widgetService from '../../../services/widgetService';
 import { formatNumberShort } from '../base/numberFormat';
 
 type AssignmentStatus = 'pending' | 'in_progress' | 'submitted' | 'overdue' | string;
@@ -35,35 +34,8 @@ interface AssignmentsWidgetProps {
 }
 
 const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('assignments');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading assignments data:', error);
-      setWidgetData({ assignments: [] });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const assignments: AssignmentItem[] = widgetData?.assignments || [];
   
@@ -147,7 +119,7 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
     <div className="h-full relative overflow-hidden">
       <div className="h-full flex flex-col p-1 min-w-0">
         {/* Stats overview */}
-        {widget.size !== 'small' && (
+        {widget.size.height !== 'small' && (
       <div className="mb-3 grid grid-cols-4 gap-1 min-w-0">
             <div className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-center">
         <div className="text-sm font-bold text-gray-900 whitespace-nowrap" title={stats.total.toLocaleString('ru-RU')}>{formatNumberShort(stats.total)}</div>
@@ -170,7 +142,7 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
 
         {/* Assignments list */}
         <div className="flex-1 overflow-auto space-y-2 min-w-0">
-          {assignments.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((assignment: AssignmentItem) => (
+          {assignments.slice(0, widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4).map((assignment: AssignmentItem) => (
             <div key={assignment.id} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
               <div className="flex items-start justify-between mb-2 min-w-0 gap-2">
                 <div className="flex items-center space-x-2 min-w-0 flex-1">
@@ -181,7 +153,7 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
               </div>
               <div className="mb-2 min-w-0">
                 <h4 className="font-medium text-sm text-gray-900 truncate mb-1" title={assignment.title}>{assignment.title}</h4>
-                {widget.size !== 'small' && (
+                {widget.size.height !== 'small' && (
                   <p className="text-xs text-gray-600 line-clamp-2" title={assignment.description}>{assignment.description}</p>
                 )}
               </div>
@@ -203,10 +175,10 @@ const AssignmentsWidget: React.FC<AssignmentsWidgetProps> = ({ data, widget }) =
           ))}
         </div>
 
-        {assignments.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
+        {assignments.length > (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
             <div className="text-xs text-gray-500">
-              и еще {assignments.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} заданий
+              и еще {assignments.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} заданий
             </div>
           </div>
         )}

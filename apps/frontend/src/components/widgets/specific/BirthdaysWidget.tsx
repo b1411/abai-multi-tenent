@@ -158,7 +158,7 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
         <div className="flex-1 overflow-auto min-w-0">
           <div className="text-xs font-medium text-gray-600 mb-2 truncate" title="Предстоящие дни рождения">Предстоящие дни рождения</div>
           <div className="space-y-2">
-            {birthdays.upcomingBirthdays.slice(0, widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4).map((person: BirthdayPerson) => (
+            {birthdays.upcomingBirthdays.slice(0, widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4).map((person: BirthdayPerson) => (
               <div key={person.id} className="p-3 rounded-lg bg-white border border-gray-200 hover:shadow-sm transition-all duration-200 overflow-hidden">
                 <div className="flex items-center space-x-3 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center flex-shrink-0">
@@ -180,20 +180,14 @@ const BirthdaysWidget: React.FC<BirthdaysWidgetProps> = ({ data, widget }) => {
           </div>
         </div>
 
-        {birthdays.upcomingBirthdays.length > (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4) && (
+        {birthdays.upcomingBirthdays.length > (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4) && (
           <div className="mt-2 text-center">
-            <div className="text-xs text-gray-500 truncate" title={`и еще ${birthdays.upcomingBirthdays.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} дней рождения`}>
-              и еще {birthdays.upcomingBirthdays.length - (widget.size === 'small' ? 2 : widget.size === 'medium' ? 3 : 4)} дней рождения
+            <div className="text-xs text-gray-500 truncate" title={`и еще ${birthdays.upcomingBirthdays.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} дней рождения`}>
+              и еще {birthdays.upcomingBirthdays.length - (widget.size.height === 'small' ? 2 : widget.size.height === 'medium' ? 3 : 4)} дней рождения
             </div>
           </div>
         )}
 
-        {/* Demo indicator */}
-        <div className="mt-2 flex justify-end">
-          <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-            Demo
-          </div>
-        </div>
       </div>
     </div>
   );

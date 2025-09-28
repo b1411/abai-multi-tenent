@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Widget } from '../../../types/widget';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, PieChart } from 'lucide-react';
 import { formatNumberShort } from '../base/numberFormat';
-import widgetService from '../../../services/widgetService';
 
 interface FinanceOverviewData {
   totalRevenue: number;
@@ -18,41 +17,8 @@ interface FinanceOverviewWidgetProps {
 }
 
 const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, widget }) => {
-  const [widgetData, setWidgetData] = useState<FinanceOverviewData | null>(data);
-  const [loading, setLoading] = useState(!data);
-
-  useEffect(() => {
-    if (!data) {
-      loadWidgetData();
-    }
-  }, [data]);
-
-  const loadWidgetData = async () => {
-    try {
-      setLoading(true);
-      const result = await widgetService.getWidgetData('finance-overview');
-      setWidgetData(result);
-    } catch (error) {
-      console.error('Error loading finance data:', error);
-      setWidgetData({
-        totalRevenue: 0,
-        totalExpenses: 0,
-        netProfit: 0,
-        unpaidFees: 0,
-        monthlyGrowth: 0
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Use data from props - WidgetRenderer handles loading
+  const widgetData = data;
 
   const totalRevenue = widgetData?.totalRevenue ?? 0;
   const totalExpenses = widgetData?.totalExpenses ?? 0;
@@ -79,7 +45,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
   }).format(amount);
 
   const formatMoneySmart = (amount: number) => {
-    if (widget.size === 'small' || Math.abs(amount) >= 1000) {
+    if (widget.size.height === 'small' || Math.abs(amount) >= 1000) {
       return formatNumberShort(amount, { currency: true });
     }
     return formatCurrency(amount);
@@ -143,7 +109,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
         </div>
 
         {/* Financial metrics grid */}
-        <div className={`grid ${widget.size === 'small' ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-2'} flex-1 min-w-0`}>
+        <div className={`grid ${widget.size.height === 'small' ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-2'} flex-1 min-w-0`}>
           {metrics.slice(0, 4).map((metric, index) => (
             <div
               key={index}
@@ -178,7 +144,7 @@ const FinanceOverviewWidget: React.FC<FinanceOverviewWidgetProps> = ({ data, wid
         </div>
 
         {/* Additional summary for larger widgets */}
-        {widget.size === 'large' && (
+        {widget.size.height === 'large' && (
           <div className="mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200 overflow-hidden">
             <div className="flex items-center justify-between min-w-0">
               <div className="min-w-0">

@@ -48,6 +48,7 @@ import CalendarPage from './pages/Calendar';
 import SystemSettings from './pages/SystemSettings';
 import UsersPage from './pages/Users';
 import PermissionsPage from './pages/Permissions';
+import ProctoringAdminPage from './pages/ProctoringAdmin';
 import BrandingPage from './pages/Branding';
 import IntegrationsPage from './pages/Integrations';
 import { ActivityMonitoring } from './pages/ActivityMonitoring';
@@ -219,17 +220,16 @@ const App: React.FC = () => {
                       </Route>
 
                       {/* Settings routes */}
-                      <Route path="settings">
-                        <Route path="users" element={<UsersPage />} />
-                        <Route path="permissions" element={<PermissionsPage />} />
-                        <Route path="integrations" element={<IntegrationsPage />} />
-                        <Route path="branding" element={<BrandingPage />} />
-                        <Route path="feedback" element={<FeedbackAdmin />} />
-                        <Route path="system" element={<SystemSettings />} />
-                        <Route path="activity-monitoring" element={<ActivityMonitoring />} />
-                      </Route>
-
-                      {/* Notifications route */}
+                        <Route path="settings">
+                          <Route path="users" element={<UsersPage />} />
+                          <Route path="permissions" element={<PermissionsPage />} />
+                          <Route path="integrations" element={<IntegrationsPage />} />
+                          <Route path="branding" element={<BrandingPage />} />
+                          <Route path="feedback" element={<FeedbackAdmin />} />
+                          <Route path="system" element={<SystemSettings />} />
+                          <Route path="activity-monitoring" element={<ActivityMonitoring />} />
+                          <Route path="proctoring" element={<ProctoringAdminPage />} />
+                        </Route>                      {/* Notifications route */}
                       <Route path="notifications" element={<NotificationsPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Route>

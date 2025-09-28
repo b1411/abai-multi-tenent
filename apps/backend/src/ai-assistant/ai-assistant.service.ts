@@ -60,7 +60,11 @@ export class AiAssistantService {
     const res = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'gpt-4o-realtime-preview-2024-10-01', voice: 'alloy' })
+      body: JSON.stringify({
+        model: 'gpt-4o-realtime-preview-2024-10-01', voice: 'alloy', input_audio_transcription: {
+          model: 'gpt-4o-transcribe'
+        }
+      })
     });
     if (!res.ok) {
       const error = await res.text();
@@ -193,10 +197,10 @@ export class AiAssistantService {
     // Signatures of user-uploaded inputs to exclude from per-message attachments
     const uploadedInputs = Array.isArray(files)
       ? files.map(f => ({
-          name: String(f.originalname || '').toLowerCase().trim(),
-          size: Number.isFinite((f as any).size) ? (f as any).size : (f.buffer?.length ?? 0),
-          mimetype: String(f.mimetype || '').toLowerCase()
-        }))
+        name: String(f.originalname || '').toLowerCase().trim(),
+        size: Number.isFinite((f as any).size) ? (f as any).size : (f.buffer?.length ?? 0),
+        mimetype: String(f.mimetype || '').toLowerCase()
+      }))
       : [];
     const uploadedInputNames = new Set(uploadedInputs.map(u => u.name).filter(Boolean));
 

@@ -23,11 +23,14 @@ export const useRealtimeChat = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isMicrophoneMuted, setIsMicrophoneMuted] = useState(false);
+  const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
   const tokenRef = useRef<EphemeralToken | null>(null);
   const contentTypeRef = useRef<'text' | 'input_text'>('input_text');
   const lastSendRef = useRef<{ role: 'user' | 'assistant' | 'system'; text: string; retried?: boolean } | null>(null);
@@ -63,6 +66,37 @@ export const useRealtimeChat = () => {
       // Добавляем локальный аудиотрек для микрофона
       const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = ms;
+      
+      // Настраиваем захват аудио для отправки в Realtime API
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(ms);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+      
+      processor.onaudioprocess = (event) => {
+        // Отправляем аудио только когда push-to-talk активен
+        if (dcRef.current && connectionState.status === 'connected' && isPushToTalkActive) {
+          const inputBuffer = event.inputBuffer;
+          const audioData = inputBuffer.getChannelData(0);
+          
+          // Конвертируем Float32Array в Int16Array (PCM16)
+          const pcm16 = new Int16Array(audioData.length);
+          for (let i = 0; i < audioData.length; i++) {
+            pcm16[i] = Math.max(-32768, Math.min(32767, audioData[i] * 32768));
+          }
+          
+          // Отправляем аудио буфер
+          dcRef.current.send(JSON.stringify({
+            type: 'input_audio_buffer.append',
+            audio: pcm16.buffer
+          }));
+        }
+      };
+      
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+      
       pc.addTrack(ms.getTracks()[0]);
 
       // Настраиваем data channel для отправки и получения событий
@@ -155,6 +189,16 @@ export const useRealtimeChat = () => {
 
   // Отключение от Realtime API
   const disconnect = useCallback(() => {
+    if (processorRef.current) {
+      processorRef.current.disconnect();
+      processorRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
@@ -178,6 +222,7 @@ export const useRealtimeChat = () => {
     setConnectionState({ status: 'disconnected' });
     setIsRecording(false);
     setIsPlaying(false);
+    setIsPushToTalkActive(false);
   }, []);
 
   // Обработка событий от Realtime API
@@ -338,18 +383,14 @@ export const useRealtimeChat = () => {
       return;
     }
 
-    const track = localStreamRef.current?.getAudioTracks?.()[0];
-    if (!track) {
-      return;
-    }
-
-    // В режиме push-to-talk управляем локальным микрофонным треком,
-    // аудио идет по WebRTC, без data channel событий input_audio_buffer.*
-    track.enabled = enabled;
+    setIsPushToTalkActive(enabled);
     setIsMicrophoneMuted(!enabled);
 
-    // Когда отпускаем (заканчиваем говорить) — запрашиваем ответ
+    // Когда отпускаем (заканчиваем говорить) — завершаем буфер и запрашиваем ответ
     if (!enabled && dcRef.current) {
+      dcRef.current.send(JSON.stringify({
+        type: 'input_audio_buffer.commit'
+      }));
       dcRef.current.send(JSON.stringify({
         type: 'response.create',
         response: {
@@ -457,6 +498,7 @@ export const useRealtimeChat = () => {
     connectionState,
     isRecording,
     isPlaying,
+    isPushToTalkActive,
     connect,
     disconnect,
     sendTextMessage,

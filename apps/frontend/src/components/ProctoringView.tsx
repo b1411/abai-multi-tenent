@@ -1,16 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
-import { useRealtimeChat } from '../hooks/useRealtimeChat';
+import { useProctoringRealtimeChat } from '../hooks/useProctoringRealtimeChat';
+import { proctoringService, ProctoringSession } from '../services/proctoringService';
 import { Mic, MicOff, Trash2, Video, VideoOff, X, Volume2, VolumeX } from 'lucide-react';
 
 interface ProctoringViewProps {
   onClose: () => void;
   lessonTopic: string;
+  homeworkId: number;
+  lessonId?: number;
 }
 
-const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic }) => {
+const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, homeworkId, lessonId }) => {
   const [isModelsLoaded, setIsModelsLoaded] = useState(false);
   const [isProctoring, setIsProctoring] = useState(false);
+  const [proctoringSession, setProctoringSession] = useState<ProctoringSession | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameIdRef = useRef<number>();
@@ -19,6 +23,7 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
     messages,
     connectionState,
     isRecording,
+    isPushToTalkActive,
     connect,
     disconnect,
     togglePushToTalk,
@@ -28,7 +33,8 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
     isMicrophoneMuted,
     toggleMicrophoneMute,
     sendSystemMessage,
-  } = useRealtimeChat();
+    startAudioPlayback,
+  } = useProctoringRealtimeChat(proctoringSession?.id || null);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -48,10 +54,19 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
     if (!isModelsLoaded) return;
 
     try {
-      await connect();
+      // Создаем сессию прокторинга
+      const session = await proctoringService.createSession({
+        homeworkId,
+        lessonId,
+        topic: lessonTopic
+      });
+      setProctoringSession(session);
+
+      // Подключаемся к realtime чату
+      await connect(session.id);
       setIsProctoring(true);
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: {}, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -61,9 +76,24 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
     }
   };
 
-  const stopProctoring = () => {
+  const stopProctoring = async () => {
+    try {
+      // Завершаем сессию прокторинга, если она была создана
+      if (proctoringSession) {
+        await proctoringService.endSession(proctoringSession.id, {
+          score: 0, // Пока заглушка, можно будет добавить оценку позже
+          comment: 'Сессия завершена пользователем'
+        });
+      }
+    } catch (err) {
+      console.error("Error ending proctoring session:", err);
+    }
+
+    // Отключаемся от realtime чата
     disconnect();
     setIsProctoring(false);
+    setProctoringSession(null);
+
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
@@ -188,8 +218,22 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
 
   useEffect(() => {
     if (connectionState.status === "connected") {
-      sendSystemMessage(`Ты AI-учитель по предмету: ${lessonTopic}. Тема домашнего задания: ${lessonTopic}. Сначала спроси, изучал ли он тему "${lessonTopic}" и что он запомнил. Затем задай не менее 3 вопросов по теме, чтобы проверить знания. Если ученик затрудняется ответить, дай короткую подсказку и снова задай три вопроса по теме. Не переходи к оценке, пока не получишь ответы. В конце оцени ответы и дай краткий комментарий. Всегда веди диалог на русском языке как строгий, но справедливый преподаватель-мужчина.`);
-      console.log('Тема урока отправлена в чат:', lessonTopic);
+      sendSystemMessage(`Ты AI-экзаменатор по предмету: ${lessonTopic}. Студент пришел сдавать домашнее задание по теме "${lessonTopic}". 
+
+Твоя задача:
+1. Проверить знания студента по теме "${lessonTopic}"
+2. Задать 3-5 вопросов разной сложности
+3. Оценить ответы по шкале от 1 до 10
+4. Дать краткий комментарий к ответам
+
+Правила:
+- Веди диалог на русском языке
+- Будь строгим, но справедливым преподавателем
+- Если студент не знает ответ, дай подсказку и перефразируй вопрос
+- В конце дай итоговую оценку и рекомендации
+
+Начни с приветствия и первого вопроса.`);
+      console.log('Системное сообщение отправлено для темы:', lessonTopic);
     }
   }, [connectionState.status, lessonTopic, sendSystemMessage]);
 
@@ -233,16 +277,16 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
             {/* Controls */}
             <div className="p-4 border-t">
               <button
-                onMouseDown={() => togglePushToTalk(true)}
-                onMouseUp={() => togglePushToTalk(false)}
-                onTouchStart={() => togglePushToTalk(true)}
-                onTouchEnd={() => togglePushToTalk(false)}
+                onMouseDown={togglePushToTalk}
+                onMouseUp={togglePushToTalk}
+                onTouchStart={togglePushToTalk}
+                onTouchEnd={togglePushToTalk}
                 disabled={!isProctoring || connectionState.status !== 'connected'}
-                className={`w-full py-3 rounded-lg flex items-center justify-center transition-colors ${isRecording ? 'bg-red-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'
+                className={`w-full py-3 rounded-lg flex items-center justify-center transition-colors ${isPushToTalkActive ? 'bg-red-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'
                   } disabled:bg-gray-400`}
               >
                 <Mic className="h-6 w-6 mr-2" />
-                {isRecording ? 'Запись...' : 'Скажите что-нибудь'}
+                {isPushToTalkActive ? 'Говорите...' : 'Нажмите и говорите'}
               </button>
             </div>
           </div>
@@ -269,6 +313,9 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic })
             )}
             <button onClick={toggleMute} className="bg-gray-500 text-white p-2 rounded-lg" title={isMuted ? "Включить звук" : "Выключить звук"}>
               {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </button>
+            <button onClick={startAudioPlayback} className="bg-blue-500 text-white p-2 rounded-lg" title="Запустить звук AI">
+              <Volume2 className="h-5 w-5" />
             </button>
             <button onClick={toggleMicrophoneMute} className="bg-gray-500 text-white p-2 rounded-lg" title={isMicrophoneMuted ? "Включить микрофон" : "Выключить микрофон"}>
               {isMicrophoneMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}

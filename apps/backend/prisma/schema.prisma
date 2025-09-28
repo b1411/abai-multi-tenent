@@ -218,12 +218,11 @@ model Student {
   remarks                  StudentRemark[]
   comments                 StudentComment[]
   olympiadResults          OlympiadResult[]
-  admissions               StudentAdmission[]
-  personalDevelopmentPlans PersonalDevelopmentPlan[]
-  extraEducations          ExtraEducation[]
-}
-
-model LessonResult {
+    admissions               StudentAdmission[]
+    personalDevelopmentPlans PersonalDevelopmentPlan[]
+    extraEducations          ExtraEducation[]
+    proctoringSessions       ProctoringSession[]
+  }model LessonResult {
   id                   Int                 @id @default(autoincrement())
   Student              Student?            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId            Int
@@ -352,6 +351,7 @@ model Lesson {
   LessonResult    LessonResult[]
   vacationLessons VacationLesson[]
   schedules       Schedule[] // Связь с расписанием
+  proctoringSessions ProctoringSession[]
 }
 
 model Homework {
@@ -365,11 +365,10 @@ model Homework {
   deadline            DateTime             @default(now())
   additionalFiles     File[]
   studentsSubmissions HomeworkSubmission[]
-  materials           Materials?           @relation(fields: [materialsId], references: [id])
-  materialsId         Int?                 @unique
-}
-
-model Materials {
+    materials           Materials?           @relation(fields: [materialsId], references: [id])
+    materialsId         Int?                 @unique
+    proctoringSessions  ProctoringSession[]
+  }model Materials {
   id              Int       @id @default(autoincrement())
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -475,6 +474,37 @@ model HomeworkSubmission {
   updatedAt    DateTime                 @updatedAt
   deletedAt    DateTime?
   LessonResult LessonResult?
+}
+
+enum ProctoringSessionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model ProctoringSession {
+  id             Int                      @id @default(autoincrement())
+  homework       Homework                 @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  homeworkId     Int
+  student        Student                  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId      Int
+  lesson         Lesson?                  @relation(fields: [lessonId], references: [id])
+  lessonId       Int?
+  topic          String
+  status         ProctoringSessionStatus  @default(ACTIVE)
+  score          Int?
+  comment        String?                  @db.Text
+  analysisResults Json?
+  transcript      Json?
+  startedAt       DateTime                 @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  deletedAt      DateTime?
+
+  @@index([homeworkId])
+  @@index([studentId])
+  @@index([status])
 }
 
 model QuizAttempt {

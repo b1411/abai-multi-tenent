@@ -50,6 +50,7 @@ import { AttendanceSessionsModule } from './attendance-sessions/attendance-sessi
 import * as path from 'node:path';
 import { TenantConfigController } from './common/tenant-config.controller';
 import { TenantConfigService } from './common/tenant-config.service';
+import { ProctoringModule } from './proctoring/proctoring.module';
 
 const envFile = (() => {
   const p = process.env.ENV_FILE; // например "envs/.env.client1" или "/root/app/.env.client1"
@@ -106,6 +107,7 @@ const envFile = (() => {
     AiTutorsModule,
     AiChatModule,
     AttendanceSessionsModule,
+    ProctoringModule,
   ],
   controllers: [AppController, TenantConfigController],
   providers: [AppService, PrismaService, JwtService, TenantConfigService],

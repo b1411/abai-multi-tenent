@@ -391,6 +391,8 @@ const HomeworkDetailModal: React.FC<HomeworkDetailModalProps> = ({
       {isProctoringVisible && hasRole('STUDENT') && (
         <ProctoringView
           lessonTopic={homework.lesson?.name || 'Общая тема'}
+          homeworkId={homework.id}
+          lessonId={homework.lesson?.id}
           onClose={() => setIsProctoringVisible(false)}
         />
       )}

@@ -208,6 +208,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Система', href: '/settings/system', icon: Settings },
         { name: 'Обратная связь', href: '/settings/feedback', icon: MessageCircle },
         { name: 'Мониторинг активности', href: '/settings/activity-monitoring', icon: Activity },
+        { name: 'Прокторинг', href: '/settings/proctoring', icon: CheckCircle },
       ]
     },
   ];

@@ -24,14 +24,16 @@ import {
   Heart,
   Star,
   Maximize,
-  Minimize
+  Minimize,
+  Plus
 } from 'lucide-react';
 import { Button, Loading } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import ScheduleGrid from '../components/ScheduleGrid';
+import ScheduleConstraintsEditor from '../components/ScheduleConstraintsEditor';
 import scheduleService from '../services/scheduleService';
 import { GroupOption, ClassroomOption, TeacherOption, StudyPlanOption } from '../types/schedule';
-import { GenerationParams as FlowGenerationParams, DraftItem, OptimizedScheduleResponse, ApplyResponse } from '../types/aiScheduleFlow';
+import { GenerationParams as FlowGenerationParams, DraftItem, OptimizedScheduleResponse, ApplyResponse, TeacherPreferences } from '../types/aiScheduleFlow';
 
 // Константы для праздников Казахстана
 const KAZAKHSTAN_HOLIDAYS_2024_2025: { [key: string]: string } = {
@@ -108,7 +110,7 @@ interface TeacherPreference {
   title: string;
   description: string;
   enabled: boolean;
-  value?: string | number | number[];
+  value?: string | number | number[] | { startTime?: string; endTime?: string; maxConsecutive?: number; preferredDays?: number[]; preferredClassrooms?: number[] };
 }
 
 interface QuarterSettings {
@@ -125,8 +127,8 @@ interface ScheduleConstraints {
   lunchBreakTime: { start: string; end: string };
   lessonDuration: number; // в минутах
   breakDuration: number; // в минутах
-  noFirstLessonSubjects: string[]; // предметы, которые не ставить первым уроком
-  noLastLessonSubjects: string[]; // предметы, которые не ставить последним уроком
+  forbiddenFirstSubjects: string[]; // предметы, которые не ставить первым уроком
+  forbiddenLastSubjects: string[]; // предметы, которые не ставить последним уроком
   preferredDays: { [subjectName: string]: number[] }; // предпочитаемые дни для предметов
 }
 
@@ -167,16 +169,36 @@ const AISchedulePage: React.FC = () => {
 
   const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
   const [selectedClassrooms, setSelectedClassrooms] = useState<number[]>([]);
+  const [lessonDuration, setLessonDuration] = useState<number>(45); // Default fallback
   const [scheduleConstraints, setScheduleConstraints] = useState<ScheduleConstraints>({
     workingHours: { start: '08:00', end: '15:00' },
     maxLessonsPerDay: 7,
     lunchBreakTime: { start: '12:00', end: '13:00' },
     lessonDuration: 45,
     breakDuration: 10,
-    noFirstLessonSubjects: ['Физкультура'],
-    noLastLessonSubjects: [],
+    forbiddenFirstSubjects: [],
+    forbiddenLastSubjects: [],
     preferredDays: {}
   });
+
+  // Обновляем начальные значения ограничений при изменении выбранных групп
+  useEffect(() => {
+    if (selectedGroups.length > 0) {
+      const selectedSubjects = getSelectedSubjects();
+      const subjectNames = selectedSubjects.map(s => s.name);
+
+      // Автоматически устанавливаем некоторые предметы как запрещенные для первого/последнего урока
+      // на основе типичных предпочтений
+      const typicalFirstForbidden = ['Физкультура', 'Труд', 'ИЗО', 'Музыка'].filter(name => subjectNames.includes(name));
+      const typicalLastForbidden = ['Математика', 'Русский язык', 'История'].filter(name => subjectNames.includes(name));
+
+      setScheduleConstraints(prev => ({
+        ...prev,
+        forbiddenFirstSubjects: typicalFirstForbidden,
+        forbiddenLastSubjects: typicalLastForbidden
+      }));
+    }
+  }, [selectedGroups, studyPlans]);
 
   const [generatedSchedule, setGeneratedSchedule] = useState<GeneratedLesson[]>([]);
   const [scheduleStats, setScheduleStats] = useState<any>(null);
@@ -201,8 +223,57 @@ const AISchedulePage: React.FC = () => {
   const [selectedSubjectKeys, setSelectedSubjectKeys] = useState<string[]>([]);
   const [bulkHours, setBulkHours] = useState<number>(1);
 
+  // Состояние для A/B недель
+  const [biweeklySubjects, setBiweeklySubjects] = useState<Set<string>>(new Set());
+
   // Состояние для полноэкранного режима
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Состояние для редактора ограничений
+  const [showConstraintsEditor, setShowConstraintsEditor] = useState(false);
+
+  // Состояние для аккордеона предпочтений предметов
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
+
+  // Состояние для аккордеона пожеланий педагогов
+  const [expandedTeachers, setExpandedTeachers] = useState<Set<number>>(new Set());
+
+  // Функции для работы с аккордеоном
+  const toggleSubjectExpansion = (subjectName: string) => {
+    setExpandedSubjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(subjectName)) {
+        newSet.delete(subjectName);
+      } else {
+        newSet.add(subjectName);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleTeacherExpansion = (teacherId: number) => {
+    setExpandedTeachers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(teacherId)) {
+        newSet.delete(teacherId);
+      } else {
+        newSet.add(teacherId);
+      }
+      return newSet;
+    });
+  };
+
+  // Группировка предметов по имени для аккордеона
+  const getGroupedSubjects = () => {
+    const grouped: { [subjectName: string]: any[] } = {};
+    getSelectedSubjects().forEach(subject => {
+      if (!grouped[subject.name]) {
+        grouped[subject.name] = [];
+      }
+      grouped[subject.name].push(subject);
+    });
+    return grouped;
+  };
 
   // Обновляем границы четверти если изменился базовый учебный год (перезагрузка осенью)
   useEffect(() => {
@@ -221,11 +292,12 @@ const AISchedulePage: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const [g, c, t, spRaw] = await Promise.all([
+        const [g, c, t, spRaw, duration] = await Promise.all([
           scheduleService.getGroups(),
           scheduleService.getClassrooms(),
           scheduleService.getTeachers(),
-          scheduleService.getStudyPlans({ limit: 999 })
+          scheduleService.getStudyPlans({ limit: 999 }),
+          scheduleService.getAcademicHourDuration()
         ]);
         if (cancelled) return;
         const spArray = Array.isArray(spRaw)
@@ -237,8 +309,10 @@ const AISchedulePage: React.FC = () => {
         setClassrooms(c);
         setTeachers(t);
         setStudyPlans(spArray as any);
+        setLessonDuration(duration);
+        setScheduleConstraints(prev => ({ ...prev, lessonDuration: duration }));
       } catch (_) {
-        // ignore
+        // ignore - will use default 45 minutes
       }
     })();
     return () => { cancelled = true; };
@@ -310,131 +384,12 @@ const AISchedulePage: React.FC = () => {
     return () => { cancelled = true; };
   }, [selectedGroups, quarterSettings.startDate, quarterSettings.endDate]);
 
-  // Предустановленные пожелания педагогов
-  const getDefaultTeacherPreferences = (teacherId: number): TeacherPreference[] => [
-    // Временные ограничения
-    {
-      id: `time-1-${teacherId}`,
-      type: 'time',
-      title: 'Не работаю после 14:00',
-      description: 'Учитель недоступен для проведения уроков после 14:00',
-      enabled: false
-    },
-    {
-      id: `time-2-${teacherId}`,
-      type: 'time',
-      title: 'Доступен только с 10:00',
-      description: 'Учитель может проводить уроки только начиная с 10:00',
-      enabled: false
-    },
-    {
-      id: `time-3-${teacherId}`,
-      type: 'time',
-      title: 'Не могу в пятницу после обеда',
-      description: 'В пятницу учитель работает только в первой половине дня',
-      enabled: false
-    },
-    // Предпочтения по дням
-    {
-      id: `day-1-${teacherId}`,
-      type: 'day',
-      title: 'Предпочитаю понедельник и среду',
-      description: 'Желательно ставить уроки в понедельник и среду',
-      enabled: false,
-      value: [1, 3]
-    },
-    {
-      id: `day-2-${teacherId}`,
-      type: 'day',
-      title: 'Избегать вторник (методический день)',
-      description: 'Вторник - день методических совещаний',
-      enabled: false,
-      value: [2]
-    },
-    {
-      id: `day-3-${teacherId}`,
-      type: 'day',
-      title: 'Только четные дни недели',
-      description: 'Предпочтение работы во вторник, четверг, субботу',
-      enabled: false,
-      value: [2, 4, 6]
-    },
-    // Ограничения по урокам
-    {
-      id: `lesson-1-${teacherId}`,
-      type: 'lesson',
-      title: 'Не ставить первым уроком',
-      description: 'Предмет не должен быть первым в расписании',
-      enabled: false
-    },
-    {
-      id: `lesson-2-${teacherId}`,
-      type: 'lesson',
-      title: 'Не более 2 уроков подряд',
-      description: 'Максимум 2 урока подряд без перерыва',
-      enabled: false,
-      value: 2
-    },
-    {
-      id: `lesson-3-${teacherId}`,
-      type: 'lesson',
-      title: 'Не ставить после физкультуры',
-      description: 'Урок не должен идти сразу после физкультуры',
-      enabled: false
-    },
-    // Аудиторные предпочтения
-    {
-      id: `classroom-1-${teacherId}`,
-      type: 'classroom',
-      title: 'Только в 202 аудитории (моя лаборатория)',
-      description: 'Предпочтение проведения уроков в определенной аудитории',
-      enabled: false,
-      value: '202'
-    },
-    {
-      id: `classroom-2-${teacherId}`,
-      type: 'classroom',
-      title: 'Избегать первый этаж',
-      description: 'Предпочтение аудиторий выше первого этажа',
-      enabled: false
-    },
-    {
-      id: `classroom-3-${teacherId}`,
-      type: 'classroom',
-      title: 'Нужна аудитория с проектором',
-      description: 'Требуется техническое оснащение',
-      enabled: false
-    },
-    // Особые требования
-    {
-      id: `special-1-${teacherId}`,
-      type: 'special',
-      title: 'Не ставить в один день с контрольными',
-      description: 'Избегать совпадения с днями контрольных работ',
-      enabled: false
-    },
-    {
-      id: `special-2-${teacherId}`,
-      type: 'special',
-      title: 'Интервал между уроками минимум 1 час',
-      description: 'Между уроками должен быть перерыв минимум 1 час',
-      enabled: false,
-      value: 60
-    },
-    {
-      id: `special-3-${teacherId}`,
-      type: 'special',
-      title: 'Группировать уроки в блоки',
-      description: 'Предпочтение компактного расписания',
-      enabled: false
-    }
-  ];
-
   // Функции для работы с пожеланиями педагогов
   const getTeacherPreferences = (teacherId: number): TeacherPreference[] => {
     const key = `teacher-${teacherId}`;
     if (!teacherPreferences[key]) {
-      return getDefaultTeacherPreferences(teacherId);
+      // Возвращаем пустой массив - пользователь сам добавит пожелания
+      return [];
     }
     return teacherPreferences[key];
   };
@@ -456,6 +411,100 @@ const AISchedulePage: React.FC = () => {
     return getTeacherPreferences(teacherId).filter(pref => pref.enabled).length;
   };
 
+  // Функции для управления пожеланиями педагогов
+  const addTeacherPreference = (teacherId: number, type: 'time' | 'day' | 'lesson' | 'classroom' | 'special') => {
+    const key = `teacher-${teacherId}`;
+    const currentPrefs = getTeacherPreferences(teacherId);
+    const newId = `pref-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Получаем данные преподавателя для более персонализированных настроек
+    const teacher = teachers.find(t => t.id === teacherId);
+    const teacherName = teacher ? `${teacher.name} ${teacher.surname}` : `Преподаватель ${teacherId}`;
+
+    let title = '';
+    let description = '';
+    let value: any = undefined;
+
+    switch (type) {
+      case 'time':
+        title = `Не работать после 17:00`;
+        description = `Избегать уроков после 17:00 для лучшего баланса работы и отдыха`;
+        value = { startTime: '08:00', endTime: '17:00' };
+        break;
+      case 'day':
+        title = `Предпочитать утренние дни`;
+        description = `Лучше работать в понедельник, вторник и среду`;
+        value = [1, 2, 3]; // Понедельник, вторник, среда
+        break;
+      case 'lesson':
+        title = `Не более 4 уроков подряд`;
+        description = `Ограничить количество подряд идущих уроков для предотвращения переутомления`;
+        value = { maxConsecutive: 4 };
+        break;
+      case 'classroom':
+        title = `Предпочитать современные аудитории`;
+        description = `Приоритетно использовать аудитории с современным оборудованием`;
+        value = selectedClassrooms.slice(0, 2); // Первые две выбранные аудитории
+        break;
+      case 'special':
+        title = `Нужен перерыв 15 минут между уроками`;
+        description = `Требуется дополнительное время для подготовки к следующему уроку`;
+        value = undefined;
+        break;
+    }
+
+    const newPref: TeacherPreference = {
+      id: newId,
+      type,
+      title,
+      description,
+      enabled: false,
+      value
+    };
+
+    setTeacherPreferences(prev => ({
+      ...prev,
+      [key]: [...currentPrefs, newPref]
+    }));
+  };
+
+  const updateTeacherPreferenceTitle = (teacherId: number, preferenceId: string, title: string) => {
+    const key = `teacher-${teacherId}`;
+    const currentPrefs = getTeacherPreferences(teacherId);
+    const updatedPrefs = currentPrefs.map(pref =>
+      pref.id === preferenceId ? { ...pref, title } : pref
+    );
+
+    setTeacherPreferences({
+      ...teacherPreferences,
+      [key]: updatedPrefs
+    });
+  };
+
+  const updateTeacherPreferenceDescription = (teacherId: number, preferenceId: string, description: string) => {
+    const key = `teacher-${teacherId}`;
+    const currentPrefs = getTeacherPreferences(teacherId);
+    const updatedPrefs = currentPrefs.map(pref =>
+      pref.id === preferenceId ? { ...pref, description } : pref
+    );
+
+    setTeacherPreferences({
+      ...teacherPreferences,
+      [key]: updatedPrefs
+    });
+  };
+
+  const removeTeacherPreference = (teacherId: number, preferenceId: string) => {
+    const key = `teacher-${teacherId}`;
+    const currentPrefs = getTeacherPreferences(teacherId);
+    const updatedPrefs = currentPrefs.filter(pref => pref.id !== preferenceId);
+
+    setTeacherPreferences({
+      ...teacherPreferences,
+      [key]: updatedPrefs
+    });
+  };
+
   // Проверка прав доступа
   if (user?.role !== 'ADMIN') {
     return (
@@ -474,9 +523,10 @@ const AISchedulePage: React.FC = () => {
     { num: 2, title: 'Выбор классов', icon: Users, description: 'Группы для планирования' },
     { num: 3, title: 'Выбор аудиторий', icon: Building, description: 'Доступные аудитории' },
     { num: 4, title: 'Ограничения', icon: Settings, description: 'Правила составления расписания' },
-    { num: 5, title: 'Генерация', icon: Bot, description: 'Создание расписания' },
-    { num: 6, title: 'Просмотр', icon: Eye, description: 'Проверка и редактирование' },
-    { num: 7, title: 'Сохранение', icon: Save, description: 'Применение к базе данных' }
+    { num: 5, title: 'A/B недели', icon: Shuffle, description: 'Настройка двухнедельных предметов' },
+    { num: 6, title: 'Генерация', icon: Bot, description: 'Создание расписания' },
+    { num: 7, title: 'Просмотр', icon: Eye, description: 'Проверка и редактирование' },
+    { num: 8, title: 'Сохранение', icon: Save, description: 'Применение к базе данных' }
   ];
 
   const getWorkingDaysCount = () => {
@@ -636,284 +686,6 @@ const AISchedulePage: React.FC = () => {
     });
   };
 
-  // Функция создания демонстрационного расписания с конфликтами
-  const generateDemoScheduleWithConflicts = (): GeneratedLesson[] => {
-    const workingDates = getAllWorkingDates().slice(0, 10); // Берем первые 10 рабочих дней
-    const demoSchedule: GeneratedLesson[] = [];
-
-    if (workingDates.length === 0) return [];
-
-    let lessonId = 1;
-
-    // Создаем уроки с намеренными конфликтами для демонстрации
-    const demoLessons = [
-      // Понедельник - конфликты учителей
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[0] || '2024-09-02',
-        dayOfWeek: 'понедельник',
-        startTime: '09:00',
-        endTime: '09:45',
-        subject: 'Математика',
-        groupId: 1,
-        groupName: '10А',
-        teacherId: 1,
-        teacherName: 'Иванова А.С.',
-        classroomId: 1,
-        classroomName: '101',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[0] || '2024-09-02',
-        dayOfWeek: 'понедельник',
-        startTime: '09:00', // КОНФЛИКТ: тот же учитель в то же время
-        endTime: '09:45',
-        subject: 'Алгебра',
-        groupId: 4,
-        groupName: '11Б',
-        teacherId: 1, // КОНФЛИКТ: Иванова А.С. одновременно в двух местах
-        teacherName: 'Иванова А.С.',
-        classroomId: 2,
-        classroomName: '102',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[0] || '2024-09-02',
-        dayOfWeek: 'понедельник',
-        startTime: '10:00',
-        endTime: '10:45',
-        subject: 'Русский язык',
-        groupId: 1,
-        groupName: '10А',
-        teacherId: 2,
-        teacherName: 'Петров Б.И.',
-        classroomId: 1,
-        classroomName: '101',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[0] || '2024-09-02',
-        dayOfWeek: 'понедельник',
-        startTime: '10:00', // КОНФЛИКТ: та же аудитория в то же время
-        endTime: '10:45',
-        subject: 'История',
-        groupId: 2,
-        groupName: '10Б',
-        teacherId: 3,
-        teacherName: 'Сидорова В.П.',
-        classroomId: 1, // КОНФЛИКТ: аудитория 101 занята
-        classroomName: '101',
-        weekNumber: 1
-      },
-      // Вторник - конфликты групп
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[1] || '2024-09-03',
-        dayOfWeek: 'вторник',
-        startTime: '11:00',
-        endTime: '11:45',
-        subject: 'Физика',
-        groupId: 1,
-        groupName: '10А',
-        teacherId: 4,
-        teacherName: 'Козлов Г.М.',
-        classroomId: 4,
-        classroomName: '201',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[1] || '2024-09-03',
-        dayOfWeek: 'вторник',
-        startTime: '11:00', // КОНФЛИКТ: та же группа в то же время
-        endTime: '11:45',
-        subject: 'Химия',
-        groupId: 1, // КОНФЛИКТ: группа 10А одновременно на двух уроках
-        groupName: '10А',
-        teacherId: 5,
-        teacherName: 'Морозова Д.А.',
-        classroomId: 5,
-        classroomName: '202',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[1] || '2024-09-03',
-        dayOfWeek: 'вторник',
-        startTime: '12:00',
-        endTime: '12:45',
-        subject: 'Английский язык',
-        groupId: 2,
-        groupName: '10Б',
-        teacherId: 8,
-        teacherName: 'Смит Дж.',
-        classroomId: 3,
-        classroomName: '103',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[1] || '2024-09-03',
-        dayOfWeek: 'вторник',
-        startTime: '13:00',
-        endTime: '13:45',
-        subject: 'Физкультура',
-        groupId: 3,
-        groupName: '11А',
-        teacherId: 9,
-        teacherName: 'Быстров С.В.',
-        classroomId: 10,
-        classroomName: '301Б',
-        weekNumber: 1
-      },
-      // Среда - смешанные конфликты
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[2] || '2024-09-04',
-        dayOfWeek: 'среда',
-        startTime: '08:00',
-        endTime: '08:45',
-        subject: 'Информатика',
-        groupId: 3,
-        groupName: '11А',
-        teacherId: 17,
-        teacherName: 'Кодер В.Г.',
-        classroomId: 7,
-        classroomName: '104',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[2] || '2024-09-04',
-        dayOfWeek: 'среда',
-        startTime: '08:00',
-        endTime: '08:45',
-        subject: 'Информатика',
-        groupId: 1,
-        groupName: '10А',
-        teacherId: 10,
-        teacherName: 'Программистов К.А.',
-        classroomId: 7, // КОНФЛИКТ: та же аудитория
-        classroomName: '104',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[2] || '2024-09-04',
-        dayOfWeek: 'среда',
-        startTime: '09:00',
-        endTime: '09:45',
-        subject: 'Биология',
-        groupId: 4,
-        groupName: '11Б',
-        teacherId: 18,
-        teacherName: 'Ботаник Р.С.',
-        classroomId: 9,
-        classroomName: '204',
-        weekNumber: 1
-      },
-      // Четверг - нормальные уроки
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[3] || '2024-09-05',
-        dayOfWeek: 'четверг',
-        startTime: '10:00',
-        endTime: '10:45',
-        subject: 'География',
-        groupId: 1,
-        groupName: '10А',
-        teacherId: 7,
-        teacherName: 'Орлов И.К.',
-        classroomId: 2,
-        classroomName: '102',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[3] || '2024-09-05',
-        dayOfWeek: 'четверг',
-        startTime: '11:00',
-        endTime: '11:45',
-        subject: 'Литература',
-        groupId: 4,
-        groupName: '11Б',
-        teacherId: 11,
-        teacherName: 'Литературова О.И.',
-        classroomId: 3,
-        classroomName: '103',
-        weekNumber: 1
-      },
-      // Пятница - еще больше конфликтов для демонстрации
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[4] || '2024-09-06',
-        dayOfWeek: 'пятница',
-        startTime: '12:00',
-        endTime: '12:45',
-        subject: 'История Казахстана',
-        groupId: 3,
-        groupName: '11А',
-        teacherId: 15,
-        teacherName: 'Историк З.Н.',
-        classroomId: 1,
-        classroomName: '101',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[4] || '2024-09-06',
-        dayOfWeek: 'пятница',
-        startTime: '12:00', // КОНФЛИКТ: тот же учитель
-        endTime: '12:45',
-        subject: 'История Казахстана',
-        groupId: 4,
-        groupName: '11Б',
-        teacherId: 15, // КОНФЛИКТ: Историк З.Н. одновременно в двух местах
-        teacherName: 'Историк З.Н.',
-        classroomId: 2,
-        classroomName: '102',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[4] || '2024-09-06',
-        dayOfWeek: 'пятница',
-        startTime: '13:00',
-        endTime: '13:45',
-        subject: 'Физкультура',
-        groupId: 1,
-        groupName: '10А',
-        teacherId: 9,
-        teacherName: 'Быстров С.В.',
-        classroomId: 10,
-        classroomName: '301Б',
-        weekNumber: 1
-      },
-      {
-        id: `demo-${lessonId++}`,
-        date: workingDates[4] || '2024-09-06',
-        dayOfWeek: 'пятница',
-        startTime: '13:00', // КОНФЛИКТ: тот же учитель и аудитория
-        endTime: '13:45',
-        subject: 'Физкультура',
-        groupId: 2,
-        groupName: '10Б',
-        teacherId: 9, // КОНФЛИКТ: Быстров С.В.
-        teacherName: 'Быстров С.В.',
-        classroomId: 10, // КОНФЛИКТ: спортзал 301Б
-        classroomName: '301Б',
-        weekNumber: 1
-      }
-    ];
-
-    demoSchedule.push(...demoLessons.map(dl => ({ ...dl, studyPlanId: 0 })));
-
-    return demoSchedule;
-  };
-
   const generateSchedule = async () => {
     setLoading(true);
     try {
@@ -926,10 +698,82 @@ const AISchedulePage: React.FC = () => {
           })
           .filter(([spId, hours]) => Number.isFinite(spId as number) && Number.isFinite(hours as number) && (hours as number) > 0 && (hours as number) <= 8)
       );
+
+      // Собираем studyPlanId для A/B недель
+      const forceBiweeklyStudyPlanIds: number[] = [];
+      for (const subjectKey of biweeklySubjects) {
+        const parts = subjectKey.split('-');
+        const spId = Number(parts[1]);
+        if (Number.isFinite(spId)) {
+          forceBiweeklyStudyPlanIds.push(spId);
+        }
+      }
+
+      // Собираем teacherPreferences из активных пожеланий
+      const teacherPreferences: Record<number, TeacherPreferences> = {};
+      for (const teacher of teachers) {
+        const activePrefs = getTeacherPreferences(teacher.id).filter(pref => pref.enabled);
+        if (activePrefs.length > 0) {
+          const prefs: TeacherPreferences = {
+            unavailableTimes: [],
+            unacceptableDays: []
+          };
+
+          // Временные ограничения
+          const timePrefs = activePrefs.filter(pref => pref.type === 'time');
+          if (timePrefs.length > 0) {
+            timePrefs.forEach(pref => {
+              if (pref.value && typeof pref.value === 'object' && 'endTime' in pref.value && pref.value.endTime) {
+                // Добавляем временные интервалы после указанного времени для всех дней
+                prefs.unavailableTimes!.push({
+                  date: quarterSettings.startDate, // Используем дату начала четверти как пример
+                  startTime: pref.value.endTime,
+                  endTime: scheduleConstraints.workingHours.end
+                });
+              }
+            });
+          }
+
+          // Неприемлемые дни
+          const dayPrefs = activePrefs.filter(pref => pref.type === 'day');
+          if (dayPrefs.length > 0) {
+            dayPrefs.forEach(pref => {
+              if (pref.value && Array.isArray(pref.value)) {
+                // Добавляем все дни из массива как неприемлемые
+                prefs.unacceptableDays!.push(...pref.value);
+              }
+            });
+          }
+
+          // Максимум уроков подряд
+          const lessonPrefs = activePrefs.filter(pref => pref.type === 'lesson');
+          if (lessonPrefs.length > 0) {
+            lessonPrefs.forEach(pref => {
+              if (pref.value && typeof pref.value === 'object' && 'maxConsecutive' in pref.value && pref.value.maxConsecutive) {
+                prefs.maxConsecutiveLessons = pref.value.maxConsecutive;
+              }
+            });
+          }
+
+          // Предпочитаемые аудитории
+          const classroomPrefs = activePrefs.filter(pref => pref.type === 'classroom');
+          if (classroomPrefs.length > 0) {
+            classroomPrefs.forEach(pref => {
+              if (pref.value && Array.isArray(pref.value)) {
+                prefs.preferredClassrooms = pref.value;
+              }
+            });
+          }
+
+          teacherPreferences[teacher.id] = prefs;
+        }
+      }
+
       const params: FlowGenerationParams = {
         startDate: quarterSettings.startDate,
         endDate: quarterSettings.endDate,
         groupIds: selectedGroups,
+        subjectIds: selectedSubjectKeys.length > 0 ? selectedSubjectKeys.map(key => Number(key.split('-')[1])) : undefined,
         constraints: {
           workingHours: scheduleConstraints.workingHours,
           maxConsecutiveHours: Math.min(4, scheduleConstraints.maxLessonsPerDay),
@@ -938,7 +782,9 @@ const AISchedulePage: React.FC = () => {
           minBreakDuration: scheduleConstraints.breakDuration
         },
         subjectHours,
-        generationType: 'full'
+        teacherPreferences,
+        generationType: 'full',
+        forceBiweeklyStudyPlanIds: forceBiweeklyStudyPlanIds.length > 0 ? forceBiweeklyStudyPlanIds : undefined
       };
 
       const draftRes = await scheduleService.flowDraft(params);
@@ -949,8 +795,10 @@ const AISchedulePage: React.FC = () => {
       setFlowOptimized(optimized);
       const validation = await scheduleService.flowValidate(optimized);
       setFlowValidation(validation);
-      // Если есть recurringTemplates — строим одну неделю из шаблонов
+      // Строим расписание из шаблонов для отображения (разворачиваем на неделю)
       let weekLessons: GeneratedLesson[] = [];
+
+      // Разворачиваем recurringTemplates на неделю
       if (optimized.recurringTemplates?.length) {
         const templates = optimized.recurringTemplates;
         const startDateObj = new Date(params.startDate + 'T00:00:00');
@@ -986,32 +834,46 @@ const AISchedulePage: React.FC = () => {
             weekNumber: 1
           });
         });
-        // Добавляем singleOccurrences попадающие в эту неделю
-        if (optimized.singleOccurrences?.length) {
-          const singles = optimized.singleOccurrences;
-          const weekDateSet = new Set(Array.from(dateMap.values()));
-          singles.filter(s => weekDateSet.has(s.date)).forEach((s, idx) => {
-            const teacher = teachers.find(t => t.id === s.teacherId);
-            const group = groups.find(g => g.id === s.groupId);
-            weekLessons.push({
-              id: `single-${s.groupId}-${s.subject}-${s.date}-${idx}`,
-              date: s.date,
-              dayOfWeek: getDayNameFromDateStr(s.date),
-              startTime: s.startTime,
-              endTime: s.endTime,
-              subject: s.subject,
-              studyPlanId: s.studyPlanId || 0,
-              groupId: s.groupId,
-              groupName: group?.name || `Group#${s.groupId}`,
-              teacherId: s.teacherId,
-              teacherName: teacher ? `${teacher.name} ${teacher.surname}` : `Teacher#${s.teacherId}`,
-              classroomId: s.roomId ? Number(s.roomId) : undefined,
-              classroomName: s.roomId ? String(s.roomId) : undefined,
-              weekNumber: 1
-            });
-          });
+      }
+
+      // Добавляем singleOccurrences попадающие в эту неделю
+      if (optimized.singleOccurrences?.length) {
+        const singles = optimized.singleOccurrences;
+        const startDateObj = new Date(params.startDate + 'T00:00:00');
+        const startDow = startDateObj.getDay();
+        const monday = new Date(startDateObj);
+        const offset = (startDow + 6) % 7;
+        monday.setDate(monday.getDate() - offset);
+        const weekDateSet = new Set<string>();
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          weekDateSet.add(d.toISOString().split('T')[0]);
         }
-      } else {
+        singles.filter(s => weekDateSet.has(s.date)).forEach((s, idx) => {
+          const teacher = teachers.find(t => t.id === s.teacherId);
+          const group = groups.find(g => g.id === s.groupId);
+          weekLessons.push({
+            id: `single-${s.groupId}-${s.subject}-${s.date}-${idx}`,
+            date: s.date,
+            dayOfWeek: getDayNameFromDateStr(s.date),
+            startTime: s.startTime,
+            endTime: s.endTime,
+            subject: s.subject,
+            studyPlanId: s.studyPlanId || 0,
+            groupId: s.groupId,
+            groupName: group?.name || `Group#${s.groupId}`,
+            teacherId: s.teacherId,
+            teacherName: teacher ? `${teacher.name} ${teacher.surname}` : `Teacher#${s.teacherId}`,
+            classroomId: s.roomId ? Number(s.roomId) : undefined,
+            classroomName: s.roomId ? String(s.roomId) : undefined,
+            weekNumber: 1
+          });
+        });
+      }
+
+      // Fallback: если нет шаблонов, используем generatedSchedule
+      if (!optimized.recurringTemplates?.length && !optimized.singleOccurrences?.length) {
         weekLessons = (optimized.generatedSchedule || []).map((l, idx) => {
           const teacher = teachers.find(tt => tt.id === l.teacherId);
           const group = groups.find(g => g.id === l.groupId);
@@ -1050,7 +912,7 @@ const AISchedulePage: React.FC = () => {
         subjectsCount: weekLessons.length ? new Set(weekLessons.map(s => s.subject)).size : 0,
         teachersCount: weekLessons.length ? new Set(weekLessons.map(s => s.teacherId)).size : 0
       });
-      setCurrentStep(6);
+      setCurrentStep(7);
     } catch (e) {
       console.error(e);
       alert('Ошибка генерации расписания');
@@ -1667,50 +1529,77 @@ const AISchedulePage: React.FC = () => {
                   <p className="text-gray-600">Выберите доступные аудитории для проведения занятий</p>
                 </div>
 
-                {/* Группировка по корпусам */}
-                <div className="space-y-6">
-                  {Array.from(new Set(classrooms.map(c => c.building))).map(building => (
-                    <div key={building}>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                          <Building className="h-5 w-5 mr-2 text-gray-600" />
-                          {building}
-                        </h3>
-                        <div className="text-sm text-gray-500">
-                          {classrooms.filter(c => c.building === building && selectedClassrooms.includes(c.id)).length} из {classrooms.filter(c => c.building === building).length} выбрано
-                        </div>
-                      </div>
+    {/* Группировка по корпусам */}
+    <div className="space-y-6">
+      {Array.from(new Set(classrooms.map(c => c.building))).map(building => {
+        const buildingClassrooms = classrooms.filter(c => c.building === building);
+        const selectedInBuilding = buildingClassrooms.filter(c => selectedClassrooms.includes(c.id)).length;
+        const allSelected = selectedInBuilding === buildingClassrooms.length && buildingClassrooms.length > 0;
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {classrooms
-                          .filter(classroom => classroom.building === building)
-                          .map(classroom => (
-                            <div
-                              key={classroom.id}
-                              className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedClassrooms.includes(classroom.id)
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                              onClick={() => {
-                                if (selectedClassrooms.includes(classroom.id)) {
-                                  setSelectedClassrooms(selectedClassrooms.filter(id => id !== classroom.id));
-                                } else {
-                                  setSelectedClassrooms([...selectedClassrooms, classroom.id]);
-                                }
-                              }}
-                            >
-                              <div className="text-center">
-                                <div className="text-xl font-bold text-gray-900">{classroom.name}</div>
-                                <div className="text-sm text-gray-500 capitalize">{classroom.type}</div>
-                                <div className="text-sm text-gray-500">до {classroom.capacity} мест</div>
-                                {/* описание отсутствует в данных */}
-                              </div>
-                            </div>
-                          ))
-                        }
-                      </div>
-                    </div>
-                  ))}
+        return (
+          <div key={building}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <Building className="h-5 w-5 mr-2 text-gray-600" />
+                {building}
+              </h3>
+              <div className="flex items-center space-x-3">
+                <div className="text-sm text-gray-500">
+                  {selectedInBuilding} из {buildingClassrooms.length} выбрано
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const buildingIds = buildingClassrooms.map(c => c.id);
+                      setSelectedClassrooms(prev => [...new Set([...prev, ...buildingIds])]);
+                    }}
+                    className="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                  >
+                    Выбрать все
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const buildingIds = buildingClassrooms.map(c => c.id);
+                      setSelectedClassrooms(prev => prev.filter(id => !buildingIds.includes(id)));
+                    }}
+                    className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+                  >
+                    Очистить
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {buildingClassrooms.map(classroom => (
+                <div
+                  key={classroom.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedClassrooms.includes(classroom.id)
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  onClick={() => {
+                    if (selectedClassrooms.includes(classroom.id)) {
+                      setSelectedClassrooms(selectedClassrooms.filter(id => id !== classroom.id));
+                    } else {
+                      setSelectedClassrooms([...selectedClassrooms, classroom.id]);
+                    }
+                  }}
+                >
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-gray-900">{classroom.name}</div>
+                    <div className="text-sm text-gray-500 capitalize">{classroom.type}</div>
+                    <div className="text-sm text-gray-500">до {classroom.capacity} мест</div>
+                    {/* описание отсутствует в данных */}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
                 </div>
 
                 {/* Статистика по типам аудиторий */}
@@ -1761,6 +1650,7 @@ const AISchedulePage: React.FC = () => {
                   <Settings className="h-16 w-16 text-blue-500 mx-auto mb-4" />
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Ограничения и правила</h2>
                   <p className="text-gray-600">Настройте параметры составления расписания</p>
+
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1842,6 +1732,38 @@ const AISchedulePage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Обеденный перерыв */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-gray-900">Обеденный перерыв</h3>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-700 mb-1">Начало перерыва</label>
+                        <input
+                          type="time"
+                          value={scheduleConstraints.lunchBreakTime.start}
+                          onChange={(e) => setScheduleConstraints({
+                            ...scheduleConstraints,
+                            lunchBreakTime: { ...scheduleConstraints.lunchBreakTime, start: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-700 mb-1">Конец перерыва</label>
+                        <input
+                          type="time"
+                          value={scheduleConstraints.lunchBreakTime.end}
+                          onChange={(e) => setScheduleConstraints({
+                            ...scheduleConstraints,
+                            lunchBreakTime: { ...scheduleConstraints.lunchBreakTime, end: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Предпочтения */}
                   <div className="space-y-4">
                     <h3 className="font-medium text-gray-900">Предпочтения</h3>
@@ -1855,17 +1777,17 @@ const AISchedulePage: React.FC = () => {
                           <label key={subject} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              checked={scheduleConstraints.noFirstLessonSubjects.includes(subject)}
+                              checked={scheduleConstraints.forbiddenFirstSubjects.includes(subject)}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setScheduleConstraints({
                                     ...scheduleConstraints,
-                                    noFirstLessonSubjects: [...scheduleConstraints.noFirstLessonSubjects, subject]
+                                    forbiddenFirstSubjects: [...scheduleConstraints.forbiddenFirstSubjects, subject]
                                   });
                                 } else {
                                   setScheduleConstraints({
                                     ...scheduleConstraints,
-                                    noFirstLessonSubjects: scheduleConstraints.noFirstLessonSubjects.filter(s => s !== subject)
+                                    forbiddenFirstSubjects: scheduleConstraints.forbiddenFirstSubjects.filter(s => s !== subject)
                                   });
                                 }
                               }}
@@ -1886,17 +1808,17 @@ const AISchedulePage: React.FC = () => {
                           <label key={subject} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              checked={scheduleConstraints.noLastLessonSubjects.includes(subject)}
+                              checked={scheduleConstraints.forbiddenLastSubjects.includes(subject)}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setScheduleConstraints({
                                     ...scheduleConstraints,
-                                    noLastLessonSubjects: [...scheduleConstraints.noLastLessonSubjects, subject]
+                                    forbiddenLastSubjects: [...scheduleConstraints.forbiddenLastSubjects, subject]
                                   });
                                 } else {
                                   setScheduleConstraints({
                                     ...scheduleConstraints,
-                                    noLastLessonSubjects: scheduleConstraints.noLastLessonSubjects.filter(s => s !== subject)
+                                    forbiddenLastSubjects: scheduleConstraints.forbiddenLastSubjects.filter(s => s !== subject)
                                   });
                                 }
                               }}
@@ -1906,6 +1828,403 @@ const AISchedulePage: React.FC = () => {
                           </label>
                         ))}
                       </div>
+                    </div>
+
+                    {/* Предпочитаемые дни для предметов */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-3">
+                        Предпочитаемые дни для предметов ({Object.keys(getGroupedSubjects()).length} предметов):
+                      </label>
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {Object.entries(getGroupedSubjects()).map(([subjectName, subjectGroups]) => {
+                          const isExpanded = expandedSubjects.has(subjectName);
+                          const hasAnyPreferences = subjectGroups.some(subject =>
+                            scheduleConstraints.preferredDays[`${subjectName}-${subject.groupId}`]?.length > 0
+                          );
+
+                          return (
+                            <div key={subjectName} className="border rounded-lg bg-white shadow-sm">
+                              {/* Заголовок аккордеона */}
+                              <button
+                                type="button"
+                                onClick={() => toggleSubjectExpansion(subjectName)}
+                                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <div className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                                  </div>
+                                  <div className="text-left">
+                                    <div className="font-medium text-gray-900">{subjectName}</div>
+                                    <div className="text-sm text-gray-500">
+                                      {subjectGroups.length} групп • {subjectGroups[0]?.teacherName}
+                                      {hasAnyPreferences && (
+                                        <span className="ml-2 text-blue-600 font-medium">
+                                          • Настроено предпочтений
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {subjectGroups.length} групп
+                                </div>
+                              </button>
+
+                              {/* Содержимое аккордеона */}
+                              {isExpanded && (
+                                <div className="border-t bg-gray-50 p-4">
+                                  <div className="space-y-4">
+                                    {subjectGroups.map((subject) => {
+                                      const subjectKey = `${subjectName}-${subject.groupId}`;
+                                      const preferredDays = scheduleConstraints.preferredDays[subjectKey] || [];
+
+                                      return (
+                                        <div key={subject.groupId} className="bg-white rounded-lg p-3 border">
+                                          <div className="font-medium text-sm text-gray-900 mb-3 flex items-center">
+                                            <Users className="h-4 w-4 mr-2 text-gray-600" />
+                                            {subject.groupName}
+                                          </div>
+                                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                            {[
+                                              { num: 1, name: 'Пн' },
+                                              { num: 2, name: 'Вт' },
+                                              { num: 3, name: 'Ср' },
+                                              { num: 4, name: 'Чт' },
+                                              { num: 5, name: 'Пт' },
+                                              { num: 6, name: 'Сб' }
+                                            ].map(day => (
+                                              <label key={day.num} className="flex items-center space-x-1">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={preferredDays.includes(day.num)}
+                                                  onChange={(e) => {
+                                                    const newPreferredDays = e.target.checked
+                                                      ? [...preferredDays, day.num]
+                                                      : preferredDays.filter(d => d !== day.num);
+
+                                                    setScheduleConstraints({
+                                                      ...scheduleConstraints,
+                                                      preferredDays: {
+                                                        ...scheduleConstraints.preferredDays,
+                                                        [subjectKey]: newPreferredDays
+                                                      }
+                                                    });
+                                                  }}
+                                                  className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                />
+                                                <span className="text-xs text-gray-700">{day.name}</span>
+                                              </label>
+                                            ))}
+                                          </div>
+                                          {preferredDays.length > 0 && (
+                                            <div className="mt-2 text-xs text-blue-600">
+                                              Предпочитаемые дни: {preferredDays.map(d =>
+                                                ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][d - 1]
+                                              ).join(', ')}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Пожелания педагогов */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-gray-900">Пожелания педагогов ({new Set(getSelectedSubjects().map(s => s.teacherId)).size} преподавателей)</h3>
+
+                    <div className="mb-4 p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                      <div className="flex items-start space-x-2">
+                        <Heart className="h-4 w-4 text-pink-500 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-pink-800">
+                          Настройте индивидуальные предпочтения для каждого преподавателя.
+                          Эти настройки помогут алгоритму создать более комфортное расписание.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {getSelectedSubjects().reduce((uniqueTeachers: { id: number; name: string; subjectCount: number }[], subject) => {
+                        const teacherExists = uniqueTeachers.find(t => t.id === subject.teacherId);
+                        if (!teacherExists) {
+                          uniqueTeachers.push({
+                            id: subject.teacherId,
+                            name: subject.teacherName,
+                            subjectCount: 1
+                          });
+                        } else {
+                          teacherExists.subjectCount++;
+                        }
+                        return uniqueTeachers;
+                      }, []).map(teacher => {
+                        const isExpanded = expandedTeachers.has(teacher.id);
+                        const teacherPrefs = getTeacherPreferences(teacher.id);
+                        const activePrefsCount = teacherPrefs.filter(p => p.enabled).length;
+
+                        return (
+                          <div key={teacher.id} className="border rounded-lg bg-white shadow-sm">
+                            {/* Заголовок аккордеона */}
+                            <button
+                              type="button"
+                              onClick={() => toggleTeacherExpansion(teacher.id)}
+                              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                                </div>
+                                <div className="text-left">
+                                  <div className="font-medium text-gray-900">{teacher.name}</div>
+                                  <div className="text-sm text-gray-500">
+                                    {teacher.subjectCount} предметов
+                                    {activePrefsCount > 0 && (
+                                      <span className="ml-2 text-pink-600 font-medium">
+                                        • {activePrefsCount} активных пожеланий
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {teacher.subjectCount} предметов
+                              </div>
+                            </button>
+
+                            {/* Содержимое аккордеона */}
+                            {isExpanded && (
+                              <div className="border-t bg-gray-50 p-4">
+                                <div className="space-y-4">
+                                  {[
+                                    { type: 'time', title: '⏰ Временные ограничения', icon: Clock, placeholder: 'Например: Не работать после 15:00' },
+                                    { type: 'day', title: '📅 Предпочтения по дням', icon: Calendar, placeholder: 'Например: Предпочитать понедельник и среду' },
+                                    { type: 'lesson', title: '📚 Ограничения по урокам', icon: BookOpen, placeholder: 'Например: Не более 3 уроков подряд' },
+                                    { type: 'classroom', title: '🏫 Аудиторные предпочтения', icon: Building, placeholder: 'Например: Только аудитории на 1 этаже' },
+                                    { type: 'special', title: '⭐ Особые требования', icon: Star, placeholder: 'Например: Перерывы между уроками 15 мин' }
+                    ].map(category => {
+                      const categoryPrefs = teacherPrefs.filter(pref => pref.type === category.type);
+                      const activeCount = categoryPrefs.filter(pref => pref.enabled).length;
+
+                      return (
+                        <div key={category.type} className="border rounded-lg p-4 bg-white">
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="font-medium text-gray-900 flex items-center">
+                              {category.title}
+                            </h5>
+                            <div className="flex items-center space-x-2">
+                              {activeCount > 0 && (
+                                <span className="bg-pink-100 text-pink-800 text-xs font-medium px-2 py-1 rounded-full">
+                                  {activeCount} активно
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => addTeacherPreference(teacher.id, category.type as 'time' | 'day' | 'lesson' | 'classroom' | 'special')}
+                                className="text-pink-600 hover:text-pink-700 text-sm font-medium flex items-center"
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Добавить
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {categoryPrefs.length === 0 ? (
+                              <div className="text-sm text-gray-500 italic text-center py-4">
+                                Нет пожеланий в этой категории
+                              </div>
+                            ) : (
+                              categoryPrefs.map(pref => (
+                                <div key={pref.id} className="flex items-start space-x-2 p-2 border rounded bg-gray-50">
+                                  <input
+                                    type="checkbox"
+                                    checked={pref.enabled}
+                                    onChange={(e) => updateTeacherPreference(
+                                      teacher.id,
+                                      pref.id,
+                                      e.target.checked
+                                    )}
+                                    className="h-4 w-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded mt-1"
+                                  />
+                                  <div className="flex-1 space-y-2">
+                                    {/* Специфические контролы в зависимости от типа */}
+                                    {pref.type === 'time' && pref.value && typeof pref.value === 'object' && 'endTime' in pref.value && (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                          <label className="text-sm text-gray-700">Не работать после:</label>
+                                          <input
+                                            type="time"
+                                            value={pref.value.endTime || '15:00'}
+                                            onChange={(e) => {
+                                              const newValue = { ...pref.value, endTime: e.target.value };
+                                              // Обновляем preference с новым value
+                                              const updatedPrefs = teacherPrefs.map(p =>
+                                                p.id === pref.id ? { ...p, value: newValue } : p
+                                              );
+                                              setTeacherPreferences(prev => ({
+                                                ...prev,
+                                                [`teacher-${teacher.id}`]: updatedPrefs
+                                              }));
+                                            }}
+                                            className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-pink-500 focus:border-pink-500"
+                                          />
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          Преподаватель не будет работать после указанного времени
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'day' && pref.value && Array.isArray(pref.value) && (
+                                      <div className="space-y-2">
+                                        <div className="text-sm text-gray-700 mb-2">Предпочитаемые дни недели:</div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                          {[
+                                            { num: 1, name: 'Пн' },
+                                            { num: 2, name: 'Вт' },
+                                            { num: 3, name: 'Ср' },
+                                            { num: 4, name: 'Чт' },
+                                            { num: 5, name: 'Пт' },
+                                            { num: 6, name: 'Сб' }
+                                          ].map(day => (
+                                            <label key={day.num} className="flex items-center space-x-1">
+                                              <input
+                                                type="checkbox"
+                                                checked={Array.isArray(pref.value) && pref.value.includes(day.num)}
+                                                onChange={(e) => {
+                                                  const newValue = e.target.checked
+                                                    ? [...pref.value, day.num]
+                                                    : pref.value.filter((d: number) => d !== day.num);
+                                                  const updatedPrefs = teacherPrefs.map(p =>
+                                                    p.id === pref.id ? { ...p, value: newValue } : p
+                                                  );
+                                                  setTeacherPreferences(prev => ({
+                                                    ...prev,
+                                                    [`teacher-${teacher.id}`]: updatedPrefs
+                                                  }));
+                                                }}
+                                                className="h-3 w-3 text-pink-600 focus:ring-pink-500 border-gray-300 rounded"
+                                              />
+                                              <span className="text-xs text-gray-700">{day.name}</span>
+                                            </label>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'lesson' && pref.value && typeof pref.value === 'object' && 'maxConsecutive' in pref.value && (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                          <label className="text-sm text-gray-700">Макс. уроков подряд:</label>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            max="8"
+                                            value={pref.value.maxConsecutive || 3}
+                                            onChange={(e) => {
+                                              const newValue = { ...pref.value, maxConsecutive: parseInt(e.target.value) };
+                                              const updatedPrefs = teacherPrefs.map(p =>
+                                                p.id === pref.id ? { ...p, value: newValue } : p
+                                              );
+                                              setTeacherPreferences(prev => ({
+                                                ...prev,
+                                                [`teacher-${teacher.id}`]: updatedPrefs
+                                              }));
+                                            }}
+                                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-pink-500 focus:border-pink-500"
+                                          />
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          Ограничение на количество подряд идущих уроков
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'classroom' && pref.value && Array.isArray(pref.value) && (
+                                      <div className="space-y-2">
+                                        <div className="text-sm text-gray-700 mb-2">Предпочитаемые аудитории:</div>
+                                        <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                                          {selectedClassrooms.map(classroomId => {
+                                            const classroom = classrooms.find(c => c.id === classroomId);
+                                            return classroom ? (
+                                              <label key={classroom.id} className="flex items-center space-x-1">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={pref.value.includes(classroom.id)}
+                                                  onChange={(e) => {
+                                                  const currentValue = pref.value as number[];
+                                                  const newValue = e.target.checked
+                                                    ? [...currentValue, classroom.id]
+                                                    : currentValue.filter((id: number) => id !== classroom.id);
+                                                    const updatedPrefs = teacherPrefs.map(p =>
+                                                      p.id === pref.id ? { ...p, value: newValue } : p
+                                                    );
+                                                    setTeacherPreferences(prev => ({
+                                                      ...prev,
+                                                      [`teacher-${teacher.id}`]: updatedPrefs
+                                                    }));
+                                                  }}
+                                                  className="h-3 w-3 text-pink-600 focus:ring-pink-500 border-gray-300 rounded"
+                                                />
+                                                <span className="text-xs text-gray-700">{classroom.name}</span>
+                                              </label>
+                                            ) : null;
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'special' && (
+                                      <div className="space-y-2">
+                                        <textarea
+                                          value={pref.description || ''}
+                                          onChange={(e) => updateTeacherPreferenceDescription(teacher.id, pref.id, e.target.value)}
+                                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-pink-500 focus:border-pink-500 resize-none"
+                                          rows={3}
+                                          placeholder="Опишите особые требования..."
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeTeacherPreference(teacher.id, pref.id)}
+                                    className="text-red-500 hover:text-red-700 mt-1"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                                  {/* Статистика пожеланий */}
+                                  {teacherPrefs.filter(p => p.enabled).length > 0 && (
+                                    <div className="bg-pink-50 border border-pink-200 rounded-lg p-4">
+                                      <div className="flex items-center">
+                                        <Star className="h-5 w-5 text-pink-500 mr-2" />
+                                        <div className="text-sm">
+                                          <div className="font-medium text-pink-900">
+                                            Активно пожеланий: {teacherPrefs.filter(p => p.enabled).length} из {teacherPrefs.length}
+                                          </div>
+                                          <div className="text-pink-700">
+                                            Алгоритм будет учитывать эти ограничения при составлении расписания
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1921,8 +2240,146 @@ const AISchedulePage: React.FC = () => {
               </motion.div>
             )}
 
-            {/* Шаг 5: Генерация */}
+            {/* Шаг 5: A/B недели */}
             {currentStep === 5 && (
+              <motion.div
+                key="step5"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <Shuffle className="h-16 w-16 text-purple-500 mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">A/B недели</h2>
+                  <p className="text-gray-600">Выберите предметы для двухнедельного цикла</p>
+                </div>
+
+                {/* Информация о A/B неделях */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <Shuffle className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="text-sm">
+                      <div className="font-medium text-blue-900 mb-1">
+                        Что такое A/B недели?
+                      </div>
+                      <div className="text-blue-800">
+                        Предметы с двухнедельным циклом проводятся только в четные или нечетные недели.
+                        Это позволяет оптимизировать нагрузку на преподавателей и аудитории.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Список предметов для выбора */}
+                {selectedGroups.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        Предметы для A/B недель ({biweeklySubjects.size} выбрано)
+                      </h3>
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setBiweeklySubjects(new Set())}
+                          className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                        >
+                          Очистить все
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allKeys = getSelectedSubjects().map(s => `${s.groupId}-${s.id}`);
+                            setBiweeklySubjects(new Set(allKeys));
+                          }}
+                          className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md"
+                        >
+                          Выбрать все
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {getSelectedSubjects().map((subject, index) => {
+                        const subjectKey = `${subject.groupId}-${subject.id}`;
+                        const isBiweekly = biweeklySubjects.has(subjectKey);
+
+                        return (
+                          <div
+                            key={index}
+                            className={`p-4 border rounded-lg transition-all ${
+                              isBiweekly
+                                ? 'border-purple-500 bg-purple-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <input
+                                type="checkbox"
+                                id={`biweekly-${subjectKey}`}
+                                checked={isBiweekly}
+                                onChange={(e) => {
+                                  const newSet = new Set(biweeklySubjects);
+                                  if (e.target.checked) {
+                                    newSet.add(subjectKey);
+                                  } else {
+                                    newSet.delete(subjectKey);
+                                  }
+                                  setBiweeklySubjects(newSet);
+                                }}
+                                className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                              />
+                              <label htmlFor={`biweekly-${subjectKey}`} className="flex-1 cursor-pointer">
+                                <div className={`font-medium ${isBiweekly ? 'text-purple-900' : 'text-gray-900'}`}>
+                                  {subject.name}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {subject.groupName} • {subject.teacherName}
+                                </div>
+                                {isBiweekly && (
+                                  <div className="text-xs text-purple-600 mt-1">
+                                    ✓ Двухнедельный цикл
+                                  </div>
+                                )}
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Статистика */}
+                    {biweeklySubjects.size > 0 && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <div className="text-sm">
+                          <div className="font-medium text-purple-900 mb-2">
+                            Выбрано предметов для A/B недель: {biweeklySubjects.size}
+                          </div>
+                          <div className="text-purple-800">
+                            Эти предметы будут чередоваться по неделям (четные/нечетные),
+                            что сократит общее количество уроков в неделю.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={prevStep}>
+                    <ChevronLeft className="h-4 w-4 mr-2" /> Назад
+                  </Button>
+                  <Button onClick={nextStep} className="px-6">
+                    Далее <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Шаг 6: Генерация */}
+            {currentStep === 6 && (
               <motion.div
                 key="step5"
                 initial={{ opacity: 0, x: 20 }}
@@ -2005,10 +2462,10 @@ const AISchedulePage: React.FC = () => {
               </motion.div>
             )}
 
-            {/* Шаг 6: Интерактивная сетка расписания */}
-            {currentStep === 6 && (
+            {/* Шаг 7: Интерактивная сетка расписания */}
+            {currentStep === 7 && (
               <motion.div
-                key="step5"
+                key="step7"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -2087,7 +2544,7 @@ const AISchedulePage: React.FC = () => {
                 </div>
 
                 <div className="flex justify-between">
-                  <Button variant="outline" onClick={() => setCurrentStep(4)}>
+                  <Button variant="outline" onClick={() => setCurrentStep(5)}>
                     <Shuffle className="h-4 w-4 mr-2" /> Перегенерировать
                   </Button>
                   <Button onClick={nextStep} className="px-6 bg-green-600 hover:bg-green-700">
@@ -2097,10 +2554,10 @@ const AISchedulePage: React.FC = () => {
               </motion.div>
             )}
 
-            {/* Шаг 7: Сохранение */}
-            {currentStep === 7 && (
+            {/* Шаг 8: Сохранение */}
+            {currentStep === 8 && (
               <motion.div
-                key="step7"
+                key="step8"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -2125,7 +2582,8 @@ const AISchedulePage: React.FC = () => {
                       <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto mb-3" />
                       <h3 className="font-medium text-yellow-800 mb-2">Внимание!</h3>
                       <p className="text-yellow-700 text-sm">
-                        Это действие создаст {getWeeklyPatterns().length} записей в базе данных (weekly-паттерны за выбранный период).
+                        Это действие создаст регулярные шаблоны расписания в базе данных.
+                        Вместо отдельных записей на каждый день будут созданы шаблоны с повторением (weekly/biweekly).
                         Убедитесь, что расписание проверено и готово к использованию.
                       </p>
                     </div>
@@ -2323,6 +2781,29 @@ const AISchedulePage: React.FC = () => {
           </div>
         )}
 
+        {/* Модальное окно редактора ограничений */}
+        {showConstraintsEditor && (
+          <ScheduleConstraintsEditor
+            isOpen={showConstraintsEditor}
+            onClose={() => setShowConstraintsEditor(false)}
+            constraints={scheduleConstraints}
+            onSave={(newConstraints) => {
+              setScheduleConstraints(newConstraints);
+              setShowConstraintsEditor(false);
+            }}
+            availableSubjects={getSelectedSubjects().map(s => ({
+              id: s.id,
+              name: s.name,
+              groupId: s.groupId,
+              groupName: s.groupName,
+              teacherId: s.teacherId,
+              teacherName: s.teacherName
+            }))}
+            teacherPreferences={teacherPreferences}
+            onTeacherPreferencesChange={setTeacherPreferences}
+          />
+        )}
+
         {/* Модальное окно редактирования предмета */}
         {showSubjectModal && selectedSubject && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -2490,30 +2971,175 @@ const AISchedulePage: React.FC = () => {
                           </div>
 
                           <div className="space-y-2">
-                            {categoryPrefs.map(preference => (
-                              <div key={preference.id} className="flex items-start space-x-3">
-                                <input
-                                  type="checkbox"
-                                  id={preference.id}
-                                  checked={preference.enabled}
-                                  onChange={(e) => updateTeacherPreference(
-                                    selectedSubject.teacherId,
-                                    preference.id,
-                                    e.target.checked
-                                  )}
-                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
-                                />
-                                <label htmlFor={preference.id} className="flex-1">
-                                  <div className={`text-sm font-medium ${preference.enabled ? 'text-gray-900' : 'text-gray-600'
-                                    }`}>
-                                    {preference.title}
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    {preference.description}
-                                  </div>
-                                </label>
+                            {categoryPrefs.length === 0 ? (
+                              <div className="text-sm text-gray-500 italic text-center py-4">
+                                Нет пожеланий в этой категории
                               </div>
-                            ))}
+                            ) : (
+                              categoryPrefs.map(pref => (
+                                <div key={pref.id} className="flex items-start space-x-2 p-2 border rounded bg-gray-50">
+                                  <input
+                                    type="checkbox"
+                                    checked={pref.enabled}
+                                    onChange={(e) => updateTeacherPreference(
+                                      selectedSubject.teacherId,
+                                      pref.id,
+                                      e.target.checked
+                                    )}
+                                    className="h-4 w-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded mt-1"
+                                  />
+                                  <div className="flex-1 space-y-2">
+                                    {/* Специфические контролы в зависимости от типа */}
+                                    {pref.type === 'time' && pref.value && typeof pref.value === 'object' && 'endTime' in pref.value && pref.value.endTime && (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                          <label className="text-sm text-gray-700">Не работать после:</label>
+                                          <input
+                                            type="time"
+                                            value={pref.value.endTime}
+                                            onChange={(e) => {
+                                              const currentPrefs = getTeacherPreferences(selectedSubject.teacherId);
+                                              const currentValue = pref.value && typeof pref.value === 'object' ? pref.value : {};
+                                              const newValue = { ...currentValue, endTime: e.target.value };
+                                              const updatedPrefs = currentPrefs.map(p =>
+                                                p.id === pref.id ? { ...p, value: newValue } : p
+                                              );
+                                              setTeacherPreferences(prev => ({
+                                                ...prev,
+                                                [`teacher-${selectedSubject.teacherId}`]: updatedPrefs
+                                              }));
+                                            }}
+                                            className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-pink-500 focus:border-pink-500"
+                                          />
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          Преподаватель не будет работать после указанного времени
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'day' && pref.value && Array.isArray(pref.value) && (
+                                      <div className="space-y-2">
+                                        <div className="text-sm text-gray-700 mb-2">Предпочитаемые дни недели:</div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                          {[
+                                            { num: 1, name: 'Пн' },
+                                            { num: 2, name: 'Вт' },
+                                            { num: 3, name: 'Ср' },
+                                            { num: 4, name: 'Чт' },
+                                            { num: 5, name: 'Пт' },
+                                            { num: 6, name: 'Сб' }
+                                          ].map(day => (
+                                            <label key={day.num} className="flex items-center space-x-1">
+                                              <input
+                                                type="checkbox"
+                                                checked={pref.value.includes(day.num)}
+                                                onChange={(e) => {
+                                                  const currentPrefs = getTeacherPreferences(selectedSubject.teacherId);
+                                                  const currentValue = pref.value as number[];
+                                                  const newValue = e.target.checked
+                                                    ? [...currentValue, day.num]
+                                                    : currentValue.filter((d: number) => d !== day.num);
+                                                  const updatedPrefs = currentPrefs.map(p =>
+                                                    p.id === pref.id ? { ...p, value: newValue } : p
+                                                  );
+                                                  setTeacherPreferences(prev => ({
+                                                    ...prev,
+                                                    [`teacher-${selectedSubject.teacherId}`]: updatedPrefs
+                                                  }));
+                                                }}
+                                                className="h-3 w-3 text-pink-600 focus:ring-pink-500 border-gray-300 rounded"
+                                              />
+                                              <span className="text-xs text-gray-700">{day.name}</span>
+                                            </label>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'lesson' && pref.value && typeof pref.value === 'object' && 'maxConsecutive' in pref.value && pref.value.maxConsecutive && (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                          <label className="text-sm text-gray-700">Макс. уроков подряд:</label>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            max="8"
+                                            value={pref.value.maxConsecutive}
+                                            onChange={(e) => {
+                                              const currentPrefs = getTeacherPreferences(selectedSubject.teacherId);
+                                              const currentValue = pref.value && typeof pref.value === 'object' ? pref.value : {};
+                                              const newValue = { ...currentValue, maxConsecutive: parseInt(e.target.value) };
+                                              const updatedPrefs = currentPrefs.map(p =>
+                                                p.id === pref.id ? { ...p, value: newValue } : p
+                                              );
+                                              setTeacherPreferences(prev => ({
+                                                ...prev,
+                                                [`teacher-${selectedSubject.teacherId}`]: updatedPrefs
+                                              }));
+                                            }}
+                                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-pink-500 focus:border-pink-500"
+                                          />
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          Ограничение на количество подряд идущих уроков
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'classroom' && pref.value && Array.isArray(pref.value) && (
+                                      <div className="space-y-2">
+                                        <div className="text-sm text-gray-700 mb-2">Предпочитаемые аудитории:</div>
+                                        <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                                          {selectedClassrooms.map(classroomId => {
+                                            const classroom = classrooms.find(c => c.id === classroomId);
+                                            return classroom ? (
+                                              <label key={classroom.id} className="flex items-center space-x-1">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={pref.value.includes(classroom.id)}
+                                                  onChange={(e) => {
+                                                    const currentPrefs = getTeacherPreferences(selectedSubject.teacherId);
+                                                    const currentValue = pref.value as number[];
+                                                    const newValue = e.target.checked
+                                                      ? [...currentValue, classroom.id]
+                                                      : currentValue.filter((id: number) => id !== classroom.id);
+                                                    const updatedPrefs = currentPrefs.map(p =>
+                                                      p.id === pref.id ? { ...p, value: newValue } : p
+                                                    );
+                                                    setTeacherPreferences(prev => ({
+                                                      ...prev,
+                                                      [`teacher-${selectedSubject.teacherId}`]: updatedPrefs
+                                                    }));
+                                                  }}
+                                                  className="h-3 w-3 text-pink-600 focus:ring-pink-500 border-gray-300 rounded"
+                                                />
+                                                <span className="text-xs text-gray-700">{classroom.name}</span>
+                                              </label>
+                                            ) : null;
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {pref.type === 'special' && (
+                                      <div className="space-y-2">
+                                        <textarea
+                                          value={pref.description || ''}
+                                          onChange={(e) => updateTeacherPreferenceDescription(selectedSubject.teacherId, pref.id, e.target.value)}
+                                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-pink-500 focus:border-pink-500 resize-none"
+                                          rows={3}
+                                          placeholder="Опишите особые требования..."
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeTeacherPreference(selectedSubject.teacherId, pref.id)}
+                                    className="text-red-500 hover:text-red-700 mt-1"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
                           </div>
                         </div>
                       );

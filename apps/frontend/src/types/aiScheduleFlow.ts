@@ -1,12 +1,22 @@
 export interface GenerationConstraints {
   workingHours: { start: string; end: string };
   maxConsecutiveHours: number;
-  preferredBreaks: number[];
-  excludeWeekends: boolean;
-  minBreakDuration: number;
+  preferredBreaks?: number[];
+  excludeWeekends?: boolean;
+  minBreakDuration?: number;
+  forbiddenFirstSubjects?: string[];
+  forbiddenLastSubjects?: string[];
 }
 
 export type GenerationType = 'full' | 'partial' | 'optimize';
+
+export interface TeacherPreferences {
+  unavailableTimes?: { date: string; startTime: string; endTime: string }[];
+  unacceptableDays?: number[];
+  maxHoursPerDay?: number;
+  maxConsecutiveLessons?: number;
+  preferredClassrooms?: number[];
+}
 
 export interface GenerationParams {
   startDate: string;
@@ -17,8 +27,11 @@ export interface GenerationParams {
   subjectHours?: Record<number, number>;
   subjectIds?: number[];
   teacherIds?: number[];
+  teacherPreferences?: Record<number, TeacherPreferences>;
   /** Включает подробное логирование оптимизатора */
   debug?: boolean;
+  /** Принудительно сделать указанные studyPlanId двухнедельными */
+  forceBiweeklyStudyPlanIds?: number[];
 }
 
 export interface DraftItem {

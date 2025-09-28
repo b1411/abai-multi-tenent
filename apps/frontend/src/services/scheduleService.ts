@@ -248,6 +248,16 @@ class ScheduleService {
     }
   }
 
+  async getAcademicHourDuration(): Promise<number> {
+    try {
+      const response = await apiClient.get<{ data: { minutes: number } }>('/system/academic-hour/duration');
+      return response.data.minutes;
+    } catch (error) {
+      console.error('Error fetching academic hour duration:', error);
+      return 45; // fallback to default
+    }
+  }
+
   // Helper methods to convert backend data to frontend format
   static convertToScheduleItem(schedule: Schedule): ScheduleItem {
     const dayNames = ['', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];

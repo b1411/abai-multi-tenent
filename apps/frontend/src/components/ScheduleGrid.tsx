@@ -616,77 +616,99 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     useSensor(KeyboardSensor)
   );
 
-  // Генерируем временные слоты
+  // Генерируем временные слоты динамически на основе сгенерированного расписания
   const timeSlots = useMemo(() => {
-    const slots: TimeSlot[] = [];
-    const [startH, startM] = workingHours.start.split(':').map(Number);
-    const [endH, endM] = workingHours.end.split(':').map(Number);
-    const step = typeof slotStepMinutes === 'number' && slotStepMinutes > 0 ? slotStepMinutes : 60;
+    if (lessons.length === 0) {
+      // Если нет уроков, используем старую логику для показа пустой сетки
+      const slots: TimeSlot[] = [];
+      const [startH, startM] = workingHours.start.split(':').map(Number);
+      const [endH, endM] = workingHours.end.split(':').map(Number);
+      const step = typeof slotStepMinutes === 'number' && slotStepMinutes > 0 ? slotStepMinutes : 60;
 
-    const startMinutes = startH * 60 + (startM || 0);
-    const endMinutes = endH * 60 + (endM || 0);
+      const startMinutes = startH * 60 + (startM || 0);
+      const endMinutes = endH * 60 + (endM || 0);
 
-    // Разбираем обеденный перерыв
-    const [lunchStartH, lunchStartM] = lunchBreakTime.start.split(':').map(Number);
-    const [lunchEndH, lunchEndM] = lunchBreakTime.end.split(':').map(Number);
-    const lunchStartMinutes = lunchStartH * 60 + (lunchStartM || 0);
-    const lunchEndMinutes = lunchEndH * 60 + (lunchEndM || 0);
+      // Разбираем обеденный перерыв
+      const [lunchStartH, lunchStartM] = lunchBreakTime.start.split(':').map(Number);
+      const [lunchEndH, lunchEndM] = lunchBreakTime.end.split(':').map(Number);
+      const lunchStartMinutes = lunchStartH * 60 + (lunchStartM || 0);
+      const lunchEndMinutes = lunchEndH * 60 + (lunchEndM || 0);
 
-    const toTimeStr = (mins: number) => {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    };
+      const toTimeStr = (mins: number) => {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      };
 
-    // Функция для генерации слотов в диапазоне
-    const buildSlots = (from: number, to: number) => {
-      let current = from;
-      while (current + step <= to) {
-        const slotEnd = current + step;
-        const isLunch = current < lunchEndMinutes && slotEnd > lunchStartMinutes;
-        slots.push({
-          time: toTimeStr(current),
-          hour: Math.floor(current / 60),
-          minute: current % 60,
-          isLunchSlot: isLunch,
-        });
-        current += step;
-      }
-    };
+      // Функция для генерации слотов в диапазоне
+      const buildSlots = (from: number, to: number) => {
+        let current = from;
+        while (current + step <= to) {
+          const slotEnd = current + step;
+          const isLunch = current < lunchEndMinutes && slotEnd > lunchStartMinutes;
+          slots.push({
+            time: toTimeStr(current),
+            hour: Math.floor(current / 60),
+            minute: current % 60,
+            isLunchSlot: isLunch,
+          });
+          current += step;
+        }
+      };
 
-    // Слоты до обеденного перерыва
-    buildSlots(startMinutes, lunchStartMinutes);
+      // Слоты до обеденного перерыва
+      buildSlots(startMinutes, lunchStartMinutes);
 
-    // Слоты после обеденного перерыва
-    buildSlots(lunchEndMinutes, endMinutes);
+      // Слоты после обеденного перерыва
+      buildSlots(lunchEndMinutes, endMinutes);
 
-    return slots;
-  }, [workingHours, slotStepMinutes, lunchBreakTime]);
-
-  // Генерируем рабочие дни
-  const workingDays = useMemo(() => {
-    const days: string[] = [];
-    const start = new Date(quarterSettings.startDate);
-    const end = new Date(quarterSettings.endDate);
-    const current = new Date(start);
-
-    // Ограничиваем для демонстрации первыми 2 неделями
-    const maxDays = 14;
-    let dayCount = 0;
-
-    while (current <= end && dayCount < maxDays) {
-      const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
-      
-      if (quarterSettings.workingDays.includes(dayOfWeek)) {
-        days.push(current.toISOString().split('T')[0]);
-        dayCount++;
-      }
-      
-      current.setDate(current.getDate() + 1);
+      return slots;
     }
 
-    return days;
-  }, [quarterSettings]);
+    // Извлекаем уникальные времена начала уроков и сортируем
+    const uniqueTimes = [...new Set(lessons.map(lesson => lesson.startTime))];
+    const sortedTimes = uniqueTimes.sort();
+
+    return sortedTimes.map(time => {
+      const [hour, minute] = time.split(':').map(Number);
+      return {
+        time,
+        hour,
+        minute,
+        isLunchSlot: false, // Пока не определяем обеденные слоты динамически
+      };
+    });
+  }, [lessons, workingHours, slotStepMinutes, lunchBreakTime]);
+
+  // Генерируем рабочие дни динамически на основе сгенерированного расписания
+  const workingDays = useMemo(() => {
+    if (lessons.length === 0) {
+      // Если нет уроков, используем старую логику для показа пустой сетки
+      const days: string[] = [];
+      const start = new Date(quarterSettings.startDate);
+      const end = new Date(quarterSettings.endDate);
+      const current = new Date(start);
+      const maxDays = 60;
+      let dayCount = 0;
+
+      while (current <= end && dayCount < maxDays) {
+        const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
+        
+        if (quarterSettings.workingDays.includes(dayOfWeek)) {
+          days.push(current.toISOString().split('T')[0]);
+          dayCount++;
+        }
+        
+        current.setDate(current.getDate() + 1);
+      }
+
+      return days;
+    }
+
+    // Извлекаем уникальные даты из уроков и сортируем
+    const uniqueDates = [...new Set(lessons.map(lesson => lesson.date))];
+    return uniqueDates.sort();
+  }, [lessons, quarterSettings]);
 
   // Получаем уникальные значения для фильтров
   const filterOptions = useMemo(() => {

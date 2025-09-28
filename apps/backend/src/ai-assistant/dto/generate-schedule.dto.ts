@@ -28,6 +28,23 @@ export class RoomPreferenceDto {
   priority: number;
 }
 
+export class TeacherPreferencesDto {
+  @ApiProperty({ example: [{ date: '2024-09-01', startTime: '09:00', endTime: '10:00' }], description: 'Недоступные временные интервалы' })
+  @IsOptional()
+  unavailableTimes?: { date: string; startTime: string; endTime: string }[];
+
+  @ApiProperty({ example: [1, 2, 3], description: 'Неприемлемые дни недели (1-7)' })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  unacceptableDays?: number[];
+
+  @ApiProperty({ example: 8, description: 'Максимум часов в день' })
+  @IsNumber()
+  @IsOptional()
+  maxHoursPerDay?: number;
+}
+
 export class ScheduleConstraintsDto {
   @ApiProperty({ type: WorkingHoursDto, description: 'Рабочие часы' })
   @ValidateNested()
@@ -62,6 +79,18 @@ export class ScheduleConstraintsDto {
   @Max(60)
   @IsOptional()
   minBreakDuration?: number;
+
+  @ApiProperty({ example: ['Физкультура', 'Труд', 'ИЗО', 'Музыка'], description: 'Предметы, которые нельзя ставить первым уроком' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  forbiddenFirstSubjects?: string[];
+
+  @ApiProperty({ example: ['Математика', 'Русский язык', 'История'], description: 'Предметы, которые нельзя ставить последним уроком' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  forbiddenLastSubjects?: string[];
 }
 
 export enum GenerationType {
@@ -114,4 +143,8 @@ export class GenerateScheduleDto {
   @IsString()
   @IsOptional()
   additionalInstructions?: string;
+
+  @ApiProperty({ description: 'Предпочтения преподавателей по teacherId', type: Object, additionalProperties: { $ref: '#/components/schemas/TeacherPreferencesDto' } })
+  @IsOptional()
+  teacherPreferences?: Record<number, TeacherPreferencesDto>;
 }

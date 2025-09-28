@@ -49,6 +49,8 @@ export interface OptimizerParams {
   breakMinutes?: number; // стандартная перемена между уроками
   holidays?: string[]; // список дат (YYYY-MM-DD) когда нельзя ставить уроки
   lunchBreakTime?: { start: string; end: string }; // обеденный перерыв
+  forbiddenFirstSubjects?: string[]; // предметы, которые нельзя ставить первым уроком
+  forbiddenLastSubjects?: string[]; // предметы, которые нельзя ставить последним уроком
   weights?: {
     windows?: number;
     fairness?: number;
@@ -544,6 +546,23 @@ export class ScheduleOptimizerService {
       }
     }
 
+    // Forbidden first/last subjects
+    if (params?.forbiddenFirstSubjects?.length || params?.forbiddenLastSubjects?.length) {
+      const byGroupDate = this.groupBy(plan, p => `${p.groupId}|${p.date}`);
+      for (const [, lessons] of byGroupDate) {
+        if (lessons.length === 0) continue;
+        lessons.sort((a, b) => a.startTime.localeCompare(b.startTime));
+        const first = lessons[0];
+        const last = lessons[lessons.length - 1];
+        if (params.forbiddenFirstSubjects?.includes(first.subject)) {
+          errs.push(`FORBIDDEN_FIRST_SUBJECT:${first.groupId}:${first.date}:${first.subject}`);
+        }
+        if (params.forbiddenLastSubjects?.includes(last.subject)) {
+          errs.push(`FORBIDDEN_LAST_SUBJECT:${last.groupId}:${last.date}:${last.subject}`);
+        }
+      }
+    }
+
     // Hard: max lessons per day per group / teacher & max consecutive chain (gap <= minBreakMinutes)
   const MAX_PER_DAY = params?.maxLessonsPerDay;
     if (MAX_PER_DAY) {
@@ -599,11 +618,12 @@ export class ScheduleOptimizerService {
     const transitionPenalty = this.transitionPenalty(plan, roomById, params.minBreakMinutes ?? 10) * w.transitions;
     const harmonyPenalty = this.harmonyPenalty(plan, roomById) * w.harmony;
     const timeConsistencyPenalty = this.timeConsistencyPenalty(plan) * w.timeConsistency;
+    const forbiddenSubjectsPenalty = this.forbiddenSubjectsPenalty(plan, params) * w.preferences; // use preferences weight for forbidden subjects
 
     return {
       windows: windowsPenalty,
       fairness: fairnessPenalty,
-      preferences: prefPenalty,
+      preferences: prefPenalty + forbiddenSubjectsPenalty,
       heavyLate: heavyLatePenalty,
       transitions: transitionPenalty,
       harmony: harmonyPenalty,
@@ -1005,6 +1025,25 @@ export class ScheduleOptimizerService {
       const avg = starts.reduce((a, b) => a + b, 0) / starts.length;
       const variance = starts.reduce((s, c) => s + (c - avg) * (c - avg), 0) / starts.length;
       penalty += variance / 60; // normalize to minutes
+    }
+    return penalty;
+  }
+
+  private forbiddenSubjectsPenalty(plan: DraftItem[], params: OptimizerParams): number {
+    // Penalize forbidden first/last subjects
+    let penalty = 0;
+    const byGroupDate = this.groupBy(plan, p => `${p.groupId}|${p.date}`);
+    for (const [, lessons] of byGroupDate) {
+      if (lessons.length === 0) continue;
+      lessons.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const first = lessons[0];
+      const last = lessons[lessons.length - 1];
+      if (params.forbiddenFirstSubjects?.includes(first.subject)) {
+        penalty += 5; // high penalty for forbidden first subject
+      }
+      if (params.forbiddenLastSubjects?.includes(last.subject)) {
+        penalty += 5; // high penalty for forbidden last subject
+      }
     }
     return penalty;
   }

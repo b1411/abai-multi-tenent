@@ -278,7 +278,11 @@ model Teacher {
 
   // Кураторские группы
   curatorGroups Group[]
+
+
 }
+
+
 
 model Parent {
   id        Int       @id @default(autoincrement())

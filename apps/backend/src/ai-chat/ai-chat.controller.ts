@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthGuard } from '../common/guards/auth.guard';
@@ -25,11 +25,11 @@ export class AiChatController {
   }
 
   @Post('threads')
-  @ApiOperation({ summary: 'Создать/обновить тред для данного тьютора (уникален на пользователя)' })
+  @ApiOperation({ summary: 'Создать тред для данного тьютора' })
   @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
-  async upsertThread(@Req() req: Request, @Body() body: { tutorId: number; title?: string | null }) {
+  async createThread(@Req() req: Request, @Body() body: { tutorId: number; title?: string | null }) {
     const user: any = (req as any).user;
-    return await this.service.upsertThread(user.id, Number(body.tutorId), body.title ?? null);
+    return await this.service.createThread(user.id, Number(body.tutorId), body.title ?? null);
   }
 
   @Get('threads/:id')
@@ -40,7 +40,23 @@ export class AiChatController {
     return await this.service.getThread(user.id, Number(id));
   }
 
-  // --- Messages ---
+  @Patch('threads/:id')
+  @ApiOperation({ summary: 'Обновить тред (например, title)' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  async updateThread(@Req() req: Request, @Param('id') id: string, @Body() body: { title?: string | null }) {
+    const user: any = (req as any).user;
+    return await this.service.updateThread(user.id, Number(id), body.title ?? null);
+  }
+
+  @Post('threads/:id/generate-title')
+  @ApiOperation({ summary: 'Сгенерировать title для треда на основе первого сообщения' })
+  @Roles('ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+  async generateTitle(@Req() req: Request, @Param('id') id: string) {
+    const user: any = (req as any).user;
+    const title = await this.service.generateTitle(user.id, Number(id));
+    // update the thread with the generated title
+    return await this.service.updateThread(user.id, Number(id), title);
+  }
 
   @Get('threads/:id/messages')
   @ApiOperation({ summary: 'Список сообщений треда (asc), пагинация через limit и beforeId' })

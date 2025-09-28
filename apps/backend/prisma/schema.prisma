@@ -2207,8 +2207,6 @@ model AiChatThread {
   deletedAt DateTime?
 
   messages AiChatMessage[]
-
-  @@unique([tutorId, ownerId])
 }
 
 enum AiChatRole {

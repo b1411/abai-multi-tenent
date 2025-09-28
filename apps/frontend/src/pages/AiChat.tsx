@@ -27,9 +27,11 @@ const AiChat: React.FC = () => {
   const [tutors, setTutors] = useState<AiTutor[]>([]);
   const [selectedTutorId, setSelectedTutorId] = useState<number | null>(null);
   const [thread, setThread] = useState<AiChatThread | null>(null);
+  const [threads, setThreads] = useState<AiChatThread[]>([]);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
   const [loadingTutors, setLoadingTutors] = useState(false);
+  const [loadingThreads, setLoadingThreads] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [realtimeStartedAt, setRealtimeStartedAt] = useState<number | null>(null);
@@ -42,6 +44,7 @@ const AiChat: React.FC = () => {
   const [editingTutorId, setEditingTutorId] = useState<number | null>(null);
   const [editData, setEditData] = useState<UpdateTutorInput>({});
   const [showTutors, setShowTutors] = useState(false);
+  const [showThreads, setShowThreads] = useState(false);
 
   // View mode state
 
@@ -54,6 +57,67 @@ const AiChat: React.FC = () => {
   // Track mirrored realtime assistant messages in main chat
   const processedRtIdsRef = useRef<Set<string>>(new Set());
   const rtIdToLocalRef = useRef<Map<string, number>>(new Map());
+
+  const fetchMessages = useCallback(async (threadId: number) => {
+    try {
+      setLoadingMessages(true);
+      setHasMore(true);
+      const msgs = await aiChatService.listMessages(threadId, PAGE_SIZE);
+      setMessages(msgs);
+      setHasMore(msgs.length >= PAGE_SIZE);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
+
+  // Load threads for selected tutor
+  const loadThreads = useCallback(async (tutorId: number) => {
+    try {
+      setLoadingThreads(true);
+      const list = await aiChatService.listThreads(tutorId);
+      setThreads(list);
+      return list;
+    } finally {
+      setLoadingThreads(false);
+    }
+  }, []);
+
+  // Select thread => fetch messages
+  const selectThread = useCallback(async (th: AiChatThread) => {
+    setThread(th);
+    await fetchMessages(th.id);
+  }, [fetchMessages]);
+
+  // Select tutor => load threads and select last thread or create new
+  const selectTutor = useCallback(async (tutorId: number) => {
+    setSelectedTutorId(tutorId);
+    const list = await loadThreads(tutorId);
+    if (list.length > 0) {
+      selectThread(list[0]);
+    } else {
+      try {
+        const th = await aiChatService.createThread(tutorId);
+        setThread(th);
+        await fetchMessages(th.id);
+        await loadThreads(tutorId);
+      } catch (_) {
+        // handled by apiClient toasts
+      }
+    }
+  }, [loadThreads, selectThread, fetchMessages]);
+
+  // Create new thread
+  const createNewThread = useCallback(async () => {
+    if (!selectedTutorId) return;
+    try {
+      const th = await aiChatService.createThread(selectedTutorId, 'Новый чат');
+      setThread(th);
+      setMessages([]);
+      await loadThreads(selectedTutorId);
+    } catch (_) {
+      // handled
+    }
+  }, [selectedTutorId, loadThreads]);
 
   // Load tutors for any authenticated user
   const loadTutors = useCallback(async () => {
@@ -68,35 +132,7 @@ const AiChat: React.FC = () => {
     } finally {
       setLoadingTutors(false);
     }
-  }, [selectedTutorId]);
-
-  useEffect(() => {
-    loadTutors();
-  }, [loadTutors]);
-
-  // Select tutor => upsert per-user thread and fetch messages
-  const selectTutor = useCallback(async (tutorId: number) => {
-    setSelectedTutorId(tutorId);
-    try {
-      const th = await aiChatService.upsertThread(tutorId);
-      setThread(th);
-      await fetchMessages(th.id);
-    } catch (_) {
-      // handled by apiClient toasts
-    }
-  }, []);
-
-  const fetchMessages = useCallback(async (threadId: number) => {
-    try {
-      setLoadingMessages(true);
-      setHasMore(true);
-      const msgs = await aiChatService.listMessages(threadId, PAGE_SIZE);
-      setMessages(msgs);
-      setHasMore(msgs.length >= PAGE_SIZE);
-    } finally {
-      setLoadingMessages(false);
-    }
-  }, []);
+  }, [selectedTutorId, selectTutor]);
 
   // Infinite scroll: load older on near top
   const handleScrollLoadMore = useCallback(async () => {
@@ -123,8 +159,8 @@ const AiChat: React.FC = () => {
         skipAutoScrollOnceRef.current = true;
         setMessages(prev => {
           const existingIds = new Set(prev.map(p => p.id));
-            const onlyNew = older.filter(o => !existingIds.has(o.id));
-            return [...onlyNew, ...prev];
+          const onlyNew = older.filter(o => !existingIds.has(o.id));
+          return [...onlyNew, ...prev];
         });
         requestAnimationFrame(() => {
           const newHeight = el.scrollHeight;
@@ -137,6 +173,11 @@ const AiChat: React.FC = () => {
       setLoadingMore(false);
     }
   }, [messages, loadingMore, hasMore, thread]);
+
+  // Load tutors on component mount
+  useEffect(() => {
+    loadTutors();
+  }, []);
 
   // Auto-fill with older messages until container overflows
   useEffect(() => {
@@ -194,12 +235,23 @@ const AiChat: React.FC = () => {
         const filtered = prev.filter(m => m.id !== optimistic.id);
         return [...filtered, { ...optimistic, id: optimistic.id - 1 }, assistant];
       });
+
+      // Generate title if this is the first message and no title yet
+      if (messages.length === 0 && !thread.title) {
+        try {
+          const updatedThread = await aiChatService.generateThreadTitle(thread.id);
+          setThread(updatedThread);
+          setThreads(prev => prev.map(t => t.id === updatedThread.id ? updatedThread : t));
+        } catch {
+          // ignore
+        }
+      }
     } catch {
       if (thread) await fetchMessages(thread.id);
     } finally {
       setSending(false);
     }
-  }, [connectionState.status, thread, textInput, sending, fetchMessages, sendMessageEvent, sendEvent]);
+  }, [connectionState.status, thread, textInput, sending, fetchMessages, sendMessageEvent, sendEvent, messages.length]);
 
   // Enter to send
   const handleTextKey = (e: React.KeyboardEvent) => {
@@ -407,8 +459,8 @@ const AiChat: React.FC = () => {
 
   // UI helpers
   const connectionDot = connectionState.status === 'connected' ? 'bg-green-500' :
-                        connectionState.status === 'connecting' ? 'bg-yellow-500' :
-                        connectionState.status === 'error' ? 'bg-red-500' : 'bg-gray-400';
+    connectionState.status === 'connecting' ? 'bg-yellow-500' :
+      connectionState.status === 'error' ? 'bg-red-500' : 'bg-gray-400';
 
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-50 overflow-hidden">
@@ -424,199 +476,199 @@ const AiChat: React.FC = () => {
       <div className="flex-1 min-h-0 relative flex">
         {showTutors && (
           <div className="absolute inset-y-0 left-0 w-72 bg-white border-r shadow-lg z-30 flex flex-col">
-          <div className="p-4 border-b flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Тьюторы</h2>
-            {isTeacherOrAdmin && (
-              <button
-                onClick={() => setShowCreate(v => !v)}
-                className="text-sm px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                {showCreate ? 'Отмена' : 'Новый'}
-              </button>
-            )}
-          </div>
-
-          {isTeacherOrAdmin && showCreate && (
-            <div className="p-4 border-b space-y-2">
-              <input
-                className="w-full border rounded-md px-3 py-2"
-                placeholder="Предмет (обязательно)"
-                value={createData.subject}
-                onChange={e => setCreateData(d => ({ ...d, subject: e.target.value }))}
-              />
-              <input
-                className="w-full border rounded-md px-3 py-2"
-                placeholder="Имя (необязательно)"
-                value={createData.name}
-                onChange={e => setCreateData(d => ({ ...d, name: e.target.value }))}
-              />
-              <input
-                className="w-full border rounded-md px-3 py-2"
-                placeholder="Аватар URL (необязательно)"
-                value={createData.avatarUrl}
-                onChange={e => setCreateData(d => ({ ...d, avatarUrl: e.target.value }))}
-              />
-              <textarea
-                className="w-full border rounded-md px-3 py-2"
-                placeholder="Доп. инструкции (необязательно)"
-                rows={3}
-                value={createData.extraInstructions}
-                onChange={e => setCreateData(d => ({ ...d, extraInstructions: e.target.value }))}
-              />
-              <div className="space-y-1">
-                <label className="block text-sm text-gray-700">Документы знаний (pdf, docx, txt и др.)</label>
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.txt,.md,.json,.csv,.xml"
-                  className="w-full text-sm"
-                  onChange={(e) => setCreateFiles(e.target.files)}
-                />
-                {createFiles && createFiles.length > 0 && (
-                  <div className="text-xs text-gray-500">
-                    {Array.from(createFiles).slice(0, 3).map(f => f.name).join(', ')}
-                    {createFiles.length > 3 ? ` +${createFiles.length - 3}` : ''}
-                  </div>
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={!!createData.isPublic}
-                  onChange={e => setCreateData(d => ({ ...d, isPublic: e.target.checked }))}
-                />
-                Видно всем аутентифицированным
-              </label>
-              <div className="flex gap-2">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Тьюторы</h2>
+              {isTeacherOrAdmin && (
                 <button
-                  onClick={handleCreateTutor}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  onClick={() => setShowCreate(v => !v)}
+                  className="text-sm px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700"
                 >
-                  Создать
+                  {showCreate ? 'Отмена' : 'Новый'}
                 </button>
-                <button
-                  onClick={() => { setShowCreate(false); setCreateData({ subject: '', name: '', avatarUrl: '', extraInstructions: '', isPublic: true }); }}
-                  className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-                >
-                  Отмена
-                </button>
-              </div>
+              )}
             </div>
-          )}
 
-          <div className="flex-1 overflow-auto">
-            {loadingTutors ? (
-              <div className="p-4 text-sm text-gray-500">Загрузка...</div>
-            ) : tutors.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500">Нет тьюторов</div>
-            ) : (
-              <ul className="divide-y">
-                {tutors.map((t) => (
-                  <li
-                    key={t.id}
-                    className={`group ${selectedTutorId === t.id ? 'bg-blue-50' : 'bg-white'} p-3 transition-colors`}
+            {isTeacherOrAdmin && showCreate && (
+              <div className="p-4 border-b space-y-2">
+                <input
+                  className="w-full border rounded-md px-3 py-2"
+                  placeholder="Предмет (обязательно)"
+                  value={createData.subject}
+                  onChange={e => setCreateData(d => ({ ...d, subject: e.target.value }))}
+                />
+                <input
+                  className="w-full border rounded-md px-3 py-2"
+                  placeholder="Имя (необязательно)"
+                  value={createData.name}
+                  onChange={e => setCreateData(d => ({ ...d, name: e.target.value }))}
+                />
+                <input
+                  className="w-full border rounded-md px-3 py-2"
+                  placeholder="Аватар URL (необязательно)"
+                  value={createData.avatarUrl}
+                  onChange={e => setCreateData(d => ({ ...d, avatarUrl: e.target.value }))}
+                />
+                <textarea
+                  className="w-full border rounded-md px-3 py-2"
+                  placeholder="Доп. инструкции (необязательно)"
+                  rows={3}
+                  value={createData.extraInstructions}
+                  onChange={e => setCreateData(d => ({ ...d, extraInstructions: e.target.value }))}
+                />
+                <div className="space-y-1">
+                  <label className="block text-sm text-gray-700">Документы знаний (pdf, docx, txt и др.)</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.txt,.md,.json,.csv,.xml"
+                    className="w-full text-sm"
+                    onChange={(e) => setCreateFiles(e.target.files)}
+                  />
+                  {createFiles && createFiles.length > 0 && (
+                    <div className="text-xs text-gray-500">
+                      {Array.from(createFiles).slice(0, 3).map(f => f.name).join(', ')}
+                      {createFiles.length > 3 ? ` +${createFiles.length - 3}` : ''}
+                    </div>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={!!createData.isPublic}
+                    onChange={e => setCreateData(d => ({ ...d, isPublic: e.target.checked }))}
+                  />
+                  Видно всем аутентифицированным
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCreateTutor}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
-                    {editingTutorId === t.id ? (
-                      <div className="space-y-2">
-                        <input
-                          className="w-full border rounded-md px-3 py-2"
-                          value={editData.subject ?? ''}
-                          onChange={e => setEditData(d => ({ ...d, subject: e.target.value }))}
-                          placeholder="Предмет"
-                        />
-                        <input
-                          className="w-full border rounded-md px-3 py-2"
-                          value={editData.name ?? ''}
-                          onChange={e => setEditData(d => ({ ...d, name: e.target.value }))}
-                          placeholder="Имя"
-                        />
-                        <input
-                          className="w-full border rounded-md px-3 py-2"
-                          value={editData.avatarUrl ?? ''}
-                          onChange={e => setEditData(d => ({ ...d, avatarUrl: e.target.value }))}
-                          placeholder="Аватар URL"
-                        />
-                        <textarea
-                          className="w-full border rounded-md px-3 py-2"
-                          rows={3}
-                          value={editData.extraInstructions ?? ''}
-                          onChange={e => setEditData(d => ({ ...d, extraInstructions: e.target.value }))}
-                          placeholder="Доп. инструкции"
-                        />
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={!!editData.isPublic}
-                            onChange={e => setEditData(d => ({ ...d, isPublic: e.target.checked }))}
-                          />
-                          Видно всем аутентифицированным
-                        </label>
-                        <div className="flex gap-2">
-                          <button onClick={saveEdit} className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700">Сохранить</button>
-                          <button onClick={cancelEdit} className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Отмена</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-3">
-                        {t.avatarUrl ? (
-                          <img
-                            src={t.avatarUrl}
-                            alt={t.name || t.subject}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm text-gray-600">
-                            {t.subject.slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-start gap-2">
-                            <button
-                              onClick={() => selectTutor(t.id)}
-                              className="text-left flex-1 min-w-[140px]"
-                            >
-                              <div className="font-medium text-gray-900 truncate">
-                                {t.name || t.subject}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {t.subject}{t.isPublic ? ' • Публичный' : ''}
-                              </div>
-                            </button>
-                            {isTeacherOrAdmin && (
-                              <div className="flex items-center gap-2 shrink-0">
-                                <label className="text-xs text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
-                                  + Файлы
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    multiple
-                                    accept=".pdf,.doc,.docx,.txt,.md,.json,.csv,.xml"
-                                    onChange={(e) => ingestFiles(t.id, e.target.files)}
-                                  />
-                                </label>
-                                <button
-                                  onClick={() => startEdit(t)}
-                                  className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                                >
-                                  Изм.
-                                </button>
-                                <button
-                                  onClick={() => deleteTutor(t.id)}
-                                  className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                                >
-                                  Удалить
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                    Создать
+                  </button>
+                  <button
+                    onClick={() => { setShowCreate(false); setCreateData({ subject: '', name: '', avatarUrl: '', extraInstructions: '', isPublic: true }); }}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
+
+            <div className="flex-1 overflow-auto">
+              {loadingTutors ? (
+                <div className="p-4 text-sm text-gray-500">Загрузка...</div>
+              ) : tutors.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">Нет тьюторов</div>
+              ) : (
+                <ul className="divide-y">
+                  {tutors.map((t) => (
+                    <li
+                      key={t.id}
+                      className={`group ${selectedTutorId === t.id ? 'bg-blue-50' : 'bg-white'} p-3 transition-colors`}
+                    >
+                      {editingTutorId === t.id ? (
+                        <div className="space-y-2">
+                          <input
+                            className="w-full border rounded-md px-3 py-2"
+                            value={editData.subject ?? ''}
+                            onChange={e => setEditData(d => ({ ...d, subject: e.target.value }))}
+                            placeholder="Предмет"
+                          />
+                          <input
+                            className="w-full border rounded-md px-3 py-2"
+                            value={editData.name ?? ''}
+                            onChange={e => setEditData(d => ({ ...d, name: e.target.value }))}
+                            placeholder="Имя"
+                          />
+                          <input
+                            className="w-full border rounded-md px-3 py-2"
+                            value={editData.avatarUrl ?? ''}
+                            onChange={e => setEditData(d => ({ ...d, avatarUrl: e.target.value }))}
+                            placeholder="Аватар URL"
+                          />
+                          <textarea
+                            className="w-full border rounded-md px-3 py-2"
+                            rows={3}
+                            value={editData.extraInstructions ?? ''}
+                            onChange={e => setEditData(d => ({ ...d, extraInstructions: e.target.value }))}
+                            placeholder="Доп. инструкции"
+                          />
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={!!editData.isPublic}
+                              onChange={e => setEditData(d => ({ ...d, isPublic: e.target.checked }))}
+                            />
+                            Видно всем аутентифицированным
+                          </label>
+                          <div className="flex gap-2">
+                            <button onClick={saveEdit} className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700">Сохранить</button>
+                            <button onClick={cancelEdit} className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Отмена</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-3">
+                          {t.avatarUrl ? (
+                            <img
+                              src={t.avatarUrl}
+                              alt={t.name || t.subject}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm text-gray-600">
+                              {t.subject.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-start gap-2">
+                              <button
+                                onClick={() => selectTutor(t.id)}
+                                className="text-left flex-1 min-w-[140px]"
+                              >
+                                <div className="font-medium text-gray-900 truncate">
+                                  {t.name || t.subject}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {t.subject}{t.isPublic ? ' • Публичный' : ''}
+                                </div>
+                              </button>
+                              {isTeacherOrAdmin && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <label className="text-xs text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
+                                    + Файлы
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      multiple
+                                      accept=".pdf,.doc,.docx,.txt,.md,.json,.csv,.xml"
+                                      onChange={(e) => ingestFiles(t.id, e.target.files)}
+                                    />
+                                  </label>
+                                  <button
+                                    onClick={() => startEdit(t)}
+                                    className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                  >
+                                    Изм.
+                                  </button>
+                                  <button
+                                    onClick={() => deleteTutor(t.id)}
+                                    className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                  >
+                                    Удалить
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         )}
 
@@ -631,6 +683,7 @@ const AiChat: React.FC = () => {
                 <p className="text-xs text-gray-500">Переписка сохраняется и используется для контекста</p>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => setShowThreads(v => !v)} className="px-2 py-1.5 text-xs rounded-md border border-gray-300 bg-white hover:bg-gray-50 hidden sm:inline-block">{showThreads ? 'Скрыть чаты' : 'История чатов'}</button>
                 <button onClick={() => setShowTutors(v => !v)} className="px-2 py-1.5 text-xs rounded-md border border-gray-300 bg-white hover:bg-gray-50 hidden sm:inline-block">{showTutors ? 'Скрыть тьюторов' : 'Тьюторы'}</button>
                 <span className={`w-2.5 h-2.5 rounded-full ${connectionDot}`} />
                 <button
@@ -661,15 +714,14 @@ const AiChat: React.FC = () => {
             ) : (
               messages.map((m) => (
                 <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] sm:max-w-sm lg:max-w-lg px-4 py-3 rounded-2xl shadow-sm ${
-                    m.role === 'user' ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
-                  }`}>
+                  <div className={`max-w-[85%] sm:max-w-sm lg:max-w-lg px-4 py-3 rounded-2xl shadow-sm ${m.role === 'user' ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
+                    }`}>
                     <div className="flex items-start gap-3">
                       {m.role !== 'user' && <Volume2 size={16} className="mt-1 text-gray-400" />}
                       <div className="min-w-0">
                         <p className="text-sm sm:text-base break-words leading-relaxed whitespace-pre-wrap">{m.content}</p>
                         <p className={`text-[10px] mt-2 ${m.role === 'user' ? 'text-blue-100' : 'text-gray-400'}`}>
-                          {(() => { const d = new Date(m.createdAt as any); return isNaN(d.getTime()) ? '' : format(d, 'HH:mm', { locale: ru }); })()}
+                          {(() => { const d = new Date(m.createdAt); return isNaN(d.getTime()) ? '' : format(d, 'HH:mm', { locale: ru }); })()}
                         </p>
                       </div>
                     </div>
@@ -704,6 +756,36 @@ const AiChat: React.FC = () => {
             <div className="mt-2 text-xs text-gray-500">Enter — отправить</div>
           </div>
         </main>
+
+        {showThreads && (
+          <div className="absolute inset-y-0 right-0 w-72 bg-white border-l shadow-lg z-30 flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">История чатов</h2>
+              <button
+                onClick={createNewThread}
+                className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Новый чат
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {loadingThreads ? (
+                <div className="p-4 text-center text-gray-500">Загрузка...</div>
+              ) : threads.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">Нет чатов</div>
+              ) : (
+                <ul className="divide-y divide-gray-200">
+                  {threads.map(th => (
+                    <li key={th.id} className={`p-3 hover:bg-gray-50 cursor-pointer ${thread?.id === th.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''}`} onClick={() => selectThread(th)}>
+                      <div className="font-medium text-sm text-gray-900">{th.title || 'Без названия'}</div>
+                      <div className="text-xs text-gray-500">{new Date(th.updatedAt).toLocaleDateString('ru-RU')}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

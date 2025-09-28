@@ -43,7 +43,7 @@ export class AiChatService {
     });
   }
 
-  async upsertThread(ownerId: number, tutorId: number, title?: string | null) {
+  async createThread(ownerId: number, tutorId: number, title?: string | null) {
     // ensure tutor exists and is visible to the user (public or created by user)
     const tutor = await this.prisma.aiTutor.findFirst({
       where: {
@@ -55,10 +55,8 @@ export class AiChatService {
     });
     if (!tutor) throw new NotFoundException('Tutor not found or not accessible');
 
-    const thread = await this.prisma.aiChatThread.upsert({
-      where: { tutorId_ownerId: { tutorId, ownerId } },
-      update: { title: title ?? undefined, updatedAt: new Date() },
-      create: { tutorId, ownerId, title: title ?? null },
+    return await this.prisma.aiChatThread.create({
+      data: { tutorId, ownerId, title },
       select: {
         id: true,
         title: true,
@@ -68,7 +66,6 @@ export class AiChatService {
         updatedAt: true,
       },
     });
-    return thread;
   }
 
   async getThread(ownerId: number, threadId: number) {
@@ -82,7 +79,65 @@ export class AiChatService {
     return t;
   }
 
-  // --- Messages ---
+  async updateThread(ownerId: number, threadId: number, title: string | null) {
+    const t = await this.prisma.aiChatThread.findFirst({
+      where: { id: threadId, ownerId, deletedAt: null },
+    });
+    if (!t) throw new NotFoundException('Thread not found');
+
+    return await this.prisma.aiChatThread.update({
+      where: { id: threadId },
+      data: { title, updatedAt: new Date() },
+      select: {
+        id: true,
+        title: true,
+        tutorId: true,
+        ownerId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async generateTitle(ownerId: number, threadId: number): Promise<string> {
+    this.ensureKey();
+
+    // ownership check
+    const thr = await this.prisma.aiChatThread.findFirst({
+      where: { id: threadId, ownerId, deletedAt: null },
+    });
+    if (!thr) throw new ForbiddenException('Access denied');
+
+    // get first user message
+    const firstMessage = await this.prisma.aiChatMessage.findFirst({
+      where: { threadId, role: 'user' },
+      orderBy: { createdAt: 'asc' },
+      select: { content: true },
+    });
+
+    if (!firstMessage) return 'Новый чат';
+
+    const prompt = `Generate a short, concise title (3-7 words) for a chat conversation based on the following user message. The title should be in Russian and capture the main topic or intent.
+
+User message: "${firstMessage.content}"
+
+Title:`;
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 20,
+        temperature: 0.5,
+      });
+
+      const title = completion.choices[0]?.message?.content?.trim() || 'Новый чат';
+      return title.length > 50 ? title.substring(0, 50) : title;
+    } catch (e: any) {
+      console.error('Error generating title:', e);
+      return 'Новый чат';
+    }
+  }
 
   async listMessages(ownerId: number, threadId: number, limit = 100, beforeId?: number) {
     // ownership check

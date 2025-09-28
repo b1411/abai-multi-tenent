@@ -133,7 +133,7 @@ class AiChatService {
     return await apiClient.get<AiChatThread[]>(`/ai-chat/threads${qs}`);
   }
 
-  async upsertThread(tutorId: number, title?: string): Promise<AiChatThread> {
+  async createThread(tutorId: number, title?: string): Promise<AiChatThread> {
     return await apiClient.post<AiChatThread>('/ai-chat/threads', { tutorId, title });
   }
 
@@ -150,9 +150,17 @@ class AiChatService {
     return await apiClient.get<AiChatMessage[]>(`/ai-chat/threads/${threadId}/messages${qs}`);
   }
 
-  async sendMessage(threadId: number, content: string, attachments?: unknown): Promise<AiChatMessage> {
-    const res = await apiClient.post<{ message: AiChatMessage }>(`/ai-chat/threads/${threadId}/messages`, { content, attachments });
-    return res.message;
+  async updateThread(id: number, data: { title?: string | null }): Promise<AiChatThread> {
+    return await apiClient.patch<AiChatThread>(`/ai-chat/threads/${id}`, data);
+  }
+
+  async generateThreadTitle(threadId: number): Promise<AiChatThread> {
+    return await apiClient.post<AiChatThread>(`/ai-chat/threads/${threadId}/generate-title`);
+  }
+
+  async sendMessage(threadId: number, content: string): Promise<AiChatMessage> {
+    const response = await apiClient.post<{ message: AiChatMessage }>(`/ai-chat/threads/${threadId}/messages`, { content });
+    return response.message;
   }
 }
 

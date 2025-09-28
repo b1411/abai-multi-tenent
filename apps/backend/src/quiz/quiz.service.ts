@@ -4,10 +4,11 @@ import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginateQueryDto, PaginateResponseDto, PaginateMetaDto } from '../common/dtos/paginate.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class QuizService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notificationsService: NotificationsService) {}
 
   async create(createQuizDto: CreateQuizDto) {
     const { questions, ...quizData } = createQuizDto;
@@ -263,10 +264,10 @@ export class QuizService {
     return quiz;
   }
 
-  async toggleActive(id: number, isActive: boolean) {
-    await this.findOne(id, 'TEACHER');
+  async toggleActive(id: number, isActive: boolean, userId: number) {
+    const quiz = await this.findOne(id, 'TEACHER');
 
-    return this.prisma.quiz.update({
+    const updatedQuiz = await this.prisma.quiz.update({
       where: { id },
       data: { isActive },
       select: {
@@ -276,6 +277,25 @@ export class QuizService {
         updatedAt: true,
       },
     });
+
+    // Если тест стал активным, отправляем уведомления студентам
+    if (isActive && !quiz.isActive) {
+      const students = await this.prisma.student.findMany({
+        where: { deletedAt: null },
+        include: { user: true }
+      });
+
+      const studentIds = students.map(s => s.userId);
+      if (studentIds.length > 0) {
+        await this.notificationsService.notifyNewQuiz(
+          userId,
+          studentIds,
+          quiz.name
+        );
+      }
+    }
+
+    return updatedQuiz;
   }
 
   async remove(id: number) {

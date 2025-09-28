@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useContext, useRef } from 'react';
 import { notificationService } from '../services/notificationService';
 import type { Notification } from '../types/notification';
 import { useAuth } from '../hooks/useAuth';
 import { NotificationContext, NotificationContextType } from '../contexts/NotificationContext';
+import { useToast } from '../hooks/useToast';
 
 interface NotificationProviderProps {
   children: React.ReactNode;
@@ -10,11 +11,25 @@ interface NotificationProviderProps {
 
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const { user } = useAuth();
+  const toast = useToast();
+  const toastRef = useRef(toast);
+  
+  // Обновляем ref при изменении toast
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+  
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  
+  // Обновляем ref при изменении eventSource
+  useEffect(() => {
+    eventSourceRef.current = eventSource;
+  }, [eventSource]);
 
   // Загрузка уведомлений
   const loadNotifications = useCallback(async () => {
@@ -38,7 +53,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   // Установка SSE соединения
   const setupSSEConnection = useCallback(() => {
-    if (!user || eventSource) return;
+    if (!user || eventSourceRef.current) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -52,11 +67,23 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       es.onmessage = (event) => {
         try {
           const notification = JSON.parse(event.data);
-          console.log('New notification received:', notification);
+          console.log('New notification received via SSE:', notification);
 
           // Добавляем новое уведомление в начало списка
-          setNotifications(prev => [notification, ...prev]);
-          setUnreadCount(prev => prev + 1);
+          setNotifications(prev => {
+            console.log('Current notifications before update:', prev.length);
+            const newList = [notification, ...prev];
+            console.log('Updated notifications list:', newList.length);
+            return newList;
+          });
+          setUnreadCount(prev => {
+            const newCount = prev + 1;
+            console.log('Updated unread count:', newCount);
+            return newCount;
+          });
+
+          // Показать тост уведомление
+          toastRef.current.info(`🔔 ${notification.message}`, 5000);
 
           // Можно добавить звуковое уведомление или системное уведомление
           showBrowserNotification(notification);
@@ -72,7 +99,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         // Переподключение через 5 секунд
         setTimeout(() => {
           if (es.readyState === EventSource.CLOSED) {
-            setupSSEConnection();
+            setupSSEConnectionRef.current();
           }
         }, 5000);
       };
@@ -81,7 +108,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     } catch (error) {
       console.error('Error setting up SSE connection:', error);
     }
-  }, [user, eventSource]);
+  }, [user]);
 
   // Показать системное уведомление браузера
   const showBrowserNotification = (notification: Notification) => {
@@ -138,31 +165,38 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     await loadNotifications();
   }, [loadNotifications]);
 
+  const setupSSEConnectionRef = useRef(setupSSEConnection);
+  
+  // Обновляем ref при изменении setupSSEConnection
+  useEffect(() => {
+    setupSSEConnectionRef.current = setupSSEConnection;
+  }, [setupSSEConnection]);
+  
   // Эффект для инициализации
   useEffect(() => {
     if (user) {
       loadNotifications();
       requestNotificationPermission();
-      setupSSEConnection();
+      setupSSEConnectionRef.current();
     }
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
         setEventSource(null);
         setConnected(false);
       }
     };
-  }, [user]);
+  }, [user, loadNotifications, requestNotificationPermission]);
 
   // Очистка при размонтировании
   useEffect(() => {
     return () => {
-      if (eventSource) {
-        eventSource.close();
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
       }
     };
-  }, [eventSource]);
+  }, []);
 
   const value: NotificationContextType = {
     notifications,

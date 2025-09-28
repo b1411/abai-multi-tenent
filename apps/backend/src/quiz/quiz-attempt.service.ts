@@ -2,10 +2,11 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { AnswerQuestionDto } from './dto/answer-question.dto';
 import { QuizAttemptStatus } from 'generated/prisma';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class QuizAttemptService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService, private readonly notificationsService: NotificationsService) { }
 
   async startAttempt(quizId: number, userId: number) {
     const student = await this.prisma.student.findUnique({ where: { userId } });
@@ -219,6 +220,9 @@ export class QuizAttemptService {
         },
       },
     });
+
+    // Отправляем уведомление студенту о результате теста
+    await this.notificationsService.notifyQuizResult(userId, updatedAttempt.quiz.name, score);
 
     return updatedAttempt;
   }

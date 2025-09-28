@@ -1,15 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { FaCog, FaSave, FaEnvelope, FaBell, FaLock, FaServer, FaDownload, FaClock } from 'react-icons/fa';
+import { FaCog, FaSave, FaEnvelope, FaBell, FaLock, FaServer, FaDownload, FaClock, FaPaperPlane, FaUsers, FaUser } from 'react-icons/fa';
 import { useSystemSettings } from '../hooks/useSystem';
 import { SystemSettings } from '../types/system';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import { systemService } from '../services/systemService';
+import { notificationService } from '../services/notificationService';
+import { useToast } from '../hooks/useToast';
 
 type TabType = 'general' | 'email' | 'notifications' | 'security' | 'maintenance' | 'academic';
 
+// Типы уведомлений
+const NOTIFICATION_TYPES = [
+  { value: 'GENERAL', label: 'Общее уведомление' },
+  { value: 'NEW_HOMEWORK', label: 'Новое домашнее задание' },
+  { value: 'NEW_QUIZ', label: 'Новый тест' },
+  { value: 'QUIZ_RESULT', label: 'Результат теста' },
+  { value: 'PAYMENT_DUE', label: 'Оплата просрочена' },
+  { value: 'LESSON_CANCELLED', label: 'Урок отменен' },
+  { value: 'NEW_MESSAGE', label: 'Новое сообщение' },
+  { value: 'VACATION_REQUEST_CREATED', label: 'Заявка на отпуск создана' },
+  { value: 'VACATION_SUBSTITUTE_ASSIGNED', label: 'Замещающий назначен' },
+  { value: 'CLASSROOM_BOOKING_CREATED', label: 'Бронирование аудитории создано' },
+];
+
 const SystemSettingsPage: React.FC = () => {
   const { settings, loading, error, updateSettings, downloadBackup } = useSystemSettings();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [formData, setFormData] = useState<Partial<SystemSettings>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -18,6 +35,17 @@ const SystemSettingsPage: React.FC = () => {
   // Состояние для академического часа
   const [academicHourDuration, setAcademicHourDuration] = useState<number>(45);
   const [academicHourLoading, setAcademicHourLoading] = useState<boolean>(false);
+
+  // Состояние для редактора уведомлений
+  const [notificationForm, setNotificationForm] = useState({
+    type: 'GENERAL',
+    recipientType: 'single', // 'single' или 'bulk'
+    userIds: '',
+    message: '',
+    url: ''
+  });
+  const [sendingNotification, setSendingNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (settings) {
@@ -62,6 +90,72 @@ const SystemSettingsPage: React.FC = () => {
       setTimeout(() => setSaveMessage(null), 3000);
     } finally {
       setAcademicHourLoading(false);
+    }
+  };
+
+  // Функции для работы с уведомлениями
+  const handleNotificationFormChange = (field: string, value: string) => {
+    setNotificationForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSendNotification = async () => {
+    if (!notificationForm.message.trim()) {
+      setNotificationMessage('Введите текст уведомления');
+      setTimeout(() => setNotificationMessage(null), 3000);
+      return;
+    }
+
+    if (notificationForm.recipientType === 'single' && !notificationForm.userIds.trim()) {
+      setNotificationMessage('Введите ID пользователя');
+      setTimeout(() => setNotificationMessage(null), 3000);
+      return;
+    }
+
+    try {
+      setSendingNotification(true);
+
+      let userIds: number[] = [];
+      if (notificationForm.recipientType === 'single') {
+        userIds = notificationForm.userIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      } else {
+        // Для массовой рассылки можно добавить логику получения пользователей по роли
+        // Пока оставим пустым массивом
+        userIds = [];
+      }
+
+      if (userIds.length === 0) {
+        setNotificationMessage('Не указаны получатели уведомления');
+        setTimeout(() => setNotificationMessage(null), 3000);
+        return;
+      }
+
+      // Отправляем уведомление через API
+      await notificationService.createNotifications({
+        userIds,
+        type: notificationForm.type,
+        message: notificationForm.message,
+        url: notificationForm.url || undefined
+      });
+
+      // Показать тост об успешной отправке
+      toast.success(`✅ Уведомление отправлено ${userIds.length} получателям`, 3000);
+
+      setNotificationMessage('Уведомление успешно отправлено');
+      setNotificationForm({
+        type: 'GENERAL',
+        recipientType: 'single',
+        userIds: '',
+        message: '',
+        url: ''
+      });
+      setTimeout(() => setNotificationMessage(null), 3000);
+
+    } catch (error) {
+      console.error('Ошибка отправки уведомления:', error);
+      setNotificationMessage('Ошибка при отправке уведомления');
+      setTimeout(() => setNotificationMessage(null), 3000);
+    } finally {
+      setSendingNotification(false);
     }
   };
 
@@ -369,6 +463,8 @@ const SystemSettingsPage: React.FC = () => {
             {activeTab === 'notifications' && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">Настройки уведомлений</h2>
+                
+                {/* Настройки уведомлений */}
                 <div className="space-y-4">
                   <label className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <input
@@ -397,6 +493,107 @@ const SystemSettingsPage: React.FC = () => {
                     />
                     <span className="text-sm">Email-уведомления</span>
                   </label>
+                </div>
+
+                {/* Разделитель */}
+                <div className="border-t pt-6">
+                  <h3 className="text-md font-semibold mb-4 flex items-center">
+                    <FaPaperPlane className="mr-2 text-blue-600" />
+                    Редактор уведомлений
+                  </h3>
+                  
+                  {notificationMessage && (
+                    <Alert 
+                      variant={notificationMessage.includes('Ошибка') ? 'error' : 'success'} 
+                      message={notificationMessage}
+                      className="mb-4"
+                    />
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Тип уведомления
+                      </label>
+                      <select
+                        className="w-full p-2 border rounded-lg text-sm"
+                        value={notificationForm.type}
+                        onChange={(e) => handleNotificationFormChange('type', e.target.value)}
+                      >
+                        {NOTIFICATION_TYPES.map(type => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Тип получателей
+                      </label>
+                      <select
+                        className="w-full p-2 border rounded-lg text-sm"
+                        value={notificationForm.recipientType}
+                        onChange={(e) => handleNotificationFormChange('recipientType', e.target.value)}
+                      >
+                        <option value="single">Один пользователь</option>
+                        <option value="bulk">Массово (по роли)</option>
+                      </select>
+                    </div>
+
+                    {notificationForm.recipientType === 'single' && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          ID пользователей (через запятую)
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full p-2 border rounded-lg text-sm"
+                          placeholder="1, 2, 3"
+                          value={notificationForm.userIds}
+                          onChange={(e) => handleNotificationFormChange('userIds', e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Текст уведомления *
+                      </label>
+                      <textarea
+                        className="w-full p-2 border rounded-lg text-sm"
+                        rows={3}
+                        placeholder="Введите текст уведомления..."
+                        value={notificationForm.message}
+                        onChange={(e) => handleNotificationFormChange('message', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Ссылка (опционально)
+                      </label>
+                      <input
+                        type="url"
+                        className="w-full p-2 border rounded-lg text-sm"
+                        placeholder="https://..."
+                        value={notificationForm.url}
+                        onChange={(e) => handleNotificationFormChange('url', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      onClick={handleSendNotification}
+                      disabled={sendingNotification}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-2 text-sm"
+                    >
+                      {sendingNotification ? <Spinner size="sm" /> : <FaPaperPlane className="w-4 h-4" />}
+                      <span>Отправить уведомление</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -666,6 +863,8 @@ const SystemSettingsPage: React.FC = () => {
           {activeTab === 'notifications' && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Настройки уведомлений</h2>
+              
+              {/* Настройки уведомлений */}
               <div className="space-y-3">
                 <label className="flex items-center p-4 bg-gray-50 rounded-lg">
                   <input
@@ -694,6 +893,111 @@ const SystemSettingsPage: React.FC = () => {
                   />
                   <span className="text-sm font-medium">Email-уведомления</span>
                 </label>
+              </div>
+
+              {/* Разделитель */}
+              <div className="border-t pt-4">
+                <h3 className="text-md font-semibold mb-4 flex items-center">
+                  <FaPaperPlane className="mr-2 text-blue-600" />
+                  Редактор уведомлений
+                </h3>
+                
+                {notificationMessage && (
+                  <Alert 
+                    variant={notificationMessage.includes('Ошибка') ? 'error' : 'success'} 
+                    message={notificationMessage}
+                    className="mb-4"
+                  />
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Тип уведомления
+                    </label>
+                    <select
+                      className="w-full p-3 border rounded-lg text-sm"
+                      value={notificationForm.type}
+                      onChange={(e) => handleNotificationFormChange('type', e.target.value)}
+                    >
+                      {NOTIFICATION_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Тип получателей
+                    </label>
+                    <select
+                      className="w-full p-3 border rounded-lg text-sm"
+                      value={notificationForm.recipientType}
+                      onChange={(e) => handleNotificationFormChange('recipientType', e.target.value)}
+                    >
+                      <option value="single">Один пользователь</option>
+                      <option value="bulk">Массово (по роли)</option>
+                    </select>
+                  </div>
+
+                  {notificationForm.recipientType === 'single' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ID пользователей (через запятую)
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full p-3 border rounded-lg text-sm"
+                        placeholder="1, 2, 3"
+                        value={notificationForm.userIds}
+                        onChange={(e) => handleNotificationFormChange('userIds', e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Текст уведомления *
+                    </label>
+                    <textarea
+                      className="w-full p-3 border rounded-lg text-sm"
+                      rows={3}
+                      placeholder="Введите текст уведомления..."
+                      value={notificationForm.message}
+                      onChange={(e) => handleNotificationFormChange('message', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ссылка (опционально)
+                    </label>
+                    <input
+                      type="url"
+                      className="w-full p-3 border rounded-lg text-sm"
+                      placeholder="https://..."
+                      value={notificationForm.url}
+                      onChange={(e) => handleNotificationFormChange('url', e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSendNotification}
+                    disabled={sendingNotification}
+                    className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
+                  >
+                    {sendingNotification ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <>
+                        <FaPaperPlane className="text-sm" />
+                        Отправить уведомление
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}

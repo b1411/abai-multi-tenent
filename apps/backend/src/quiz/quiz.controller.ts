@@ -173,8 +173,8 @@ export class QuizController {
   @ApiResponse({ status: 200, description: 'Статус теста изменен' })
   @ApiParam({ name: 'id', description: 'ID теста' })
   @Roles('TEACHER', 'ADMIN')
-  toggleActive(@Param('id') id: string, @Body() body: { isActive: boolean }) {
-    return this.quizService.toggleActive(+id, body.isActive);
+  toggleActive(@Param('id') id: string, @Body() body: { isActive: boolean }, @Req() req: any) {
+    return this.quizService.toggleActive(+id, body.isActive, req.user.id);
   }
 
   @Delete(':id')

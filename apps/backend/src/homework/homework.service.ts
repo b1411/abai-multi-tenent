@@ -5,15 +5,18 @@ import { UpdateHomeworkDto } from './dto/update-homework.dto';
 import { Prisma } from '../../generated/prisma';
 
 import { TenantConfigService } from '../common/tenant-config.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class HomeworkService {
   private prisma: PrismaService;
   private tenantConfig: TenantConfigService;
+  private notificationsService: NotificationsService;
 
-  constructor(prisma: PrismaService, tenantConfig: TenantConfigService) {
+  constructor(prisma: PrismaService, tenantConfig: TenantConfigService, notificationsService: NotificationsService) {
     this.prisma = prisma;
     this.tenantConfig = tenantConfig;
+    this.notificationsService = notificationsService;
   }
 
   async create(createHomeworkDto: CreateHomeworkDto) {
@@ -46,7 +49,7 @@ export class HomeworkService {
       });
     }
 
-    return this.prisma.homework.findUnique({
+    const homeworkWithDetails = await this.prisma.homework.findUnique({
       where: { id: homework.id },
       include: {
         lesson: {
@@ -56,6 +59,15 @@ export class HomeworkService {
                 teacher: {
                   include: {
                     user: true
+                  }
+                },
+                group: {
+                  include: {
+                    students: {
+                      include: {
+                        user: true
+                      }
+                    }
                   }
                 }
               }
@@ -80,6 +92,21 @@ export class HomeworkService {
         }
       }
     });
+
+    // Отправляем уведомления студентам о новом домашнем задании
+    const group = (homeworkWithDetails as any)?.lesson?.studyPlan?.group;
+    if (group?.students && Array.isArray(group.students)) {
+      const studentIds = group.students.map((s: any) => s.userId);
+      if (studentIds.length > 0) {
+        await this.notificationsService.notifyNewHomework(
+          (homeworkWithDetails as any).lesson.studyPlan.teacher.userId as number,
+          studentIds as number[],
+          homeworkWithDetails.name
+        );
+      }
+    }
+
+    return homeworkWithDetails;
   }
 
     async findAll(filters: HomeworkQueryDto, user?: any) {

@@ -4,10 +4,11 @@ import { HomeworkController, LessonHomeworkController } from './homework.control
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from 'src/jwt/jwt.service';
 import { TenantConfigService } from 'src/common/tenant-config.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Module({
   controllers: [HomeworkController, LessonHomeworkController],
-  providers: [HomeworkService, PrismaService, JwtService, TenantConfigService],
+  providers: [HomeworkService, PrismaService, JwtService, TenantConfigService, NotificationsService],
   exports: [HomeworkService],
 })
 export class HomeworkModule { }

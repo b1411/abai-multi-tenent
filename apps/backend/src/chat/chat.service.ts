@@ -2,10 +2,11 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notificationsService: NotificationsService) { }
 
   async createChat(userId: number, createChatDto: CreateChatDto) {
     const { participantIds, name, isGroup = false } = createChatDto;
@@ -150,8 +151,8 @@ export class ChatService {
       lastMessage: chat.messages[0] || null,
       unreadCount: chat._count.messages,
       // Для личного чата возвращаем собеседника
-      participant: !chat.isGroup 
-        ? chat.participants.find(p => p.userId !== userId)?.user 
+      participant: !chat.isGroup
+        ? chat.participants.find(p => p.userId !== userId)?.user
         : null,
     }));
   }
@@ -322,6 +323,25 @@ export class ChatService {
       where: { id: targetChatId },
       data: { updatedAt: new Date() },
     });
+
+    // Отправляем уведомления другим участникам чата
+    const participants = await this.prisma.chatParticipant.findMany({
+      where: {
+        chatId: targetChatId,
+        userId: { not: userId },
+        isActive: true,
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    const recipientIds = participants.map(p => p.userId);
+    if (recipientIds.length > 0) {
+      const senderName = `${message.sender.name} ${message.sender.surname}`;
+      const messagePreview = content.length > 50 ? content.substring(0, 50) + '...' : content;
+      await this.notificationsService.notifyNewChatMessage(userId, recipientIds, senderName, messagePreview, targetChatId);
+    }
 
     return message;
   }

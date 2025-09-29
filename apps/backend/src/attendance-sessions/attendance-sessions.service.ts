@@ -11,7 +11,7 @@ import { AttendanceCheckInResponseDto } from './dto/attendance-check-in-response
 const DEFAULT_TTL_MINUTES = 5;
 const CHECK_IN_PATH = '/attendance/check-in';
 const START_BUFFER_MINUTES = 15;
-const END_BUFFER_MINUTES = 15;
+const END_BUFFER_MINUTES = 60;
 
 @Injectable()
 export class AttendanceSessionsService {
@@ -104,7 +104,7 @@ export class AttendanceSessionsService {
 
     const { start: scheduledStart, end: scheduledEnd } = this.getScheduleTimeWindow(session.schedule, session.occursAt);
     const earliestAllowed = new Date(scheduledStart.getTime() - START_BUFFER_MINUTES * 60 * 1000);
-    const latestAllowed = new Date(scheduledEnd.getTime() + END_BUFFER_MINUTES * 60 * 1000);
+    const latestAllowed = new Date(Math.max(scheduledEnd.getTime() + END_BUFFER_MINUTES * 60 * 1000, session.expiresAt.getTime()));
 
     if (now < earliestAllowed) {
       throw new BadRequestException('Check-in is not yet available for this lesson');

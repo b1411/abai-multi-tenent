@@ -111,6 +111,15 @@ class ProctoringService {
       isAudio: message.isAudio
     });
   }
+
+  async addViolation(sessionId: number, violation: {
+    type: string;
+    description: string;
+    screenshot: string;
+    timestamp: string;
+  }, options?: { signal?: AbortSignal }): Promise<void> {
+    return await apiClient.post(`/proctoring/session/${sessionId}/violation`, violation, options);
+  }
 }
 
 export const proctoringService = new ProctoringService();

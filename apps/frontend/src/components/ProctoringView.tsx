@@ -15,9 +15,16 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, h
   const [isModelsLoaded, setIsModelsLoaded] = useState(false);
   const [isProctoring, setIsProctoring] = useState(false);
   const [proctoringSession, setProctoringSession] = useState<ProctoringSession | null>(null);
+  const [violations, setViolations] = useState<any[]>([]);
+  const [showWarning, setShowWarning] = useState(false);
+  const [prevLandmarks, setPrevLandmarks] = useState<any>(null);
+  const [lastViolationTime, setLastViolationTime] = useState<number>(0);
+  const [violationDebounces, setViolationDebounces] = useState<Record<string, number>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameIdRef = useRef<number>();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [isSessionEnded, setIsSessionEnded] = useState(false);
 
   const {
     messages,
@@ -35,6 +42,45 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, h
     sendSystemMessage,
     startAudioPlayback,
   } = useProctoringRealtimeChat(proctoringSession?.id || null);
+
+  // Функция для захвата скриншота
+  const captureScreenshot = (): string | null => {
+    if (canvasRef.current) {
+      return canvasRef.current.toDataURL('image/png');
+    }
+    return null;
+  };
+
+  // Функция для отправки нарушения на бэкенд с debounce
+  const reportViolation = async (type: string, description: string, debounceMs: number = 10000) => {
+    if (!proctoringSession || !isProctoring || isSessionEnded || !abortControllerRef.current) return; // Проверяем, что сессия активна
+    
+    const now = Date.now();
+    const lastTime = violationDebounces[type] || 0;
+    
+    if (now - lastTime < debounceMs) return; // Debounce
+    
+    const screenshot = captureScreenshot();
+    if (!screenshot) return;
+
+    try {
+      await proctoringService.addViolation(proctoringSession.id, {
+        type,
+        description,
+        screenshot,
+        timestamp: new Date().toISOString()
+      }, { signal: abortControllerRef.current.signal });
+      
+      setViolations(prev => [...prev, { type, description, timestamp: new Date() }]);
+      setShowWarning(true);
+      setTimeout(() => setShowWarning(false), 5000);
+      setViolationDebounces(prev => ({ ...prev, [type]: now }));
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Error reporting violation:', err);
+      }
+    }
+  };
 
   useEffect(() => {
     const loadModels = async () => {
@@ -54,6 +100,10 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, h
     if (!isModelsLoaded) return;
 
     try {
+      // Создаем AbortController для отмены запросов
+      abortControllerRef.current = new AbortController();
+      setIsSessionEnded(false);
+
       // Создаем сессию прокторинга
       const session = await proctoringService.createSession({
         homeworkId,
@@ -88,6 +138,13 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, h
     } catch (err) {
       console.error("Error ending proctoring session:", err);
     }
+
+    // Отменяем все активные запросы
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsSessionEnded(true);
 
     // Отключаемся от realtime чата
     disconnect();
@@ -170,7 +227,7 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, h
       window.addEventListener('resize', setupCanvas);
 
       intervalId = setInterval(async () => {
-        if (videoRef.current && canvasRef.current && videoRef.current.readyState >= 2) {
+        if (videoRef.current && canvasRef.current && videoRef.current.readyState >= 2 && !isSessionEnded) {
           const canvas = canvasRef.current;
           const video = videoRef.current;
 
@@ -179,9 +236,76 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, h
             .withFaceLandmarks()
             .withFaceExpressions();
 
+          // Детекция нарушений с индивидуальными debounce
+          // 1. Отсутствие лица (серьезное, 5 сек debounce)
+          if (detections.length === 0) {
+            reportViolation('no_face', 'Лицо не обнаружено в кадре', 5000);
+          }
+          // 2. Несколько лиц (серьезное, 5 сек debounce)
+          else if (detections.length > 1) {
+            reportViolation('multiple_faces', `Обнаружено ${detections.length} лиц в кадре`, 5000);
+          }
+          // 3. Лицо не в центре (среднее, 10 сек debounce)
+          else if (detections.length > 0) {
+            const box = detections[0].detection.box;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const offsetX = Math.abs(box.x + box.width / 2 - centerX);
+            const offsetY = Math.abs(box.y + box.height / 2 - centerY);
+            if (offsetX > canvas.width * 0.2 || offsetY > canvas.height * 0.2) {
+              reportViolation('face_not_centered', 'Лицо не в центре кадра', 10000);
+            }
+            // 4. Глаза закрыты (несерьезное, 15 сек debounce)
+            else {
+              const landmarks = detections[0].landmarks;
+              const leftEye = landmarks.getLeftEye();
+              const rightEye = landmarks.getRightEye();
+              
+              // Рассчитываем aspect ratio для глаз (высота/ширина)
+              const leftEyeWidth = leftEye[3].x - leftEye[0].x;
+              const leftEyeHeight = Math.max(...leftEye.map(p => p.y)) - Math.min(...leftEye.map(p => p.y));
+              const leftEyeRatio = leftEyeHeight / leftEyeWidth;
+              
+              const rightEyeWidth = rightEye[3].x - rightEye[0].x;
+              const rightEyeHeight = Math.max(...rightEye.map(p => p.y)) - Math.min(...rightEye.map(p => p.y));
+              const rightEyeRatio = rightEyeHeight / rightEyeWidth;
+              
+              if (leftEyeRatio < 0.25 || rightEyeRatio < 0.25) {
+                reportViolation('eyes_closed', 'Глаза закрыты', 15000);
+              }
+              // 5. Подозрительные выражения (среднее, 10 сек debounce)
+              else {
+                const expressions = detections[0].expressions;
+                if (expressions.sad > 0.5 || expressions.fearful > 0.5 || expressions.disgusted > 0.5) {
+                  const emotion = expressions.sad > 0.5 ? 'sad' : expressions.fearful > 0.5 ? 'fearful' : 'disgusted';
+                  reportViolation('suspicious_expression', `Подозрительное выражение: ${emotion}`, 10000);
+                }
+                // 6. Движение головы (несерьезное, 15 сек debounce)
+                else if (prevLandmarks) {
+                  const current = landmarks.positions;
+                  const diff = current.reduce((sum, p, i) => sum + Math.abs(p.x - prevLandmarks[i].x) + Math.abs(p.y - prevLandmarks[i].y), 0);
+                  if (diff > 50) {
+                    reportViolation('head_movement', 'Обнаружено движение головы', 15000);
+                  }
+                }
+                // 7. Рот открыт (несерьезное, 15 сек debounce)
+                else {
+                  const mouth = landmarks.getMouth();
+                  const mouthHeight = mouth[6].y - mouth[0].y;
+                  if (mouthHeight > 15) {
+                    reportViolation('mouth_open', 'Рот открыт', 15000);
+                  }
+                }
+              }
+            }
+          }
+
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Рисуем текущий кадр видео на canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             if (detections.length > 0) {
               const scaleX = parseFloat(canvas.dataset.scaleX || '1');
@@ -247,6 +371,13 @@ const ProctoringView: React.FC<ProctoringViewProps> = ({ onClose, lessonTopic, h
             <X className="h-6 w-6" />
           </button>
         </div>
+
+        {/* Warning */}
+        {showWarning && (
+          <div className="bg-red-500 text-white p-4 text-center font-semibold">
+            Предупреждение: Обнаружено нарушение! Продолжайте сдачу работы.
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">

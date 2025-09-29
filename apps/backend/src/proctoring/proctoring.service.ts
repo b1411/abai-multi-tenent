@@ -220,4 +220,28 @@ export class ProctoringService {
 
         console.log('Message added to transcript successfully');
     }
+
+    async addViolation(sessionId: number, violation: {
+        type: string;
+        description: string;
+        screenshot: string;
+        timestamp: Date;
+    }) {
+        const session = await this.prisma.proctoringSession.findUnique({
+            where: { id: sessionId },
+            select: { analysisResults: true }
+        });
+
+        if (!session) {
+            throw new NotFoundException('Сессия прокторинга не найдена');
+        }
+
+        const currentResults = (session.analysisResults as any[]) || [];
+        const updatedResults = [...currentResults, violation];
+
+        await this.prisma.proctoringSession.update({
+            where: { id: sessionId },
+            data: { analysisResults: updatedResults }
+        });
+    }
 }

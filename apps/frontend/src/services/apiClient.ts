@@ -148,8 +148,8 @@ class ApiClient {
     return response.data;
   }
 
-  async post<T>(url: string, data?: unknown): Promise<T> {
-    const response: AxiosResponse<T> = await this.client.post(url, data);
+  async post<T>(url: string, data?: unknown, options?: { signal?: AbortSignal }): Promise<T> {
+    const response: AxiosResponse<T> = await this.client.post(url, data, options);
     return response.data;
   }
 

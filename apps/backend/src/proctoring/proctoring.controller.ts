@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, Param, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ProctoringService } from './proctoring.service';
-import { CreateProctoringSessionDto, ProctoringResultDto } from './dto/create-proctoring.dto';
+import { CreateProctoringSessionDto, ProctoringResultDto, ViolationDto } from './dto/create-proctoring.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/role.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -95,6 +95,21 @@ export class ProctoringController {
     await this.proctoringService.addMessageToTranscript(sessionId, {
       ...message,
       timestamp: new Date(message.timestamp)
+    });
+    return { success: true };
+  }
+
+  @Post('session/:id/violation')
+  @Roles('STUDENT', 'ADMIN', 'TEACHER')
+  @ApiOperation({ summary: 'Добавить нарушение в сессию прокторинга' })
+  @ApiResponse({ status: 200, description: 'Нарушение добавлено' })
+  async addViolation(
+    @Param('id', ParseIntPipe) sessionId: number,
+    @Body() violation: ViolationDto
+  ) {
+    await this.proctoringService.addViolation(sessionId, {
+      ...violation,
+      timestamp: new Date(violation.timestamp)
     });
     return { success: true };
   }

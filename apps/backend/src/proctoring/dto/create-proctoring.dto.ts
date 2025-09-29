@@ -31,3 +31,21 @@ export class ProctoringResultDto {
   @IsOptional()
   analysisResults?: any;
 }
+
+export class ViolationDto {
+  @ApiProperty({ description: 'Тип нарушения' })
+  @IsString()
+  type: string;
+
+  @ApiProperty({ description: 'Описание нарушения' })
+  @IsString()
+  description: string;
+
+  @ApiProperty({ description: 'Скриншот в base64' })
+  @IsString()
+  screenshot: string;
+
+  @ApiProperty({ description: 'Время нарушения' })
+  @IsString()
+  timestamp: string;
+}

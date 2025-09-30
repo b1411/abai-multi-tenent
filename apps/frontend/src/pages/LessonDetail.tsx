@@ -375,7 +375,7 @@ const LessonDetailPage: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => lesson.homework && navigate(`/homework?id=${lesson.homework.id}`)}
+                    onClick={() => lesson.homework && navigate(`/homework?lessonId=${lesson.id}`)}
                     className="ml-4"
                   >
                     <BookOpen className="h-4 w-4 mr-1" />
@@ -428,15 +428,6 @@ const LessonDetailPage: React.FC = () => {
             </h3>
 
             <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => navigate(`/lessons/${id}/results`)}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Результаты студентов
-              </Button>
-
               <Button
                 variant="outline"
                 className="w-full justify-start"

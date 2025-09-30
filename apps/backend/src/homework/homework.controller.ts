@@ -9,26 +9,19 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
-  HttpCode,
-  HttpStatus,
-  UseInterceptors,
-  UploadedFiles,
   Req
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { HomeworkService } from './homework.service';
-import { 
-  CreateHomeworkDto, 
-  HomeworkSubmitDto, 
-  GradeHomeworkDto, 
-  HomeworkQueryDto 
+import {
+  CreateHomeworkDto,
+  HomeworkSubmitDto,
+  GradeHomeworkDto,
+  HomeworkQueryDto
 } from './dto/create-homework.dto';
 import { UpdateHomeworkDto } from './dto/update-homework.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '../../generated/prisma';
 
 @ApiTags('homework')
 @ApiBearerAuth()

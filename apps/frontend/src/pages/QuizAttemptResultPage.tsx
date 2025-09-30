@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, BarChart, CheckCircle, XCircle, Clock, User, Award } from 'lucide-react';
 import { Button, Loading } from '../components/ui';
@@ -25,6 +25,9 @@ interface AttemptResult {
   };
   studentAnswers: Array<{
     id: number;
+    questionId: number;
+    answerId?: number;
+    answeredAt: string;
     isCorrect: boolean;
     question: {
       id: number;
@@ -54,25 +57,25 @@ const QuizAttemptResultPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (attemptId) {
-      loadAttemptResult();
-    }
-  }, [attemptId]);
-
-  const loadAttemptResult = async () => {
+  const loadAttemptResult = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const result = await quizService.getAttemptResult(parseInt(attemptId!));
       setAttempt(result);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Ошибка при загрузке результата:', error);
-      setError(error.message || 'Не удалось загрузить результат попытки');
+      setError((error as Error).message || 'Не удалось загрузить результат попытки');
     } finally {
       setLoading(false);
     }
-  };
+  }, [attemptId]);
+
+  useEffect(() => {
+    if (attemptId) {
+      loadAttemptResult();
+    }
+  }, [attemptId, loadAttemptResult]);
 
   const getScoreColor = (score: number, total: number) => {
     const percentage = (score / total) * 100;
@@ -184,129 +187,161 @@ const QuizAttemptResultPage: React.FC = () => {
           </h4>
           
           <div className="space-y-6">
-            {attempt.studentAnswers.map((studentAnswer, index) => (
-              <div
-                key={studentAnswer.id}
-                className={`p-4 rounded-lg border-2 transition-colors ${
-                  studentAnswer.isCorrect 
-                    ? 'border-green-200 bg-green-50' 
-                    : 'border-red-200 bg-red-50'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h5 className="font-semibold text-gray-900">
-                    Вопрос {index + 1}
-                  </h5>
-                  <div className="flex items-center">
-                    {studentAnswer.isCorrect ? (
-                      <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-600 mr-2" />
-                    )}
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      studentAnswer.isCorrect 
-                        ? 'bg-green-200 text-green-800' 
-                        : 'bg-red-200 text-red-800'
-                    }`}>
-                      {studentAnswer.isCorrect ? 'Правильно' : 'Неправильно'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <p className="text-gray-800">
-                    <strong>Вопрос:</strong> {studentAnswer.question.name}
-                  </p>
-                  
-                  {/* Ответ студента */}
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-gray-700 mb-2">
-                      <strong>{hasRole('TEACHER') || hasRole('ADMIN') ? 'Ответ студента:' : 'Ваш ответ:'}</strong>
-                    </p>
-                    <div className={`p-2 rounded border-2 ${
-                      studentAnswer.isCorrect 
-                        ? 'border-green-300 bg-green-50' 
-                        : 'border-red-300 bg-red-50'
-                    }`}>
-                      <span className={`font-medium ${
-                        studentAnswer.isCorrect ? 'text-green-700' : 'text-red-700'
-                      }`}>
-                        {studentAnswer.answer?.name || studentAnswer.textAnswer || 'Не отвечено'}
-                      </span>
-                    </div>
-                  </div>
+            {/* Группируем ответы по вопросам */}
+            {(() => {
+              const answersByQuestion = attempt.studentAnswers.reduce((acc, sa) => {
+                if (!acc[sa.questionId]) {
+                  acc[sa.questionId] = [];
+                }
+                acc[sa.questionId].push(sa);
+                return acc;
+              }, {} as Record<number, typeof attempt.studentAnswers>);
 
-                  {/* Показываем все варианты ответов для учителя */}
-                  {(hasRole('TEACHER') || hasRole('ADMIN')) && studentAnswer.question.answers && (
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-gray-700 mb-2">
-                        <strong>Все варианты ответов:</strong>
-                      </p>
-                      <div className="space-y-1">
-                        {studentAnswer.question.answers.map((answer, idx) => (
-                          <div 
-                            key={answer.id} 
-                            className={`p-2 rounded text-sm flex items-center justify-between ${
-                              answer.isCorrect 
-                                ? 'bg-green-100 text-green-800 border border-green-300' 
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            <span>{answer.name}</span>
-                            <div className="flex items-center space-x-2">
-                              {answer.isCorrect && (
-                                <span className="text-xs bg-green-200 px-2 py-1 rounded">
-                                  ✓ Правильный
-                                </span>
-                              )}
-                              {studentAnswer.answer?.id === answer.id && (
-                                <span className="text-xs bg-blue-200 px-2 py-1 rounded">
-                                  Выбран студентом
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              return Object.entries(answersByQuestion).map(([questionId, studentAnswersForQuestion], index) => {
+                const question = studentAnswersForQuestion[0].question;
+                const isMultipleChoice = question.type === 'MULTIPLE_CHOICE';
+                const isCorrect = isMultipleChoice 
+                  ? studentAnswersForQuestion.every(sa => sa.isCorrect) // Для multiple все должны быть правильными
+                  : studentAnswersForQuestion[0].isCorrect;
 
-                  {/* Правильный ответ для студента (только если неправильно) */}
-                  {!studentAnswer.isCorrect && !hasRole('TEACHER') && !hasRole('ADMIN') && (
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <p className="text-green-700">
-                        <strong>Правильный ответ:</strong> 
-                        <span className="ml-1 font-medium">
-                          {studentAnswer.question.answers?.find(a => a.isCorrect)?.name || 'Не определен'}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Дополнительная информация для учителя */}
-                  {(hasRole('TEACHER') || hasRole('ADMIN')) && (
-                    <div className="bg-gray-50 p-3 rounded-lg border-t-2 border-gray-300">
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <p><strong>Время ответа:</strong> {new Date(studentAnswer.question.createdAt || '').toLocaleString()}</p>
-                        <p><strong>Тип вопроса:</strong> {
-                          studentAnswer.question.type === 'SINGLE_CHOICE' ? 'Одиночный выбор' :
-                          studentAnswer.question.type === 'MULTIPLE_CHOICE' ? 'Множественный выбор' :
-                          studentAnswer.question.type === 'TEXT' ? 'Текстовый ответ' : 'Неизвестно'
-                        }</p>
-                        {studentAnswer.textAnswer && (
-                          <div className="mt-2">
-                            <p><strong>Текстовый ответ:</strong></p>
-                            <div className="bg-white p-2 rounded border mt-1">
-                              <span className="text-gray-800">{studentAnswer.textAnswer}</span>
-                            </div>
-                          </div>
+                return (
+                  <div
+                    key={questionId}
+                    className={`p-4 rounded-lg border-2 transition-colors ${
+                      isCorrect 
+                        ? 'border-green-200 bg-green-50' 
+                        : 'border-red-200 bg-red-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h5 className="font-semibold text-gray-900">
+                        Вопрос {index + 1}
+                      </h5>
+                      <div className="flex items-center">
+                        {isCorrect ? (
+                          <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-600 mr-2" />
                         )}
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          isCorrect 
+                            ? 'bg-green-200 text-green-800' 
+                            : 'bg-red-200 text-red-800'
+                        }`}>
+                          {isCorrect ? 'Правильно' : 'Неправильно'}
+                        </span>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            ))}
+                    
+                    <div className="space-y-3">
+                      <p className="text-gray-800">
+                        <strong>Вопрос:</strong> <span dangerouslySetInnerHTML={{ __html: question.name }} />
+                      </p>
+                      
+                      {/* Ответ студента */}
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-gray-700 mb-2">
+                          <strong>{hasRole('TEACHER') || hasRole('ADMIN') ? 'Ответ студента:' : 'Ваш ответ:'}</strong>
+                        </p>
+                        <div className={`p-2 rounded border-2 ${
+                          isCorrect 
+                            ? 'border-green-300 bg-green-50' 
+                            : 'border-red-300 bg-red-50'
+                        }`}>
+                          {isMultipleChoice ? (
+                            <div className="space-y-1">
+                              {studentAnswersForQuestion.map((sa, idx) => (
+                                <div key={sa.id} className={`font-medium ${
+                                  sa.isCorrect ? 'text-green-700' : 'text-red-700'
+                                }`}>
+                                  <span dangerouslySetInnerHTML={{ __html: sa.answer?.name || sa.textAnswer || 'Не отвечено' }} />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className={`font-medium ${
+                              isCorrect ? 'text-green-700' : 'text-red-700'
+                            }`} dangerouslySetInnerHTML={{ __html: studentAnswersForQuestion[0].answer?.name || studentAnswersForQuestion[0].textAnswer || 'Не отвечено' }} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Показываем все варианты ответов для учителя */}
+                      {(hasRole('TEACHER') || hasRole('ADMIN')) && question.answers && (
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <p className="text-gray-700 mb-2">
+                            <strong>Все варианты ответов:</strong>
+                          </p>
+                          <div className="space-y-1">
+                            {question.answers.map((answer) => {
+                              const isSelected = studentAnswersForQuestion.some(sa => sa.answerId === answer.id);
+                              return (
+                                <div 
+                                  key={answer.id} 
+                                  className={`p-2 rounded text-sm flex items-center justify-between ${
+                                    answer.isCorrect 
+                                      ? 'bg-green-100 text-green-800 border border-green-300' 
+                                      : 'bg-gray-100 text-gray-700'
+                                  }`}
+                                >
+                                  <span dangerouslySetInnerHTML={{ __html: answer.name }} />
+                                  <div className="flex items-center space-x-2">
+                                    {answer.isCorrect && (
+                                      <span className="text-xs bg-green-200 px-2 py-1 rounded">
+                                        ✓ Правильный
+                                      </span>
+                                    )}
+                                    {isSelected && (
+                                      <span className="text-xs bg-blue-200 px-2 py-1 rounded">
+                                        Выбран студентом
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Правильный ответ для студента (только если неправильно) */}
+                      {!isCorrect && !hasRole('TEACHER') && !hasRole('ADMIN') && (
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <p className="text-green-700">
+                            <strong>Правильный ответ:</strong> 
+                            <span className="ml-1 font-medium">
+                              {question.answers?.filter(a => a.isCorrect).map(a => a.name).join(', ') || 'Не определен'}
+                            </span>
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Дополнительная информация для учителя */}
+                      {(hasRole('TEACHER') || hasRole('ADMIN')) && (
+                        <div className="bg-gray-50 p-3 rounded-lg border-t-2 border-gray-300">
+                          <div className="text-xs text-gray-600 space-y-1">
+                            <p><strong>Время ответа:</strong> {new Date(studentAnswersForQuestion[0].answeredAt).toLocaleString()}</p>
+                            <p><strong>Тип вопроса:</strong> {
+                              question.type === 'SINGLE_CHOICE' ? 'Одиночный выбор' :
+                              question.type === 'MULTIPLE_CHOICE' ? 'Множественный выбор' :
+                              question.type === 'TEXT' ? 'Текстовый ответ' : 'Неизвестно'
+                            }</p>
+                            {studentAnswersForQuestion.some(sa => sa.textAnswer) && (
+                              <div className="mt-2">
+                                <p><strong>Текстовый ответ:</strong></p>
+                                <div className="bg-white p-2 rounded border mt-1">
+                                  <span className="text-gray-800" dangerouslySetInnerHTML={{ __html: studentAnswersForQuestion.find(sa => sa.textAnswer)?.textAnswer || '' }} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
 
           {/* Summary */}

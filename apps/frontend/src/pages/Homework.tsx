@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -14,7 +14,7 @@ import {
   AlertCircle,
   User,
   FileText,
-  Download
+  ArrowLeft
 } from 'lucide-react';
 import { Button, Input, Select, Table, Modal, Loading } from '../components/ui';
 import HomeworkForm from '../components/HomeworkForm';
@@ -65,13 +65,8 @@ const HomeworkPage: React.FC = () => {
 
   useEffect(() => {
     loadHomeworks();
+    loadStats();
   }, [filters]);
-
-  useEffect(() => {
-    if (homeworks.length > 0 || !homeworksLoading) {
-      loadStats();
-    }
-  }, [homeworks, homeworksLoading]);
 
   // Обработка якорных ссылок
   useEffect(() => {
@@ -93,7 +88,7 @@ const HomeworkPage: React.FC = () => {
     }
   }, [homeworks, searchParams]);
 
-  const loadHomeworks = async () => {
+  const loadHomeworks = useCallback(async () => {
     try {
       setHomeworksLoading(true);
       // Используем разные методы в зависимости от роли
@@ -117,47 +112,34 @@ const HomeworkPage: React.FC = () => {
     } finally {
       setHomeworksLoading(false);
     }
-  };
+  }, [filters, hasRole, user?.id]);
 
-  const loadStats = () => {
-    const now = new Date();
-    let pending = 0;
-    let submitted = 0;
-    let graded = 0;
-    let overdue = 0;
+  const loadStats = useCallback(async () => {
+    try {
+      const statsFilters: Partial<Pick<HomeworkFilters, 'lessonId' | 'studentId' | 'teacherId'>> = {};
 
-    homeworks.forEach(homework => {
-      const status = getHomeworkStatus(homework);
-      
-      switch (status) {
-        case 'pending':
-          pending++;
-          break;
-        case 'submitted':
-          submitted++;
-          break;
-        case 'graded':
-          graded++;
-          break;
-        case 'overdue':
-          overdue++;
-          break;
+      if (filters.lessonId) {
+        statsFilters.lessonId = filters.lessonId;
       }
-    });
 
-    setStats({
-      total: homeworks.length,
-      pending,
-      submitted,
-      graded,
-      overdue
-    });
-  };
+      if (hasRole('STUDENT')) {
+        statsFilters.studentId = user?.id;
+      } else if (hasRole('TEACHER')) {
+        statsFilters.teacherId = user?.id;
+      }
+      // Для админов без дополнительных фильтров
+
+      const statsData = await homeworkService.getHomeworkStats(statsFilters);
+      setStats(statsData);
+    } catch (error) {
+      console.error('Ошибка загрузки статистики:', error);
+    }
+  }, [filters.lessonId, hasRole, user?.id]);
 
   const getHomeworkStatus = (homework: Homework): HomeworkStatus => {
     const now = new Date();
     const deadline = new Date(homework.deadline);
-    
+
     // Проверяем, есть ли отправки для текущего пользователя
     // Используем student.userId для сопоставления
     const userSubmission = homework.studentsSubmissions?.find(
@@ -284,12 +266,12 @@ const HomeworkPage: React.FC = () => {
     const now = new Date();
     const due = new Date(deadline);
     const diff = due.getTime() - now.getTime();
-    
+
     if (diff < 0) return 'Срок истек';
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) return `${days}д ${hours}ч`;
     return `${hours}ч`;
   };
@@ -431,14 +413,6 @@ const HomeworkPage: React.FC = () => {
     }
   ];
 
-  const statusOptions = [
-    { value: 'all', label: 'Все статусы' },
-    { value: 'pending', label: 'Ожидает выполнения' },
-    { value: 'submitted', label: 'На проверке' },
-    { value: 'graded', label: 'Проверено' },
-    { value: 'overdue', label: 'Просрочено' }
-  ];
-
   const sortOptions = [
     { value: 'name', label: 'По названию' },
     { value: 'deadline', label: 'По сроку сдачи' },
@@ -457,13 +431,25 @@ const HomeworkPage: React.FC = () => {
     <div className="p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Домашние задания</h1>
-          <p className="text-gray-500 mt-1">
-            {hasRole('STUDENT') ? 'Ваши домашние задания' :
-             hasRole('TEACHER') ? 'Управление домашними заданиями' :
-             'Все домашние задания'}
-          </p>
+        <div className="flex items-center gap-3">
+          {filters.lessonId && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/lessons/${filters.lessonId}`)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Вернуться к уроку
+            </Button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Домашние задания</h1>
+            <p className="text-gray-500 mt-1">
+              {hasRole('STUDENT') ? 'Ваши домашние задания' :
+                hasRole('TEACHER') ? 'Управление домашними заданиями' :
+                  'Все домашние задания'}
+            </p>
+          </div>
         </div>
 
         {(hasRole('ADMIN') || hasRole('TEACHER')) && (
@@ -503,8 +489,8 @@ const HomeworkPage: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="lg:col-span-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="md:col-span-1">
             <Input
               placeholder="Поиск по названию..."
               value={filters.search || ''}
@@ -512,13 +498,6 @@ const HomeworkPage: React.FC = () => {
               icon={<Search className="h-4 w-4" />}
             />
           </div>
-
-          <Select
-            placeholder="Статус"
-            value={filters.status || 'all'}
-            onChange={(value) => updateFilters({ status: value === 'all' ? undefined : value as HomeworkStatus })}
-            options={statusOptions}
-          />
 
           <Select
             placeholder="Сортировка"
@@ -680,52 +659,52 @@ const HomeworkPage: React.FC = () => {
         </div>
       )}
 
-          {/* Homework Detail Modal */}
-          {viewingHomework && (
-            <HomeworkDetailModal
-              homework={viewingHomework}
-              onClose={() => setViewingHomework(null)}
-              onSubmit={hasRole('STUDENT') ? async (files: File[], comment?: string) => {
-                try {
-                  setLoading(true);
-                  
-                  // Сначала загружаем файлы
-                  const uploadedFiles = await Promise.all(
-                    files.map(file => fileService.uploadFile(file, 'homework'))
-                  );
-                  
-                  // Основной файл - первый загруженный
-                  const mainFileId = uploadedFiles[0].id;
-                  // Дополнительные файлы - остальные
-                  const additionalFileIds = uploadedFiles.slice(1).map(f => f.id);
-                  
-                  // Всегда используем submitHomework - бэкенд сам определит, нужно ли обновить существующую отправку
-                  await homeworkService.submitHomework(viewingHomework.id, {
-                    fileId: mainFileId,
-                    additionalFileIds: additionalFileIds.length > 0 ? additionalFileIds : undefined,
-                    comment
-                  });
-                  
-                  alert('Работа успешно отправлена!');
-                  
-                  // Перезагружаем данные
-                  await loadHomeworks();
-                  setViewingHomework(null);
-                  
-                } catch (error) {
-                  console.error('Ошибка отправки работы:', error);
-                  alert('Ошибка при отправке работы. Попробуйте еще раз.');
-                } finally {
-                  setLoading(false);
-                }
-              } : undefined}
-              onViewSubmissions={() => {
-                navigate(`/homework/${viewingHomework.id}/submissions`);
-                setViewingHomework(null);
-              }}
-              loading={loading}
-            />
-          )}
+      {/* Homework Detail Modal */}
+      {viewingHomework && (
+        <HomeworkDetailModal
+          homework={viewingHomework}
+          onClose={() => setViewingHomework(null)}
+          onSubmit={hasRole('STUDENT') ? async (files: File[], comment?: string) => {
+            try {
+              setLoading(true);
+
+              // Сначала загружаем файлы
+              const uploadedFiles = await Promise.all(
+                files.map(file => fileService.uploadFile(file, 'homework'))
+              );
+
+              // Основной файл - первый загруженный
+              const mainFileId = uploadedFiles[0].id;
+              // Дополнительные файлы - остальные
+              const additionalFileIds = uploadedFiles.slice(1).map(f => f.id);
+
+              // Всегда используем submitHomework - бэкенд сам определит, нужно ли обновить существующую отправку
+              await homeworkService.submitHomework(viewingHomework.id, {
+                fileId: mainFileId,
+                additionalFileIds: additionalFileIds.length > 0 ? additionalFileIds : undefined,
+                comment
+              });
+
+              alert('Работа успешно отправлена!');
+
+              // Перезагружаем данные
+              await loadHomeworks();
+              setViewingHomework(null);
+
+            } catch (error) {
+              console.error('Ошибка отправки работы:', error);
+              alert('Ошибка при отправке работы. Попробуйте еще раз.');
+            } finally {
+              setLoading(false);
+            }
+          } : undefined}
+          onViewSubmissions={() => {
+            navigate(`/homework/${viewingHomework.id}/submissions`);
+            setViewingHomework(null);
+          }}
+          loading={loading}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal

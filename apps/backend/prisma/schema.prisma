@@ -182,12 +182,12 @@ model User {
   documentTemplates    DocumentTemplate[]
 
   // Student remarks relations
-  teacherRemarks           StudentRemark[]    @relation("TeacherRemarks")
-  teacherComments          StudentComment[]   @relation("TeacherComments")
-  responsibleClassrooms    Classroom[]        @relation("ResponsibleClassrooms")
-  classroomBookingsCreated ClassroomBooking[] @relation("ClassroomBookingsCreated")
-  aiSuggestionsCreated     AiSuggestion[]     @relation("AiSuggestionAuthor")
-  aiSuggestionsApplied     AiSuggestion[]     @relation("AiSuggestionAppliedBy")
+  teacherRemarks            StudentRemark[]     @relation("TeacherRemarks")
+  teacherComments           StudentComment[]    @relation("TeacherComments")
+  responsibleClassrooms     Classroom[]         @relation("ResponsibleClassrooms")
+  classroomBookingsCreated  ClassroomBooking[]  @relation("ClassroomBookingsCreated")
+  aiSuggestionsCreated      AiSuggestion[]      @relation("AiSuggestionAuthor")
+  aiSuggestionsApplied      AiSuggestion[]      @relation("AiSuggestionAppliedBy")
   attendanceSessionsCreated AttendanceSession[] @relation("AttendanceSessionsCreatedBy")
 
   // AI tutor/chat relations
@@ -218,11 +218,12 @@ model Student {
   remarks                  StudentRemark[]
   comments                 StudentComment[]
   olympiadResults          OlympiadResult[]
-    admissions               StudentAdmission[]
-    personalDevelopmentPlans PersonalDevelopmentPlan[]
-    extraEducations          ExtraEducation[]
-    proctoringSessions       ProctoringSession[]
-  }model LessonResult {
+  admissions               StudentAdmission[]
+  personalDevelopmentPlans PersonalDevelopmentPlan[]
+  extraEducations          ExtraEducation[]
+  proctoringSessions       ProctoringSession[]
+}
+model LessonResult {
   id                   Int                 @id @default(autoincrement())
   Student              Student?            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId            Int
@@ -334,23 +335,23 @@ model StudyPlan {
 }
 
 model Lesson {
-  id              Int              @id @default(autoincrement())
-  name            String
-  type            LessonType       @default(REGULAR)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  deletedAt       DateTime?
-  date            DateTime
-  studyPlanId     Int
-  description     String?          @db.Text
-  studyPlan       StudyPlan        @relation(fields: [studyPlanId], references: [id])
-  homework        Homework?        @relation(fields: [homeworkId], references: [id])
-  homeworkId      Int?             @unique
-  materials       Materials?       @relation(fields: [materialsId], references: [id])
-  materialsId     Int?             @unique
-  LessonResult    LessonResult[]
-  vacationLessons VacationLesson[]
-  schedules       Schedule[] // Связь с расписанием
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  type               LessonType          @default(REGULAR)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  date               DateTime
+  studyPlanId        Int
+  description        String?             @db.Text
+  studyPlan          StudyPlan           @relation(fields: [studyPlanId], references: [id])
+  homework           Homework?           @relation(fields: [homeworkId], references: [id])
+  homeworkId         Int?                @unique
+  materials          Materials?          @relation(fields: [materialsId], references: [id])
+  materialsId        Int?                @unique
+  LessonResult       LessonResult[]
+  vacationLessons    VacationLesson[]
+  schedules          Schedule[] // Связь с расписанием
   proctoringSessions ProctoringSession[]
 }
 
@@ -365,10 +366,11 @@ model Homework {
   deadline            DateTime             @default(now())
   additionalFiles     File[]
   studentsSubmissions HomeworkSubmission[]
-    materials           Materials?           @relation(fields: [materialsId], references: [id])
-    materialsId         Int?                 @unique
-    proctoringSessions  ProctoringSession[]
-  }model Materials {
+  materials           Materials?           @relation(fields: [materialsId], references: [id])
+  materialsId         Int?                 @unique
+  proctoringSessions  ProctoringSession[]
+}
+model Materials {
   id              Int       @id @default(autoincrement())
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -483,24 +485,24 @@ enum ProctoringSessionStatus {
 }
 
 model ProctoringSession {
-  id             Int                      @id @default(autoincrement())
-  homework       Homework                 @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
-  homeworkId     Int
-  student        Student                  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId      Int
-  lesson         Lesson?                  @relation(fields: [lessonId], references: [id])
-  lessonId       Int?
-  topic          String
-  status         ProctoringSessionStatus  @default(ACTIVE)
-  score          Int?
-  comment        String?                  @db.Text
+  id              Int                     @id @default(autoincrement())
+  homework        Homework                @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  homeworkId      Int
+  student         Student                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId       Int
+  lesson          Lesson?                 @relation(fields: [lessonId], references: [id])
+  lessonId        Int?
+  topic           String
+  status          ProctoringSessionStatus @default(ACTIVE)
+  score           Int?
+  comment         String?                 @db.Text
   analysisResults Json?
   transcript      Json?
-  startedAt       DateTime                 @default(now())
-  endedAt        DateTime?
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
-  deletedAt      DateTime?
+  startedAt       DateTime                @default(now())
+  endedAt         DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  deletedAt       DateTime?
 
   @@index([homeworkId])
   @@index([studentId])
@@ -537,7 +539,7 @@ model StudentAnswer {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  @@unique([quizAttemptId, questionId])
+  @@unique([quizAttemptId, questionId, answerId])
 }
 
 model Notification {
@@ -689,9 +691,9 @@ model Schedule {
   deletedAt DateTime?
 
   // Обратные связи
-  rescheduledFrom  Schedule[]         @relation("ScheduleReschedule")
-  originalSchedule Schedule?          @relation("ScheduleReschedule", fields: [rescheduledTo], references: [id])
-  conflicts        ScheduleConflict[]
+  rescheduledFrom    Schedule[]          @relation("ScheduleReschedule")
+  originalSchedule   Schedule?           @relation("ScheduleReschedule", fields: [rescheduledTo], references: [id])
+  conflicts          ScheduleConflict[]
   attendanceSessions AttendanceSession[]
 
   @@index([date, teacherId])

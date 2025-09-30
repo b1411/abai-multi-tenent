@@ -20,6 +20,7 @@ interface AutocompleteProps {
   label?: string;
   helperText?: string;
   required?: boolean;
+  inputRef?: React.RefObject<HTMLInputElement>;
 }
 
 export const Autocomplete: React.FC<AutocompleteProps> = ({
@@ -34,13 +35,17 @@ export const Autocomplete: React.FC<AutocompleteProps> = ({
   error,
   label,
   helperText,
-  required = false
+  required = false,
+  inputRef
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [displayValue, setDisplayValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const internalInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Используем переданный ref или внутренний
+  const actualInputRef = inputRef || internalInputRef;
 
   // Синхронизация значения извне
   useEffect(() => {
@@ -57,8 +62,8 @@ export const Autocomplete: React.FC<AutocompleteProps> = ({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
+        actualInputRef.current &&
+        !actualInputRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
         
@@ -76,7 +81,7 @@ export const Autocomplete: React.FC<AutocompleteProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [value]);
+  }, [value, actualInputRef]);
 
   // Обработка поиска
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,7 +115,7 @@ export const Autocomplete: React.FC<AutocompleteProps> = ({
     }
     setDisplayValue('');
     setQuery('');
-    inputRef.current?.focus();
+    actualInputRef.current?.focus();
   };
 
   // Определяем базовые классы для стилей
@@ -131,7 +136,7 @@ export const Autocomplete: React.FC<AutocompleteProps> = ({
       <div className="relative">
         <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
         <input
-          ref={inputRef}
+          ref={actualInputRef}
           id={`autocomplete-${label}`}
           type="text"
           value={displayValue}

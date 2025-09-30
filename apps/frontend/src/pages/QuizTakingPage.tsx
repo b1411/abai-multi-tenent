@@ -43,8 +43,27 @@ const QuizTakingPage = () => {
       setAttempt(attemptData);
       setQuiz(attemptData.quiz); // Обновляем quiz с вопросами
       if (attemptData.quiz.duration) {
-        setTimeLeft(attemptData.quiz.duration * 60);
+        const elapsed = attemptData.startTime ? (new Date().getTime() - new Date(attemptData.startTime).getTime()) / 1000 : 0;
+        setTimeLeft(attemptData.quiz.duration * 60 - elapsed);
       }
+      // Инициализируем answers из существующих ответов
+      const initialAnswers: { [key: string]: any } = {};
+      if (attemptData.studentAnswers) {
+        attemptData.studentAnswers.forEach((sa: any) => {
+          const q = attemptData.quiz.questions.find((q: any) => q.id === sa.questionId);
+          if (q) {
+            if (q.type === 'MULTIPLE_CHOICE') {
+              if (!initialAnswers[sa.questionId]) initialAnswers[sa.questionId] = [];
+              initialAnswers[sa.questionId].push(sa.answerId);
+            } else if (q.type === 'SINGLE_CHOICE') {
+              initialAnswers[sa.questionId] = sa.answerId;
+            } else if (q.type === 'TEXT') {
+              initialAnswers[sa.questionId] = sa.textAnswer;
+            }
+          }
+        });
+      }
+      setAnswers(initialAnswers);
     }
   };
 
@@ -56,7 +75,7 @@ const QuizTakingPage = () => {
       const payload = {
         quizAttemptId: attempt.id,
         questionId,
-        ...(type === 'TEXT' ? { textAnswer: value } : { answerId: value }),
+        ...(type === 'TEXT' ? { textAnswer: value } : type === 'MULTIPLE_CHOICE' ? { answerIds: value } : { answerId: value }),
       };
       quizService.answerQuestion(payload);
     }
@@ -124,6 +143,7 @@ const QuizTakingPage = () => {
                     name={`question-${q.id}`}
                     value={a.id}
                     id={`q${q.id}-a${a.id}`}
+                    checked={answers[q.id] === a.id}
                     onChange={(e) => handleAnswerChange(q.id, parseInt(e.target.value), q.type)}
                     className="mt-1"
                   />
@@ -138,6 +158,7 @@ const QuizTakingPage = () => {
                   <input
                     type="checkbox"
                     id={`q${q.id}-a${a.id}`}
+                    checked={answers[q.id]?.includes(a.id) || false}
                     onChange={(e) => {
                       const currentAnswers = answers[q.id] || [];
                       const newAnswers = e.target.checked
@@ -154,6 +175,7 @@ const QuizTakingPage = () => {
               ))}
             {q.type === 'TEXT' && (
               <Input
+                value={answers[q.id] || ''}
                 onChange={(e) => handleAnswerChange(q.id, e.target.value, q.type)}
                 placeholder="Введите ваш ответ"
               />

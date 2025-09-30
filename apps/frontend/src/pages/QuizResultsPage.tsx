@@ -7,29 +7,29 @@ import { Button, Loading } from '../components/ui';
 import { BarChart, User, Calendar, Award, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface Student {
-    id: number;
-    user: {
-        name: string;
-        surname: string;
-    }
+  id: number;
+  user: {
+    name: string;
+    surname: string;
+  }
 }
 
 interface StudentAnswer {
-    id: number;
-    isCorrect: boolean;
-    question: QuizQuestion;
-    answer?: QuizAnswer;
-    textAnswer?: string;
+  id: number;
+  isCorrect: boolean;
+  question: QuizQuestion;
+  answer?: QuizAnswer;
+  textAnswer?: string;
 }
 
 interface Attempt {
-    id: number;
-    startTime: string;
-    score: number;
-    status: string;
-    quiz: Quiz;
-    student?: Student;
-    studentAnswers: StudentAnswer[];
+  id: number;
+  startTime: string;
+  score: number;
+  status: string;
+  quiz: Quiz;
+  student?: Student;
+  studentAnswers: StudentAnswer[];
 }
 
 const QuizResultsPage: React.FC = () => {
@@ -37,7 +37,7 @@ const QuizResultsPage: React.FC = () => {
   const navigate = useNavigate();
   const quizIdFromUrl = searchParams.get('quizId');
   const { user, hasRole } = useAuth();
-  
+
   const [students, setStudents] = useState<Student[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedStudent, setSelectedStudent] = useState('');
@@ -52,7 +52,7 @@ const QuizResultsPage: React.FC = () => {
     const fetchData = async () => {
       try {
         if (isTeacherOrAdmin) {
-          const studentRes = await studentService.getAllStudents(); 
+          const studentRes = await studentService.getAllStudents();
           const quizRes = await quizService.getQuizzes({ page: 1, limit: 100 });
           setStudents(studentRes);
           setQuizzes(quizRes.data);
@@ -148,13 +148,13 @@ const QuizResultsPage: React.FC = () => {
           Результаты тестов
         </h1>
         <p className="text-gray-600">
-          {isTeacherOrAdmin 
-            ? 'Просматривайте и анализируйте результаты тестов студентов' 
+          {isTeacherOrAdmin
+            ? 'Просматривайте и анализируйте результаты тестов студентов'
             : 'Ваши результаты по всем пройденным тестам'
           }
         </p>
       </div>
-      
+
       {/* Показать заголовок теста, если загружены результаты для конкретного теста */}
       {quiz && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-8">
@@ -172,7 +172,7 @@ const QuizResultsPage: React.FC = () => {
           </div>
         </div>
       )}
-      
+
       {/* Фильтры для учителей */}
       {isTeacherOrAdmin && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
@@ -183,8 +183,8 @@ const QuizResultsPage: React.FC = () => {
                 <User className="h-4 w-4 inline mr-1" />
                 Студент
               </label>
-              <select 
-                value={selectedStudent} 
+              <select
+                value={selectedStudent}
                 onChange={(e) => setSelectedStudent(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               >
@@ -202,8 +202,8 @@ const QuizResultsPage: React.FC = () => {
                 <BarChart className="h-4 w-4 inline mr-1" />
                 Тест
               </label>
-              <select 
-                value={selectedQuiz} 
+              <select
+                value={selectedQuiz}
                 onChange={(e) => setSelectedQuiz(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               >
@@ -277,11 +277,10 @@ const QuizResultsPage: React.FC = () => {
                                 <Calendar className="h-4 w-4 mr-2" />
                                 {new Date(attempt.startTime).toLocaleString()}
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                attempt.status === 'COMPLETED' 
-                                  ? 'bg-green-100 text-green-800' 
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${attempt.status === 'COMPLETED'
+                                  ? 'bg-green-100 text-green-800'
                                   : 'bg-yellow-100 text-yellow-800'
-                              }`}>
+                                }`}>
                                 {attempt.status === 'COMPLETED' ? 'Завершено' : 'В процессе'}
                               </span>
                             </div>
@@ -342,11 +341,10 @@ const QuizResultsPage: React.FC = () => {
                           {attempt.score} / {attempt.quiz.questions?.length || 0}
                         </div>
                         <div className="flex items-center justify-end space-x-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            attempt.status === 'COMPLETED' 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${attempt.status === 'COMPLETED'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                            }`}>
                             {attempt.status === 'COMPLETED' ? 'Завершено' : 'В процессе'}
                           </span>
                           {attempt.quiz.questions?.length && (
@@ -358,7 +356,7 @@ const QuizResultsPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {attempt.studentAnswers && attempt.studentAnswers.length > 0 && (
                     <div className="p-6">
                       <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -367,11 +365,10 @@ const QuizResultsPage: React.FC = () => {
                       </h4>
                       <div className="grid gap-4">
                         {attempt.studentAnswers.map((sa: StudentAnswer, index: number) => (
-                          <div key={sa.id} className={`p-4 rounded-lg border-2 transition-colors ${
-                            sa.isCorrect 
-                              ? 'border-green-200 bg-green-50' 
+                          <div key={sa.id} className={`p-4 rounded-lg border-2 transition-colors ${sa.isCorrect
+                              ? 'border-green-200 bg-green-50'
                               : 'border-red-200 bg-red-50'
-                          }`}>
+                            }`}>
                             <div className="flex items-start justify-between mb-3">
                               <h5 className="font-semibold text-gray-900">
                                 Вопрос {index + 1}
@@ -382,29 +379,28 @@ const QuizResultsPage: React.FC = () => {
                                 ) : (
                                   <XCircle className="h-5 w-5 text-red-600 mr-2" />
                                 )}
-                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                  sa.isCorrect 
-                                    ? 'bg-green-200 text-green-800' 
+                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${sa.isCorrect
+                                    ? 'bg-green-200 text-green-800'
                                     : 'bg-red-200 text-red-800'
-                                }`}>
+                                  }`}>
                                   {sa.isCorrect ? 'Правильно' : 'Неправильно'}
                                 </span>
                               </div>
                             </div>
-                            
+
                             <div className="space-y-2">
                               <p className="text-gray-800">
                                 <strong>Вопрос:</strong> {sa.question.name}
                               </p>
                               <p className="text-gray-700">
-                                <strong>Ваш ответ:</strong> 
+                                <strong>Ваш ответ:</strong>
                                 <span className={sa.isCorrect ? 'text-green-700 font-medium' : 'text-red-700 font-medium'}>
                                   {sa.answer?.name || sa.textAnswer}
                                 </span>
                               </p>
                               {sa.isCorrect === false && (
                                 <p className="text-green-700">
-                                  <strong>Правильный ответ:</strong> 
+                                  <strong>Правильный ответ:</strong>
                                   <span className="font-medium">
                                     {sa.question.answers?.find(a => a.isCorrect)?.name}
                                   </span>
@@ -426,8 +422,8 @@ const QuizResultsPage: React.FC = () => {
               <BarChart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Нет результатов</h3>
               <p className="text-gray-600">
-                {quizIdFromUrl 
-                  ? 'Пока нет результатов для этого теста.' 
+                {quizIdFromUrl
+                  ? 'Пока нет результатов для этого теста.'
                   : isTeacherOrAdmin
                     ? 'Выберите тест или студента для просмотра результатов.'
                     : 'У вас пока нет результатов по тестам.'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -10,7 +10,7 @@ import {
   Trash2,
   BookOpen,
 } from 'lucide-react';
-import { Button, Input, Select, Table, Modal, Loading } from '../components/ui';
+import { Button, Input, Select, Table, Modal, Loading, Autocomplete } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatDateTime } from '../utils';
 import { Lesson, StudyPlan, LessonType } from '../types/lesson';
@@ -823,8 +823,15 @@ const LessonForm: React.FC<{
     description: ''
   });
 
+  const [selectedStudyPlan, setSelectedStudyPlan] = useState<{ id: string | number; label: string; value: string | number } | null>(null);
+  const [studyPlanOptions, setStudyPlanOptions] = useState<{ id: string | number; label: string; value: string | number }[]>([]);
+  const [studyPlanSearchLoading, setStudyPlanSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     if (lesson) {
+      const plan = studyPlans.find(p => p.id === lesson.studyPlanId);
       setFormData({
         name: lesson.name || '',
         type: lesson.type || LessonType.REGULAR,
@@ -832,11 +839,17 @@ const LessonForm: React.FC<{
         studyPlanId: lesson.studyPlanId?.toString() || '',
         description: lesson.description || ''
       });
+      setSelectedStudyPlan(plan ? {
+        id: plan.id,
+        label: `${plan.name}${plan.group && plan.group.length > 0 ? ` (${plan.group.map(g => g.name).join(', ')})` : ''}`,
+        value: plan.id
+      } : null);
     } else {
       // При создании нового урока используем studyPlanId из URL (если есть)
       const urlParams = new URLSearchParams(window.location.search);
       const studyPlanIdFromUrl = urlParams.get('studyPlanId');
 
+      const plan = studyPlanIdFromUrl ? studyPlans.find(p => p.id === parseInt(studyPlanIdFromUrl)) : null;
       setFormData({
         name: '',
         type: LessonType.REGULAR,
@@ -844,8 +857,98 @@ const LessonForm: React.FC<{
         studyPlanId: studyPlanIdFromUrl || '',
         description: ''
       });
+      setSelectedStudyPlan(plan ? {
+        id: plan.id,
+        label: `${plan.name}${plan.group && plan.group.length > 0 ? ` (${plan.group.map(g => g.name).join(', ')})` : ''}`,
+        value: plan.id
+      } : null);
     }
-  }, [lesson]);
+  }, [lesson, studyPlans]);
+
+  // Очистка таймера при размонтировании
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Инициализация опций при первой загрузке
+  useEffect(() => {
+    if (studyPlans.length > 0) {
+      const options = studyPlans.map(plan => ({
+        id: plan.id,
+        label: `${plan.name}${plan.group && plan.group.length > 0 ? ` (${plan.group.map(g => g.name).join(', ')})` : ''}`,
+        value: plan.id
+      }));
+      setStudyPlanOptions(options);
+    }
+  }, [studyPlans]);
+
+  // Восстановление фокуса после завершения поиска
+  useEffect(() => {
+    if (!studyPlanSearchLoading && autocompleteInputRef.current) {
+      // Небольшая задержка, чтобы DOM обновился
+      setTimeout(() => {
+        if (autocompleteInputRef.current) {
+          autocompleteInputRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [studyPlanSearchLoading]);
+
+  // Функция поиска учебных планов с дебоунсом
+  const searchStudyPlans = useCallback(async (query: string) => {
+    // Очищаем предыдущий таймер
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Если запрос пустой, показываем все доступные планы
+    if (!query.trim()) {
+      const options = studyPlans.map(plan => ({
+        id: plan.id,
+        label: `${plan.name}${plan.group && plan.group.length > 0 ? ` (${plan.group.map(g => g.name).join(', ')})` : ''}`,
+        value: plan.id
+      }));
+      setStudyPlanOptions(options);
+      return;
+    }
+
+    // Устанавливаем новый таймер для дебоунса
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        setStudyPlanSearchLoading(true);
+        const response = await studyPlanService.getStudyPlans({
+          search: query,
+          limit: 50 // Больше лимит для autocomplete
+        });
+        
+        const options = response.data.map(plan => ({
+          id: plan.id,
+          label: `${plan.name}${plan.group && plan.group.length > 0 ? ` (${plan.group.map(g => g.name).join(', ')})` : ''}`,
+          value: plan.id
+        }));
+        
+        setStudyPlanOptions(options);
+      } catch (error) {
+        console.error('Ошибка поиска учебных планов:', error);
+        setStudyPlanOptions([]);
+      } finally {
+        setStudyPlanSearchLoading(false);
+      }
+    }, 300); // 300ms дебоунс
+  }, [studyPlans]);
+
+  // Обработчик изменения выбранного учебного плана
+  const handleStudyPlanChange = (option: { id: string | number; label: string; value: string | number } | null) => {
+    setSelectedStudyPlan(option);
+    setFormData(prev => ({
+      ...prev,
+      studyPlanId: option ? option.id.toString() : ''
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -907,22 +1010,18 @@ const LessonForm: React.FC<{
       </div>
 
       <div>
-        <label className="block text-xs sm:text-sm lg:text-base font-medium text-gray-700 mb-1.5 sm:mb-2">
-          Учебный план <span className="text-red-500">*</span>
-        </label>
-        <select
-          value={formData.studyPlanId}
-          onChange={(e) => setFormData({ ...formData, studyPlanId: e.target.value })}
-          className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[40px] sm:min-h-[44px] transition-all duration-200 bg-white"
+        <Autocomplete
+          label="Учебный план"
+          placeholder="Поиск учебного плана..."
+          value={selectedStudyPlan}
+          options={studyPlanOptions}
+          onChange={handleStudyPlanChange}
+          onSearch={searchStudyPlans}
+          isLoading={studyPlanSearchLoading}
           required
-        >
-          <option value="">Выберите учебный план</option>
-          {studyPlans.map(plan => (
-            <option key={plan.id} value={plan.id.toString()}>
-              {plan.name}
-            </option>
-          ))}
-        </select>
+          inputRef={autocompleteInputRef}
+          className="text-sm sm:text-base min-h-[40px] sm:min-h-[44px]"
+        />
       </div>
 
       <div>

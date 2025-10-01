@@ -55,8 +55,8 @@ class WidgetService {
       return response;
     } catch (error) {
       console.error('Error adding widget:', error);
-      // Return local widget for now
-      return widget;
+      // Don't return local widget, throw error instead
+      throw error;
     }
   }
 

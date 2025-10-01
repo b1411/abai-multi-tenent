@@ -28,6 +28,7 @@ const GridDashboardCanvas: React.FC<GridDashboardCanvasProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedWidget, setSelectedWidget] = useState<Widget | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const getSizeWidth = (size: Widget['size']) => {
     switch (size.width) {
@@ -72,11 +73,22 @@ const GridDashboardCanvas: React.FC<GridDashboardCanvasProps> = ({
 
   useEffect(() => {
     setLayouts(generateLayouts);
-  }, [generateLayouts]);
+    // Mark as initialized after first layout set with a delay
+    if (!isInitialized && widgets.length > 0) {
+      setTimeout(() => {
+        setIsInitialized(true);
+      }, 100);
+    }
+  }, [generateLayouts, widgets.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLayoutChange = (layout: Layout[], layouts: { [key: string]: Layout[] }) => {
     setLayouts(layouts);
-    
+
+    // Skip layout change handling during initialization
+    if (!isInitialized) {
+      return;
+    }
+
     // Update widget positions
     const updatedWidgets = widgets.map(widget => {
       const layoutItem = layout.find(item => item.i === widget.id);

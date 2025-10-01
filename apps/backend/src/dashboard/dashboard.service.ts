@@ -877,31 +877,23 @@ export class DashboardService {
   async getUserWidgets(userId: number) {
     try {
       const widgets = await this.prisma.dashboardWidget.findMany({
-        where: { userId },
-        orderBy: { position: 'asc' },
+        where: { userId, isActive: true, deletedAt: null },
+        orderBy: { order: 'asc' },
       });
+
+      // Filter only allowed widget types
       const allowedTypes = new Set([
         'schedule','teacher-schedule','child-schedule','grades','child-grades','assignments','child-homework','attendance','child-attendance',
         'system-stats','finance-overview','system-alerts','activity-monitoring','school-attendance','teacher-workload','classroom-usage','grade-analytics','system-monitoring','news','tasks','birthdays'
       ]);
-      const seen = new Set<string>();
-      const filtered = widgets.filter(w => {
-        if (!allowedTypes.has(w.type)) return false; // drop unsupported
-        if (seen.has(w.type)) return false; // drop duplicates by type
-        seen.add(w.type);
-        return true;
-      });
-      // Reassign positions sequentially if changed
-      let posChanged = false;
-      filtered.forEach((w, idx) => { if (w.position !== idx) posChanged = true; });
-      if (posChanged) {
-        for (let i = 0; i < filtered.length; i++) {
-          if (filtered[i].position !== i) {
-            await this.prisma.dashboardWidget.update({ where: { id: filtered[i].id }, data: { position: i } });
-            filtered[i].position = i as any; // keep local sync
-          }
-        }
-      }
+
+      const filtered = widgets
+        .filter(w => allowedTypes.has(w.type))
+        .map(widget => ({
+          ...widget,
+          size: this.convertSizeToDimensions(widget.size)
+        }));
+
       return filtered;
     } catch (error) {
       console.error('Error fetching user widgets:', error);
@@ -911,17 +903,25 @@ export class DashboardService {
 
   async addWidget(userId: number, widgetData: any) {
     try {
+      // Convert size to string if it's an object
+      const size = typeof widgetData.size === 'object' ? widgetData.size.width : widgetData.size;
+      
       const widget = await this.prisma.dashboardWidget.create({
         data: {
           userId,
           type: widgetData.type,
           title: widgetData.title,
-          size: widgetData.size,
-          position: widgetData.position || 0,
+          size: size,
+          position: widgetData.position || { x: 0, y: 0, width: 2, height: 1 },
           config: widgetData.config || {},
         },
       });
-      return widget;
+      
+      // Return widget with converted size
+      return {
+        ...widget,
+        size: this.convertSizeToDimensions(widget.size)
+      };
     } catch (error) {
       console.error('Error adding widget:', error);
       throw error;
@@ -930,16 +930,24 @@ export class DashboardService {
 
   async updateWidget(widgetId: string, widgetData: any) {
     try {
+      // Convert size to string if it's an object
+      const size = typeof widgetData.size === 'object' ? widgetData.size.width : widgetData.size;
+      
       const widget = await this.prisma.dashboardWidget.update({
         where: { id: widgetId },
         data: {
           title: widgetData.title,
-          size: widgetData.size,
+          size: size,
           position: widgetData.position,
           config: widgetData.config,
         },
       });
-      return widget;
+      
+      // Return widget with converted size
+      return {
+        ...widget,
+        size: this.convertSizeToDimensions(widget.size)
+      };
     } catch (error) {
       console.error('Error updating widget:', error);
       throw error;
@@ -960,13 +968,16 @@ export class DashboardService {
   async getDashboardLayout(userId: number) {
     try {
       const widgets = await this.prisma.dashboardWidget.findMany({
-        where: { userId },
-        orderBy: { position: 'asc' },
+        where: { userId, isActive: true, deletedAt: null },
+        orderBy: { order: 'asc' },
       });
 
       return {
         userId,
-        widgets,
+        widgets: widgets.map(widget => ({
+          ...widget,
+          size: this.convertSizeToDimensions(widget.size)
+        })),
         gridSettings: { columns: 4, gap: 4 },
         updatedAt: new Date().toISOString(),
       };
@@ -978,13 +989,31 @@ export class DashboardService {
 
   async saveDashboardLayout(userId: number, layoutData: any) {
     try {
-      // Update widget positions
+      // Update widget positions and order
       if (layoutData.widgets && Array.isArray(layoutData.widgets)) {
-        for (const widget of layoutData.widgets) {
-          await this.prisma.dashboardWidget.update({
-            where: { id: widget.id },
-            data: { position: widget.position },
+        for (let i = 0; i < layoutData.widgets.length; i++) {
+          const widget = layoutData.widgets[i];
+          // Check if widget exists before updating
+          const existingWidget = await this.prisma.dashboardWidget.findFirst({
+            where: {
+              id: widget.id,
+              userId: userId,
+              isActive: true,
+              deletedAt: null
+            }
           });
+
+          if (existingWidget) {
+            await this.prisma.dashboardWidget.update({
+              where: { id: widget.id },
+              data: {
+                position: widget.position,
+                order: i
+              },
+            });
+          } else {
+            console.warn(`Widget with id ${widget.id} not found for user ${userId}, skipping update`);
+          }
         }
       }
     } catch (error) {
@@ -2431,5 +2460,19 @@ export class DashboardService {
     }
 
     return this.getTeacherWorkloadWidgetData();
+  }
+
+  private convertSizeToDimensions(size: any): { width: string; height: string } {
+    // If size is already an object, return it
+    if (typeof size === 'object' && size.width && size.height) {
+      return size;
+    }
+    
+    // If size is a string, convert it to dimensions
+    const sizeString = size as string;
+    return {
+      width: sizeString || 'medium',
+      height: sizeString || 'medium'
+    };
   }
 }

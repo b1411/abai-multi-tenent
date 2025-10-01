@@ -48,21 +48,26 @@ export const useWidgets = () => {
     // Filter only implemented & unique
     demoWidgetTypes = Array.from(new Set(demoWidgetTypes.filter(t => IMPLEMENTED_WIDGETS.includes(t))));
 
-    const demoWidgets: Widget[] = [];
+    const successfullyCreatedWidgets: Widget[] = [];
     for (const widgetType of demoWidgetTypes) {
       try {
         const widget = await widgetService.addWidget(widgetType, user.id.toString());
-        demoWidgets.push(widget);
+        // Only add if widget has valid ID from database
+        if (widget && widget.id && !widget.id.startsWith('widget_')) {
+          successfullyCreatedWidgets.push(widget);
+        } else {
+          console.warn(`Demo widget ${widgetType} was not properly saved to database`);
+        }
       } catch (err) {
         console.error(`Error creating demo widget ${widgetType}:`, err);
       }
     }
 
-    if (demoWidgets.length > 0) {
-      setWidgets(demoWidgets);
+    if (successfullyCreatedWidgets.length > 0) {
+      setWidgets(successfullyCreatedWidgets);
       // Save to localStorage
       try {
-        await widgetService.saveWidgetLayout(demoWidgets);
+        await widgetService.saveWidgetLayout(successfullyCreatedWidgets);
       } catch (err) {
         console.error('Error saving demo widgets layout:', err);
       }
@@ -129,20 +134,30 @@ export const useWidgets = () => {
     try {
       const newWidget = await widgetService.addWidget(widgetType, user.id.toString());
       
-      // Add to local state
-      setWidgets(prev => [...prev, newWidget]);
-      
-      // Save layout
-      const updatedWidgets = [...widgets, newWidget];
-      await widgetService.saveWidgetLayout(updatedWidgets);
-      
-      return newWidget;
+      // Only add to local state if widget has a valid ID (not the temporary one)
+      if (newWidget && newWidget.id && !newWidget.id.startsWith('widget_')) {
+        // Add to local state
+        setWidgets(prev => {
+          const updatedWidgets = [...prev, newWidget];
+          // Save layout with the new widget
+          widgetService.saveWidgetLayout(updatedWidgets).catch(err => 
+            console.error('Error saving layout after adding widget:', err)
+          );
+          return updatedWidgets;
+        });
+        
+        return newWidget;
+      } else {
+        console.warn('Widget was not properly saved to database, skipping local state update');
+        setError('Не удалось сохранить виджет в базе данных');
+        return null;
+      }
     } catch (err) {
       console.error('Error adding widget:', err);
       setError('Не удалось добавить виджет');
       throw err;
     }
-  }, [user?.id, widgets]);
+  }, [user?.id]);
 
   // Update widget
   const updateWidget = useCallback(async (updatedWidget: Widget) => {
@@ -207,14 +222,33 @@ export const useWidgets = () => {
 
   // Update widget positions (for drag & drop)
   const updateWidgetPositions = useCallback(async (updatedWidgets: Widget[]) => {
+    // Check if positions actually changed
+    const hasChanged = updatedWidgets.some((updatedWidget, index) => {
+      const currentWidget = widgets[index];
+      if (!currentWidget || !updatedWidget.position || !currentWidget.position) return false;
+      
+      return (
+        updatedWidget.position.x !== currentWidget.position.x ||
+        updatedWidget.position.y !== currentWidget.position.y ||
+        updatedWidget.position.width !== currentWidget.position.width ||
+        updatedWidget.position.height !== currentWidget.position.height
+      );
+    });
+
+    if (!hasChanged) {
+      console.log('Widget positions did not change, skipping save');
+      return;
+    }
+
     try {
       setWidgets(updatedWidgets);
       await widgetService.saveWidgetLayout(updatedWidgets);
+      console.log('Widget positions saved successfully');
     } catch (err) {
       console.error('Error updating widget positions:', err);
       setError('Не удалось сохранить расположение виджетов');
     }
-  }, []);
+  }, [widgets]);
 
   // Get widget data
   const getWidgetData = useCallback(async (widgetType: WidgetType, config?: any) => {

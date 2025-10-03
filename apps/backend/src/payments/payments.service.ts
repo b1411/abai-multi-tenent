@@ -415,7 +415,7 @@ export class PaymentsService {
     // Подготовка данных (приведение типов)
     const data: any = { ...updatePaymentDto };
 
-    if (data.paymentDate) {
+    if (data.paymentDate && typeof data.paymentDate === 'string') {
       // Преобразуем YYYY-MM-DD в Date
       data.paymentDate = new Date(data.paymentDate);
     }
@@ -424,8 +424,13 @@ export class PaymentsService {
       data.paidAmount = Number(data.paidAmount);
     }
 
+    // Преобразуем статус из маленьких букв в большие
+    if (data.status && typeof data.status === 'string') {
+      data.status = this.mapStatusToDb(data.status);
+    }
+
     // Если статус paid и не передана paidAmount, берем сумму платежа
-    if (data.status === 'paid' && (data.paidAmount === undefined || data.paidAmount === null)) {
+    if (data.status === 'PAID' && (data.paidAmount === undefined || data.paidAmount === null)) {
       const original = await this.prisma.payment.findUnique({ where: { id } });
       if (original) {
         data.paidAmount = original.amount;
@@ -569,6 +574,16 @@ export class PaymentsService {
       OTHER: 'Прочее',
     };
     return typeLabels[type] || type;
+  }
+
+  private mapStatusToDb(status: string): string {
+    const statusMap = {
+      unpaid: 'PENDING',
+      paid: 'PAID',
+      partial: 'PARTIAL',
+      overdue: 'OVERDUE',
+    };
+    return statusMap[status] || 'PENDING';
   }
 
   private mapStatus(status: string): string {

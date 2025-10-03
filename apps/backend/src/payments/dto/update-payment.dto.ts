@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsString, IsDateString, Min } from 'class-validator';
+import { IsOptional, IsNumber, IsString, IsDateString, Min, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { CreatePaymentDto } from './create-payment.dto';
 
@@ -11,7 +11,7 @@ export class UpdatePaymentDto extends PartialType(CreatePaymentDto) {
   paidAmount?: number;
 
   @IsOptional()
-  @IsString()
+  @IsIn(['unpaid', 'partial', 'paid', 'overdue'])
   status?: string;
 
   @IsOptional()

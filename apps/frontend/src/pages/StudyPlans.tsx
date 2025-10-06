@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaDownload, FaEdit, FaTimes, FaPlus, FaTrash, FaBookOpen, FaCalendarAlt } from 'react-icons/fa';
+import { FaDownload, FaEdit, FaTimes, FaPlus, FaTrash, FaBookOpen, FaCalendarAlt, FaCheck } from 'react-icons/fa';
 import Tooltip from '../components/Tooltip';
 import { useStudyPlans, useAvailableData } from '../hooks/useStudyPlans';
 import { useAuth } from '../hooks/useAuth';
@@ -11,6 +11,9 @@ import StudyPlanForm, { StudyPlanFormData } from '../components/StudyPlanForm';
 import KtpTreeView from '../components/KtpTreeView';
 import { ktpService } from '../services/ktpService';
 import StudyPlanImportModal from '../components/StudyPlanImportModal';
+import { lessonService } from '../services/lessonService';
+import { LessonType } from '../types/lesson';
+import { getLessonTypeLabel, getLessonTypeColor, getLessonTypeOptions } from '../utils/lessonTypeUtils';
 
 const StudyPlansPage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +28,20 @@ const StudyPlansPage: React.FC = () => {
   const [ktpLoading, setKtpLoading] = useState(false);
   const [isLoadingKtp, setIsLoadingKtp] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  // Состояния для inline-уроков
+  const [isCreatingLesson, setIsCreatingLesson] = useState(false);
+  const [createLessonForm, setCreateLessonForm] = useState<{ name: string; date: string; type: LessonType }>({
+    name: '',
+    date: new Date().toISOString().slice(0, 10),
+    type: LessonType.REGULAR,
+  });
+  const [editingLessonId, setEditingLessonId] = useState<number | null>(null);
+  const [editLessonForm, setEditLessonForm] = useState<{ name: string; date: string; type: LessonType }>({
+    name: '',
+    date: new Date().toISOString().slice(0, 10),
+    type: LessonType.REGULAR,
+  });
 
   const {
     studyPlans,
@@ -137,6 +154,93 @@ const StudyPlansPage: React.FC = () => {
 
   const handleCloseEditForm = () => {
     setEditingPlan(null);
+  };
+
+  // Разрешения на изменение уроков
+  const canModifyLessons = useMemo(
+    () => !!selectedPlan && (hasRole('ADMIN') || (hasRole('TEACHER') && selectedPlan?.teacher?.user?.id === user?.id)),
+    [selectedPlan, user?.id, hasRole]
+  );
+
+  const toDateInput = (dateStr?: string) => {
+    if (!dateStr) return new Date().toISOString().slice(0, 10);
+    try {
+      return new Date(dateStr).toISOString().slice(0, 10);
+    } catch {
+      return new Date().toISOString().slice(0, 10);
+    }
+  };
+
+  const reloadSelectedPlan = async () => {
+    if (!selectedPlan) return;
+    try {
+      const detailed = await studyPlanService.getStudyPlan(selectedPlan.id.toString());
+      setSelectedPlan(detailed);
+    } catch (e) {
+      console.error('Failed to reload plan after lesson change', e);
+    }
+  };
+
+  // Создание урока
+  const handleStartCreateLesson = () => {
+    if (!canModifyLessons) return;
+    setIsCreatingLesson(true);
+    setCreateLessonForm({ name: '', date: new Date().toISOString().slice(0, 10), type: LessonType.REGULAR });
+  };
+
+  const handleSaveCreateLesson = async () => {
+    if (!selectedPlan) return;
+    if (!createLessonForm.name.trim()) {
+      alert('Введите тему урока');
+      return;
+    }
+    try {
+      await lessonService.createLesson({
+        name: createLessonForm.name.trim(),
+        type: createLessonForm.type,
+        date: createLessonForm.date,
+        studyPlanId: selectedPlan.id,
+      });
+      setIsCreatingLesson(false);
+      await reloadSelectedPlan();
+    } catch (e) {
+      console.error('Error creating lesson', e);
+      alert('Не удалось создать урок');
+    }
+  };
+
+  const handleCancelCreate = () => {
+    setIsCreatingLesson(false);
+  };
+
+  // Редактирование урока
+  const handleStartEditLesson = (lesson: any) => {
+    if (!canModifyLessons) return;
+    setEditingLessonId(lesson.id);
+    setEditLessonForm({
+      name: lesson.name || '',
+      date: toDateInput(lesson.date),
+      type: (lesson.type as LessonType) || LessonType.REGULAR,
+    });
+  };
+
+  const handleSaveEditLesson = async (lessonId: number) => {
+    try {
+      await lessonService.updateLesson(lessonId, {
+        name: editLessonForm.name.trim() || undefined,
+        date: editLessonForm.date,
+        type: editLessonForm.type,
+      });
+      setEditingLessonId(null);
+      await reloadSelectedPlan();
+    } catch (e) {
+      console.error('Error updating lesson', e);
+      alert('Не удалось обновить урок');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLessonId(null);
   };
 
   return (
@@ -301,77 +405,77 @@ const StudyPlansPage: React.FC = () => {
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {(hasRole('ADMIN') || (hasRole('TEACHER') && plan.teacher?.user?.id === user?.id)) ? (
-<div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
-  <Tooltip text="Редактировать">
-    <button
-      className="text-blue-600 hover:text-blue-800 flex items-center button-hover text-xs lg:text-sm"
-      onClick={(e) => {
-        e.stopPropagation();
-        setEditingPlan(plan);
-      }}
-    >
-      <FaEdit />
-    </button>
-  </Tooltip>
-  <Tooltip text="Уроки">
-    <button
-      className="text-green-600 hover:text-green-800 flex items-center button-hover text-xs lg:text-sm"
-      onClick={(e) => {
-        e.stopPropagation();
-        navigate(`/lessons?studyPlanId=${plan.id}`);
-      }}
-    >
-      <FaBookOpen />
-    </button>
-  </Tooltip>
-  <Tooltip text="КТП">
-    <button
-      className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
-      onClick={async (e) => {
-        e.stopPropagation();
-        setIsLoadingKtp(true);
-        setKtpLoading(true);
-        try {
-          const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
-          if (ktpList.data.length > 0) {
-            const ktp = await ktpService.getKtpById(ktpList.data[0].id);
-            setKtpData(ktp);
-          } else {
-            setKtpData(null);
-          }
-          setSelectedPlan(plan);
-        } catch (err) {
-          console.error('Error loading KTP:', err);
-          setKtpData(null);
-          setSelectedPlan(plan);
-        } finally {
-          setKtpLoading(false);
-          setShowKtpModal(true);
-          setIsLoadingKtp(false);
-        }
-      }}
-    >
-      <FaCalendarAlt />
-    </button>
-  </Tooltip>
-  <Tooltip text="Удалить">
-    <button
-      className="text-red-600 hover:text-red-800 flex items-center button-hover text-xs lg:text-sm"
-      onClick={async (e) => {
-        e.stopPropagation();
-        if (!window.confirm('Удалить учебный план?')) return;
-        try {
-          await studyPlanService.deleteStudyPlan(plan.id.toString());
-          updateFilters({ ...filters, page: 1 });
-        } catch (err) {
-          alert('Ошибка при удалении учебного плана');
-        }
-      }}
-    >
-      <FaTrash />
-    </button>
-  </Tooltip>
-</div>
+                          <div className="flex flex-col lg:flex-row space-y-1 lg:space-y-0 lg:space-x-2">
+                            <Tooltip text="Редактировать">
+                              <button
+                                className="text-blue-600 hover:text-blue-800 flex items-center button-hover text-xs lg:text-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingPlan(plan);
+                                }}
+                              >
+                                <FaEdit />
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="Уроки">
+                              <button
+                                className="text-green-600 hover:text-green-800 flex items-center button-hover text-xs lg:text-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/lessons?studyPlanId=${plan.id}`);
+                                }}
+                              >
+                                <FaBookOpen />
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="КТП">
+                              <button
+                                className="text-purple-600 hover:text-purple-800 flex items-center button-hover text-xs lg:text-sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setIsLoadingKtp(true);
+                                  setKtpLoading(true);
+                                  try {
+                                    const ktpList = await ktpService.getKtpList({ studyPlanId: plan.id });
+                                    if (ktpList.data.length > 0) {
+                                      const ktp = await ktpService.getKtpById(ktpList.data[0].id);
+                                      setKtpData(ktp);
+                                    } else {
+                                      setKtpData(null);
+                                    }
+                                    setSelectedPlan(plan);
+                                  } catch (err) {
+                                    console.error('Error loading KTP:', err);
+                                    setKtpData(null);
+                                    setSelectedPlan(plan);
+                                  } finally {
+                                    setKtpLoading(false);
+                                    setShowKtpModal(true);
+                                    setIsLoadingKtp(false);
+                                  }
+                                }}
+                              >
+                                <FaCalendarAlt />
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="Удалить">
+                              <button
+                                className="text-red-600 hover:text-red-800 flex items-center button-hover text-xs lg:text-sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!window.confirm('Удалить учебный план?')) return;
+                                  try {
+                                    await studyPlanService.deleteStudyPlan(plan.id.toString());
+                                    updateFilters({ ...filters, page: 1 });
+                                  } catch (err) {
+                                    alert('Ошибка при удалении учебного плана');
+                                  }
+                                }}
+                              >
+                                <FaTrash />
+                              </button>
+                            </Tooltip>
+                          </div>
                         ) : (
                           <span className="text-gray-400 text-xs">Нет доступа</span>
                         )}
@@ -688,14 +792,30 @@ const StudyPlansPage: React.FC = () => {
               {/* Таблица уроков */}
               <div className="flex-1 overflow-hidden flex flex-col">
                 <div className="overflow-x-auto">
+                  {canModifyLessons && (
+                    <div className="flex justify-end mb-2">
+                      <button
+                        onClick={handleStartCreateLesson}
+                        className="inline-flex items-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        disabled={isCreatingLesson}
+                        title="Добавить урок"
+                      >
+                        <FaPlus className="mr-2" /> Добавить урок
+                      </button>
+                    </div>
+                  )}
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">№</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Тема урока</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Тип</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Дата урока</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Материалы</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Статус</th>
+                        {canModifyLessons && (
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Действия</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -704,15 +824,48 @@ const StudyPlansPage: React.FC = () => {
                           <tr key={lesson.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
                             <td className="px-6 py-4 text-sm text-gray-900">
-                              <button
-                                onClick={() => navigate(`/lessons/${lesson.id}`)}
-                                className="text-corporate-primary hover:text-purple-800 hover:underline"
-                              >
-                                {lesson.name}
-                              </button>
+                              {editingLessonId === lesson.id ? (
+                                <input
+                                  className="w-full px-2 py-1 border border-gray-300 rounded"
+                                  value={editLessonForm.name}
+                                  onChange={(e) => setEditLessonForm((f) => ({ ...f, name: e.target.value }))}
+                                  placeholder="Тема урока"
+                                />
+                              ) : (
+                                <button
+                                  onClick={() => navigate(`/lessons/${lesson.id}`)}
+                                  className="text-corporate-primary hover:text-purple-800 hover:underline"
+                                >
+                                  {lesson.name}
+                                </button>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {lesson.date ? (
+                              {editingLessonId === lesson.id ? (
+                                <select
+                                  className="px-2 py-1 border border-gray-300 rounded"
+                                  value={editLessonForm.type}
+                                  onChange={(e) => setEditLessonForm((f) => ({ ...f, type: e.target.value as LessonType }))}
+                                >
+                                  {getLessonTypeOptions().map((opt) => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getLessonTypeColor(lesson.type as LessonType)}`}>
+                                  {getLessonTypeLabel(lesson.type as LessonType)}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {editingLessonId === lesson.id ? (
+                                <input
+                                  type="date"
+                                  className="px-2 py-1 border border-gray-300 rounded"
+                                  value={editLessonForm.date}
+                                  onChange={(e) => setEditLessonForm((f) => ({ ...f, date: e.target.value }))}
+                                />
+                              ) : lesson.date ? (
                                 <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
                                   {formatDate(lesson.date)}
                                 </div>
@@ -722,8 +875,7 @@ const StudyPlansPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className="flex space-x-2">
-                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${lesson.materials?.length > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                                  }`}>
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${lesson.materials?.length > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                   {lesson.materials?.length > 0 ? '✓' : '×'}
                                 </span>
                               </div>
@@ -738,12 +890,100 @@ const StudyPlansPage: React.FC = () => {
                                     'Запланирован'}
                               </span>
                             </td>
+                            {canModifyLessons && (
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {editingLessonId === lesson.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      className="px-2 py-1 rounded bg-green-600 text-white hover:bg-green-700"
+                                      onClick={() => handleSaveEditLesson(lesson.id)}
+                                      title="Сохранить"
+                                    >
+                                      <FaCheck />
+                                    </button>
+                                    <button
+                                      className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                                      onClick={handleCancelEdit}
+                                      title="Отмена"
+                                    >
+                                      <FaTimes />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                                    onClick={() => handleStartEditLesson(lesson)}
+                                  >
+                                    <FaEdit />
+                                  </button>
+                                )}
+                              </td>
+                            )}
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                          <td colSpan={canModifyLessons ? 6 : 5} className="px-6 py-4 text-center text-sm text-gray-500">
                             Уроки не найдены
+                          </td>
+                        </tr>
+                      )}
+
+                      {/* Строка создания */}
+                      {canModifyLessons && isCreatingLesson && (
+                        <tr className="bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{(selectedPlan.lessons?.length || 0) + 1}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <input
+                              className="w-full px-2 py-1 border border-gray-300 rounded"
+                              value={createLessonForm.name}
+                              onChange={(e) => setCreateLessonForm((f) => ({ ...f, name: e.target.value }))}
+                              placeholder="Тема урока"
+                              autoFocus
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <select
+                              className="px-2 py-1 border border-gray-300 rounded"
+                              value={createLessonForm.type}
+                              onChange={(e) => setCreateLessonForm((f) => ({ ...f, type: e.target.value as LessonType }))}
+                            >
+                              {getLessonTypeOptions().map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <input
+                              type="date"
+                              className="px-2 py-1 border border-gray-300 rounded"
+                              value={createLessonForm.date}
+                              onChange={(e) => setCreateLessonForm((f) => ({ ...f, date: e.target.value }))}
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="text-gray-400">—</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="text-gray-400">—</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="px-2 py-1 rounded bg-green-600 text-white hover:bg-green-700"
+                                onClick={handleSaveCreateLesson}
+                                title="Создать"
+                              >
+                                <FaCheck />
+                              </button>
+                              <button
+                                className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                                onClick={handleCancelCreate}
+                                title="Отмена"
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )}

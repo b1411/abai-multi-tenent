@@ -597,7 +597,8 @@ export class HomeworkService {
       include: {
         student: {
           include: {
-            user: true
+            user: true,
+            group: true
           }
         },
         fileUrl: true,

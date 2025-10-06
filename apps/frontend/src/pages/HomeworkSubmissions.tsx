@@ -24,7 +24,7 @@ const HomeworkSubmissionsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
-  
+
   const [homework, setHomework] = useState<Homework | null>(null);
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,15 +45,15 @@ const HomeworkSubmissionsPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // Загружаем данные ДЗ
       const homeworkData = await homeworkService.getHomework(parseInt(id!));
       setHomework(homeworkData);
-      
+
       // Загружаем отправки студентов
       const submissionsData = await homeworkService.getHomeworkSubmissions(parseInt(id!));
       setSubmissions(submissionsData);
-      
+
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
     } finally {
@@ -74,18 +74,18 @@ const HomeworkSubmissionsPage: React.FC = () => {
 
     try {
       setSavingGrade(true);
-      
+
       // Вызываем API для оценки работы
       await homeworkService.gradeHomework(
         gradingSubmission.id,
         parseInt(gradeForm.score),
         gradeForm.comment
       );
-      
+
       setGradingSubmission(null);
       setGradeForm({ score: '', comment: '' });
       await loadData(); // Перезагружаем данные
-      
+
     } catch (error) {
       console.error('Ошибка при оценивании:', error);
       alert('Ошибка при сохранении оценки');
@@ -208,31 +208,28 @@ const HomeworkSubmissionsPage: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilterStatus('all')}
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              filterStatus === 'all'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-3 py-1 rounded-full text-sm font-medium ${filterStatus === 'all'
+              ? 'bg-blue-100 text-blue-800'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             Все ({stats.total})
           </button>
           <button
             onClick={() => setFilterStatus('submitted')}
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              filterStatus === 'submitted'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-3 py-1 rounded-full text-sm font-medium ${filterStatus === 'submitted'
+              ? 'bg-blue-100 text-blue-800'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             На проверке ({stats.submitted})
           </button>
           <button
             onClick={() => setFilterStatus('graded')}
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              filterStatus === 'graded'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-3 py-1 rounded-full text-sm font-medium ${filterStatus === 'graded'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             Проверено ({stats.graded})
           </button>
@@ -246,8 +243,8 @@ const HomeworkSubmissionsPage: React.FC = () => {
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Нет отправок</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {filterStatus === 'all' 
-                ? 'Студенты еще не отправили свои работы.' 
+              {filterStatus === 'all'
+                ? 'Студенты еще не отправили свои работы.'
                 : 'Нет отправок с выбранным статусом.'
               }
             </p>
@@ -269,6 +266,8 @@ const HomeworkSubmissionsPage: React.FC = () => {
                           {submission.student?.user?.name} {submission.student?.user?.surname}
                         </h3>
                         <p className="text-sm text-gray-500">Студент ID: {submission.studentId}</p>
+                        <p className="text-sm text-gray-500">Группа: {submission.student?.group?.name}</p>
+                        <p className='text-sm text-gray-500'>Курс: {submission.student?.group?.courseNumber} </p>
                       </div>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusStyle(status)}`}>
                         {status === 'graded' ? (
@@ -285,7 +284,7 @@ const HomeworkSubmissionsPage: React.FC = () => {
                         <Calendar className="h-4 w-4 mr-2" />
                         Отправлено: {formatDateTime(submission.submittedAt)}
                       </div>
-                      
+
                       {submission.fileUrl && (
                         <div className="flex items-center text-sm text-gray-600">
                           <FileText className="h-4 w-4 mr-2" />
@@ -342,7 +341,7 @@ const HomeworkSubmissionsPage: React.FC = () => {
                         Скачать
                       </Button>
                     )}
-                    
+
                     {(hasRole('ADMIN') || hasRole('TEACHER')) && (
                       <Button
                         variant="primary"
@@ -385,7 +384,7 @@ const HomeworkSubmissionsPage: React.FC = () => {
               </label>
               <input
                 type="number"
-                
+
                 max="100"
                 value={gradeForm.score}
                 onChange={(e) => setGradeForm(prev => ({ ...prev, score: e.target.value }))}

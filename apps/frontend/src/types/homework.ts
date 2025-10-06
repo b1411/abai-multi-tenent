@@ -66,6 +66,15 @@ export interface HomeworkSubmission {
       name: string;
       surname: string;
     };
+    group: {
+      id: number;
+      createdAt: Date;
+      updatedAt: Date;
+      deletedAt: Date | null;
+      name: string;
+      courseNumber: number;
+      curatorTeacherId: number | null;
+    };
   };
   lessonResult?: {
     homeworkScore?: number;

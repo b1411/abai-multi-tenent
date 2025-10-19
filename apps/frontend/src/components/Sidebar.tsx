@@ -117,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Учебные планы', href: '/study-plans', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'] },
         { name: 'Уроки', href: '/lessons', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { name: 'Домашние задания', href: '/homework', icon: ClipboardList, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
-        { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen, roles: ['ADMIN', 'TEACHER'] },
+        { name: 'Учебный журнал', href: '/academic/academic-journal', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { name: 'Расписание', href: '/academic/schedule', icon: Calendar, roles: ['ADMIN', 'TEACHER'] },
         { name: 'Аудитории', href: '/classrooms', icon: Building, roles: ['ADMIN', 'TEACHER'] },
         { name: 'Отчеты', href: '/educational-reports', icon: BarChart3, roles: ['ADMIN', 'TEACHER'] },

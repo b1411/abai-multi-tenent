@@ -18,7 +18,7 @@ const RouteRoleGuard: React.FC = () => {
     { pattern: /^\/study-plans$/, roles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'] },
     { pattern: /^\/lessons(\/|$)/, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
     { pattern: /^\/homework(\/|$)/, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
-    { pattern: /^\/academic\/academic-journal$/, roles: ['ADMIN', 'TEACHER'] },
+    { pattern: /^\/academic\/academic-journal$/, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
     { pattern: /^\/academic\/schedule$/, roles: ['ADMIN', 'TEACHER'] },
     { pattern: /^\/academic\/classrooms$/, roles: ['ADMIN', 'TEACHER'] },
     { pattern: /^\/classrooms$/, roles: ['ADMIN', 'TEACHER'] },

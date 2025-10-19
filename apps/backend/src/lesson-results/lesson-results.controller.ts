@@ -63,7 +63,7 @@ export class LessonResultsController {
   @ApiParam({ name: 'groupId', description: 'ID группы' })
   @ApiQuery({ name: 'startDate', description: 'Дата начала периода (YYYY-MM-DD)' })
   @ApiQuery({ name: 'endDate', description: 'Дата окончания периода (YYYY-MM-DD)' })
-  @Roles('ADMIN', 'TEACHER')
+  @Roles('ADMIN', 'TEACHER', 'STUDENT')
   getGroupJournalByPeriod(
     @Param('groupId') groupId: string,
     @Query('startDate') startDate: string,

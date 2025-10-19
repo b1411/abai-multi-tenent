@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FaSearch, FaFilter, FaPlus, FaCalendar, FaCaretDown, FaTimes, FaEdit, FaEye } from 'react-icons/fa';
 import { journalService } from '../services/journalService';
 import { useAuth } from '../hooks/useAuth';
@@ -19,6 +19,7 @@ import { Spinner } from '../components/ui/Spinner';
 import type { StudyPlanResponse } from '../types/studyPlan';
 import { studyPlanService } from '../services/studyPlanService';
 import { teacherService } from '../services/teacherService';
+import { studentService } from '../services/studentService';
 import { useTenantConfig } from '../hooks/useTenantConfig';
 
 interface GradeModalProps {
@@ -388,6 +389,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
     // Определяем возможности пользователя
     const canEdit = user?.role === 'ADMIN' || user?.role === 'TEACHER';
     const canViewAll = user?.role === 'ADMIN' || user?.role === 'TEACHER';
+    const isStudent = user?.role === 'STUDENT';
 
     // Загрузка начальных данных
     useEffect(() => {
@@ -415,25 +417,30 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
         updatePlansForTeacher();
     }, [user?.role, teacherId, filters.groupId]);
 
-    // Загрузка журнала при изменении фильтров
-    useEffect(() => {
-        if (canViewAll) {
-            // Для преподавателей и админов - загружаем только когда все фильтры заполнены
-            if (filters.groupId && filters.studyPlanId && filters.startDate && filters.endDate) {
-                loadJournalData();
-            }
-        } else if (user?.role === 'STUDENT') {
-            // Для студентов - загружаем их оценки автоматически
-            loadStudentJournal();
-        }
-    }, [filters.groupId, filters.studyPlanId, filters.startDate, filters.endDate, user]);
-
     const loadInitialData = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            if (user?.role === 'TEACHER') {
+            if (user?.role === 'STUDENT') {
+                // Получаем студента по пользователю
+                const student = await studentService.getStudentByUserId(user.id);
+                if (student?.groupId) {
+                    // Загружаем планы только для группы студента
+                    const spRes = await studyPlanService.getStudyPlans({
+                        groupId: student.groupId,
+                        limit: 1000
+                    });
+                    setStudyPlans(spRes);
+                } else {
+                    // Нет группы у студента
+                    const emptySp: StudyPlanResponse = {
+                        data: [],
+                        meta: { totalItems: 0, itemCount: 0, itemsPerPage: 0, totalPages: 0, currentPage: 1 }
+                    };
+                    setStudyPlans(emptySp);
+                }
+            } else if (user?.role === 'TEACHER') {
                 // Получаем преподавателя по пользователю
                 const teacher = await teacherService.getTeacherByUser(user.id);
                 if (teacher?.id) {
@@ -480,7 +487,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
         }
     };
 
-    const loadJournalData = async () => {
+    const loadJournalData = useCallback(async () => {
         if (!filters.groupId || !filters.studyPlanId || !filters.startDate || !filters.endDate) return;
 
         try {
@@ -557,9 +564,9 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, [filters.groupId, filters.studyPlanId, filters.startDate, filters.endDate]);
 
-    const loadStudentJournal = async () => {
+    const loadStudentJournal = useCallback(async () => {
         if (!user?.id) return;
 
         try {
@@ -582,11 +589,12 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
 
             setResults(studentData.results || []);
 
-            // Извлекаем уроки из результатов
+            // Извлекаем уроки из результатов, фильтруя только по выбранному предмету
             const uniqueLessons: any[] = [];
             studentData.results?.forEach((result: any) => {
                 const lesson = result.Lesson || result.lesson; // API возвращает с заглавной буквы
-                if (lesson && !uniqueLessons.find(l => l.id === lesson.id)) {
+                // Проверяем что урок относится к выбранному предмету
+                if (lesson && lesson.studyPlanId === filters.studyPlanId && !uniqueLessons.find(l => l.id === lesson.id)) {
                     uniqueLessons.push({
                         ...lesson,
                         title: lesson.name || lesson.title, // используем name как title
@@ -599,13 +607,30 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
             uniqueLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             setLessons(uniqueLessons);
 
+            console.log('Уроки после фильтрации по studyPlanId:', uniqueLessons);
+
         } catch (err) {
             setError('Ошибка загрузки ваших оценок');
             console.error('Ошибка загрузки оценок студента:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.id, filters.startDate, filters.endDate, filters.studyPlanId]);
+
+    // Загрузка журнала при изменении фильтров
+    useEffect(() => {
+        if (isStudent) {
+            // Для студентов - загружаем их оценки только когда выбран предмет и период
+            if (filters.studyPlanId && filters.startDate && filters.endDate) {
+                loadStudentJournal();
+            }
+        } else if (canViewAll) {
+            // Для преподавателей и админов - загружаем только когда все фильтры заполнены
+            if (filters.groupId && filters.studyPlanId && filters.startDate && filters.endDate) {
+                loadJournalData();
+            }
+        }
+    }, [filters.groupId, filters.studyPlanId, filters.startDate, filters.endDate, isStudent, canViewAll, loadStudentJournal, loadJournalData]);
 
     const handleSaveResult = async (data: CreateLessonResultDto | UpdateLessonResultDto) => {
         if (gradeModal.result) {
@@ -778,7 +803,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                             value={filters.studyPlanId?.toString() || ''}
                             onChange={(value) => setFilters(prev => ({ ...prev, studyPlanId: Number(value) || undefined }))}
                             options={[
-                                { value: '', label: 'Все предметы' },
+                                { value: '', label: isStudent ? 'Выберите предмет' : 'Все предметы' },
                                 ...(studyPlans?.data?.map(sp => ({ value: sp.id.toString(), label: sp.name })) || [])
                             ]}
                         />
@@ -790,35 +815,35 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                                 let startDate = '';
                                 let endDate = '';
                                 const year = new Date().getFullYear();
-                                if (tenantConfig?.periodType === 'semester') {
-                                    if (value === 'half_year_1') {
-                                        startDate = `${year}-09-01`;
-                                        endDate = `${year}-12-31`;
-                                    } else if (value === 'half_year_2') {
-                                        startDate = `${year}-01-01`;
-                                        endDate = `${year}-05-31`;
-                                    } else if (value === 'year') {
-                                        startDate = `${year}-09-01`;
-                                        endDate = `${year + 1}-05-31`;
-                                    }
-                                } else {
-                                    if (value === 'quarter1') {
-                                        startDate = `${year}-09-02`;
-                                        endDate = `${year}-10-26`;
-                                    } else if (value === 'quarter2') {
-                                        startDate = `${year}-11-03`;
-                                        endDate = `${year}-12-28`;
-                                    } else if (value === 'quarter3') {
-                                        startDate = `${year + 1}-01-08`;
-                                        endDate = `${year + 1}-03-18`;
-                                    } else if (value === 'quarter4') {
-                                        startDate = `${year + 1}-03-30`;
-                                        endDate = `${year + 1}-05-25`;
-                                    } else if (value === 'year') {
-                                        startDate = `${year}-09-02`;
-                                        endDate = `${year + 1}-05-25`;
-                                    }
+
+                                // Обработка семестров
+                                if (value === 'half_year_1') {
+                                    startDate = `${year}-09-01`;
+                                    endDate = `${year}-12-31`;
+                                } else if (value === 'half_year_2') {
+                                    startDate = `${year}-01-01`;
+                                    endDate = `${year}-05-31`;
                                 }
+                                // Обработка четвертей
+                                else if (value === 'quarter1') {
+                                    startDate = `${year}-09-02`;
+                                    endDate = `${year}-10-26`;
+                                } else if (value === 'quarter2') {
+                                    startDate = `${year}-11-03`;
+                                    endDate = `${year}-12-28`;
+                                } else if (value === 'quarter3') {
+                                    startDate = `${year + 1}-01-08`;
+                                    endDate = `${year + 1}-03-18`;
+                                } else if (value === 'quarter4') {
+                                    startDate = `${year + 1}-03-30`;
+                                    endDate = `${year + 1}-05-25`;
+                                }
+                                // Учебный год
+                                else if (value === 'year') {
+                                    startDate = `${year}-09-01`;
+                                    endDate = `${year + 1}-05-31`;
+                                }
+
                                 setFilters(prev => ({
                                     ...prev,
                                     period: value,
@@ -832,6 +857,10 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                                         { value: '', label: 'Выберите период' },
                                         { value: 'half_year_1', label: '1 семестр' },
                                         { value: 'half_year_2', label: '2 семестр' },
+                                        { value: 'quarter1', label: '1 четверть' },
+                                        { value: 'quarter2', label: '2 четверть' },
+                                        { value: 'quarter3', label: '3 четверть' },
+                                        { value: 'quarter4', label: '4 четверть' },
                                         { value: 'year', label: 'Учебный год' },
                                         { value: 'custom', label: 'Произвольный' }
                                     ]
@@ -872,7 +901,7 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                             <table className="w-full min-w-full">
                                 <thead className="bg-gray-50">
                                     <tr>
-<th className="sticky left-0 z-40 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] border-r">
+                                        <th className="sticky left-0 z-40 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] border-r">
                                             Студент
                                         </th>
                                         {lessons.map((lesson) => (
@@ -889,37 +918,65 @@ const [teacherId, setTeacherId] = useState<number | null>(null);
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {students.length > 0 ? (
-                                        students.map((student) => (
-                                            <tr key={student.id} className="hover:bg-gray-50">
-<td className="sticky left-0 z-30 bg-white px-6 py-4 whitespace-nowrap border-r">
+                                        isStudent ? (
+                                            // Для студента показываем только одну строку с его ФИО и оценками
+                                            <tr className="hover:bg-gray-50">
+                                                <td className="sticky left-0 z-30 bg-white px-6 py-4 whitespace-nowrap border-r">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">
-                                                            {student.user.surname} {student.user.name}
+                                                            {students[0].user.surname} {students[0].user.name}
                                                         </div>
                                                         <div className="text-sm text-gray-500">
-                                                            {student.group?.name || 'Нет группы'}
+                                                            {students[0].group?.name || 'Нет группы'}
                                                         </div>
                                                     </div>
                                                 </td>
                                                 {lessons.map((lesson) => (
                                                     <td key={lesson.id} className="px-2 sm:px-4 py-4 text-center border-r">
                                                         <div className="flex justify-center">
-                                                            {renderGradeCell(student.id, lesson.id)}
+                                                            {renderGradeCell(students[0].id, lesson.id)}
                                                         </div>
                                                     </td>
                                                 ))}
                                             </tr>
-                                        ))
+                                        ) : (
+                                            // Для преподавателей и админов показываем всех студентов
+                                            students.map((student) => (
+                                                <tr key={student.id} className="hover:bg-gray-50">
+                                                    <td className="sticky left-0 z-30 bg-white px-6 py-4 whitespace-nowrap border-r">
+                                                        <div>
+                                                            <div className="text-sm font-medium text-gray-900">
+                                                                {student.user.surname} {student.user.name}
+                                                            </div>
+                                                            <div className="text-sm text-gray-500">
+                                                                {student.group?.name || 'Нет группы'}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    {lessons.map((lesson) => (
+                                                        <td key={lesson.id} className="px-2 sm:px-4 py-4 text-center border-r">
+                                                            <div className="flex justify-center">
+                                                                {renderGradeCell(student.id, lesson.id)}
+                                                            </div>
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))
+                                        )
                                     ) : (
                                         <tr>
                                             <td colSpan={lessons.length + 1} className="px-6 py-8 text-center text-gray-500">
-                                                Нет студентов в группе
+                                                {isStudent ? 'Нет доступных оценок' : 'Нет студентов в группе'}
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                ) : isStudent && (!filters.studyPlanId || !filters.startDate || !filters.endDate) ? (
+                    <div className="bg-white rounded-lg shadow p-6 sm:p-8 text-center">
+                        <p className="text-gray-500">Выберите предмет и период для просмотра журнала</p>
                     </div>
                 ) : filters.groupId && filters.studyPlanId ? (
                     <div className="bg-white rounded-lg shadow p-6 sm:p-8 text-center">

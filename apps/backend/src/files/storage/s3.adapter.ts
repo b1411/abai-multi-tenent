@@ -24,6 +24,15 @@ export class S3StorageAdapter implements StorageAdapter {
     this.publicUrl = this.configService.get<string>('AWS_S3_PUBLIC_URL');
     this.endpoint = this.configService.get<string>('AWS_S3_ENDPOINT');
 
+    // Логируем конфигурацию для отладки
+    this.logger.log('S3 Adapter Configuration:');
+    this.logger.log(`  Bucket: ${this.bucketName || 'NOT SET'}`);
+    this.logger.log(`  Region: ${this.region}`);
+    this.logger.log(`  Endpoint: ${this.endpoint || 'NOT SET'}`);
+    this.logger.log(`  Public URL: ${this.publicUrl || 'NOT SET'}`);
+    this.logger.log(`  Access Key: ${this.configService.get<string>('AWS_ACCESS_KEY_ID') ? 'SET' : 'NOT SET'}`);
+    this.logger.log(`  Secret Key: ${this.configService.get<string>('AWS_SECRET_ACCESS_KEY') ? 'SET' : 'NOT SET'}`);
+
     const s3Config: any = {
       region: this.region,
       credentials: {

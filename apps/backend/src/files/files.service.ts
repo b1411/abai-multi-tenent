@@ -41,13 +41,26 @@ export class FilesService {
   }
 
   private async initializePrimaryAdapter() {
+    this.logger.log('Initializing storage adapters...');
+
     for (const adapter of this.storageAdapters) {
-      if (await adapter.isAvailable()) {
-        this.primaryAdapter = adapter;
-        this.logger.log(`Using storage adapter: ${adapter.constructor.name}`);
-        break;
+      this.logger.log(`Checking availability of ${adapter.constructor.name}...`);
+
+      try {
+        const isAvailable = await adapter.isAvailable();
+        this.logger.log(`${adapter.constructor.name} available: ${isAvailable}`);
+
+        if (isAvailable) {
+          this.primaryAdapter = adapter;
+          this.logger.log(`✅ Using storage adapter: ${adapter.constructor.name}`);
+          break;
+        }
+      } catch (error) {
+        this.logger.error(`Error checking ${adapter.constructor.name}: ${error.message}`);
       }
     }
+
+    this.logger.log(`Final primary adapter: ${this.primaryAdapter.constructor.name}`);
   }
 
   async uploadFile(file: Express.Multer.File, category: string, user?: any): Promise<FileEntity> {

@@ -1,122 +1,112 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FileEntity } from './entities/file.entity';
 import { PrismaService } from '../prisma/prisma.service';
 import { Express } from 'express';
-import { put, del } from '@vercel/blob';
-import * as fs from 'fs';
 import * as path from 'path';
+import {
+  StorageAdapter,
+  S3StorageAdapter,
+  LocalStorageAdapter,
+  VercelBlobAdapter,
+} from './storage';
 
 @Injectable()
 export class FilesService {
-  constructor(private readonly prisma: PrismaService) { }
+  private readonly logger = new Logger(FilesService.name);
+  private readonly storageAdapters: StorageAdapter[];
+  private primaryAdapter: StorageAdapter;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    // Инициализируем адаптеры в порядке приоритета:
+    // 1. S3 (основное хранилище для продакшена)
+    // 2. Local (резервное локальное хранилище)
+    // 3. Vercel Blob (если используется Vercel деплой)
+    this.storageAdapters = [
+      new S3StorageAdapter(configService),
+      new LocalStorageAdapter(),
+      new VercelBlobAdapter(),
+    ];
+
+    // Временно используем локальное хранилище до инициализации
+    this.primaryAdapter = this.storageAdapters[1]; // LocalStorageAdapter
+
+    // Асинхронно определяем доступный адаптер
+    this.initializePrimaryAdapter();
+  }
+
+  private async initializePrimaryAdapter() {
+    for (const adapter of this.storageAdapters) {
+      if (await adapter.isAvailable()) {
+        this.primaryAdapter = adapter;
+        this.logger.log(`Using storage adapter: ${adapter.constructor.name}`);
+        break;
+      }
+    }
+  }
 
   async uploadFile(file: Express.Multer.File, category: string, user?: any): Promise<FileEntity> {
     if (!file) {
       throw new Error('Файл не был загружен');
     }
 
-    console.log('Uploading file:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      bufferSize: file.buffer?.length,
-      category
+    this.logger.log(`Uploading file: ${file.originalname}, size: ${file.size}, category: ${category}`);
+
+    // Генерируем безопасное имя файла без кириллицы
+    const fileExtension = path.extname(file.originalname);
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2);
+    const safeFileName = `${timestamp}-${randomString}${fileExtension}`;
+
+    let uploadResult: any;
+
+    // Пытаемся загрузить файл используя доступные адаптеры
+    for (const adapter of this.storageAdapters) {
+      try {
+        if (await adapter.isAvailable()) {
+          uploadResult = await adapter.upload(file, category || 'general', safeFileName);
+          this.logger.log(`File uploaded using ${adapter.constructor.name}`);
+          break;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to upload using ${adapter.constructor.name}: ${error.message}`);
+        continue;
+      }
+    }
+
+    if (!uploadResult) {
+      throw new Error('Не удалось загрузить файл ни в одно хранилище');
+    }
+
+    // Сохраняем информацию о файле в базу данных
+    const fileRecord = await this.prisma.file.create({
+      data: {
+        name: uploadResult.pathname,
+        url: uploadResult.url,
+        type: file.mimetype,
+        size: file.size,
+        mime: file.mimetype,
+      },
     });
 
-    try {
-      // Генерируем безопасное имя файла без кириллицы
-      const fileExtension = path.extname(file.originalname);
-      const timestamp = Date.now();
-      const randomString = Math.random().toString(36).substring(2);
-      const safeFileName = `${timestamp}-${randomString}${fileExtension}`;
-      
-      // Используем Vercel Blob для загрузки файла
-      const blob = await put(`${category}/${safeFileName}`, file.buffer, {
-        access: 'public',
-        addRandomSuffix: true,
-      });
-
-      console.log('File uploaded to Vercel Blob:', blob);
-
-      // Сохраняем информацию о файле в базу данных
-      const fileRecord = await this.prisma.file.create({
-        data: {
-          name: blob.pathname,
-          url: blob.url,
-          type: file.mimetype,
-          size: file.size,
-          mime: file.mimetype,
-        },
-      });
-
-      return {
-        id: fileRecord.id,
-        name: fileRecord.name,
-        originalName: file.originalname,
-        url: fileRecord.url,
-        type: fileRecord.type,
-        size: fileRecord.size,
-        category: category || 'general',
-        uploadedBy: user?.id || null,
-        createdAt: fileRecord.createdAt,
-        updatedAt: fileRecord.updatedAt,
-        deletedAt: fileRecord.deletedAt,
-      } as FileEntity;
-    } catch (error) {
-      // Fallback к локальному хранению если Vercel Blob недоступен
-      console.log('Vercel Blob unavailable, using local storage:', error.message);
-
-      // Создаем папку uploads если её нет
-      const uploadsDir = path.join(process.cwd(), 'uploads', category || 'general');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      // Генерируем уникальное имя файла
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const fileExtension = path.extname(file.originalname);
-      const fileName = uniqueSuffix + fileExtension;
-      const filePath = path.join(uploadsDir, fileName);
-
-      // Сохраняем файл с правильной кодировкой
-      fs.writeFileSync(filePath, file.buffer);
-
-      // Проверяем размер сохраненного файла
-      const stats = fs.statSync(filePath);
-      console.log('File saved locally:', {
-        fileName,
-        originalSize: file.size,
-        savedSize: stats.size,
-        filePath
-      });
-
-      // Сохраняем информацию о файле в базу данных
-      const fileRecord = await this.prisma.file.create({
-        data: {
-          name: fileName,
-          url: `/uploads/${category || 'general'}/${fileName}`,
-          type: file.mimetype,
-          size: file.size,
-          mime: file.mimetype,
-        },
-      });
-
-      return {
-        id: fileRecord.id,
-        name: fileRecord.name,
-        originalName: file.originalname,
-        url: fileRecord.url,
-        type: fileRecord.type,
-        size: fileRecord.size,
-        category: category || 'general',
-        uploadedBy: user?.id || null,
-        createdAt: fileRecord.createdAt,
-        updatedAt: fileRecord.updatedAt,
-        deletedAt: fileRecord.deletedAt,
-      } as FileEntity;
-    }
+    return {
+      id: fileRecord.id,
+      name: fileRecord.name,
+      originalName: file.originalname,
+      url: fileRecord.url,
+      type: fileRecord.type,
+      size: fileRecord.size,
+      category: category || 'general',
+      uploadedBy: user?.id || null,
+      createdAt: fileRecord.createdAt,
+      updatedAt: fileRecord.updatedAt,
+      deletedAt: fileRecord.deletedAt,
+    } as FileEntity;
   }
 
   async uploadFiles(files: Express.Multer.File[], category: string, user?: any): Promise<FileEntity[]> {
@@ -181,22 +171,17 @@ export class FilesService {
       data: { deletedAt: new Date() },
     });
 
-    // Удаляем файл из Vercel Blob или локального хранилища
-    try {
-      if (file.url.startsWith('https://')) {
-        // Файл в Vercel Blob
-        await del(file.url);
-        console.log('File deleted from Vercel Blob:', file.url);
-      } else {
-        // Локальный файл
-        const filePath = path.join(process.cwd(), file.url);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log('Local file deleted:', filePath);
-        }
+    // Удаляем файл из хранилища
+    // Пытаемся удалить используя все адаптеры (один из них должен сработать)
+    for (const adapter of this.storageAdapters) {
+      try {
+        await adapter.delete(file.url);
+        this.logger.log(`File deleted using ${adapter.constructor.name}: ${file.url}`);
+        break;
+      } catch (error) {
+        this.logger.warn(`Failed to delete using ${adapter.constructor.name}: ${error.message}`);
+        continue;
       }
-    } catch (error) {
-      console.error('Ошибка при удалении файла:', error);
     }
 
     return { message: 'Файл успешно удален' };

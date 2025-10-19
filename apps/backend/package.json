@@ -35,6 +35,7 @@
     "docs:generate": "npm run swagger:export && echo '📚 Документация обновлена в папке docs/'"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.913.0",
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",

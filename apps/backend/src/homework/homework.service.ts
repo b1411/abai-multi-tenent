@@ -636,9 +636,13 @@ export class HomeworkService {
 
     await this.prisma.lessonResult.upsert({
       where: {
-        homeworkId: submission.id
+        studentId_lessonId: {
+          studentId: submission.studentId,
+          lessonId: submission.homework.lesson.id
+        }
       },
       update: {
+        homeworkId: submission.id,
         homeworkScore: gradeDto.score,
         homeworkScoreComment: gradeDto.comment,
         updatedAt: new Date()

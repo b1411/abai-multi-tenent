@@ -59,6 +59,15 @@ module.exports = {
       env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.demo-abai' },
       exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
     },
+    {
+      name: 'backend-arna',
+      cwd: ROOT,
+      script: 'apps/backend/dist/src/main.js',
+      interpreter: 'node',
+      node_args: '-r dotenv/config',
+      env: { NODE_ENV: 'production', DOTENV_CONFIG_PATH: '/root/app/.env.arna' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 3000, max_memory_restart: '512M'
+    },
 
     // ==================== FRONTENDS (build → preview) ====================
     {
@@ -90,6 +99,14 @@ module.exports = {
       cwd: ROOT,
       script: 'bash',
       args: ['-lc', feCmd('apps/frontend/dist-demo', 8224, '/root/app/.env.demo-abai')],
+      env: { NODE_ENV: 'production' },
+      exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 2000, max_memory_restart: '512M'
+    },
+    {
+      name: 'frontend-arna',
+      cwd: ROOT,
+      script: 'bash',
+      args: ['-lc', feCmd('apps/frontend/dist-arna', 8225, '/root/app/.env.arna')],
       env: { NODE_ENV: 'production' },
       exec_mode: 'fork', instances: 1, autorestart: true, restart_delay: 2000, max_memory_restart: '512M'
     },
